@@ -1,14 +1,20 @@
-use masking::Secret;
+use std::collections::HashMap;
+
+use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils,
     core::errors,
+    services,
     types::{self, api, storage::enums},
 };
 
 pub struct ProphetpayRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: f64,
     pub router_data: T,
 }
 
@@ -22,13 +28,14 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
+        (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
         ),
     ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -36,108 +43,322 @@ impl<T>
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ProphetpayPaymentsRequest {
-    amount: i64,
-    card: ProphetpayCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ProphetpayCard {
-    name: Secret<String>,
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
-    for ProphetpayPaymentsRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = ProphetpayCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
 pub struct ProphetpayAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) user_name: Secret<String>,
+    pub(super) password: Secret<String>,
+    pub(super) profile_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ProphetpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                user_name: api_key.to_owned(),
+                password: key1.to_owned(),
+                profile_id: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum ProphetpayPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ProphetpayTokenRequest {
+    ref_info: String,
+    profile: Secret<String>,
+    entry_method: i8,
+    token_type: i8,
+    card_entry_context: i8,
 }
 
-impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
-    fn from(item: ProphetpayPaymentStatus) -> Self {
-        match item {
-            ProphetpayPaymentStatus::Succeeded => Self::Charged,
-            ProphetpayPaymentStatus::Failed => Self::Failure,
-            ProphetpayPaymentStatus::Processing => Self::Authorizing,
+#[derive(Debug, Clone)]
+pub enum ProphetpayEntryMethod {
+    ManualEntry,
+    CardSwipe,
+}
+
+fn get_entry_method(method: ProphetpayEntryMethod) -> i8 {
+    match method {
+        ProphetpayEntryMethod::ManualEntry => 1,
+        ProphetpayEntryMethod::CardSwipe => 2,
+    }
+}
+
+#[derive(Debug, Clone)]
+#[repr(i8)]
+pub enum ProphetpayTokenType {
+    Normal,
+    SaleTab,
+    TemporarySave,
+}
+
+fn get_token_type(token_type: ProphetpayTokenType) -> i8 {
+    match token_type {
+        ProphetpayTokenType::Normal => 0,
+        ProphetpayTokenType::SaleTab => 1,
+        ProphetpayTokenType::TemporarySave => 2,
+    }
+}
+
+#[derive(Debug, Clone)]
+#[repr(i8)]
+pub enum ProphetpayCardContext {
+    NotApplicable,
+    WebConsumerInitiated,
+}
+
+fn get_card_context(context: ProphetpayCardContext) -> i8 {
+    match context {
+        ProphetpayCardContext::NotApplicable => 0,
+        ProphetpayCardContext::WebConsumerInitiated => 5,
+    }
+}
+
+impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
+    for ProphetpayTokenRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            api::PaymentMethodData::CardRedirect(api_models::payments::CardRedirectData::CardRedirect {}) => {
+                    let auth_data =
+                        ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+                    Ok(Self {
+                        ref_info: item.router_data.connector_request_reference_id.to_owned(),
+                        profile: auth_data.profile_id,
+                        entry_method: get_entry_method(ProphetpayEntryMethod::ManualEntry),
+                        token_type: get_token_type(ProphetpayTokenType::SaleTab),
+                        card_entry_context: get_card_context(
+                            ProphetpayCardContext::WebConsumerInitiated,
+                        ),
+                    })
+            },
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ProphetpayPaymentsResponse {
-    status: ProphetpayPaymentStatus,
-    id: String,
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProphetpayTokenResponse {
+    hosted_tokenize_id: String,
 }
 
-impl<F, T>
+impl<F>
     TryFrom<
-        types::ResponseRouterData<F, ProphetpayPaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            F,
+            ProphetpayTokenResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            ProphetpayPaymentsResponse,
-            T,
+            ProphetpayTokenResponse,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let url_data = format!(
+            "https://ccm-thirdparty.cps.golf/hp/tokenize/{}",
+            item.response.hosted_tokenize_id
+        );
+
+        let redirect_url = Url::parse(url_data.as_str())
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let redirection_data = get_redirect_url_form(
+            redirect_url,
+            item.data.request.complete_authorize_url.clone(),
+        )
+        .ok();
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::NoResponseId,
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+fn get_redirect_url_form(
+    mut redirect_url: Url,
+    complete_auth_url: Option<String>,
+) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
+    let mut form_fields = std::collections::HashMap::from_iter(
+        redirect_url
+            .query_pairs()
+            .map(|(key, value)| (key.to_string(), value.to_string())),
+    );
+
+    form_fields.insert(
+        String::from("redirectUrl"),
+        complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: "complete_auth_url",
+        })?,
+    );
+
+    // Do not include query params in the endpoint
+    redirect_url.set_query(None);
+
+    Ok(services::RedirectForm::Form {
+        endpoint: redirect_url.to_string(),
+        method: services::Method::Get,
+        form_fields,
+    })
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProphetpayCompleteRequest {
+    amount: f64,
+    ref_info: String,
+    profile: Secret<String>,
+    action_type: i8,
+    card_token: String,
+}
+
+impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
+    for ProphetpayCompleteRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let card_token = get_card_token(item.router_data.request.redirect_response.clone())?;
+        Ok(Self {
+            amount: item.amount.to_owned(),
+            ref_info: item.router_data.connector_request_reference_id.to_owned(),
+            profile: auth_data.profile_id,
+            action_type: get_action_type(ProphetpayActionType::Charge),
+            card_token,
+        })
+    }
+}
+
+fn get_card_token(
+    response: Option<types::CompleteAuthorizeRedirectResponse>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let res = response.ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "redirect_response",
+    })?;
+    let queries_params = res
+        .params
+        .map(|param| {
+            let mut queries = HashMap::<String, String>::new();
+            let values = param.peek().split('&').collect::<Vec<&str>>();
+            for value in values {
+                let pair = value.split('=').collect::<Vec<&str>>();
+                queries.insert(pair[0].to_string(), pair[1].to_string());
+            }
+            queries
+        })
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    for (key, val) in queries_params {
+        if key.as_str() == "cctoken" {
+            return Ok(val);
+        }
+    }
+
+    Err(errors::ConnectorError::MissingRequiredField {
+        field_name: "card_token",
+    })
+    .into_report()
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProphetpaySyncRequest {
+    ref_info: String,
+    profile: Secret<String>,
+    action_type: i8,
+}
+
+#[derive(Debug, Clone)]
+pub enum ProphetpayActionType {
+    Charge,
+    Refund,
+    Inquiry,
+}
+
+fn get_action_type(action: ProphetpayActionType) -> i8 {
+    match action {
+        ProphetpayActionType::Charge => 1,
+        ProphetpayActionType::Refund => 3,
+        ProphetpayActionType::Inquiry => 7,
+    }
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let auth_data = ProphetpayAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            ref_info: item.attempt_id.to_owned(),
+            profile: auth_data.profile_id,
+            action_type: get_action_type(ProphetpayActionType::Inquiry),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub enum ProphetpayPaymentStatus {
+    Success,
+    Failure,
+}
+
+impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
+    fn from(item: ProphetpayPaymentStatus) -> Self {
+        match item {
+            ProphetpayPaymentStatus::Success => Self::Charged,
+            ProphetpayPaymentStatus::Failure => Self::Failure,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProphetpayResponse {
+    pub response_text: ProphetpayPaymentStatus,
+    #[serde(rename = "transactionID")]
+    pub transaction_id: String,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, ProphetpayResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, ProphetpayResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.response_text),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id,
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -150,8 +371,35 @@ impl<F, T>
 }
 
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProphetpayVoidRequest {
+    pub transaction_id: String,
+    pub profile: Secret<String>,
+    pub ref_info: String,
+    pub action_type: i8,
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let auth_data = ProphetpayAuthType::try_from(&item.connector_auth_type)?;
+        let transaction_id = item.request.connector_transaction_id.to_owned();
+        Ok(Self {
+            transaction_id,
+            ref_info: item.attempt_id.to_owned(),
+            profile: auth_data.profile_id,
+            action_type: get_action_type(ProphetpayActionType::Inquiry),
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundRequest {
-    pub amount: i64,
+    pub amount: f64,
+    pub profile: Secret<String>,
+    pub ref_info: String,
+    pub action_type: i8,
 }
 
 impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for ProphetpayRefundRequest {
@@ -159,65 +407,89 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
     fn try_from(
         item: &ProphetpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
+        let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             amount: item.amount.to_owned(),
+            profile: auth_data.profile_id,
+            ref_info: item.router_data.attempt_id.to_owned(),
+            action_type: get_action_type(ProphetpayActionType::Refund),
         })
     }
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+    Success,
+    Failure,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            RefundStatus::Success => Self::Success,
+            RefundStatus::Failure => Self::Failure,
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct ProphetpayRefundResponse {
+    pub response_text: RefundStatus,
+    #[serde(rename = "transactionID")]
+    pub transaction_id: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.transaction_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.response_text),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProphetpayRefundSyncRequest {
+    ref_info: String,
+    profile: Secret<String>,
+    action_type: i8,
+}
+
+impl TryFrom<&types::RefundSyncRouterData> for ProphetpayRefundSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let auth_data = ProphetpayAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            ref_info: item.attempt_id.to_owned(),
+            profile: auth_data.profile_id,
+            action_type: get_action_type(ProphetpayActionType::Inquiry),
+        })
+    }
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, ProphetpayRefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, ProphetpayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.transaction_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.response_text),
             }),
             ..item.data
         })
@@ -225,9 +497,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ProphetpayErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub status: u16,
+    pub title: String,
+    pub trace_id: String,
+    pub errors: serde_json::Value,
 }

@@ -352,7 +352,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
-            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
+            | api_enums::PaymentMethodType::MomoAtm
+            | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
         }
     }
 }

@@ -1457,6 +1457,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Prophetpay => {
+            prophetpay::transformers::ProphetpayAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Rapyd => {
             rapyd::transformers::RapydAuthType::try_from(val)?;
             Ok(())

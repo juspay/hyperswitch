@@ -686,6 +686,7 @@ pub enum CardRedirectData {
     Knet {},
     Benefit {},
     MomoAtm {},
+    CardRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -820,6 +821,7 @@ impl GetPaymentMethodType for CardRedirectData {
             Self::Knet {} => api_enums::PaymentMethodType::Knet,
             Self::Benefit {} => api_enums::PaymentMethodType::Benefit,
             Self::MomoAtm {} => api_enums::PaymentMethodType::MomoAtm,
+            Self::CardRedirect {} => api_enums::PaymentMethodType::CardRedirect,
         }
     }
 }

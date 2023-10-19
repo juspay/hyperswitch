@@ -614,6 +614,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
             enums::PaymentMethodType::Boleto
+            | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
             | enums::PaymentMethodType::GooglePay
             | enums::PaymentMethodType::Multibanco
@@ -1391,11 +1392,14 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
             payments::CardRedirectData::Knet {}
             | payments::CardRedirectData::Benefit {}
-            | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
+            | payments::CardRedirectData::MomoAtm {}
+            | payments::CardRedirectData::CardRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "stripe",
+                }
+                .into())
             }
-            .into()),
         },
         payments::PaymentMethodData::Reward => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
