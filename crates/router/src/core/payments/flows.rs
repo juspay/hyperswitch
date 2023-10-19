@@ -167,6 +167,7 @@ default_imp_for_complete_authorize!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
+    connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
     connector::Stax,

@@ -2,7 +2,7 @@ use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use super::Event;
+use super::{EventType, RawEvent};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ApiEvent {
@@ -30,12 +30,14 @@ impl ApiEvent {
     }
 }
 
-impl Event for ApiEvent {
-    fn event_type() -> super::EventType {
-        super::EventType::ApiLogs
-    }
+impl TryFrom<ApiEvent> for RawEvent {
+    type Error = serde_json::Error;
 
-    fn key(&self) -> String {
-        self.request_id.to_string()
+    fn try_from(value: ApiEvent) -> Result<Self, Self::Error> {
+        Ok(Self {
+            event_type: EventType::ApiLogs,
+            key: value.request_id.clone(),
+            payload: serde_json::to_value(value)?,
+        })
     }
 }

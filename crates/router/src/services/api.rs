@@ -25,6 +25,7 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
+use super::authentication::{AuthInfo, AuthenticateAndFetch};
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
@@ -33,14 +34,13 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    events::{api_logs::ApiEvent, EventHandler},
+    events::api_logs::ApiEvent,
     logger,
     routes::{
         app::AppStateInfo,
         metrics::{self, request as metrics_request},
         AppState,
     },
-    services::authentication as auth,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -751,7 +751,7 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, A>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
@@ -761,7 +761,7 @@ where
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo + Clone,
-    U: auth::AuthInfo,
+    U: AuthInfo,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
@@ -816,12 +816,15 @@ where
         Ok(res) => metrics::request::track_response_status_code(res),
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
-    state.event_handler().log_event(ApiEvent::new(
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-    ));
+    let api_event = ApiEvent::new(flow, &request_id, request_duration, status_code);
+    match api_event.clone().try_into() {
+        Ok(event) => {
+            state.event_handler().log_event(event);
+        }
+        Err(err) => {
+            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
+        }
+    }
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
@@ -838,7 +841,7 @@ pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, A>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
@@ -846,7 +849,7 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    U: auth::AuthInfo,
+    U: AuthInfo,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
