@@ -9973,7 +9973,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -10946,6 +10946,88 @@
           }
         }
       },
+      "RoutableConnectors": {
+        "type": "string",
+        "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
+          "aci",
+          "adyen",
+          "airwallex",
+          "authorizedotnet",
+          "bitpay",
+          "bambora",
+          "bluesnap",
+          "boku",
+          "braintree",
+          "cashtocode",
+          "checkout",
+          "coinbase",
+          "cryptopay",
+          "cybersource",
+          "dlocal",
+          "fiserv",
+          "forte",
+          "globalpay",
+          "globepay",
+          "gocardless",
+          "helcim",
+          "iatapay",
+          "klarna",
+          "mollie",
+          "multisafepay",
+          "nexinets",
+          "nmi",
+          "noon",
+          "nuvei",
+          "opennode",
+          "payme",
+          "paypal",
+          "payu",
+          "powertranz",
+          "rapyd",
+          "shift4",
+          "square",
+          "stax",
+          "stripe",
+          "trustpay",
+          "tsys",
+          "wise",
+          "worldline",
+          "worldpay",
+          "zen"
+        ]
+      },
+      "RoutingAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectors"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "SamsungPayWalletData": {
         "type": "object",
         "required": [
@@ -11216,7 +11298,7 @@
                 ]
               },
               "data": {
-                "$ref": "#/components/schemas/api_enums.RoutableConnectors"
+                "$ref": "#/components/schemas/RoutableConnectors"
               }
             }
           }

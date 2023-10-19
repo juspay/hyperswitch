@@ -443,9 +443,10 @@ pub mod payout_routing_algorithm {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithm {
+    #[schema(value_type = RoutableConnectors)]
     Single(api_enums::RoutableConnectors),
 }
 
@@ -458,6 +459,7 @@ pub enum RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
+    #[schema(value_type = RoutableConnectors)]
     Single(api_enums::RoutableConnectors),
 }
 
