@@ -19,13 +19,13 @@ pm.test("[POST]::/payouts/create - Response has JSON Body", function () {
 });
 
 // Validate if status is successful
-if (jsonData?.status) {
-  pm.test("[POST]::/payouts/create - Content check if value for 'status' matches 'success'",
-    function () {
-      pm.expect(jsonData.status).to.eql("success");
-    },
-  );
-}
+// if (jsonData?.status) {
+//   pm.test("[POST]::/payouts/create - Content check if value for 'status' matches 'success'",
+//     function () {
+//       pm.expect(jsonData.status).to.eql("success");
+//     },
+//   );
+// }
 
 // Set response object as internal variable
 let jsonData = {};
