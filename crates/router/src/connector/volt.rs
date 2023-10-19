@@ -154,7 +154,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        "application/x-www-form-urlencoded"
     }
     fn get_headers(
         &self,
@@ -207,7 +207,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         let response: volt::VoltAuthUpdateResponse = res
             .response
-            .parse_struct("voly VoltAuthUpdateResponse")
+            .parse_struct("Volt VoltAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         types::RouterData::try_from(types::ResponseRouterData {
