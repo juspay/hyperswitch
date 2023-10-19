@@ -1,5 +1,5 @@
 #[cfg(feature = "olap")]
-use async_bb8_diesel::AsyncRunQueryDsl;
+use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
 use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
@@ -34,6 +34,8 @@ use redis_interface::HsetnxReply;
 use router_env::logger;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "olap")]
+use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     redis::kv_store::{kv_wrapper, KvOperation},
@@ -387,7 +389,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        let conn = self.get_replica_pool();
+        use common_utils::errors::ReportSwitchExt;
+
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -509,8 +514,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        let conn = self.get_replica_pool();
+        use common_utils::errors::ReportSwitchExt;
 
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .inner_join(
                 diesel_models::schema::payment_attempt::table
@@ -646,8 +653,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        let conn = self.get_replica_pool();
+        use common_utils::errors::ReportSwitchExt;
 
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
