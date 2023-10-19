@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+use futures::future::try_join_all;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -51,6 +52,12 @@ where
         merchant_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError>;
+
+    async fn list_customers_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Customer>, errors::StorageError>;
 
     async fn insert_customer(
         &self,
@@ -148,6 +155,31 @@ impl CustomerInterface for Store {
         }
     }
 
+    async fn list_customers_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        let encrypted_customers = storage::Customer::list_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()?;
+
+        let customers = try_join_all(encrypted_customers.into_iter().map(
+            |encrypted_customer| async {
+                encrypted_customer
+                    .convert(key_store.key.get_inner())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            },
+        ))
+        .await?;
+
+        Ok(customers)
+    }
+
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
@@ -207,6 +239,30 @@ impl CustomerInterface for MockDb {
             })
             .await
             .transpose()
+    }
+
+    async fn list_customers_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
+        let customers = self.customers.lock().await;
+
+        let customers = try_join_all(
+            customers
+                .iter()
+                .filter(|customer| customer.merchant_id == merchant_id)
+                .map(|customer| async {
+                    customer
+                        .to_owned()
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+
+        Ok(customers)
     }
 
     #[instrument(skip_all)]

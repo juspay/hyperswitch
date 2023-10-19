@@ -112,6 +112,10 @@ impl ConnectorCommon for Worldline {
         "worldline"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.worldline.base_url.as_ref()
     }
@@ -486,7 +490,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = worldline::PaymentsRequest::try_from(req)?;
+        let connector_router_data = worldline::WorldlineRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = worldline::PaymentsRequest::try_from(&connector_router_data)?;
         let worldline_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json,

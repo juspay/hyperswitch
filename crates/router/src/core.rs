@@ -10,6 +10,7 @@ pub mod errors;
 pub mod files;
 pub mod mandate;
 pub mod metrics;
+pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
