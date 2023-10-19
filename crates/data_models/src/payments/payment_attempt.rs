@@ -143,6 +143,8 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -203,6 +205,8 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -280,6 +284,8 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,

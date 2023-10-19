@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
-    connector_response::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
@@ -43,7 +42,6 @@ pub enum Insertable {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
     Refund(RefundNew),
-    ConnectorResponse(ConnectorResponseNew),
     Address(Box<AddressNew>),
     ReverseLookUp(ReverseLookupNew),
 }
@@ -54,14 +52,7 @@ pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
     RefundUpdate(RefundUpdateMems),
-    ConnectorResponseUpdate(ConnectorResponseUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ConnectorResponseUpdateMems {
-    pub orig: ConnectorResponse,
-    pub update_data: ConnectorResponseUpdate,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

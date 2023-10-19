@@ -59,6 +59,8 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -119,6 +121,8 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -196,6 +200,8 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -280,6 +286,8 @@ pub struct PaymentAttemptUpdateInternal {
     amount_capturable: Option<i64>,
     surcharge_metadata: Option<serde_json::Value>,
     updated_by: String,
+    authentication_data: Option<serde_json::Value>,
+    encoded_data: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -438,6 +446,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
             } => Self {
                 status: Some(status),
                 connector,
@@ -454,6 +464,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

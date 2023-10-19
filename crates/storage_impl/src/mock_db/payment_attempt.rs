@@ -142,6 +142,8 @@ impl PaymentAttemptInterface for MockDb {
             amount_capturable: payment_attempt.amount_capturable,
             surcharge_metadata: payment_attempt.surcharge_metadata,
             updated_by: storage_scheme.to_string(),
+            authentication_data: payment_attempt.authentication_data,
+            encoded_data: payment_attempt.encoded_data,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
