@@ -42,6 +42,7 @@ mod payme;
 mod paypal;
 mod payu;
 mod powertranz;
+mod prophetpay;
 mod rapyd;
 mod shift4;
 mod square;

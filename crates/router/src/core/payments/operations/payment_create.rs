@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use data_models::mandates::MandateData;
+use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
@@ -69,6 +69,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let payment_link_data = if let Some(payment_link_object) = &request.payment_link_object {
+            create_payment_link(
+                request,
+                payment_link_object.clone(),
+                merchant_id.clone(),
+                payment_id.clone(),
+                db,
+                state,
+                amount,
+            )
+            .await?
+        } else {
+            None
+        };
 
         helpers::validate_business_details(
             request.business_country,
@@ -147,6 +162,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             money,
             request,
             shipping_address.clone().map(|x| x.address_id),
+            payment_link_data.clone(),
             billing_address.clone().map(|x| x.address_id),
             attempt_id,
             state,
@@ -239,7 +255,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request.confirm,
             self,
         );
-
         let creds_identifier = request
             .merchant_connector_details
             .as_ref()
@@ -294,7 +309,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data,
             },
             Some(customer_details),
         ))
@@ -347,7 +364,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a AppState,
-        _payment_attempt: &storage::PaymentAttempt,
+        _payment_attempt: &PaymentAttempt,
         _requeue: bool,
         _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -423,6 +440,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         true => Some(authorized_amount),
                         false => None,
                     },
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -430,6 +448,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -439,6 +458,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -446,7 +466,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
-
         Ok((
             payments::is_confirm(self, payment_data.confirm),
             payment_data,
@@ -467,6 +486,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
+
+        if let Some(payment_link_object) = &request.payment_link_object {
+            helpers::validate_payment_link_request(
+                payment_link_object,
+                request.confirm,
+                request.order_details.clone(),
+            )?;
+        }
 
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
@@ -614,6 +641,7 @@ impl PaymentCreate {
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
+        payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
         state: &AppState,
@@ -656,6 +684,8 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
 
+        let payment_link_id = payment_link_data.map(|pl_data| pl_data.payment_link_id);
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -677,7 +707,7 @@ impl PaymentCreate {
             metadata: request.metadata.clone(),
             business_country: request.business_country,
             business_label: request.business_label.clone(),
-            active_attempt_id,
+            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
             order_details,
             amount_captured: None,
             customer_id: None,
@@ -688,13 +718,15 @@ impl PaymentCreate {
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,
+            payment_link_id,
             payment_confirm_source: None,
+            updated_by: merchant_account.storage_scheme.to_string(),
         })
     }
 
     #[instrument(skip_all)]
     pub fn make_connector_response(
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> storage::ConnectorResponseNew {
         storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
@@ -706,6 +738,7 @@ impl PaymentCreate {
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
+            updated_by: payment_attempt.updated_by.clone(),
         }
     }
 
@@ -742,4 +775,51 @@ pub fn payments_create_request_validation(
     let currency = req.currency.get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
+}
+
+async fn create_payment_link(
+    request: &api::PaymentsRequest,
+    payment_link_object: api_models::payments::PaymentLinkObject,
+    merchant_id: String,
+    payment_id: String,
+    db: &dyn StorageInterface,
+    state: &AppState,
+    amount: api::Amount,
+) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
+    let created_at @ last_modified_at = Some(common_utils::date_time::now());
+    let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
+        format!("https://{domain_name}")
+    } else {
+        state.conf.server.base_url.clone()
+    };
+
+    let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
+    let payment_link = format!(
+        "{}/payment_link/{}/{}",
+        domain,
+        merchant_id.clone(),
+        payment_id.clone()
+    );
+    let payment_link_req = storage::PaymentLinkNew {
+        payment_link_id: payment_link_id.clone(),
+        payment_id: payment_id.clone(),
+        merchant_id: merchant_id.clone(),
+        link_to_pay: payment_link.clone(),
+        amount: amount.into(),
+        currency: request.currency,
+        created_at,
+        last_modified_at,
+        fulfilment_time: payment_link_object.link_expiry,
+    };
+    let payment_link_db = db
+        .insert_payment_link(payment_link_req)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: "payment link already exists!".to_string(),
+        })?;
+
+    Ok(Some(api_models::payments::PaymentLinkResponse {
+        link: payment_link_db.link_to_pay,
+        payment_link_id: payment_link_db.payment_link_id,
+    }))
 }

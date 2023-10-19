@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BankDirectDebitBillingData, BrowserInformationData,
-        ConnectorCustomerData, PaymentsAuthorizeRequestData, RouterData, SetupMandateRequestData,
+        ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        RouterData,
     },
     core::errors,
     types::{

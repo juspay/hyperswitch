@@ -109,6 +109,10 @@ impl ConnectorCommon for Dlocal {
         "dlocal"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -207,7 +211,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dlocal::DlocalPaymentsRequest::try_from(req)?;
+        let connector_router_data = dlocal::DlocalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         let dlocal_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<dlocal::DlocalPaymentsRequest>::encode_to_string_of_json,
@@ -508,10 +518,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dlocal::RefundRequest::try_from(req)?;
+        let connector_router_data = dlocal::DlocalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_request = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         let dlocal_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<dlocal::RefundRequest>::encode_to_string_of_json,
+            utils::Encode::<dlocal::DlocalRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dlocal_refund_request))

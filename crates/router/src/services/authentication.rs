@@ -378,6 +378,12 @@ impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
     }
 }
 
+impl ClientSecretFetch for api_models::payments::RetrievePaymentLinkRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
