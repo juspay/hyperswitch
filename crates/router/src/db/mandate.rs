@@ -15,6 +15,12 @@ pub trait MandateInterface {
         mandate_id: &str,
     ) -> CustomResult<storage::Mandate, errors::StorageError>;
 
+    async fn find_mandate_by_merchant_id_connector_mandate_id(
+        &self,
+        merchant_id: &str,
+        connector_mandate_id: &str,
+    ) -> CustomResult<storage::Mandate, errors::StorageError>;
+
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
@@ -52,6 +58,22 @@ impl MandateInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()
+    }
+
+    async fn find_mandate_by_merchant_id_connector_mandate_id(
+        &self,
+        merchant_id: &str,
+        connector_mandate_id: &str,
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Mandate::find_by_merchant_id_connector_mandate_id(
+            &conn,
+            merchant_id,
+            connector_mandate_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -116,6 +138,24 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
+            .cloned()
+            .ok_or_else(|| errors::StorageError::ValueNotFound("mandate not found".to_string()))
+            .map_err(|err| err.into())
+    }
+
+    async fn find_mandate_by_merchant_id_connector_mandate_id(
+        &self,
+        merchant_id: &str,
+        connector_mandate_id: &str,
+    ) -> CustomResult<storage::Mandate, errors::StorageError> {
+        self.mandates
+            .lock()
+            .await
+            .iter()
+            .find(|mandate| {
+                mandate.merchant_id == merchant_id
+                    && mandate.connector_mandate_id == Some(connector_mandate_id.to_string())
+            })
             .cloned()
             .ok_or_else(|| errors::StorageError::ValueNotFound("mandate not found".to_string()))
             .map_err(|err| err.into())
@@ -229,6 +269,7 @@ impl MandateInterface for MockDb {
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
             merchant_id: mandate_new.merchant_id,
+            original_payment_id: mandate_new.original_payment_id,
             payment_method_id: mandate_new.payment_method_id,
             mandate_status: mandate_new.mandate_status,
             mandate_type: mandate_new.mandate_type,

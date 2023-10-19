@@ -27,6 +27,7 @@ pub struct NexinetsPaymentsRequest {
     payment: Option<NexinetsPaymentDetails>,
     #[serde(rename = "async")]
     nexinets_async: NexinetsAsyncDetails,
+    merchant_order_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -172,6 +173,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             failure_url: return_url,
         };
         let (payment, product) = get_payment_details_and_product(item)?;
+        let merchant_order_id = match item.payment_method {
+            // Merchant order id is sent only in case of card payment
+            enums::PaymentMethod::Card => Some(item.connector_request_reference_id.clone()),
+            _ => None,
+        };
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -179,6 +185,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             product,
             payment,
             nexinets_async,
+            merchant_order_id,
         })
     }
 }
@@ -364,7 +371,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_id),
             }),
             ..item.data
         })
@@ -425,7 +432,7 @@ impl<F, T>
         let transaction_id = Some(item.response.transaction_id.clone());
         let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id,
-            order_id: Some(item.response.order.order_id),
+            order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
         .into_report()
@@ -447,7 +454,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order.order_id),
             }),
             ..item.data
         })

@@ -52,6 +52,7 @@ pub struct CybersourcePaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
+    client_reference_information: ClientReferenceInformation,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -240,10 +241,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                     capture_options: None,
                 };
 
+                let client_reference_information = ClientReferenceInformation {
+                    code: Some(item.connector_request_reference_id.clone()),
+                };
+
                 Ok(Self {
                     processing_information,
                     payment_information,
                     order_information,
+                    client_reference_information,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -269,6 +275,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
                 },
                 ..Default::default()
             },
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.connector_request_reference_id.clone()),
+            },
             ..Default::default()
         })
     }
@@ -284,6 +293,9 @@ impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
                     currency: value.request.currency.to_string(),
                 },
                 ..Default::default()
+            },
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.connector_request_reference_id.clone()),
             },
             ..Default::default()
         })
@@ -365,6 +377,13 @@ pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
     error_information: Option<CybersourceErrorInformation>,
+    client_reference_information: Option<ClientReferenceInformation>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientReferenceInformation {
+    code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -403,12 +422,18 @@ impl<F, T>
                     status_code: item.http_code,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(item.response.id)),
                 }),
             },
             ..item.data
@@ -421,6 +446,7 @@ impl<F, T>
 pub struct CybersourceTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
+    client_reference_information: Option<ClientReferenceInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -468,12 +494,16 @@ impl<F, T>
                 item.response.application_information.status.into(),
             ),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .client_reference_information
+                    .map(|cref| cref.code)
+                    .unwrap_or(Some(item.response.id)),
             }),
             ..item.data
         })

@@ -4,7 +4,7 @@ mod utils;
 
 use router::{
     configs,
-    core::payments,
+    core::{payment_methods::Oss, payments},
     db::StorageImpl,
     routes, services,
     types::{
@@ -361,7 +361,7 @@ async fn payments_create_core() {
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
             state,
             merchant_account,
             key_store,
@@ -531,7 +531,7 @@ async fn payments_create_core_adyen_no_redirect() {
         vec![],
     ));
     let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
             state,
             merchant_account,
             key_store,

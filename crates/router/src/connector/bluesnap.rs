@@ -201,9 +201,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Bluesnap {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bluesnap
+impl api::MandateSetup for Bluesnap {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bluesnap
 {
 }
 
@@ -980,6 +984,7 @@ impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header =
             connector_utils::get_header_key_value("bls-signature", request.headers)?;
@@ -992,11 +997,10 @@ impl api::IncomingWebhook for Bluesnap {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp =
             connector_utils::get_header_key_value("bls-ipn-timestamp", request.headers)?;
-
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
@@ -1091,31 +1095,36 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         &self,
         _query_params: &str,
         json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "json_payload",
-            })?
-            .parse_value("BluesnapRedirectionResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        match action {
+            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::CompleteAuthorize => {
+                let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
+                    .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "json_payload",
+                    })?
+                    .parse_value("BluesnapRedirectionResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let redirection_result: bluesnap::BluesnapThreeDsResult = redirection_response
-            .authentication_response
-            .parse_struct("BluesnapThreeDsResult")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                let redirection_result: bluesnap::BluesnapThreeDsResult = redirection_response
+                    .authentication_response
+                    .parse_struct("BluesnapThreeDsResult")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        match redirection_result.status.as_str() {
-            "Success" => Ok(payments::CallConnectorAction::Trigger),
-            _ => Ok(payments::CallConnectorAction::StatusUpdate {
-                status: enums::AttemptStatus::AuthenticationFailed,
-                error_code: redirection_result.code,
-                error_message: redirection_result
-                    .info
-                    .as_ref()
-                    .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
-                    .cloned(),
-            }),
+                match redirection_result.status.as_str() {
+                    "Success" => Ok(payments::CallConnectorAction::Trigger),
+                    _ => Ok(payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::AuthenticationFailed,
+                        error_code: redirection_result.code,
+                        error_message: redirection_result
+                            .info
+                            .as_ref()
+                            .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
+                            .cloned(),
+                    }),
+                }
+            }
         }
     }
 }

@@ -27,6 +27,20 @@ impl Mandate {
         .await
     }
 
+    pub async fn find_by_merchant_id_connector_mandate_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        connector_mandate_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_mandate_id.eq(connector_mandate_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn find_by_merchant_id_customer_id(
         conn: &PgPooledConn,
         merchant_id: &str,

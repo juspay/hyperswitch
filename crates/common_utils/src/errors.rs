@@ -76,6 +76,14 @@ pub enum QrCodeError {
     FailedToCreateQrCode,
 }
 
+/// Api Models construction error
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
+pub enum ApiModelsError {
+    /// Percentage Value provided was invalid
+    #[error("Invalid Percentage value")]
+    InvalidPercentageValue,
+}
+
 /// Allows [error_stack::Report] to change between error contexts
 /// using the dependent [ErrorSwitch] trait to define relations & mappings between traits
 pub trait ReportSwitchExt<T, U> {

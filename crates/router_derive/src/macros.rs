@@ -3,6 +3,7 @@ pub(crate) mod diesel;
 pub(crate) mod generate_schema;
 pub(crate) mod misc;
 pub(crate) mod operation;
+pub(crate) mod try_get_enum;
 
 mod helpers;
 
