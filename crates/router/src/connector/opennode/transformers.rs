@@ -10,6 +10,37 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct OpennodeRouterData<T> {
+    pub amount: i64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for DlocalRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct OpennodePaymentsRequest {
@@ -21,10 +52,10 @@ pub struct OpennodePaymentsRequest {
     callback_url: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpennodePaymentsRequest {
+impl TryFrom<&OpennodeRouterData<&types::PaymentsAuthorizeRouterData>> for OpennodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        get_crypto_specific_payment_data(item)
+    fn try_from(item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        get_crypto_specific_payment_data(item.router_data)
     }
 }
 
@@ -145,11 +176,11 @@ pub struct OpennodeRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for OpennodeRefundRequest {
+impl<F> TryFrom<&OpennodeRouterData<&types::RefundsRouterData<F>>> for OpennodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &OpennodeRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.router_data.request.refund_amount,
         })
     }
 }
