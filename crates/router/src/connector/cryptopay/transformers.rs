@@ -50,29 +50,26 @@ pub struct CryptopayPaymentsRequest {
     custom_id: String,
 }
 
-impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
-    for CryptopayPaymentsRequest
-{
+impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>> for CryptopayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let cryptopay_request = match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Crypto(ref cryptodata) => {
-                let pay_currency = cryptodata.get_pay_currency()?;
-                Ok(Self {
-                    price_amount: item.amount.to_owned(),
-                    price_currency: item.router_data.request.currency,
-                    pay_currency,
-                    success_redirect_url: item.router_data.request.router_return_url.clone(),
-                    unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
-                    custom_id: item.router_data.connector_request_reference_id.clone(),
-                })
-            }
-        }?;
-        Ok(cryptopay_request)
+    
+    fn try_from(item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        if let api::PaymentMethodData::Crypto(ref cryptodata) = item.router_data.request.payment_method_data {
+            let pay_currency = cryptodata.get_pay_currency()?;
+            Ok(Self {
+                price_amount: item.amount.to_owned(),
+                price_currency: item.router_data.request.currency,
+                pay_currency,
+                success_redirect_url: item.router_data.request.router_return_url.clone(),
+                unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
+                custom_id: item.router_data.connector_request_reference_id.clone(),
+            })
+        } else {
+            Err(errors::ConnectorError::NotImplemented("payment method".to_string()))
+        }
     }
 }
+
 
 // Auth Struct
 pub struct CryptopayAuthType {
