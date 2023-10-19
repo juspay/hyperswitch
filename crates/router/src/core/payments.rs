@@ -830,10 +830,19 @@ where
             false,
         )
         .await?;
-        Ctx::update_payment_data_before_session_connector_call::<F>(
-            &mut payment_data,
-            session_connector_data,
-        )?;
+        payment_data.surcharge_details = payment_data
+            .session_surcharge_details
+            .as_ref()
+            .and_then(|surcharge_metadata| {
+                surcharge_metadata.surcharge_results.get(
+                    &SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+                        &session_connector_data.payment_method_type.into(),
+                        &session_connector_data.payment_method_type,
+                        None,
+                    ),
+                )
+            })
+            .cloned();
 
         let router_data = payment_data
             .construct_router_data(
