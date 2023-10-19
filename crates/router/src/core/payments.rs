@@ -830,7 +830,10 @@ where
             false,
         )
         .await?;
-        Ctx::update_payment_data_before_session_connector_call::<F>(&mut payment_data)?;
+        Ctx::update_payment_data_before_session_connector_call::<F>(
+            &mut payment_data,
+            session_connector_data,
+        )?;
 
         let router_data = payment_data
             .construct_router_data(

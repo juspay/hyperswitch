@@ -32,6 +32,7 @@ pub trait PaymentMethodRetrieve {
 
     fn update_payment_data_before_session_connector_call<F: Clone>(
         _payment_data: &mut PaymentData<F>,
+        _session_connector_data: &api::SessionConnectorData,
     ) -> RouterResult<()> {
         Ok(())
     }
