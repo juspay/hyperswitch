@@ -128,19 +128,21 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::CardRedirect(api_models::payments::CardRedirectData::CardRedirect {}) => {
-                    let auth_data =
-                        ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
-                    Ok(Self {
-                        ref_info: item.router_data.connector_request_reference_id.to_owned(),
-                        profile: auth_data.profile_id,
-                        entry_method: get_entry_method(ProphetpayEntryMethod::ManualEntry),
-                        token_type: get_token_type(ProphetpayTokenType::SaleTab),
-                        card_entry_context: get_card_context(
-                            ProphetpayCardContext::WebConsumerInitiated,
-                        ),
-                    })
-            },
+            api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::CardRedirect {},
+            ) => {
+                let auth_data =
+                    ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+                Ok(Self {
+                    ref_info: item.router_data.connector_request_reference_id.to_owned(),
+                    profile: auth_data.profile_id,
+                    entry_method: get_entry_method(ProphetpayEntryMethod::ManualEntry),
+                    token_type: get_token_type(ProphetpayTokenType::SaleTab),
+                    card_entry_context: get_card_context(
+                        ProphetpayCardContext::WebConsumerInitiated,
+                    ),
+                })
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
