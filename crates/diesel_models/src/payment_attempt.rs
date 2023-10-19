@@ -289,23 +289,47 @@ impl PaymentAttemptUpdate {
             amount: pa_update.amount.unwrap_or(source.amount),
             currency: pa_update.currency.or(source.currency),
             status: pa_update.status.unwrap_or(source.status),
-            connector: pa_update.connector.or(source.connector),
-            connector_transaction_id: source
+            connector_transaction_id: pa_update
                 .connector_transaction_id
-                .or(pa_update.connector_transaction_id),
+                .or(source.connector_transaction_id),
+            amount_to_capture: pa_update.amount_to_capture.or(source.amount_to_capture),
+            connector: pa_update.connector.or(source.connector),
             authentication_type: pa_update.authentication_type.or(source.authentication_type),
             payment_method: pa_update.payment_method.or(source.payment_method),
             error_message: pa_update.error_message.unwrap_or(source.error_message),
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
-            browser_info: pa_update.browser_info.or(source.browser_info),
+            cancellation_reason: pa_update.cancellation_reason.or(source.cancellation_reason),
             modified_at: common_utils::date_time::now(),
+            mandate_id: pa_update.mandate_id.or(source.mandate_id),
+            browser_info: pa_update.browser_info.or(source.browser_info),
             payment_token: pa_update.payment_token.or(source.payment_token),
+            error_code: pa_update.error_code.unwrap_or(source.error_code),
             connector_metadata: pa_update.connector_metadata.or(source.connector_metadata),
+            payment_method_data: pa_update.payment_method_data.or(source.payment_method_data),
+            payment_method_type: pa_update.payment_method_type.or(source.payment_method_type),
+            payment_experience: pa_update.payment_experience.or(source.payment_experience),
+            business_sub_label: pa_update.business_sub_label.or(source.business_sub_label),
+            straight_through_algorithm: pa_update
+                .straight_through_algorithm
+                .or(source.straight_through_algorithm),
             preprocessing_step_id: pa_update
                 .preprocessing_step_id
                 .or(source.preprocessing_step_id),
+            error_reason: pa_update.error_reason.unwrap_or(source.error_reason),
+            capture_method: pa_update.capture_method.or(source.capture_method),
+            connector_response_reference_id: pa_update
+                .connector_response_reference_id
+                .or(source.connector_response_reference_id),
+            multiple_capture_count: pa_update
+                .multiple_capture_count
+                .or(source.multiple_capture_count),
+            surcharge_amount: pa_update.surcharge_amount.or(source.surcharge_amount),
+            tax_amount: pa_update.tax_amount.or(source.tax_amount),
+            amount_capturable: pa_update
+                .amount_capturable
+                .unwrap_or(source.amount_capturable),
             surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             updated_by: pa_update.updated_by,
             ..source
