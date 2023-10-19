@@ -54,7 +54,9 @@ pub struct OpennodePaymentsRequest {
 
 impl TryFrom<&OpennodeRouterData<&types::PaymentsAuthorizeRouterData>> for OpennodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(item.router_data)
     }
 }
@@ -178,7 +180,9 @@ pub struct OpennodeRefundRequest {
 
 impl<F> TryFrom<&OpennodeRouterData<&types::RefundsRouterData<F>>> for OpennodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &OpennodeRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &OpennodeRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.router_data.request.refund_amount,
         })
