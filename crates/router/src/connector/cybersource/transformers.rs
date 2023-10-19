@@ -196,7 +196,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     processing_information,
                     payment_information,
                     order_information,
-                    client_reference_information
+                    client_reference_information,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
