@@ -82,7 +82,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
-        helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
+        helpers::validate_amount_to_capture(
+            payment_attempt.amount_capturable,
+            request.amount_to_capture,
+        )?;
 
         helpers::validate_capture_method(capture_method)?;
 
@@ -125,6 +128,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         capture.merchant_id.clone(),
                         capture.capture_id.clone(),
                         Some(capture.connector.clone()),
+                        storage_scheme.to_string(),
                     ),
                     storage_scheme,
                 )
@@ -267,6 +271,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                         multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                        updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
                 )

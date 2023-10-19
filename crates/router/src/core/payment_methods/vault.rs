@@ -776,10 +776,10 @@ pub async fn create_tokenize(
         .attach_printable("Failed to get redis connection")?;
 
     redis_conn
-        .set_key_with_expiry(
+        .set_key_if_not_exists_with_expiry(
             redis_key.as_str(),
             bytes::Bytes::from(encrypted_payload),
-            i64::from(LOCKER_REDIS_EXPIRY_SECONDS),
+            Some(i64::from(LOCKER_REDIS_EXPIRY_SECONDS)),
         )
         .await
         .map(|_| lookup_key)
