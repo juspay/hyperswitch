@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::errors::CustomResult;
+use common_utils::{consts, errors::CustomResult};
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -83,13 +83,14 @@ pub enum ProphetpayEntryMethod {
     CardSwipe,
 }
 
-fn get_entry_method(method: ProphetpayEntryMethod) -> i8 {
-    match method {
-        ProphetpayEntryMethod::ManualEntry => 1,
-        ProphetpayEntryMethod::CardSwipe => 2,
+impl ProphetpayEntryMethod {
+    fn get_entry_method(&self) -> i8 {
+        match self {
+            Self::ManualEntry => 1,
+            Self::CardSwipe => 2,
+        }
     }
 }
-
 #[derive(Debug, Clone)]
 #[repr(i8)]
 pub enum ProphetpayTokenType {
@@ -98,11 +99,13 @@ pub enum ProphetpayTokenType {
     TemporarySave,
 }
 
-fn get_token_type(token_type: ProphetpayTokenType) -> i8 {
-    match token_type {
-        ProphetpayTokenType::Normal => 0,
-        ProphetpayTokenType::SaleTab => 1,
-        ProphetpayTokenType::TemporarySave => 2,
+impl ProphetpayTokenType {
+    fn get_token_type(&self) -> i8 {
+        match self {
+            Self::Normal => 0,
+            Self::SaleTab => 1,
+            Self::TemporarySave => 2,
+        }
     }
 }
 
@@ -113,10 +116,12 @@ pub enum ProphetpayCardContext {
     WebConsumerInitiated,
 }
 
-fn get_card_context(context: ProphetpayCardContext) -> i8 {
-    match context {
-        ProphetpayCardContext::NotApplicable => 0,
-        ProphetpayCardContext::WebConsumerInitiated => 5,
+impl ProphetpayCardContext {
+    fn get_card_context(&self) -> i8 {
+        match self {
+            Self::NotApplicable => 0,
+            Self::WebConsumerInitiated => 5,
+        }
     }
 }
 
@@ -127,23 +132,33 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::CardRedirect(
-                api_models::payments::CardRedirectData::CardRedirect {},
-            ) => {
-                let auth_data =
-                    ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
-                Ok(Self {
-                    ref_info: item.router_data.connector_request_reference_id.to_owned(),
-                    profile: auth_data.profile_id,
-                    entry_method: get_entry_method(ProphetpayEntryMethod::ManualEntry),
-                    token_type: get_token_type(ProphetpayTokenType::SaleTab),
-                    card_entry_context: get_card_context(
-                        ProphetpayCardContext::WebConsumerInitiated,
-                    ),
-                })
+        if item.router_data.request.currency == api_models::enums::Currency::USD {
+            match item.router_data.request.payment_method_data.clone() {
+                api::PaymentMethodData::CardRedirect(
+                    api_models::payments::CardRedirectData::CardRedirect {},
+                ) => {
+                    let auth_data =
+                        ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+                    Ok(Self {
+                        ref_info: item.router_data.connector_request_reference_id.to_owned(),
+                        profile: auth_data.profile_id,
+                        entry_method: ProphetpayEntryMethod::get_entry_method(
+                            &ProphetpayEntryMethod::ManualEntry,
+                        ),
+                        token_type: ProphetpayTokenType::get_token_type(
+                            &ProphetpayTokenType::SaleTab,
+                        ),
+                        card_entry_context: ProphetpayCardContext::get_card_context(
+                            &ProphetpayCardContext::WebConsumerInitiated,
+                        ),
+                    })
+                }
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        } else {
+            Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
         }
     }
 }
@@ -174,7 +189,8 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let url_data = format!(
-            "https://ccm-thirdparty.cps.golf/hp/tokenize/{}",
+            "{}{}",
+            consts::PROPHETPAY_REDIRECT_URL,
             item.response.hosted_tokenize_id
         );
 
@@ -207,11 +223,7 @@ fn get_redirect_url_form(
     mut redirect_url: Url,
     complete_auth_url: Option<String>,
 ) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
-    let mut form_fields = std::collections::HashMap::from_iter(
-        redirect_url
-            .query_pairs()
-            .map(|(key, value)| (key.to_string(), value.to_string())),
-    );
+    let mut form_fields = std::collections::HashMap::<String, String>::new();
 
     form_fields.insert(
         String::from("redirectUrl"),
@@ -253,7 +265,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             amount: item.amount.to_owned(),
             ref_info: item.router_data.connector_request_reference_id.to_owned(),
             profile: auth_data.profile_id,
-            action_type: get_action_type(ProphetpayActionType::Charge),
+            action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Charge),
             card_token,
         })
     }
@@ -279,7 +291,7 @@ fn get_card_token(
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
-        if key.as_str() == "cctoken" {
+        if key.as_str() == consts::PROPHETPAY_TOKEN {
             return Ok(val);
         }
     }
@@ -305,11 +317,13 @@ pub enum ProphetpayActionType {
     Inquiry,
 }
 
-fn get_action_type(action: ProphetpayActionType) -> i8 {
-    match action {
-        ProphetpayActionType::Charge => 1,
-        ProphetpayActionType::Refund => 3,
-        ProphetpayActionType::Inquiry => 7,
+impl ProphetpayActionType {
+    fn get_action_type(&self) -> i8 {
+        match self {
+            Self::Charge => 1,
+            Self::Refund => 3,
+            Self::Inquiry => 7,
+        }
     }
 }
 
@@ -320,7 +334,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
         Ok(Self {
             ref_info: item.attempt_id.to_owned(),
             profile: auth_data.profile_id,
-            action_type: get_action_type(ProphetpayActionType::Inquiry),
+            action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
     }
 }
@@ -390,7 +404,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
             transaction_id,
             ref_info: item.attempt_id.to_owned(),
             profile: auth_data.profile_id,
-            action_type: get_action_type(ProphetpayActionType::Inquiry),
+            action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
     }
 }
@@ -414,7 +428,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
             amount: item.amount.to_owned(),
             profile: auth_data.profile_id,
             ref_info: item.router_data.attempt_id.to_owned(),
-            action_type: get_action_type(ProphetpayActionType::Refund),
+            action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
         })
     }
 }
@@ -476,7 +490,7 @@ impl TryFrom<&types::RefundSyncRouterData> for ProphetpayRefundSyncRequest {
         Ok(Self {
             ref_info: item.attempt_id.to_owned(),
             profile: auth_data.profile_id,
-            action_type: get_action_type(ProphetpayActionType::Inquiry),
+            action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
     }
 }
@@ -498,6 +512,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, ProphetpayRefundRespon
     }
 }
 
+// Error Response body is yet to be confirmed with the connector
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayErrorResponse {

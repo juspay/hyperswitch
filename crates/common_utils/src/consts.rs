@@ -29,3 +29,9 @@ pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
+
+/// Redirect url for Prophetpay
+pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/tokenize/";
+
+/// Variable which store the card token for Prophetpay
+pub const PROPHETPAY_TOKEN: &str = "cctoken";
