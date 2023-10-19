@@ -173,7 +173,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = opennode::OpenNodeRouterData::try_from((
+        let connector_router_data = opennode::OpennodeRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,

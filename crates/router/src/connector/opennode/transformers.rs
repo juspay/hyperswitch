@@ -22,7 +22,7 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
-    )> for DlocalRouterData<T>
+    )> for OpennodeRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
