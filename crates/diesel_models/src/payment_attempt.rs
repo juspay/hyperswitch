@@ -59,6 +59,7 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub connector_id: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -68,6 +69,7 @@ pub struct PaymentListFilters {
     pub status: Vec<storage_enums::IntentStatus>,
     pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
+
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -119,6 +121,7 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub connector_id: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +172,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
+        connector_id: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -280,6 +284,7 @@ pub struct PaymentAttemptUpdateInternal {
     amount_capturable: Option<i64>,
     surcharge_metadata: Option<serde_json::Value>,
     updated_by: String,
+    connector_id: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -378,6 +383,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                connector_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -399,6 +405,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                connector_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
