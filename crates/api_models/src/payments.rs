@@ -314,7 +314,9 @@ pub struct PaymentsRequest {
     pub frm_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]
+#[derive(
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
+)]
 pub struct RequestSurchargeDetails {
     pub surcharge_amount: i64,
     pub tax_amount: Option<i64>,
@@ -2098,6 +2100,9 @@ pub struct PaymentsResponse {
     pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
+
+    /// details of surcharge applied on this payment
+    pub surcharge_details: Option<RequestSurchargeDetails>,
 
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
