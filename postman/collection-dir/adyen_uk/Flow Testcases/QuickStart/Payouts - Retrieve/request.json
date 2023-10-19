@@ -7,9 +7,9 @@
     }
   ],
   "url": {
-    "raw": "{{baseUrl}}/payments/:id",
+    "raw": "{{baseUrl}}/payouts/:id",
     "host": ["{{baseUrl}}"],
-    "path": ["payments", ":id"],
+    "path": ["payouts", ":id"],
     "variable": [
       {
         "key": "id",
