@@ -818,19 +818,6 @@ where
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
-    let surcharge_metadata = payment_data
-        .payment_attempt
-        .surcharge_metadata
-        .as_ref()
-        .map(|surcharge_metadata_value| {
-            surcharge_metadata_value
-                .clone()
-                .parse_value::<SurchargeMetadata>("SurchargeMetadata")
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to Deserialize SurchargeMetadata")?;
-
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
 
@@ -843,14 +830,7 @@ where
             false,
         )
         .await?;
-        payment_data.surcharge_details =
-            surcharge_metadata.as_ref().and_then(|surcharge_metadata| {
-                let payment_method_type = session_connector_data.payment_method_type;
-                surcharge_metadata
-                    .surcharge_results
-                    .get(&payment_method_type.to_string())
-                    .cloned()
-            });
+        Ctx::update_payment_data_before_session_connector_call::<F>(&mut payment_data)?;
 
         let router_data = payment_data
             .construct_router_data(
@@ -1485,6 +1465,7 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<SurchargeDetailsResponse>,
+    pub session_surcharge_details: Option<SurchargeMetadata>,
     pub frm_message: Option<FraudCheck>,
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
 }

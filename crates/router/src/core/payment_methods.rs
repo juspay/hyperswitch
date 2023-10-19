@@ -11,7 +11,10 @@ use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
 
 use crate::{
-    core::{errors::RouterResult, payments::helpers},
+    core::{
+        errors::RouterResult,
+        payments::{helpers, PaymentData},
+    },
     routes::AppState,
     types::api::{self, payments},
 };
@@ -26,6 +29,12 @@ pub trait PaymentMethodRetrieve {
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)>;
+
+    fn update_payment_data_before_session_connector_call<F: Clone>(
+        _payment_data: &mut PaymentData<F>,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
