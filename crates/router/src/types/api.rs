@@ -262,6 +262,7 @@ impl PayoutConnectorData {
         match enums::PayoutConnectors::from_str(connector_name) {
             Ok(name) => match name {
                 enums::PayoutConnectors::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::PayoutConnectors::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::PayoutConnectors::Wise => Ok(Box::new(&connector::Wise)),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)

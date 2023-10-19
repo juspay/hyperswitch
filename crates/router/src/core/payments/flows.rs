@@ -921,7 +921,6 @@ default_imp_for_payouts!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -999,7 +998,6 @@ default_imp_for_payouts_create!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1158,7 +1156,6 @@ default_imp_for_payouts_fulfill!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1236,7 +1233,6 @@ default_imp_for_payouts_cancel!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1394,7 +1390,6 @@ default_imp_for_payouts_recipient!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1413,12 +1408,11 @@ macro_rules! default_imp_for_approve {
             api::Approve,
             types::PaymentsApproveData,
             types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
+            > for $path::$connector
+            {}
+        )*
+        };
+    }
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentApprove for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1430,7 +1424,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 default_imp_for_approve!(
     connector::Aci,
     connector::Adyen,
@@ -1484,19 +1477,19 @@ default_imp_for_approve!(
 );
 
 macro_rules! default_imp_for_reject {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PaymentReject for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Reject,
-            types::PaymentsRejectData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
+                ($($path:ident::$connector:ident),*) => {
+                    $(
+                        impl api::PaymentReject for $path::$connector {}
+                        impl
+                        services::ConnectorIntegration<
+                        api::Reject,
+                        types::PaymentsRejectData,
+                        types::PaymentsResponseData,
+                    > for $path::$connector
+                    {}
+                )*
+                };
+            }
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentReject for connector::DummyConnector<T> {}
@@ -1552,6 +1545,87 @@ default_imp_for_reject!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_payouts_recipient_account {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutRecipientAccount for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PoRecipientAccount,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PayoutRecipientAccount for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PoRecipientAccount,
+        types::PayoutsData,
+        types::PayoutsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_payouts_recipient_account!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,

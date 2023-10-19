@@ -9928,6 +9928,7 @@
         "type": "string",
         "enum": [
           "adyen",
+          "stripe",
           "wise"
         ]
       },
@@ -10337,6 +10338,10 @@
           "force_sync": {
             "type": "boolean",
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -10359,20 +10364,29 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "nullable": true
           }
         }
       },
       "PayoutStatus": {
         "type": "string",
         "enum": [
+          "requires_customer_action",
+          "requires_payout_method_data",
+          "requires_creation",
+          "requires_fulfillment",
+          "processing",
+          "outgoing_payment_sent",
           "success",
           "failed",
           "cancelled",
-          "pending",
           "ineligible",
-          "requires_creation",
-          "requires_payout_method_data",
-          "requires_fulfillment"
+          "expired",
+          "funds_refunded"
         ]
       },
       "PayoutType": {
