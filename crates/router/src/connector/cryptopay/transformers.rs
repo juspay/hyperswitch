@@ -65,10 +65,11 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>> for Cryp
                 custom_id: item.router_data.connector_request_reference_id.clone(),
             })
         } else {
-            Err(errors::ConnectorError::NotImplemented("payment method".to_string()))
+            Err(error_stack::Report::from(errors::ConnectorError::NotImplemented("payment method".to_string())))
         }
     }
 }
+
 
 
 // Auth Struct
