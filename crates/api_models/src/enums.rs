@@ -133,7 +133,7 @@ impl Connector {
     strum::EnumString,
     strum::EnumIter,
     strum::EnumVariantNames,
-    ToSchema
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
