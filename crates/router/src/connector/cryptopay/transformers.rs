@@ -69,9 +69,6 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            )),
         }?;
         Ok(cryptopay_request)
     }
