@@ -214,6 +214,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
+                    None,
                 )
                 .await?
             }
@@ -791,6 +792,7 @@ where
     router_data_res
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -799,6 +801,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
+    session_surcharge_metadata: Option<SurchargeMetadata>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -830,8 +833,7 @@ where
             false,
         )
         .await?;
-        payment_data.surcharge_details = payment_data
-            .session_surcharge_details
+        payment_data.surcharge_details = session_surcharge_metadata
             .as_ref()
             .and_then(|surcharge_metadata| {
                 surcharge_metadata.surcharge_results.get(
@@ -1477,7 +1479,6 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<SurchargeDetailsResponse>,
-    pub session_surcharge_details: Option<SurchargeMetadata>,
     pub frm_message: Option<FraudCheck>,
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
 }

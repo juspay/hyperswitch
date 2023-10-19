@@ -411,7 +411,6 @@ async fn get_tracker_for_sync<
             redirect_response: None,
             payment_link_data: None,
             surcharge_details: None,
-            session_surcharge_details: None,
             frm_message: frm_response.ok(),
         },
         None,
