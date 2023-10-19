@@ -322,6 +322,9 @@ pub struct ResponsePaymentMethodTypes {
         }
     "#)]
     pub surcharge_details: Option<SurchargeDetailsResponse>,
+
+    /// auth service connector label for this patment method type, if exists
+    pub pm_auth_connector: Option<String>,
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
