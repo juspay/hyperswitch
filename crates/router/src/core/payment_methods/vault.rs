@@ -725,15 +725,10 @@ fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResul
         .to_owned();
 
     #[cfg(not(feature = "kms"))]
-    let secret = hex::decode(
-        &state
-            .conf
-            .locker
-            .redis_temp_locker_encryption_key,
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to decode redis temp locker data")?;
+    let secret = hex::decode(&state.conf.locker.redis_temp_locker_encryption_key)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decode redis temp locker data")?;
 
     Ok(secret)
 }
