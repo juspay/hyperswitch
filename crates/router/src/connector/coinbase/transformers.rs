@@ -10,6 +10,39 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct CoinbaseRouterdata<T> {
+    amount: i64,
+    router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for CoinbaseRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error>
+    {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct LocalPrice {
     pub amount: String,
@@ -32,9 +65,9 @@ pub struct CoinbasePaymentsRequest {
     pub cancel_url: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
+impl TryFrom<CoinbseRouterData<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item:&CoinbseRouterData<&types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(item)
     }
 }
