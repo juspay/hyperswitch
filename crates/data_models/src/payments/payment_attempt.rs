@@ -141,7 +141,6 @@ pub struct PaymentAttempt {
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
-    pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
 }
 
@@ -201,7 +200,6 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
-    pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
 }
 
@@ -321,10 +319,6 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
-        updated_by: String,
-    },
-    SurchargeMetadataUpdate {
-        surcharge_metadata: Option<serde_json::Value>,
         updated_by: String,
     },
 }
