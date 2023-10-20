@@ -595,10 +595,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: volt::RefundResponse =
-            res.response
-                .parse_struct("volt RefundSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: volt::RefundSyncResponse = res
+            .response
+            .parse_struct("volt RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

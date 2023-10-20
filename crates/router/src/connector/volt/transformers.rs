@@ -1,4 +1,5 @@
 use common_utils::pii::Email;
+use diesel_models::enums;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,7 @@ use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums as storage_enums},
 };
 
 const PASSWORD: &str = "password";
@@ -44,7 +45,7 @@ impl<T>
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
     amount: i64,
-    currency_code: String,
+    currency_code: storage_enums::Currency,
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     merchant_internal_reference: String,
@@ -83,7 +84,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             api::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
                 api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
-                    let currency_code = item.router_data.request.currency.to_string();
+                    let currency_code = item.router_data.request.currency;
                     let merchant_internal_reference =
                         item.router_data.connector_request_reference_id.clone();
                     let payment_success_url = item.router_data.request.router_return_url.clone();
@@ -270,12 +271,12 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -308,12 +309,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, VoltPsyncResponse, T, types::Pay
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -363,7 +364,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: Option<RefundStatus>,
+    status: RefundStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -383,21 +384,23 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct RefundSyncResponse {
+    id: String,
+    status: RefundStatus,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(
-                    item.response
-                        .status
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                ),
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
