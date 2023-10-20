@@ -119,7 +119,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             })
             .into_report(),
         }?;
-        // billing and shipping are optional fields and requires state in iso codes, hence commenting it
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
         let (three_d_secure, extended_data) = match item.auth_type {
