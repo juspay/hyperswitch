@@ -726,11 +726,10 @@ fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResul
 
     #[cfg(not(feature = "kms"))]
     let secret = hex::decode(
-        state
+        &state
             .conf
             .locker
-            .redis_temp_locker_encryption_key
-            .to_owned(),
+            .redis_temp_locker_encryption_key,
     )
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
