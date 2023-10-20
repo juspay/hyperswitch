@@ -2590,6 +2590,15 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_mca_id(&self) -> Option<String> {
+        match self {
+            MerchantConnectorAccountType::DbVal(db_val) => {
+                Some(db_val.merchant_connector_id.to_string())
+            }
+            MerchantConnectorAccountType::CacheVal(_) => None,
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -2602,6 +2611,7 @@ pub async fn get_merchant_connector_account(
     key_store: &domain::MerchantKeyStore,
     profile_id: &String,
     connector_name: &str,
+    merchant_connector_id: Option<&String>,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
     match creds_identifier {
@@ -2644,17 +2654,31 @@ pub async fn get_merchant_connector_account(
             Ok(MerchantConnectorAccountType::CacheVal(res))
         }
         None => {
-            db.find_merchant_connector_account_by_profile_id_connector_name(
-                profile_id,
-                connector_name,
-                key_store,
-            )
-            .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: format!("profile id {profile_id} and connector name {connector_name}"),
-                },
-            )
+            if let Some(merchant_connector_id) = merchant_connector_id {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    merchant_id,
+                    merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.to_string(),
+                    },
+                )
+            } else {
+                db.find_merchant_connector_account_by_profile_id_connector_name(
+                    profile_id,
+                    connector_name,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: format!("profile id {profile_id} and connector name {connector_name}"),
+                    },
+                )
+            }
         }
         .map(MerchantConnectorAccountType::DbVal),
     }
@@ -2902,7 +2926,7 @@ impl AttemptType {
             amount_capturable: old_payment_attempt.amount,
             surcharge_metadata: old_payment_attempt.surcharge_metadata,
             updated_by: storage_scheme.to_string(),
-            connector_id: None,
+            merchant_connector_id: None,
         }
     }
 

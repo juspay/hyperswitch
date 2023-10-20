@@ -281,7 +281,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             });
 
         let routing = routable_connector
-            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(|connector| {
+                crate::types::api::RoutingAlgorithm::Single(
+                    api_models::admin::RoutableConnectorChoice::ConnectorName(connector),
+                )
+            })
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()

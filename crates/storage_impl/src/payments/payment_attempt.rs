@@ -362,7 +362,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     amount_capturable: payment_attempt.amount_capturable,
                     surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
                     updated_by: storage_scheme.to_string(),
-                    connector_id: payment_attempt.connector_id.clone(),
+                    merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -959,7 +959,7 @@ impl DataModelExt for PaymentAttempt {
             amount_capturable: self.amount_capturable,
             surcharge_metadata: self.surcharge_metadata,
             updated_by: self.updated_by,
-            connector_id: self.connector_id,
+            merchant_connector_id: self.merchant_connector_id,
         }
     }
 
@@ -1010,7 +1010,7 @@ impl DataModelExt for PaymentAttempt {
             amount_capturable: storage_model.amount_capturable,
             surcharge_metadata: storage_model.surcharge_metadata,
             updated_by: storage_model.updated_by,
-            connector_id: storage_model.connector_id,
+            merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
 }
@@ -1061,7 +1061,7 @@ impl DataModelExt for PaymentAttemptNew {
             amount_capturable: self.amount_capturable,
             surcharge_metadata: self.surcharge_metadata,
             updated_by: self.updated_by,
-            connector_id: self.connector_id,
+            merchant_connector_id: self.merchant_connector_id,
         }
     }
 
@@ -1110,7 +1110,7 @@ impl DataModelExt for PaymentAttemptNew {
             amount_capturable: storage_model.amount_capturable,
             surcharge_metadata: storage_model.surcharge_metadata,
             updated_by: storage_model.updated_by,
-            connector_id: storage_model.connector_id,
+            merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
 }
@@ -1155,12 +1155,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1189,7 +1191,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                connector_id,
+                merchant_connector_id: connector_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1210,7 +1212,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                connector_id,
+                merchant_connector_id: connector_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1384,12 +1386,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id: connector_id,
             } => Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id: connector_id,
             },
             DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1418,7 +1422,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                connector_id,
+                merchant_connector_id: connector_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1439,7 +1443,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                connector_id,
+                merchant_connector_id: connector_id,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

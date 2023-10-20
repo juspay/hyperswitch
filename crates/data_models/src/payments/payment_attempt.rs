@@ -143,7 +143,7 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
-    pub connector_id: Option<serde_json::Value>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -204,7 +204,7 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
-    pub connector_id: Option<serde_json::Value>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -230,6 +230,7 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -255,7 +256,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
-        connector_id: Option<serde_json::Value>,
+        merchant_connector_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,

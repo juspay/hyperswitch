@@ -59,7 +59,7 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
-    pub connector_id: Option<serde_json::Value>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -121,7 +121,7 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
-    pub connector_id: Option<serde_json::Value>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +147,7 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -172,7 +173,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
-        connector_id: Option<serde_json::Value>,
+        merchant_connector_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -284,7 +285,7 @@ pub struct PaymentAttemptUpdateInternal {
     amount_capturable: Option<i64>,
     surcharge_metadata: Option<serde_json::Value>,
     updated_by: String,
-    connector_id: Option<serde_json::Value>,
+    merchant_connector_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -313,6 +314,7 @@ impl PaymentAttemptUpdate {
                 .or(source.preprocessing_step_id),
             surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             updated_by: pa_update.updated_by,
+            merchant_connector_id: pa_update.merchant_connector_id,
             ..source
         }
     }
@@ -383,7 +385,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                connector_id,
+                merchant_connector_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -405,7 +407,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                connector_id,
+                merchant_connector_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -493,12 +495,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id,
             } => Self {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
