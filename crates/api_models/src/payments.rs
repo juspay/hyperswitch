@@ -2450,9 +2450,8 @@ pub enum ProductType {
     Travel,
     Ride,
     Event,
-    Accommodation
+    Accommodation,
 }
-
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
