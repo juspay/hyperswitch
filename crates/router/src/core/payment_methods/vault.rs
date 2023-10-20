@@ -721,7 +721,6 @@ fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResul
         .kms_secrets
         .redis_temp_locker_encryption_key
         .peek()
-        .as_bytes()
         .to_owned();
 
     #[cfg(not(feature = "kms"))]

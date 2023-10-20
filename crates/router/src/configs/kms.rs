@@ -1,8 +1,8 @@
-use common_utils::errors::CustomResult;
-use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError};
-use masking::ExposeInterface;
-
 use crate::configs::settings;
+use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
+use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError, KmsValue};
+use masking::ExposeInterface;
 
 #[async_trait::async_trait]
 impl KmsDecrypt for settings::Jwekey {
@@ -41,6 +41,18 @@ impl KmsDecrypt for settings::ActiveKmsSecrets {
         kms_client: &KmsClient,
     ) -> CustomResult<Self::Output, KmsError> {
         self.jwekey = self.jwekey.expose().decrypt_inner(kms_client).await?.into();
+        self.redis_temp_locker_encryption_key = hex::decode(
+            KmsValue(
+                String::from_utf8(self.redis_temp_locker_encryption_key.expose())
+                    .into_report()
+                    .change_context(KmsError::Utf8DecodeFailed)?.into()
+            )
+            .decrypt_inner(kms_client)
+            .await?,
+        )
+        .into_report()
+        .change_context(KmsError::HexDecodeFailed)?
+        .into();
         Ok(self)
     }
 }
