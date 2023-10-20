@@ -57,7 +57,6 @@ pub struct PaymentAttempt {
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
-    pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
 }
 
@@ -117,7 +116,6 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
-    pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
 }
 
@@ -239,10 +237,6 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         updated_by: String,
     },
-    SurchargeMetadataUpdate {
-        surcharge_metadata: Option<serde_json::Value>,
-        updated_by: String,
-    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -278,7 +272,6 @@ pub struct PaymentAttemptUpdateInternal {
     surcharge_amount: Option<i64>,
     tax_amount: Option<i64>,
     amount_capturable: Option<i64>,
-    surcharge_metadata: Option<serde_json::Value>,
     updated_by: String,
 }
 
@@ -330,7 +323,6 @@ impl PaymentAttemptUpdate {
             amount_capturable: pa_update
                 .amount_capturable
                 .unwrap_or(source.amount_capturable),
-            surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             updated_by: pa_update.updated_by,
             ..source
         }
@@ -575,14 +567,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_capturable: Some(amount_capturable),
-                updated_by,
-                ..Default::default()
-            },
-            PaymentAttemptUpdate::SurchargeMetadataUpdate {
-                surcharge_metadata,
-                updated_by,
-            } => Self {
-                surcharge_metadata,
                 updated_by,
                 ..Default::default()
             },

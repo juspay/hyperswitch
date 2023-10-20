@@ -214,6 +214,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
+                    None,
                 )
                 .await?
             }
@@ -791,6 +792,7 @@ where
     router_data_res
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -799,6 +801,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
+    session_surcharge_metadata: Option<SurchargeMetadata>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -818,19 +821,6 @@ where
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
-    let surcharge_metadata = payment_data
-        .payment_attempt
-        .surcharge_metadata
-        .as_ref()
-        .map(|surcharge_metadata_value| {
-            surcharge_metadata_value
-                .clone()
-                .parse_value::<SurchargeMetadata>("SurchargeMetadata")
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to Deserialize SurchargeMetadata")?;
-
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
 
@@ -843,14 +833,18 @@ where
             false,
         )
         .await?;
-        payment_data.surcharge_details =
-            surcharge_metadata.as_ref().and_then(|surcharge_metadata| {
-                let payment_method_type = session_connector_data.payment_method_type;
-                surcharge_metadata
-                    .surcharge_results
-                    .get(&payment_method_type.to_string())
-                    .cloned()
-            });
+        payment_data.surcharge_details = session_surcharge_metadata
+            .as_ref()
+            .and_then(|surcharge_metadata| {
+                surcharge_metadata.surcharge_results.get(
+                    &SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+                        &session_connector_data.payment_method_type.into(),
+                        &session_connector_data.payment_method_type,
+                        None,
+                    ),
+                )
+            })
+            .cloned();
 
         let router_data = payment_data
             .construct_router_data(

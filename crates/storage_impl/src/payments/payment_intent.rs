@@ -96,6 +96,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
                     updated_by: storage_scheme.to_string(),
+                    surcharge_applicable: new.surcharge_applicable,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -752,6 +753,7 @@ impl DataModelExt for PaymentIntentNew {
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
         }
     }
 
@@ -791,6 +793,7 @@ impl DataModelExt for PaymentIntentNew {
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
+            surcharge_applicable: storage_model.surcharge_applicable,
         }
     }
 }
@@ -835,6 +838,7 @@ impl DataModelExt for PaymentIntent {
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
         }
     }
 
@@ -875,6 +879,7 @@ impl DataModelExt for PaymentIntent {
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
+            surcharge_applicable: storage_model.surcharge_applicable,
         }
     }
 }
