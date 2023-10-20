@@ -2596,10 +2596,8 @@ impl MerchantConnectorAccountType {
 
     pub fn get_mca_id(&self) -> Option<String> {
         match self {
-            MerchantConnectorAccountType::DbVal(db_val) => {
-                Some(db_val.merchant_connector_id.to_string())
-            }
-            MerchantConnectorAccountType::CacheVal(_) => None,
+            Self::DbVal(db_val) => Some(db_val.merchant_connector_id.to_string()),
+            Self::CacheVal(_) => None,
         }
     }
 }
