@@ -83,7 +83,7 @@ pub enum PercentageError {
     #[error("Invalid Percentage value")]
     InvalidPercentageValue,
 
-    /// Error occured while calculating percentage
+    /// Error occurred while calculating percentage
     #[error("Failed apply percentage of {percentage} on {amount}")]
     UnableToApplyPercentage {
         /// percentage value
