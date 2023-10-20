@@ -10706,6 +10706,10 @@
             "type": "string",
             "description": "The connector used for the refund and the corresponding payment",
             "example": "stripe"
+          },
+          "profile_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
