@@ -411,7 +411,6 @@ pub struct Secrets {
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub redis_temp_locker_encryption_key: String,
 }
@@ -559,6 +558,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub powertranz: ConnectorParams,
+    pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub square: ConnectorParams,

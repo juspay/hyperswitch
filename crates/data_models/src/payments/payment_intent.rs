@@ -104,7 +104,9 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+
     pub updated_by: String,
+    pub surcharge_applicable: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,6 +178,10 @@ pub enum PaymentIntentUpdate {
         merchant_decision: Option<String>,
         updated_by: String,
     },
+    SurchargeApplicableUpdate {
+        surcharge_applicable: bool,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -204,7 +210,9 @@ pub struct PaymentIntentUpdateInternal {
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+
     pub updated_by: String,
+    pub surcharge_applicable: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -379,6 +387,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 merchant_decision,
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => Self {
+                surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
                 ..Default::default()
             },
