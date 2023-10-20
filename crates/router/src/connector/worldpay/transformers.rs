@@ -167,10 +167,14 @@ impl
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.router_data.attempt_id.clone().replace('_', "-"),
+                entity: item
+                    .router_data
+                    .connector_request_reference_id
+                    .clone()
+                    .replace('_', "-"),
                 ..Default::default()
             },
-            transaction_reference: item.router_data.attempt_id.clone(),
+            transaction_reference: item.router_data.connector_request_reference_id.clone(),
             channel: None,
             customer: None,
         })

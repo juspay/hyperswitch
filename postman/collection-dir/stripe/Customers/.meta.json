@@ -1,6 +1,7 @@
 {
   "childrenOrder": [
     "Create Customer",
+    "List Customer",
     "Retrieve Customer",
     "Update Customer",
     "Ephemeral Key",
