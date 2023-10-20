@@ -2409,6 +2409,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
@@ -2458,6 +2459,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
@@ -2507,6 +2509,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
@@ -2900,7 +2903,6 @@ impl AttemptType {
             multiple_capture_count: None,
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
-            surcharge_metadata: old_payment_attempt.surcharge_metadata,
             updated_by: storage_scheme.to_string(),
         }
     }

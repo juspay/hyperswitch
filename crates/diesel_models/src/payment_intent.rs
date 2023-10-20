@@ -48,7 +48,9 @@ pub struct PaymentIntent {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+
     pub updated_by: String,
+    pub surcharge_applicable: Option<bool>,
 }
 
 #[derive(
@@ -101,7 +103,9 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+
     pub updated_by: String,
+    pub surcharge_applicable: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,7 +206,9 @@ pub struct PaymentIntentUpdateInternal {
     pub profile_id: Option<String>,
     merchant_decision: Option<String>,
     payment_confirm_source: Option<storage_enums::PaymentSource>,
+
     pub updated_by: String,
+    pub surcharge_applicable: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -227,7 +233,30 @@ impl PaymentIntentUpdate {
                 .shipping_address_id
                 .or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
+            active_attempt_id: internal_update
+                .active_attempt_id
+                .unwrap_or(source.active_attempt_id),
+            business_country: internal_update.business_country.or(source.business_country),
+            business_label: internal_update.business_label.or(source.business_label),
+            description: internal_update.description.or(source.description),
+            statement_descriptor_name: internal_update
+                .statement_descriptor_name
+                .or(source.statement_descriptor_name),
+            statement_descriptor_suffix: internal_update
+                .statement_descriptor_suffix
+                .or(source.statement_descriptor_suffix),
             order_details: internal_update.order_details.or(source.order_details),
+            attempt_count: internal_update
+                .attempt_count
+                .unwrap_or(source.attempt_count),
+            profile_id: internal_update.profile_id.or(source.profile_id),
+            merchant_decision: internal_update
+                .merchant_decision
+                .or(source.merchant_decision),
+            payment_confirm_source: internal_update
+                .payment_confirm_source
+                .or(source.payment_confirm_source),
+            updated_by: internal_update.updated_by,
             ..source
         }
     }
