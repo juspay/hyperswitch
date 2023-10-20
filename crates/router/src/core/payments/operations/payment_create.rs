@@ -720,6 +720,7 @@ impl PaymentCreate {
             merchant_decision: None,
             payment_link_id,
             payment_confirm_source: None,
+            surcharge_applicable: None,
             updated_by: merchant_account.storage_scheme.to_string(),
         })
     }
