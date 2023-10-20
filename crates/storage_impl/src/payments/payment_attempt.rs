@@ -362,6 +362,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     amount_capturable: payment_attempt.amount_capturable,
                     surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
                     updated_by: storage_scheme.to_string(),
+                    authentication_data: payment_attempt.authentication_data.clone(),
+                    encoded_data: payment_attempt.encoded_data.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -958,6 +960,8 @@ impl DataModelExt for PaymentAttempt {
             amount_capturable: self.amount_capturable,
             surcharge_metadata: self.surcharge_metadata,
             updated_by: self.updated_by,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
         }
     }
 
@@ -1008,6 +1012,8 @@ impl DataModelExt for PaymentAttempt {
             amount_capturable: storage_model.amount_capturable,
             surcharge_metadata: storage_model.surcharge_metadata,
             updated_by: storage_model.updated_by,
+            authentication_data: storage_model.authentication_data,
+            encoded_data: storage_model.encoded_data,
         }
     }
 }
@@ -1058,6 +1064,8 @@ impl DataModelExt for PaymentAttemptNew {
             amount_capturable: self.amount_capturable,
             surcharge_metadata: self.surcharge_metadata,
             updated_by: self.updated_by,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
         }
     }
 
@@ -1106,6 +1114,8 @@ impl DataModelExt for PaymentAttemptNew {
             amount_capturable: storage_model.amount_capturable,
             surcharge_metadata: storage_model.surcharge_metadata,
             updated_by: storage_model.updated_by,
+            authentication_data: storage_model.authentication_data,
+            encoded_data: storage_model.encoded_data,
         }
     }
 }
@@ -1337,6 +1347,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_metadata,
                 updated_by,
             },
+            Self::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            },
         }
     }
 
@@ -1562,6 +1585,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
             } => Self::SurchargeMetadataUpdate {
                 surcharge_metadata,
+                updated_by,
+            },
+            DieselPaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => Self::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
                 updated_by,
             },
         }

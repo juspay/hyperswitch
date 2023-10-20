@@ -59,6 +59,8 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -119,6 +121,8 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,6 +247,13 @@ pub enum PaymentAttemptUpdate {
         surcharge_metadata: Option<serde_json::Value>,
         updated_by: String,
     },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -280,6 +291,8 @@ pub struct PaymentAttemptUpdateInternal {
     amount_capturable: Option<i64>,
     surcharge_metadata: Option<serde_json::Value>,
     updated_by: String,
+    authentication_data: Option<serde_json::Value>,
+    encoded_data: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -559,6 +572,20 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
             } => Self {
                 surcharge_metadata,
+                updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => Self {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
                 updated_by,
                 ..Default::default()
             },

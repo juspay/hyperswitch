@@ -2902,6 +2902,8 @@ impl AttemptType {
             amount_capturable: old_payment_attempt.amount,
             surcharge_metadata: old_payment_attempt.surcharge_metadata,
             updated_by: storage_scheme.to_string(),
+            authentication_data: None,
+            encoded_data: None,
         }
     }
 

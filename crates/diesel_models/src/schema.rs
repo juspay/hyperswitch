@@ -562,6 +562,8 @@ diesel::table! {
         surcharge_metadata -> Nullable<Jsonb>,
         #[max_length = 32]
         updated_by -> Varchar,
+        authentication_data -> Nullable<Json>,
+        encoded_data -> Nullable<Text>,
     }
 }
 
