@@ -4,7 +4,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{get_amount_as_string, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{
         self, api,
@@ -12,10 +12,49 @@ use crate::{
     },
 };
 
-impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
+#[derive(Debug, Serialize)]
+pub struct SquareRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for SquareRouterData<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, BankDebitData),
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &SquareRouterData<&types::TokenizationRouterData>,
+        BankDebitData,
+    )> for SquareTokenRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &SquareRouterData<&types::TokenizationRouterData>,
+            BankDebitData,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_debit_data) = value;
         match bank_debit_data {
@@ -24,17 +63,25 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
             ))
             .into_report(),
             _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.request.payment_method_data),
+                message: format!("{:?}", item.router_data.request.payment_method_data),
                 connector: "Square",
             })?,
         }
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for SquareTokenRequest {
+impl
+    TryFrom<(
+        &SquareRouterData<&types::TokenizationRouterData>,
+        api_models::payments::Card,
+    )> for SquareTokenRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, api_models::payments::Card),
+        value: (
+            &SquareRouterData<&types::TokenizationRouterData>,
+            api_models::payments::Card,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
         let auth = SquareAuthType::try_from(&item.connector_auth_type)
@@ -74,10 +121,18 @@ impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for S
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequest {
+impl
+    TryFrom<(
+        &SquareRouterData<&types::TokenizationRouterData>,
+        PayLaterData,
+    )> for SquareTokenRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, PayLaterData),
+        value: (
+            &SquareRouterData<&types::TokenizationRouterData>,
+            PayLaterData,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item, pay_later_data) = value;
         match pay_later_data {
@@ -93,9 +148,19 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenRequest {
+impl
+    TryFrom<(
+        &SquareRouterData<&types::TokenizationRouterData>,
+        WalletData,
+    )> for SquareTokenRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: (&types::TokenizationRouterData, WalletData)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (
+            &SquareRouterData<&types::TokenizationRouterData>,
+            WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         match wallet_data {
             WalletData::ApplePay(_) => Err(errors::ConnectorError::NotImplemented(
@@ -134,9 +199,12 @@ pub enum SquareTokenRequest {
     Card(SquareTokenizeData),
 }
 
-impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
+impl TryFrom<&SquareRouterData<&types::TokenizationRouterData>> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: &SquareRouterData<&types::TokenizationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = value.router_data;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
                 Self::try_from((item, bank_debit_data))
@@ -233,9 +301,12 @@ pub struct SquarePaymentsRequest {
     external_details: SquarePaymentsRequestExternalDetails,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
+impl TryFrom<&SquareRouterData<&types::PaymentsAuthorizeRouterData>> for SquarePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: &SquareRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = value.router_data;
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
