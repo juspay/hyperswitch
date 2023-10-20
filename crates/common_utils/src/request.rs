@@ -198,7 +198,9 @@ impl RequestBody {
     {
         #[cfg(feature = "logs")]
         logger::info!(connector_request_body=?body);
-        Ok(Self(Secret::new(encoder(body)?)))
+        let encoder = encoder(body)?;
+        logger::debug!("aaaaaaaaaaaaaaaaaa {:?}", encoder);
+        Ok(Self(Secret::new(encoder)))
     }
     pub fn get_inner_value(request_body: Self) -> Secret<String> {
         request_body.0

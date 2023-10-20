@@ -2428,10 +2428,31 @@ pub struct OrderDetailsWithAmount {
     /// the amount per quantity of product
     pub amount: i64,
     // Does the order includes shipping
-    pub requires_shipping: bool,
+    pub requires_shipping: Option<bool>,
     /// The image URL of the product
     pub product_img_link: Option<String>,
+    /// ID of the product that is being purchased
+    pub product_id: Option<String>,
+    /// Category of the product that is being purchased
+    pub category: Option<String>,
+    /// Brand of the product that is being purchased
+    pub brand: Option<String>,
+    /// Type of the product that is being purchased
+    pub product_type: Option<ProductType>,
 }
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProductType {
+    #[default]
+    Physical,
+    Digital,
+    Travel,
+    Ride,
+    Event,
+    Accommodation
+}
+
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
@@ -2442,10 +2463,17 @@ pub struct OrderDetails {
     #[schema(example = 1)]
     pub quantity: u16,
     // Does the order include shipping
-    pub requires_shipping: bool,
-
+    pub requires_shipping: Option<bool>,
     /// The image URL of the product
     pub product_img_link: Option<String>,
+    /// ID of the product that is being purchased
+    pub product_id: Option<String>,
+    /// Category of the product that is being purchased
+    pub category: Option<String>,
+    /// Brand of the product that is being purchased
+    pub brand: Option<String>,
+    /// Type of the product that is being purchased
+    pub product_type: Option<ProductType>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
