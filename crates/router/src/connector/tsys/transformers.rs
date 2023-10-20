@@ -34,6 +34,7 @@ pub struct TsysPaymentAuthSaleRequest {
     cardholder_authentication_method: String,
     #[serde(rename = "developerID")]
     developer_id: Secret<String>,
+    order_number: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
@@ -57,6 +58,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     terminal_operating_environment: "ON_MERCHANT_PREMISES_ATTENDED".to_string(),
                     cardholder_authentication_method: "NOT_AUTHENTICATED".to_string(),
                     developer_id: connector_auth.developer_id,
+                    order_number: item.connector_request_reference_id.clone(),
                 };
                 if item.request.is_auto_capture()? {
                     Ok(Self::Sale(auth_data))
