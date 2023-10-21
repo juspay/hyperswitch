@@ -1009,6 +1009,13 @@ impl DataModelExt for PaymentIntentUpdate {
                 merchant_decision,
                 updated_by,
             },
+            Self::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable: Some(surcharge_applicable),
+                updated_by,
+            },
         }
     }
 
