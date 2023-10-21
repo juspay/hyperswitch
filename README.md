@@ -84,7 +84,7 @@ Ways to get started with Hyperswitch:
 
 3. Install in your local system: Configurations and
    setup required in your system.
-   Suitable if you like to customise the core offering, [setup guide](/docs/try_local_system.md)
+   Suitable if you like to customize the core offering, [setup guide](/docs/try_local_system.md)
 
 <a href="#Fast-Integration-for-Stripe-Users">
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
@@ -260,14 +260,14 @@ It is built afresh for the global markets as an open-source product in Rust.
 We are long-term committed to building and making it useful for the community.
 
 The product roadmap is open for the community's feedback.
-We shall evolve a prioritisation process that is open and community-driven.
+We shall evolve a prioritization process that is open and community-driven.
 We welcome contributions from the community. Please read through our
 [contributing guidelines](/docs/CONTRIBUTING.md).
 Included are directions for opening issues, coding standards, and notes on
 development.
 
 🦀 **Important note for Rust developers**: We aim for contributions from the community
-across a broad range of tracks. Hence, we have prioritised simplicity and code
+across a broad range of tracks. Hence, we have prioritized simplicity and code
 readability over purely idiomatic code. For example, some of the code in core
 functions (e.g., `payments_core`) is written to be more readable than
 pure-idiomatic.
