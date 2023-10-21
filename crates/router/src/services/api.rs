@@ -793,6 +793,7 @@ where
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
+    let req_message = format!("{:?}", payload);
     let output = {
         lock_action
             .clone()
@@ -816,7 +817,14 @@ where
         Ok(res) => metrics::request::track_response_status_code(res),
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
-    let api_event = ApiEvent::new(flow, &request_id, request_duration, status_code);
+    let api_event = ApiEvent::new(
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+        req_message,
+        format!("{:?}", output),
+    );
     match api_event.clone().try_into() {
         Ok(event) => {
             state.event_handler().log_event(event);
