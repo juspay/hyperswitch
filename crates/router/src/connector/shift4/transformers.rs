@@ -717,6 +717,7 @@ impl<T, F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.id.clone());
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.captured,
@@ -727,7 +728,7 @@ impl<T, F>
                 item.response.status,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: connector_id,
                 redirection_data: item
                     .response
                     .flow
@@ -737,7 +738,7 @@ impl<T, F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
