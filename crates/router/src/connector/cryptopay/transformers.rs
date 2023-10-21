@@ -54,27 +54,40 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
     for CryptopayPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-
     fn try_from(
         item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if let api::PaymentMethodData::Crypto(ref cryptodata) =
-            item.router_data.request.payment_method_data
-        {
-            let pay_currency = cryptodata.get_pay_currency()?;
-            Ok(Self {
-                price_amount: item.amount.to_owned(),
-                price_currency: item.router_data.request.currency,
-                pay_currency,
-                success_redirect_url: item.router_data.request.router_return_url.clone(),
-                unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
-                custom_id: item.router_data.connector_request_reference_id.clone(),
-            })
-        } else {
-            Err(error_stack::Report::from(
-                errors::ConnectorError::NotImplemented("payment method".to_string()),
-            ))
-        }
+        let cryptopay_request = match item.router_data.request.payment_method_data {
+            api::PaymentMethodData::Crypto(ref cryptodata) => {
+                let pay_currency = cryptodata.get_pay_currency()?;
+                Ok(Self {
+                    price_amount: item.amount.to_owned(),
+                    price_currency: item.router_data.request.currency,
+                    pay_currency,
+                    success_redirect_url: item.router_data.request.router_return_url.clone(),
+                    unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
+                    custom_id: item.router_data.connector_request_reference_id.clone(),
+                })
+            }
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment {}
+            | api_models::payments::PaymentMethodData::Reward {}
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "CryptoPay",
+                })?
+            }
+        }?;
+        Ok(cryptopay_request)
     }
 }
 
