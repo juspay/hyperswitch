@@ -69,7 +69,8 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            api_models::payments::PaymentMethodData::CardRedirect(_)
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::Wallet(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
             | api_models::payments::PaymentMethodData::BankRedirect(_)
