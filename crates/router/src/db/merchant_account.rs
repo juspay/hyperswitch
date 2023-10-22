@@ -1,3 +1,4 @@
+use async_bb8_diesel::AsyncConnection;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
@@ -69,12 +70,28 @@ impl MerchantAccountInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        merchant_account
+
+        let key_store = merchant_key_store
+            .clone()
             .construct_new()
             .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
+            .change_context(errors::StorageError::EncryptionError)?;
+
+        let account = merchant_account
+            .construct_new()
             .await
+            .change_context(errors::StorageError::EncryptionError)?;
+
+        let final_account = conn
+            .transaction_async(|e| async move {
+                let _ = key_store.insert(&e).await;
+                account.insert(&e).await.map_err(|_| {
+                    errors::StorageError::DatabaseConnectionError
+                })
+            })
+            .await;
+
+        final_account
             .map_err(Into::into)
             .into_report()?
             .convert(merchant_key_store.key.get_inner())

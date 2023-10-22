@@ -112,10 +112,6 @@ pub async fn create_merchant_account(
         .payment_response_hash_key
         .or(Some(generate_cryptographically_secure_random_string(64)));
 
-    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
-
     let parent_merchant_id = get_parent_merchant(
         db,
         req.sub_merchants_enabled,
