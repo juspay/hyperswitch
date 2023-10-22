@@ -83,8 +83,8 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "CryptoPay",
-                })?
+                    connector: "CryptoPay".to_string(),
+                })
             }
         }?;
         Ok(cryptopay_request)
