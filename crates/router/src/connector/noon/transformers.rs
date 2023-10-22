@@ -9,7 +9,7 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums, ErrorResponse},
+    types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
     utils,
 };
 
@@ -356,35 +356,53 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
+    Initiated,
     Authorized,
     Captured,
     PartiallyCaptured,
-    Reversed,
-    Cancelled,
+    PartiallyRefunded,
+    PaymentInfoAdded,
     #[serde(rename = "3DS_ENROLL_INITIATED")]
     ThreeDsEnrollInitiated,
     #[serde(rename = "3DS_ENROLL_CHECKED")]
     ThreeDsEnrollChecked,
-    Failed,
+    #[serde(rename = "3DS_RESULT_VERIFIED")]
+    ThreeDsResultVerified,
+    MarkedForReview,
+    Authenticated,
+    PartiallyReversed,
     #[default]
     Pending,
+    Cancelled,
+    Failed,
+    Refunded,
     Expired,
+    Reversed,
     Rejected,
+    Locked,
 }
 
-impl From<NoonPaymentStatus> for enums::AttemptStatus {
-    fn from(item: NoonPaymentStatus) -> Self {
+impl ForeignFrom<(NoonPaymentStatus, Self)> for enums::AttemptStatus {
+    fn foreign_from(data: (NoonPaymentStatus, Self)) -> Self {
+        let (item, current_status) = data;
         match item {
             NoonPaymentStatus::Authorized => Self::Authorized,
-            NoonPaymentStatus::Captured => Self::Charged,
-            NoonPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            NoonPaymentStatus::Reversed => Self::Voided,
+            NoonPaymentStatus::Captured
+            | NoonPaymentStatus::PartiallyCaptured
+            | NoonPaymentStatus::PartiallyRefunded
+            | NoonPaymentStatus::Refunded => Self::Charged,
+            NoonPaymentStatus::Reversed | NoonPaymentStatus::PartiallyReversed => Self::Voided,
             NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => Self::AuthenticationFailed,
             NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
                 Self::AuthenticationPending
             }
+            NoonPaymentStatus::ThreeDsResultVerified => Self::AuthenticationSuccessful,
             NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => Self::Failure,
-            NoonPaymentStatus::Pending => Self::Pending,
+            NoonPaymentStatus::Pending | NoonPaymentStatus::MarkedForReview => Self::Pending,
+            NoonPaymentStatus::Initiated
+            | NoonPaymentStatus::PaymentInfoAdded
+            | NoonPaymentStatus::Authenticated => Self::Started,
+            NoonPaymentStatus::Locked => current_status,
         }
     }
 }
@@ -448,7 +466,7 @@ impl<F, T>
                 });
         let order = item.response.result.order;
         Ok(Self {
-            status: enums::AttemptStatus::from(order.status),
+            status: enums::AttemptStatus::foreign_from((order.status, item.data.status)),
             response: match order.error_message {
                 Some(error_message) => Err(ErrorResponse {
                     code: order.error_code.to_string(),
@@ -488,7 +506,6 @@ pub struct NoonActionTransaction {
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionOrder {
     id: String,
-    cancellation_reason: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -504,7 +521,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
@@ -534,11 +550,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: item
-                .request
-                .cancellation_reason
-                .clone()
-                .map(|reason| reason.chars().take(100).collect()), // Max 100 chars
         };
         Ok(Self {
             api_operation: NoonApiOperations::Reverse,
@@ -552,7 +563,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(

@@ -388,6 +388,7 @@ pub trait ConnectorActions: Connector {
                 connector_metadata: None,
                 reason: None,
                 connector_refund_id: Some(refund_id),
+                browser_info: None,
             }),
             payment_info,
         );
@@ -955,6 +956,7 @@ impl Default for PaymentRefundType {
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
+            browser_info: None,
         };
         Self(data)
     }

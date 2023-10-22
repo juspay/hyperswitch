@@ -134,8 +134,8 @@ impl ConnectorCommon for Noon {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_code.to_string(),
-            message: response.message,
-            reason: Some(response.class_description),
+            message: response.class_description,
+            reason: Some(response.message),
         })
     }
 }
