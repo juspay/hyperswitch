@@ -2,7 +2,7 @@
 use error_stack::{IntoReport, ResultExt};
 use serde::{de::Visitor, Deserialize, Deserializer};
 
-use crate::errors::{ApiModelsError, CustomResult};
+use crate::errors::{CustomResult, PercentageError};
 
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
@@ -21,16 +21,16 @@ fn get_invalid_percentage_error_message(precision: u8) -> String {
 
 impl<const PRECISION: u8> Percentage<PRECISION> {
     /// construct percentage using a string representation of float value
-    pub fn from_string(value: String) -> CustomResult<Self, ApiModelsError> {
+    pub fn from_string(value: String) -> CustomResult<Self, PercentageError> {
         if Self::is_valid_string_value(&value)? {
             Ok(Self {
                 percentage: value
                     .parse()
                     .into_report()
-                    .change_context(ApiModelsError::InvalidPercentageValue)?,
+                    .change_context(PercentageError::InvalidPercentageValue)?,
             })
         } else {
-            Err(ApiModelsError::InvalidPercentageValue.into())
+            Err(PercentageError::InvalidPercentageValue.into())
                 .attach_printable(get_invalid_percentage_error_message(PRECISION))
         }
     }
@@ -38,15 +38,37 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     pub fn get_percentage(&self) -> f32 {
         self.percentage
     }
-    fn is_valid_string_value(value: &str) -> CustomResult<bool, ApiModelsError> {
+
+    /// apply the percentage to amount and ceil the result
+    #[allow(clippy::as_conversions)]
+    pub fn apply_and_ceil_result(&self, amount: i64) -> CustomResult<i64, PercentageError> {
+        let max_amount = i64::MAX / 10000;
+        if amount > max_amount {
+            // value gets rounded off after i64::MAX/10000
+            Err(PercentageError::UnableToApplyPercentage {
+                percentage: self.percentage,
+                amount,
+            }
+            .into())
+            .attach_printable(format!(
+                "Cannot calculate percentage for amount greater than {}",
+                max_amount
+            ))
+        } else {
+            let percentage_f64 = f64::from(self.percentage);
+            let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
+            Ok(result)
+        }
+    }
+    fn is_valid_string_value(value: &str) -> CustomResult<bool, PercentageError> {
         let float_value = Self::is_valid_float_string(value)?;
         Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
     }
-    fn is_valid_float_string(value: &str) -> CustomResult<f32, ApiModelsError> {
+    fn is_valid_float_string(value: &str) -> CustomResult<f32, PercentageError> {
         value
             .parse()
             .into_report()
-            .change_context(ApiModelsError::InvalidPercentageValue)
+            .change_context(PercentageError::InvalidPercentageValue)
     }
     fn is_valid_range(value: f32) -> bool {
         (0.0..=100.0).contains(&value)
