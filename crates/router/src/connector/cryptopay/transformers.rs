@@ -76,8 +76,6 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api_models::payments::PaymentMethodData::BankRedirect(_)
             | api_models::payments::PaymentMethodData::BankDebit(_)
             | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment {}
             | api_models::payments::PaymentMethodData::Reward {}
             | api_models::payments::PaymentMethodData::Upi(_)
