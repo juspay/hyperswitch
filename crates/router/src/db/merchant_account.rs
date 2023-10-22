@@ -91,9 +91,10 @@ impl MerchantAccountInterface for Store {
         let final_account = conn
             .transaction_async(|e| async move {
                 let _ = key_store.insert(&e).await;
-                account.insert(&e).await.map_err(|_| {
-                    errors::StorageError::DatabaseConnectionError
-                })
+                account
+                    .insert(&e)
+                    .await
+                    .map_err(|_| errors::StorageError::DatabaseConnectionError)
             })
             .await;
 
