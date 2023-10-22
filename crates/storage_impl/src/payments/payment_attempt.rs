@@ -360,7 +360,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     multiple_capture_count: payment_attempt.multiple_capture_count,
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
-
                     updated_by: storage_scheme.to_string(),
                 };
 
