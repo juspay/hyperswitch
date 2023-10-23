@@ -132,7 +132,6 @@ impl AppState {
                 .locker
                 .redis_temp_locker_encryption_key
                 .clone()
-                .into_bytes()
                 .into(),
         }
         .decrypt_inner(kms_client)
