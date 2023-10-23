@@ -566,16 +566,21 @@ pub struct MollieRefundRequest {
     description: Option<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for MollieRefundRequest {
+impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &MollieRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         let amount = Amount {
-            currency: item.request.currency,
-            value: utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?,
+            currency: item.router_data.request.currency,
+            value: utils::to_currency_base_unit(
+                item.router_data.request.refund_amount,
+                item.router_data.request.currency,
+            )?,
         };
         Ok(Self {
             amount,
-            description: item.request.reason.to_owned(),
+            description: item.router_data.request.reason.to_owned(),
         })
     }
 }
