@@ -92,143 +92,39 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                 }))
             }
             api_models::payments::WalletData::MbWayRedirect( _ ) |
-            api_models::payments::WalletData::AliPayRedirect( _ ) => {
+            api_models::payments::WalletData::AliPayRedirect( _ ) |
+            api_models::payments::WalletData::AliPayHkRedirect( _ ) |
+            api_models::payments::WalletData::MomoRedirect( _ ) |
+            api_models::payments::WalletData::KakaoPayRedirect( _ ) |
+            api_models::payments::WalletData::GoPayRedirect( _ ) |
+            api_models::payments::WalletData::GcashRedirect( _ ) |
+            api_models::payments::WalletData::ApplePay( _ ) |
+            api_models::payments::WalletData::AliPayRedirect( _ ) |
+            api_models::payments::WalletData::ApplePayThirdPartySdk( _ ) |
+            api_models::payments::WalletData::DanaRedirect{ .. } |
+            api_models::payments::WalletData::GooglePay( _ ) |
+            api_models::payments::WalletData::GoPayRedirect( _ ) |
+            api_models::payments::WalletData::GooglePayThirdPartySdk( _ ) |
+            api_models::payments::WalletData::MobilePayRedirect( _ ) |
+            api_models::payments::WalletData::MobilePayRedirect( _ ) |
+            api_models::payments::WalletData::PaypalRedirect( _ ) |
+            api_models::payments::WalletData::PaypalSdk( _ ) |
+            api_models::payments::WalletData::SamsungPay( _ ) |
+            api_models::payments::WalletData::TwintRedirect{ .. } |
+            api_models::payments::WalletData::VippsRedirect{ .. } |
+            api_models::payments::WalletData::TouchNGoRedirect( _ ) |
+            api_models::payments::WalletData::WeChatPayRedirect( _ ) |
+            api_models::payments::WalletData::WeChatPayQr( _ ) |
+            api_models::payments::WalletData::CashappQr( _ ) |
+            api_models::payments::WalletData::SwishQr( _ ) |
+            api_models::payments::WalletData::AliPayQr(_) |
+            api_models::payments::WalletData::ApplePayRedirect(_) |
+            api_models::payments::WalletData::GooglePayRedirect(_) => 
+            {
                 Err(errors::ConnectorError::NotImplemented(
                     "Payment method".to_string(),
                 ))?
-            }
-            api_models::payments::WalletData::AliPayHkRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::MomoRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::KakaoPayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::GoPayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::GcashRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::ApplePay( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::AliPayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::ApplePayThirdPartySdk( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::DanaRedirect{ .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::GooglePay( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::GoPayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::GooglePayThirdPartySdk( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::MobilePayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::MobilePayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::PaypalRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::PaypalSdk( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::SamsungPay( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::TwintRedirect{ .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::VippsRedirect{ .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::TouchNGoRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::WeChatPayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::WeChatPayQr( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::CashappQr( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::SwishQr( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
-            api_models::payments::WalletData::AliPayQr(_) 
-                => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            ))?,
-            api_models::payments::WalletData::ApplePayRedirect(_) 
-                => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            ))?,
-            api_models::payments::WalletData::GooglePayRedirect(_) 
-                => Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?,
+            },
             
         };
         Ok(payment_data)
