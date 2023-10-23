@@ -204,64 +204,6 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
-                let phone = item.get_billing_phone()?;
-                let phone_number = phone.get_number()?;
-                let country_code = phone.get_country_code()?;
-                let number_with_code =
-                    Secret::new(format!("{}{}", country_code, phone_number.peek()));
-                let email = item
-                    .request
-                    .email
-                    .clone()
-                    .ok_or_else(utils::missing_field_err("email"))?;
-                let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
-
-                let order_information = OrderInformationWithBill {
-                    amount_details: Amount {
-                        total_amount: item.request.amount.to_string(),
-                        currency: item.request.currency.to_string().to_uppercase(),
-                    },
-                    bill_to,
-                };
-
-                let payment_information = PaymentInformation {
-                    card: Card {
-                        number: ccard.card_number,
-                        expiration_month: ccard.card_exp_month,
-                        expiration_year: ccard.card_exp_year,
-                        security_code: ccard.card_cvc,
-                    },
-                };
-
-                let processing_information = ProcessingInformation {
-                    capture: matches!(
-                        item.request.capture_method,
-                        Some(enums::CaptureMethod::Automatic) | None
-                    ),
-                    capture_options: None,
-                };
-
-                let client_reference_information = ClientReferenceInformation {
-                    code: Some(item.connector_request_reference_id.clone()),
-                };
-
-                Ok(Self {
-                    processing_information,
-                    payment_information,
-                    order_information,
-                    client_reference_information,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
 impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
