@@ -25,7 +25,7 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
-    )> for ZenRouterData<T>
+    )> for RapydRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -36,7 +36,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        let amount = item.amount.to_owned();
         Ok(Self {
             amount,
             router_data: item,
@@ -102,10 +102,15 @@ pub struct RapydWallet {
 
 impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &RapydRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        let (capture, payment_method_options) = match item.payment_method {
+    fn try_from(
+        item: &RapydRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let (capture, payment_method_options) = match item.router_data.payment_method {
             diesel_models::enums::PaymentMethod::Card => {
-                let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
+                let three_ds_enabled = matches!(
+                    item.router_data.auth_type,
+                    enums::AuthenticationType::ThreeDs
+                );
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
                 };
@@ -179,9 +184,9 @@ pub struct RapydAuthType {
     pub secret_key: Secret<String>,
 }
 
-impl TryFrom<&RapydRouterData<&types::ConnectorAuthType>> for RapydAuthType {
+impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &RapydRouterData<&types::ConnectorAuthType>) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 access_key: api_key.to_owned(),
@@ -311,7 +316,11 @@ impl<F> TryFrom<&RapydRouterData<&types::RefundsRouterData<F>>> for RapydRefundR
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &RapydRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment: item.router_data.request.connector_transaction_id.to_string(),
+            payment: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .to_string(),
             amount: Some(item.router_data.request.refund_amount),
             currency: Some(item.router_data.request.currency),
         })
@@ -413,7 +422,9 @@ pub struct CaptureRequest {
 
 impl TryFrom<&RapydRouterData<&types::PaymentsCaptureRouterData>> for CaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &RapydRouterData<&types::PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &RapydRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: Some(item.router_data.request.amount_to_capture),
             receipt_email: None,
