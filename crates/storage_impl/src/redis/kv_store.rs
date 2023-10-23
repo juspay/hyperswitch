@@ -107,7 +107,7 @@ where
     let result = async {
         match op {
             KvOperation::Hset(value, sql) => {
-                logger::debug!("Operation: {operation} value: {value:?}");
+                logger::debug!(kv_operation= %operation, value = ?value);
 
                 redis_conn
                     .set_hash_fields(key, value, Some(consts::KV_TTL))
@@ -133,7 +133,7 @@ where
             }
 
             KvOperation::HSetNx(field, value, sql) => {
-                logger::debug!("Operation: {operation} value: {value:?}");
+                logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
                     .serialize_and_set_hash_field_if_not_exist(
@@ -153,7 +153,7 @@ where
             }
 
             KvOperation::SetNx(value, sql) => {
-                logger::debug!("Operation: {operation} value: {value:?}");
+                logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
                     .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
@@ -178,14 +178,14 @@ where
     result
         .await
         .map(|result| {
-            logger::debug!("KvOperation {operation} succeeded");
+            logger::debug!(kv_operation= %operation, status="success");
             let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation.clone());
 
             metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
             result
         })
         .map_err(|err| {
-            logger::error!("KvOperation for {operation} failed with {err:?}");
+            logger::error!(kv_operation = %operation, status="error", error = ?err);
             let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation);
 
             metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
