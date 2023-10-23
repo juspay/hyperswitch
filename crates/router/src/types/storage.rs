@@ -21,6 +21,8 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_link;
 pub mod payment_method;
+use std::collections::HashMap;
+
 pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
 pub use scheduler::db::process_tracker;
 pub mod reverse_lookup;
@@ -43,9 +45,57 @@ pub use self::{
     payment_method::*, payout_attempt::*, payouts::*, process_tracker::*, refund::*,
     reverse_lookup::*,
 };
+use crate::types::api::routing;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
     pub routed_through: Option<String>,
-    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
+    pub business_sub_label: Option<String>,
+    pub routing_info: PaymentRoutingInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(from = "PaymentRoutingInfoSerde", into = "PaymentRoutingInfoSerde")]
+pub struct PaymentRoutingInfo {
+    pub algorithm: Option<routing::StraightThroughAlgorithm>,
+    pub pre_routing_results:
+        Option<HashMap<api_models::enums::PaymentMethodType, routing::RoutableConnectorChoice>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentRoutingInfoInner {
+    pub algorithm: Option<routing::StraightThroughAlgorithm>,
+    pub pre_routing_results:
+        Option<HashMap<api_models::enums::PaymentMethodType, routing::RoutableConnectorChoice>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum PaymentRoutingInfoSerde {
+    OnlyAlgorithm(Box<routing::StraightThroughAlgorithm>),
+    WithDetails(Box<PaymentRoutingInfoInner>),
+}
+
+impl From<PaymentRoutingInfoSerde> for PaymentRoutingInfo {
+    fn from(value: PaymentRoutingInfoSerde) -> Self {
+        match value {
+            PaymentRoutingInfoSerde::OnlyAlgorithm(algo) => Self {
+                algorithm: Some(*algo),
+                pre_routing_results: None,
+            },
+            PaymentRoutingInfoSerde::WithDetails(details) => Self {
+                algorithm: details.algorithm,
+                pre_routing_results: details.pre_routing_results,
+            },
+        }
+    }
+}
+
+impl From<PaymentRoutingInfo> for PaymentRoutingInfoSerde {
+    fn from(value: PaymentRoutingInfo) -> Self {
+        Self::WithDetails(Box::new(PaymentRoutingInfoInner {
+            algorithm: value.algorithm,
+            pre_routing_results: value.pre_routing_results,
+        }))
+    }
 }

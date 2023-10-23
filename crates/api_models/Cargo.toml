@@ -9,7 +9,9 @@ license.workspace = true
 
 [features]
 default = ["payouts"]
+connector_choice_bcompat = []
 errors = ["dep:actix-web", "dep:reqwest"]
+backwards_compatibility = ["connector_choice_bcompat"]
 dummy_connector = ["common_enums/dummy_connector"]
 detailed_errors = []
 payouts = []
@@ -32,5 +34,6 @@ thiserror = "1.0.40"
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

@@ -20,6 +20,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
 pub mod webhooks;
@@ -33,7 +34,7 @@ pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
     Files, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
-    PaymentMethods, Payments, Refunds, Webhooks,
+    PaymentMethods, Payments, Refunds, Routing, Webhooks,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

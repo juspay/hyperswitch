@@ -11,6 +11,7 @@ pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
@@ -36,6 +37,15 @@ pub struct AccessTokenAuth;
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
+}
+
+#[derive(Clone)]
+pub enum ConnectorCallType {
+    PreDetermined(ConnectorData),
+    Retryable(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
+    Multiple(Vec<SessionConnectorData>),
+    Single(ConnectorData),
 }
 
 #[derive(Clone, Debug)]
@@ -212,12 +222,6 @@ pub enum PayoutConnectorChoice {
     SessionMultiple(Vec<PayoutSessionConnectorData>),
     StraightThrough(serde_json::Value),
     Decide,
-}
-
-#[derive(Clone)]
-pub enum ConnectorCallType {
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
 }
 
 #[cfg(feature = "payouts")]
