@@ -16,7 +16,7 @@ impl Analytics {
     pub fn server(state: AppStateVas) -> Scope {
         let mut route = web::scope("/analytics/v1").app_data(web::Data::new(state));
         {
-            route = route
+            route
                 .service(
                     web::resource("metrics/payments").route(web::post().to(get_payment_metrics)),
                 )
@@ -29,18 +29,6 @@ impl Analytics {
                 .service(web::resource("filters/refunds").route(web::post().to(get_refund_filters)))
                 .service(web::resource("{domain}/info").route(web::get().to(get_info)))
         }
-        {
-            route = route
-                .service(
-                    web::resource("metrics/sdk_events")
-                        .route(web::post().to(get_sdk_event_metrics)),
-                )
-                .service(
-                    web::resource("filters/sdk_events")
-                        .route(web::post().to(get_sdk_event_filters)),
-                )
-        }
-        route
     }
 }
 

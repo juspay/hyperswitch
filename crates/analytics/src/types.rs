@@ -10,16 +10,12 @@ use super::query::QueryBuildingError;
 pub enum AnalyticsDomain {
     Payments,
     Refunds,
-    SdkEvents,
-    ApiEvents,
 }
 
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
 pub enum AnalyticsCollection {
     Payment,
     Refund,
-    SdkEvents,
-    ApiEvents,
 }
 
 #[allow(dead_code)]

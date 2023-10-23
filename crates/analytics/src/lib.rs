@@ -11,12 +11,9 @@ pub mod refunds;
 // https://github.com/juspay/hyperswitch-cloud/issues/660
 // pub mod routes;
 
-pub mod api_event;
-pub mod sdk_events;
 mod sqlx;
 mod types;
 pub use types::AnalyticsDomain;
-pub mod lambda_utils;
 pub mod utils;
 
 use std::sync::Arc;
@@ -28,15 +25,15 @@ use api_models::analytics::{
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
-use error_stack::IntoReport;
-use hyperswitch_oss::{configs::settings::Database, logger};
+
+use configs::settings::Database;
+use logger;
 use router_env::tracing::{self, instrument};
 
 use self::{
     payments::metrics::{PaymentMetric, PaymentMetricRow},
     refunds::metrics::{RefundMetric, RefundMetricRow},
     sqlx::SqlxClient,
-    types::MetricsError,
 };
 #[derive(Clone, Debug)]
 pub enum AnalyticsProvider {

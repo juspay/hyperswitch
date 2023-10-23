@@ -10,4 +10,4 @@ pub trait PaymentAnalytics:
 {
 }
 
-pub use self::core::{generate_report, get_filters, get_metrics};
+pub use self::core::{get_filters, get_metrics};
