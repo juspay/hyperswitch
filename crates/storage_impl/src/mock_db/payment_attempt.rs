@@ -140,7 +140,6 @@ impl PaymentAttemptInterface for MockDb {
             multiple_capture_count: payment_attempt.multiple_capture_count,
             connector_response_reference_id: None,
             amount_capturable: payment_attempt.amount_capturable,
-            surcharge_metadata: payment_attempt.surcharge_metadata,
             updated_by: storage_scheme.to_string(),
             authentication_data: payment_attempt.authentication_data,
             encoded_data: payment_attempt.encoded_data,
