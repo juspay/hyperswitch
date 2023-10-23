@@ -52,6 +52,7 @@ pub enum Subcommand {
 #[derive(Clone)]
 pub struct ActiveKmsSecrets {
     pub jwekey: masking::Secret<Jwekey>,
+    pub redis_temp_locker_encryption_key: masking::Secret<Vec<u8>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -99,7 +100,13 @@ pub struct Settings {
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub lock_settings: LockSettings,
-    pub temp_locker_disable_config: TempLockerDisableConfig,
+    pub temp_locker_enable_config: TempLockerEnableConfig,
+    pub payment_link: PaymentLink,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentLink {
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -123,7 +130,7 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
-pub struct TempLockerDisableConfig(pub HashMap<String, TempLockerDisablePaymentMethodFilter>);
+pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMethodFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
@@ -216,7 +223,7 @@ pub struct PaymentMethodTokenFilter {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct TempLockerDisablePaymentMethodFilter {
+pub struct TempLockerEnablePaymentMethodFilter {
     #[serde(deserialize_with = "pm_deser")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
 }
@@ -404,8 +411,8 @@ pub struct Secrets {
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
+    pub redis_temp_locker_encryption_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -464,6 +471,24 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    pub queue_strategy: QueueStrategy,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "PascalCase")]
+pub enum QueueStrategy {
+    #[default]
+    Fifo,
+    Lifo,
+}
+
+impl From<QueueStrategy> for bb8::QueueStrategy {
+    fn from(value: QueueStrategy) -> Self {
+        match value {
+            QueueStrategy::Fifo => Self::Fifo,
+            QueueStrategy::Lifo => Self::Lifo,
+        }
+    }
 }
 
 #[cfg(not(feature = "kms"))]
@@ -477,6 +502,7 @@ impl Into<storage_impl::config::Database> for Database {
             dbname: self.dbname,
             pool_size: self.pool_size,
             connection_timeout: self.connection_timeout,
+            queue_strategy: self.queue_strategy.into(),
         }
     }
 }
@@ -532,6 +558,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub powertranz: ConnectorParams,
+    pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub square: ConnectorParams,
@@ -539,6 +566,7 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
+    pub volt: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
@@ -704,9 +732,11 @@ impl Settings {
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
+                    .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+
             )
             .build()?;
 

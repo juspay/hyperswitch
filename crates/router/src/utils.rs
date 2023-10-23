@@ -5,6 +5,8 @@ pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 
+use std::fmt::Debug;
+
 use api_models::{enums, payments, webhooks};
 use base64::Engine;
 pub use common_utils::{
@@ -13,7 +15,7 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::payment_intent::PaymentIntent;
+use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
 use nanoid::nanoid;
@@ -27,11 +29,12 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils,
+        utils, webhooks as webhooks_core,
     },
     db::StorageInterface,
     logger,
     routes::metrics,
+    services,
     types::{
         self,
         domain::{
@@ -39,6 +42,7 @@ use crate::{
             types::{encrypt_optional, AsyncLift},
         },
         storage,
+        transformers::{ForeignTryFrom, ForeignTryInto},
     },
 };
 
@@ -450,6 +454,7 @@ pub trait CustomerAddress {
         &self,
         address_details: api_models::payments::AddressDetails,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
@@ -458,6 +463,7 @@ pub trait CustomerAddress {
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
 }
 
@@ -467,6 +473,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         address_details: api_models::payments::AddressDetails,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
         async {
             Ok(storage::AddressUpdate::Update {
@@ -506,6 +513,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
+                updated_by: storage_scheme.to_string(),
             })
         }
         .await
@@ -517,6 +525,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
         async {
             Ok(domain::Address {
@@ -563,6 +572,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
+                updated_by: storage_scheme.to_string(),
             })
         }
         .await
@@ -668,4 +678,92 @@ pub fn add_apple_pay_payment_status_metrics(
             }
         }
     }
+}
+
+impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(value: enums::IntentStatus) -> Result<Self, Self::Error> {
+        match value {
+            enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            enums::IntentStatus::Failed => Ok(Self::PaymentFailed),
+            enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            enums::IntentStatus::RequiresMerchantAction
+            | enums::IntentStatus::RequiresCustomerAction => Ok(Self::ActionRequired),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "intent_status",
+            }),
+        }
+    }
+}
+
+pub async fn trigger_payments_webhook<F, Req, Op>(
+    merchant_account: domain::MerchantAccount,
+    payment_data: crate::core::payments::PaymentData<F>,
+    req: Option<Req>,
+    customer: Option<domain::Customer>,
+    state: &crate::routes::AppState,
+    operation: Op,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    Op: Debug,
+{
+    let status = payment_data.payment_intent.status;
+    let payment_id = payment_data.payment_intent.payment_id.clone();
+    let captures = payment_data
+        .multiple_capture_data
+        .clone()
+        .map(|multiple_capture_data| {
+            multiple_capture_data
+                .get_all_captures()
+                .into_iter()
+                .cloned()
+                .collect()
+        });
+
+    if matches!(
+        status,
+        enums::IntentStatus::Succeeded | enums::IntentStatus::Failed
+    ) {
+        let payments_response = crate::core::payments::transformers::payments_to_payments_response(
+            req,
+            payment_data,
+            captures,
+            customer,
+            services::AuthFlow::Merchant,
+            &state.conf.server,
+            &operation,
+            &state.conf.connector_request_reference_id_config,
+            None,
+            None,
+            None,
+        )?;
+
+        let event_type: enums::EventType = status
+            .foreign_try_into()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("payment event type mapping failed")?;
+
+        if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
+            payments_response
+        {
+            Box::pin(
+                webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
+                    state.clone(),
+                    merchant_account,
+                    event_type,
+                    diesel_models::enums::EventClass::Payments,
+                    None,
+                    payment_id,
+                    diesel_models::enums::EventObjectType::PaymentDetails,
+                    webhooks::OutgoingWebhookContent::PaymentDetails(payments_response_json),
+                ),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
 }

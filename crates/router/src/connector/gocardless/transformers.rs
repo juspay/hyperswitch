@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BankDirectDebitBillingData, BrowserInformationData,
-        ConnectorCustomerData, PaymentsAuthorizeRequestData, RouterData, SetupMandateRequestData,
+        ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        RouterData,
     },
     core::errors,
     types::{
@@ -582,7 +583,7 @@ impl<F>
                 mandate_reference,
                 network_txn_id: None,
             }),
-            status: enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Charged,
             ..item.data
         })
     }

@@ -29,6 +29,7 @@ impl Default for super::settings::Database {
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
+            queue_strategy: Default::default(),
         }
     }
 }
@@ -48,8 +49,9 @@ impl Default for super::settings::Locker {
         Self {
             host: "localhost".into(),
             mock_locker: true,
-            basilisk_host: "localhost".into(),
+
             locker_signing_key_id: "1".into(),
+            redis_temp_locker_encryption_key: "".into(),
         }
     }
 }

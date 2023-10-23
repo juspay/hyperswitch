@@ -9,7 +9,11 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::{enums, payments::HeaderPayload};
+use api_models::{
+    enums,
+    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+    payments::HeaderPayload,
+};
 use common_utils::{ext_traits::AsyncExt, pii};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -66,7 +70,13 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
-) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>, Option<u16>)>
+) -> RouterResult<(
+    PaymentData<F>,
+    Req,
+    Option<domain::Customer>,
+    Option<u16>,
+    Option<u128>,
+)>
 where
     F: Send + Clone + Sync,
     Req: Authenticate,
@@ -158,7 +168,7 @@ where
     .await?;
 
     let mut connector_http_status_code = None;
-
+    let mut external_latency = None;
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
@@ -180,6 +190,7 @@ where
                 let operation = Box::new(PaymentResponse);
                 let db = &*state.store;
                 connector_http_status_code = router_data.connector_http_status_code;
+                external_latency = router_data.external_latency;
                 //add connector http status code metrics
                 add_connector_http_status_code_metrics(connector_http_status_code);
                 operation
@@ -203,6 +214,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
+                    None,
                 )
                 .await?
             }
@@ -237,7 +249,13 @@ where
             .await?;
     }
 
-    Ok((payment_data, req, customer, connector_http_status_code))
+    Ok((
+        payment_data,
+        req,
+        customer,
+        connector_http_status_code,
+        external_latency,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -269,7 +287,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Ctx>,
 {
-    let (payment_data, req, customer, connector_http_status_code) =
+    let (payment_data, req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, Ctx>(
             &state,
             merchant_account,
@@ -291,6 +309,8 @@ where
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
+        external_latency,
+        header_payload.x_hs_latency,
     )
 }
 
@@ -772,6 +792,7 @@ where
     router_data_res
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -780,6 +801,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
+    session_surcharge_metadata: Option<SurchargeMetadata>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -799,7 +821,6 @@ where
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
-
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
 
@@ -812,6 +833,18 @@ where
             false,
         )
         .await?;
+        payment_data.surcharge_details = session_surcharge_metadata
+            .as_ref()
+            .and_then(|surcharge_metadata| {
+                surcharge_metadata.surcharge_results.get(
+                    &SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+                        &session_connector_data.payment_method_type.into(),
+                        &session_connector_data.payment_method_type,
+                        None,
+                    ),
+                )
+            })
+            .cloned();
 
         let router_data = payment_data
             .construct_router_data(
@@ -1445,7 +1478,9 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
     pub frm_message: Option<FraudCheck>,
+    pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1578,7 +1613,7 @@ pub async fn list_payments(
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &pi.payment_id,
                     merchant_id,
-                    &pi.active_attempt_id,
+                    &pi.active_attempt.get_id(),
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
                 )

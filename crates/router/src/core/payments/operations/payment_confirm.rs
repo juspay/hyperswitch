@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payment_methods};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
@@ -88,21 +88,29 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            db,
+        )
+        .await?;
+
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
             &payment_intent,
-            merchant_account.intent_fulfillment_time,
+            intent_fulfillment_time,
         )?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
         // Stage 2
 
+        let attempt_id = payment_intent.active_attempt.get_id();
         let payment_attempt_fut = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                attempt_id.as_str(),
                 storage_scheme,
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
@@ -156,11 +164,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
                     let attempt_type = helpers::AttemptType::SameOld;
 
+                    let attempt_id = payment_intent.active_attempt.get_id();
                     let connector_response_fut = attempt_type.get_connector_response(
                         db,
                         &payment_intent.payment_id,
                         &payment_intent.merchant_id,
-                        &payment_intent.active_attempt_id,
+                        attempt_id.as_str(),
                         storage_scheme,
                     );
 
@@ -326,6 +335,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm
         });
 
+        // populate payment_data.surcharge_details from request
+        let surcharge_details = request.surcharge_details.map(|surcharge_details| {
+            payment_methods::SurchargeDetailsResponse {
+                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
+                tax_on_surcharge: None,
+                surcharge_amount: surcharge_details.surcharge_amount,
+                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
+                final_amount: payment_attempt.amount
+                    + surcharge_details.surcharge_amount
+                    + surcharge_details.tax_amount.unwrap_or(0),
+            }
+        });
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -359,7 +381,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(customer_details),
         ))
@@ -532,7 +556,19 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let authorized_amount = payment_data.payment_attempt.amount;
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let authorized_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.payment_attempt.amount);
         let payment_attempt_fut = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -553,6 +589,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     error_code,
                     error_message,
                     amount_capturable: Some(authorized_amount),
+                    surcharge_amount,
+                    tax_amount,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -578,6 +617,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     order_details,
                     metadata,
                     payment_confirm_source: header_payload.payment_confirm_source,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )

@@ -45,6 +45,7 @@ pub struct KlarnaPaymentsRequest {
     order_amount: i64,
     purchase_country: String,
     purchase_currency: enums::Currency,
+    merchant_reference1: String,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -140,6 +141,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
                     .collect(),
+                merchant_reference1: item.router_data.connector_request_reference_id.clone(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name"
@@ -157,12 +159,14 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.order_id.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_id.clone()),
             }),
             status: item.response.fraud_status.into(),
             ..item.data

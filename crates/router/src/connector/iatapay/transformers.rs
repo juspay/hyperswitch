@@ -86,7 +86,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
         let payment_method = item.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-            _ => item.get_billing_country()?.to_string(),
+
+            PaymentMethod::Card
+            | PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::Voucher
+            | PaymentMethod::GiftCard => item.get_billing_country()?.to_string(),
         };
         let return_url = item.get_return_url()?;
         let payer_info = match item.request.payment_method_data.clone() {
@@ -212,10 +223,14 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = match item.response.iata_payment_id {
+        let id = match item.response.iata_payment_id.clone() {
             Some(s) => types::ResponseId::ConnectorTransactionId(s),
             None => types::ResponseId::NoResponseId,
         };
+        let connector_response_reference_id = item
+            .response
+            .merchant_payment_id
+            .or(item.response.iata_payment_id);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
@@ -225,7 +240,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: connector_response_reference_id.clone(),
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -238,7 +253,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: connector_response_reference_id.clone(),
                     })
                 },
             ),

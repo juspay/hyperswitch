@@ -226,6 +226,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .into_report()
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
+            updated_by: merchant_account.storage_scheme.to_string(),
         };
         db.update_refund(
             refund.to_owned(),
@@ -695,11 +696,6 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     }?;
 
     if state.conf.webhooks.outgoing_enabled {
-        let arbiter = actix::Arbiter::try_current()
-            .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
-            .attach_printable("arbiter retrieval failure")?;
-
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
             event_id: event.event_id,
@@ -708,7 +704,9 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
             timestamp: event.created_at,
         };
 
-        arbiter.spawn(async move {
+        // Using a tokio spawn here and not arbiter because not all caller of this function
+        // may have an actix arbiter
+        tokio::spawn(async move {
             let result =
                 trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, &state).await;
 

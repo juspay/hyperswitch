@@ -19,6 +19,7 @@ pub struct ConnectorResponseNew {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -36,6 +37,7 @@ pub struct ConnectorResponse {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, AsChangeset, Serialize)]
@@ -46,6 +48,7 @@ pub struct ConnectorResponseUpdateInternal {
     pub modified_at: Option<PrimitiveDateTime>,
     pub encoded_data: Option<String>,
     pub connector_name: Option<String>,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -55,9 +58,11 @@ pub enum ConnectorResponseUpdate {
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
         connector_name: Option<String>,
+        updated_by: String,
     },
     ErrorUpdate {
         connector_name: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -80,6 +85,7 @@ impl ConnectorResponseUpdate {
             encoded_data: connector_response_update
                 .encoded_data
                 .or(source.encoded_data),
+            updated_by: connector_response_update.updated_by,
             ..source
         }
     }
@@ -93,16 +99,22 @@ impl From<ConnectorResponseUpdate> for ConnectorResponseUpdateInternal {
                 authentication_data,
                 encoded_data,
                 connector_name,
+                updated_by,
             } => Self {
                 connector_transaction_id,
                 authentication_data,
                 encoded_data,
                 modified_at: Some(common_utils::date_time::now()),
                 connector_name,
+                updated_by,
             },
-            ConnectorResponseUpdate::ErrorUpdate { connector_name } => Self {
+            ConnectorResponseUpdate::ErrorUpdate {
+                connector_name,
+                updated_by,
+            } => Self {
                 connector_name,
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Self::default()
             },
         }

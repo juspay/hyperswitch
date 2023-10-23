@@ -1,0 +1,75 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "currency": "EUR",
+      "shipping": {
+        "address": {
+          "line1": "1468",
+          "line2": "Koramangala ",
+          "line3": "Koramangala ",
+          "city": "Bangalore",
+          "state": "Karnataka",
+          "zip": "560065",
+          "country": "NL",
+          "first_name": "Preeetam",
+          "last_name": "Rev"
+        },
+        "phone": {
+          "number": "8796455689",
+          "country_code": "+91"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1468",
+          "line2": "Koramangala ",
+          "line3": "Koramangala ",
+          "city": "Bangalore",
+          "state": "Karnataka",
+          "zip": "560065",
+          "country": "NL",
+          "first_name": "Preeetam",
+          "last_name": "Rev"
+        },
+        "phone": {
+          "number": "8796455689",
+          "country_code": "+91"
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}"
+      }
+    ]
+  },
+  "description": "To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created "
+}
