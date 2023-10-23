@@ -430,7 +430,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let router_obj = mollie::MollieRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            req.request.refund_amount,
             req,
         ))?;
         let req_obj = mollie::MolliePaymentsRequest::try_from(&router_obj)?;
