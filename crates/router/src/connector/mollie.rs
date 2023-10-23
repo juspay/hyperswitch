@@ -433,7 +433,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = mollie::MolliePaymentsRequest::try_from(&router_obj)?;
+        let req_obj = mollie::MollieRefundRequest::try_from(&router_obj)?;
         let mollie_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json,
