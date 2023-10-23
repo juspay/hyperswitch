@@ -1,8 +1,9 @@
-use api_models::payments::BankRedirectData;
+use api_models::{enums, payments::BankRedirectData};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
@@ -67,8 +68,8 @@ pub enum PaypalPaymentIntent {
 
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
-    currency_code: storage_enums::Currency,
-    value: String,
+    pub currency_code: storage_enums::Currency,
+    pub value: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -1403,7 +1404,7 @@ pub struct PaypalWebhooksBody {
     pub resource: PaypalResource,
 }
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]
 pub enum PaypalWebhookEventType {
     #[serde(rename = "PAYMENT.AUTHORIZATION.CREATED")]
     PaymentAuthorizationCreated,
@@ -1423,6 +1424,14 @@ pub enum PaypalWebhookEventType {
     CheckoutOrderCompleted,
     #[serde(rename = "CHECKOUT.ORDER.PROCESSED")]
     CheckoutOrderProcessed,
+    #[serde(rename = "CUSTOMER.DISPUTE.CREATED")]
+    CustomerDisputeCreated,
+    #[serde(rename = "CUSTOMER.DISPUTE.RESOLVED")]
+    CustomerDisputeResolved,
+    #[serde(rename = "CUSTOMER.DISPUTE.UPDATED")]
+    CustomerDisputedUpdated,
+    #[serde(rename = "RISK.DISPUTE.CREATED")]
+    RiskDisputeCreated,
     #[serde(other)]
     Unknown,
 }
@@ -1433,6 +1442,64 @@ pub enum PaypalResource {
     PaypalCardWebhooks(Box<PaypalCardWebhooks>),
     PaypalRedirectsWebhooks(Box<PaypalRedirectsWebhooks>),
     PaypalRefundWebhooks(Box<PaypalRefundWebhooks>),
+    PaypalDisputeWebhooks(Box<PaypalDisputeWebhooks>),
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalDisputeWebhooks {
+    pub dispute_id: String,
+    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub dispute_amount: OrderAmount,
+    pub dispute_outcome: DisputeOutcome,
+    pub dispute_life_cycle_stage: DisputeLifeCycleStage,
+    pub status: DisputeStatus,
+    pub reason: Option<String>,
+    pub external_reason_code: Option<String>,
+    pub seller_response_due_date: Option<PrimitiveDateTime>,
+    pub update_time: Option<PrimitiveDateTime>,
+    pub create_time: Option<PrimitiveDateTime>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct DisputeTransaction {
+    pub reference_id: String,
+}
+
+#[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DisputeLifeCycleStage {
+    Inquiry,
+    Chargeback,
+    PreArbitration,
+    Arbitration,
+}
+
+#[derive(Deserialize, Debug, strum::Display, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DisputeStatus {
+    Open,
+    WaitingForBuyerResponse,
+    WaitingForSellerResponse,
+    UnderReview,
+    Resolved,
+    Other,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct DisputeOutcome {
+    pub outcome_code: OutcomeCode,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum OutcomeCode {
+    ResolvedBuyerFavour,
+    ResolvedSellerFavour,
+    ResolvedWithPayout,
+    CanceledByBuyer,
+    ACCEPTED,
+    DENIED,
+    NONE,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -1482,8 +1549,8 @@ pub struct PaypalWebooksEventType {
     pub event_type: PaypalWebhookEventType,
 }
 
-impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
-    fn from(event: PaypalWebhookEventType) -> Self {
+impl ForeignFrom<(PaypalWebhookEventType, Option<OutcomeCode>)> for api::IncomingWebhookEvent {
+    fn foreign_from((event, outcome): (PaypalWebhookEventType, Option<OutcomeCode>)) -> Self {
         match event {
             PaypalWebhookEventType::PaymentCaptureCompleted
             | PaypalWebhookEventType::CheckoutOrderCompleted => Self::PaymentIntentSuccess,
@@ -1491,10 +1558,45 @@ impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
             | PaypalWebhookEventType::CheckoutOrderProcessed => Self::PaymentIntentProcessing,
             PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
             PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
+            PaypalWebhookEventType::CustomerDisputeCreated => Self::DisputeOpened,
+            PaypalWebhookEventType::RiskDisputeCreated => Self::DisputeAccepted,
+            PaypalWebhookEventType::CustomerDisputeResolved => {
+                if let Some(outcome_code) = outcome {
+                    Self::from(outcome_code)
+                } else {
+                    Self::EventNotSupported
+                }
+            }
             PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
             | PaypalWebhookEventType::Unknown => Self::EventNotSupported,
+        }
+    }
+}
+
+impl From<OutcomeCode> for api::IncomingWebhookEvent {
+    fn from(outcome_code: OutcomeCode) -> Self {
+        match outcome_code {
+            OutcomeCode::ResolvedBuyerFavour => Self::DisputeLost,
+            OutcomeCode::ResolvedSellerFavour => Self::DisputeWon,
+            OutcomeCode::CanceledByBuyer => Self::DisputeCancelled,
+            OutcomeCode::ACCEPTED => Self::DisputeAccepted,
+            OutcomeCode::DENIED => Self::DisputeCancelled,
+            OutcomeCode::NONE => Self::DisputeCancelled,
+            OutcomeCode::ResolvedWithPayout => Self::EventNotSupported,
+        }
+    }
+}
+
+impl From<DisputeLifeCycleStage> for enums::DisputeStage {
+    fn from(dispute_life_cycle_stage: DisputeLifeCycleStage) -> Self {
+        match dispute_life_cycle_stage {
+            DisputeLifeCycleStage::Inquiry => Self::PreDispute,
+            DisputeLifeCycleStage::Chargeback => Self::Dispute,
+            DisputeLifeCycleStage::PreArbitration => Self::PreArbitration,
+            DisputeLifeCycleStage::Arbitration => Self::PreArbitration,
         }
     }
 }
@@ -1617,7 +1719,11 @@ impl TryFrom<PaypalWebhookEventType> for PaypalPaymentStatus {
             | PaypalWebhookEventType::CheckoutOrderProcessed => Ok(Self::Pending),
             PaypalWebhookEventType::PaymentAuthorizationCreated => Ok(Self::Created),
             PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Refunded),
-            PaypalWebhookEventType::Unknown => {
+            PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }
@@ -1637,6 +1743,10 @@ impl TryFrom<PaypalWebhookEventType> for RefundStatus {
             | PaypalWebhookEventType::CheckoutOrderApproved
             | PaypalWebhookEventType::CheckoutOrderCompleted
             | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
@@ -1657,6 +1767,10 @@ impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
             PaypalWebhookEventType::CheckoutOrderApproved
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
