@@ -66,7 +66,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     Ok(Self::Auth(auth_data))
                 }
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
         }
     }
 }
@@ -91,7 +104,13 @@ impl TryFrom<&types::ConnectorAuthType> for TsysAuthType {
                 transaction_key: key1.to_owned(),
                 developer_id: api_secret.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            types::ConnectorAuthType::HeaderKey { .. }
+            | types::ConnectorAuthType::BodyKey { .. }
+            | types::ConnectorAuthType::MultiAuthKey { .. }
+            | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::NoKey => {
+                Err(errors::ConnectorError::FailedToObtainAuthType.into())
+            }
         }
     }
 }
