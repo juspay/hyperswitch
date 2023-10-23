@@ -15,6 +15,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod workflows;
 
+pub mod events;
 pub mod middleware;
 pub mod openapi;
 pub mod services;
