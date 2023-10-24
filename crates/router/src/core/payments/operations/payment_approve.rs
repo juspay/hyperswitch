@@ -364,6 +364,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     {
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
+            updated_by: storage_scheme.to_string(),
         };
         payment_data.payment_intent = db
             .update_payment_intent(

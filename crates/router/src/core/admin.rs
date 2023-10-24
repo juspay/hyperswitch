@@ -5,7 +5,6 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
@@ -26,7 +25,7 @@ use crate::{
             self,
             types::{self as domain_types, AsyncLift},
         },
-        storage,
+        storage::{self, enums::MerchantStorageScheme},
         transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
@@ -136,6 +135,17 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
+    let payment_link_config = req
+        .payment_link_config
+        .as_ref()
+        .map(|pl_metadata| {
+            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()?;
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -171,6 +181,7 @@ pub async fn create_merchant_account(
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
+            payment_link_config,
         })
     }
     .await
@@ -239,6 +250,31 @@ pub async fn create_merchant_account(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while generating response")?,
     ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn list_merchant_account(
+    state: AppState,
+    req: api_models::admin::MerchantAccountListRequest,
+) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    let merchant_accounts = state
+        .store
+        .list_merchant_accounts_by_organization_id(&req.organization_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_accounts = merchant_accounts
+        .into_iter()
+        .map(|merchant_account| {
+            merchant_account
+                .try_into()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_account",
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(services::ApplicationResponse::Json(merchant_accounts))
 }
 
 pub async fn get_merchant_account(
@@ -458,6 +494,7 @@ pub async fn merchant_account_update(
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
+        payment_link_config: req.payment_link_config,
     };
 
     let response = db
@@ -624,12 +661,38 @@ pub async fn create_payment_connector(
         &merchant_account,
     )?;
 
-    let connector_label = core_utils::get_connector_label(
+    // Business label support will be deprecated soon
+    let profile_id = core_utils::get_profile_id_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        req.business_sub_label.as_ref(),
-        &req.connector_name.to_string(),
-    );
+        &merchant_account,
+        req.profile_id.as_ref(),
+        store,
+        true,
+    )
+    .await?;
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    // If connector label is not passed in the request, generate one
+    let connector_label = req
+        .connector_label
+        .or(core_utils::get_connector_label(
+            req.business_country,
+            req.business_label.as_ref(),
+            req.business_sub_label.as_ref(),
+            &req.connector_name.to_string(),
+        ))
+        .unwrap_or(format!(
+            "{}_{}",
+            req.connector_name, business_profile.profile_name
+        ));
 
     let mut vec = Vec::new();
     let payment_methods_enabled = match req.payment_methods_enabled {
@@ -664,11 +727,10 @@ pub async fn create_payment_connector(
                     message: "The connector name is invalid".to_string(),
                 })
             }
-            errors::ConnectorError::InvalidConfig { field_name } => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!("The {} is invalid", field_name),
-                })
-            }
+                }),
             errors::ConnectorError::FailedToObtainAuthType => {
                 err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "The auth type is invalid for the connector".to_string(),
@@ -681,16 +743,6 @@ pub async fn create_payment_connector(
     })?;
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
-
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        req.business_country,
-        req.business_label.as_ref(),
-        &merchant_account,
-        req.profile_id.as_ref(),
-        &*state.store,
-        true,
-    )
-    .await?;
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -713,7 +765,7 @@ pub async fn create_payment_connector(
         disabled: req.disabled,
         metadata: req.metadata,
         frm_configs,
-        connector_label: connector_label.clone(),
+        connector_label: Some(connector_label),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label,
@@ -875,6 +927,7 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type),
         connector_name: None,
         merchant_connector_id: None,
+        connector_label: req.connector_label,
         connector_account_details: req
             .connector_account_details
             .async_lift(|inner| {
