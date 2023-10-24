@@ -28,6 +28,7 @@ impl<T>
     )> for MultisafepayRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
         (_currency_unit, _currency, amount, item): (
             &types::api::CurrencyUnit,
@@ -364,11 +365,11 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>> for M
                 utils::get_unimplemented_payment_method_error_message("multisafepay"),
             ))?,
         };
-        let description = item.get_description()?;
+        let description = item.router_data.get_description()?;
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: item.request.get_router_return_url()?,
-            cancel_url: item.request.get_router_return_url()?,
+            redirect_url: item.router_data.request.get_router_return_url()?,
+            cancel_url: item.router_data.request.get_router_return_url()?,
             close_window: None,
             notification_method: None,
             settings: None,
@@ -393,14 +394,15 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>> for M
             state: None,
             country: None,
             phone: None,
-            email: item.request.email.clone(),
+            email: item.router_data.request.email.clone(),
             user_agent: None,
             referrer: None,
-            reference: Some(item.connector_request_reference_id.clone()),
+            reference: Some(item.router_data.connector_request_reference_id.clone()),
         };
 
         let billing_address = item
-            .get_billing()?
+            .router_data    
+        .get_billing()?
             .address
             .as_ref()
             .ok_or_else(utils::missing_field_err("billing.address"))?;
@@ -511,9 +513,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>> for M
         Ok(Self {
             payment_type,
             gateway,
-            order_id: item.connector_request_reference_id.to_string(),
+            order_id: item.router_data.connector_request_reference_id.to_string(),
             currency: item.router_data.request.currency.to_string(),
-            amount: item.request.amount,
+            amount: item.amount,
             description,
             payment_options: Some(payment_options),
             customer: Some(customer),
