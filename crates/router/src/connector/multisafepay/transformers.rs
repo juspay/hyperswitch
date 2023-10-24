@@ -13,6 +13,36 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct MultisafepayRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for MultisafepayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
@@ -240,10 +270,10 @@ impl TryFrom<utils::CardIssuer> for Gateway {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsRequest {
+impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>> for MultisafepayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_type = match item.request.payment_method_data {
+    fn try_from(item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let payment_type = match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
             api::PaymentMethodData::MandatePayment => Type::Direct,
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
@@ -280,7 +310,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             _ => Type::Redirect,
         };
 
-        let gateway = match item.request.payment_method_data {
+        let gateway = match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => {
                 Some(Gateway::try_from(ccard.get_card_issuer()?)?)
             }
@@ -384,7 +414,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             country: billing_address.get_country()?.to_owned(),
         };
 
-        let gateway_info = match item.request.payment_method_data {
+        let gateway_info = match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
@@ -482,7 +512,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             payment_type,
             gateway,
             order_id: item.connector_request_reference_id.to_string(),
-            currency: item.request.currency.to_string(),
+            currency: item.router_data.request.currency.to_string(),
             amount: item.request.amount,
             description,
             payment_options: Some(payment_options),
@@ -493,12 +523,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             shopping_cart: None,
             capture: None,
             items: None,
-            recurring_model: if item.request.is_mandate_payment() {
+            recurring_model: if item.router_data.request.is_mandate_payment() {
                 Some(MandateType::Unscheduled)
             } else {
                 None
             },
             recurring_id: item
+                .router_data
                 .request
                 .mandate_id
                 .clone()
