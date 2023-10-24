@@ -413,6 +413,7 @@ fn make_bank_redirect_request(
         | payments::BankRedirectData::OpenBankingUk { .. }
         | payments::BankRedirectData::Przelewy24 { .. }
         | payments::BankRedirectData::Sofort { .. }
+        | payments::BankRedirectData::Trustly { .. }
         | payments::BankRedirectData::OnlineBankingFpx { .. }
         | payments::BankRedirectData::OnlineBankingThailand { .. } => {
             return Err(errors::ConnectorError::NotImplemented(
