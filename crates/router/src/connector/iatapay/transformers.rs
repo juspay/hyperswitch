@@ -132,7 +132,18 @@ impl
         let payment_method = item.router_data.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-            _ => item.router_data.get_billing_country()?.to_string(),
+
+            PaymentMethod::Card
+            | PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::Voucher
+            | PaymentMethod::GiftCard => item.get_billing_country()?.to_string(),
         };
         let return_url = item.router_data.get_return_url()?;
         let payer_info = match item.router_data.request.payment_method_data.clone() {

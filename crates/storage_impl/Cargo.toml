@@ -28,7 +28,7 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 
 # Third party crates
 actix-web = "4.3.1"
-async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
+async-bb8-diesel = "0.1.0"
 async-trait = "0.1.72"
 bb8 = "0.8.1"
 bytes = "1.4.0"
