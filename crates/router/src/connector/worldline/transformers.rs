@@ -414,7 +414,6 @@ fn make_bank_redirect_request(
         | payments::BankRedirectData::Przelewy24 { .. }
         | payments::BankRedirectData::Sofort { .. }
         | payments::BankRedirectData::Trustly { .. }
-        | payments::BankRedirectData::OnlineBankingFpx { .. }
         | payments::BankRedirectData::OnlineBankingThailand { .. } => {
             return Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldline"),
