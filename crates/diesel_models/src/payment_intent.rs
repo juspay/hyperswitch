@@ -177,6 +177,10 @@ pub enum PaymentIntentUpdate {
         merchant_decision: Option<String>,
         updated_by: String,
     },
+    SurchargeApplicableUpdate {
+        surcharge_applicable: Option<bool>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -405,6 +409,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 merchant_decision,
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => Self {
+                surcharge_applicable,
                 updated_by,
                 ..Default::default()
             },
