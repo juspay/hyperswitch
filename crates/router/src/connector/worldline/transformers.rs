@@ -241,7 +241,7 @@ impl
                     &item.router_data.request,
                     card,
                 )?))
-            },
+            }
             api::PaymentMethodData::BankRedirect(bank_redirect) => {
                 WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
                     make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
