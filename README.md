@@ -154,7 +154,7 @@ You can [try the hosted version in our sandbox][dashboard].
 Got more questions?
 Please refer to our [FAQs page][faqs].
 
-[faqs]: https://hyperswitch.io/docs/devSupport
+[faqs]: https://hyperswitch.io/docs/devSupport#faq
 
 <!--
 ## Documentation
