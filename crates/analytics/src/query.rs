@@ -3,10 +3,8 @@ use std::marker::PhantomData;
 use api_models::{
     analytics::{
         self as analytics_api,
-        api_event::ApiEventDimensions,
         payments::PaymentDimensions,
         refunds::{RefundDimensions, RefundType},
-        sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod},
@@ -15,7 +13,7 @@ use api_models::{
 use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{logger, Flow};
-use storage_models::enums as storage_enums;
+use common_enums::enums as storage_enums;
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
 use crate::types::QueryExecutionError;
@@ -301,10 +299,6 @@ impl_to_sql_for_to_string!(
     &u64,
     u64
 );
-
-impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
-
-impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
 
 #[derive(Debug)]
 pub enum FilterTypes {

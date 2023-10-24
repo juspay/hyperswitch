@@ -5,7 +5,7 @@ use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services_oss::kms::{self, decrypt::KmsDecrypt};
-use hyperswitch_oss::configs::settings::Database;
+use common_enums::configs::settings::Database;
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use sqlx::{

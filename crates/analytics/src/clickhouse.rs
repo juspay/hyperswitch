@@ -10,16 +10,9 @@ use super::{
     payments::{filters::FilterRow, metrics::PaymentMetricRow},
     query::{Aggregate, ToSql},
     refunds::{filters::RefundFilterRow, metrics::RefundMetricRow},
-    sdk_events::{filters::SdkEventFilter, metrics::SdkEventMetricRow},
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, QueryExecutionError},
 };
 use crate::{
-    api_event::{
-        events::ApiLogsResult,
-        filters::ApiEventFilter,
-        metrics::{latency::LatencyAvg, ApiEventMetricRow},
-    },
-    sdk_events::events::SdkEventsResult,
     types::TableEngine,
 };
 
@@ -134,12 +127,6 @@ impl super::payments::filters::PaymentFilterAnalytics for ClickhouseClient {}
 impl super::payments::metrics::PaymentMetricAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
-impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
-impl super::sdk_events::metrics::SdkEventMetricAnalytics for ClickhouseClient {}
-impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
-impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
-impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
-impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
 
 #[derive(Debug, serde::Serialize)]
 struct CkhQuery {
@@ -151,30 +138,6 @@ struct CkhQuery {
 #[derive(Debug, serde::Deserialize)]
 struct CkhOutput<T> {
     data: Vec<T>,
-}
-
-impl TryInto<ApiLogsResult> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<ApiLogsResult, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ApiLogsResult in clickhouse results",
-            ))
-    }
-}
-
-impl TryInto<SdkEventsResult> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<SdkEventsResult, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse SdkEventsResult in clickhouse results",
-            ))
-    }
 }
 
 impl TryInto<PaymentMetricRow> for serde_json::Value {
@@ -225,66 +188,6 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     }
 }
 
-impl TryInto<ApiEventMetricRow> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<ApiEventMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ApiEventMetricRow in clickhouse results",
-            ))
-    }
-}
-
-impl TryInto<LatencyAvg> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<LatencyAvg, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse LatencyAvg in clickhouse results",
-            ))
-    }
-}
-
-impl TryInto<SdkEventMetricRow> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<SdkEventMetricRow, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse SdkEventMetricRow in clickhouse results",
-            ))
-    }
-}
-
-impl TryInto<SdkEventFilter> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<SdkEventFilter, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse SdkEventFilter in clickhouse results",
-            ))
-    }
-}
-
-impl TryInto<ApiEventFilter> for serde_json::Value {
-    type Error = Report<ParsingError>;
-
-    fn try_into(self) -> Result<ApiEventFilter, Self::Error> {
-        serde_json::from_value(self)
-            .into_report()
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse ApiEventFilter in clickhouse results",
-            ))
-    }
-}
-
 impl ToSql<ClickhouseClient> for PrimitiveDateTime {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         let format =
@@ -306,8 +209,6 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
         match self {
             Self::Payment => Ok("payment_attempt_dist".to_string()),
             Self::Refund => Ok("refund_dist".to_string()),
-            Self::SdkEvents => Ok("sdk_events_dist".to_string()),
-            Self::ApiEvents => Ok("api_audit_log".to_string()),
         }
     }
 }

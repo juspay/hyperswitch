@@ -3,7 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use api_models_oss::{enums::Currency, refunds::RefundStatus};
+use crate::{enums::Currency, refunds::RefundStatus};
 
 #[derive(
     Clone,

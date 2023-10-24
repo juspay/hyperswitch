@@ -5,8 +5,8 @@ use api_models::analytics::{
     payments::{
         MetricsBucketResponse, PaymentDimensions, PaymentMetrics, PaymentMetricsBucketIdentifier,
     },
-    AnalyticsMetadata, FilterValue, GeneratePaymentReportRequest, GetPaymentFiltersRequest,
-    GetPaymentMetricRequest, MetricsResponse, PaymentFiltersResponse, PaymentReportRequest,
+    AnalyticsMetadata, FilterValue, GetPaymentFiltersRequest,
+    GetPaymentMetricRequest, MetricsResponse, PaymentFiltersResponse,
 };
 use error_stack::{IntoReport, ResultExt};
 use router_env::{
@@ -20,10 +20,9 @@ use super::{
 };
 use crate::{
     errors::{AnalyticsError, AnalyticsResult},
-    lambda_utils::invoke_lambda,
     metrics,
     payments::PaymentMetricAccumulator,
-    AnalyticsProvider, PaymentReportConfig,
+    AnalyticsProvider,
 };
 
 #[instrument(skip_all)]
@@ -138,25 +137,6 @@ pub async fn get_metrics(
             current_time_range: req.time_range,
         }],
     })
-}
-
-#[instrument(skip_all)]
-pub async fn generate_report(
-    report_download_config: PaymentReportConfig,
-    merchant_id: &str,
-    user_email: &str,
-    req: PaymentReportRequest,
-) -> AnalyticsResult<()> {
-    let lambda_req = GeneratePaymentReportRequest {
-        request: req.clone(),
-        merchant_id: merchant_id.to_string(),
-        email: user_email.to_string(),
-    };
-
-    let json_bytes = serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-    invoke_lambda(report_download_config, &json_bytes).await?;
-
-    Ok(())
 }
 
 pub async fn get_filters(

@@ -2,20 +2,15 @@ pub use analytics::*;
 
 pub mod routes {
     use actix_web::{web, Responder, Scope};
-    use analytics::{
-        api_event::api_events_core, errors::AnalyticsError, sdk_events::sdk_events_core,
-    };
+    use analytics::errors::AnalyticsError;
     use api_models::analytics::{
-        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetPaymentFiltersRequest,
+        GetPaymentFiltersRequest,
         GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, PaymentReportRequest,
     };
-    use error_stack::ResultExt;
-    use hyperswitch_oss::{
+    use crate::{
         core::api_locking,
         services::{authentication::AuthenticationData, ApplicationResponse},
     };
-    use masking::PeekInterface;
     use router_env::VasFlow;
 
     use crate::{

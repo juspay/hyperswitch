@@ -4,7 +4,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use storage_models::enums::{Currency, RefundStatus};
+use common_enums::enums::{Currency, RefundStatus};
 use time::PrimitiveDateTime;
 
 use crate::{

@@ -4,7 +4,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use storage_models::enums as storage_enums;
+use common_enums::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use super::PaymentMetricRow;

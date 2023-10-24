@@ -27,7 +27,7 @@ use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
 
 use configs::settings::Database;
-use logger;
+use router_env::logger;
 use router_env::tracing::{self, instrument};
 
 use self::{

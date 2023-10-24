@@ -4,7 +4,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use hyperswitch_oss::types::transformers::ForeignInto;
+use router::types::transformers::ForeignInto;
 use time::PrimitiveDateTime;
 
 use super::RefundMetricRow;

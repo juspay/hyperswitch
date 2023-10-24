@@ -3,9 +3,11 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use api_models_oss::enums::{
-    AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod,
+use common_enums::enums::{
+    AttemptStatus, AuthenticationType, Currency, PaymentMethod,
 };
+
+use crate::enums::Connector;
 
 use super::{NameDescription, TimeRange};
 
