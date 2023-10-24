@@ -5,6 +5,8 @@ use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services_oss::kms;
+#[cfg(not(feature = "kms"))]
+use masking::PeekInterface;
 use crate::configs::settings::Database;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
@@ -33,18 +35,18 @@ pub struct SqlxClient {
 impl SqlxClient {
     pub async fn from_conf(
         conf: &Database,
-        #[cfg(feature = "kms")] kms_conf: &kms::KmsConfig,
+        #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
     ) -> Self {
         #[cfg(feature = "kms")]
         #[allow(clippy::expect_used)]
-        let password = kms::get_kms_client(kms_conf)
-            .await
-            .decrypt(&conf.kms_encrypted_password)
+        let password = conf
+            .password
+            .decrypt_inner(kms_client)
             .await
             .expect("Failed to KMS decrypt database password");
 
         #[cfg(not(feature = "kms"))]
-        let password = &conf.password;
+        let password = &conf.password.peek();
         let database_url = format!(
             "postgres://{}:{}@{}:{}/{}",
             conf.username, password, conf.host, conf.port, conf.dbname
@@ -191,7 +193,7 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        // Removing millisecond precision to get accurate diffs against clickhouse
+
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
             .and_then(|dt| dt.replace_millisecond(0).ok());
@@ -245,7 +247,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        // Removing millisecond precision to get accurate diffs against clickhouse
+
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
             .and_then(|dt| dt.replace_millisecond(0).ok());

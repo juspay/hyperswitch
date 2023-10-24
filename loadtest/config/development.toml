@@ -234,3 +234,15 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+
+[analytics]
+source = "sqlx"
+
+[analytics.sqlx]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+connection_timeout = 10

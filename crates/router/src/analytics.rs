@@ -1,5 +1,4 @@
 
-mod clickhouse;
 mod core;
 mod errors;
 pub mod metrics;
@@ -13,9 +12,6 @@ mod types;
 mod utils;
 
 
-use std::sync::Arc;
-
-
 
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
@@ -23,9 +19,6 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 
-use clickhouse::ClickhouseClient;
-
-pub use clickhouse::ClickhouseConfig;
 
 use crate::configs::settings::Database;
 
@@ -44,11 +37,6 @@ pub enum AnalyticsProvider {
     
     Sqlx(SqlxClient),
     
-    Clickhouse(ClickhouseClient),
-    
-    CombinedCkh(SqlxClient, ClickhouseClient),
-    
-    CombinedSqlx(SqlxClient, ClickhouseClient),
 }
 use router_env::{instrument, tracing};
 
@@ -81,78 +69,7 @@ impl AnalyticsProvider {
                             .await
                     }
                     
-                    Self::Clickhouse(pool) => {
-                        metric
-                            .load_metrics(
-                                dimensions,
-                                merchant_id,
-                                filters,
-                                granularity,
-                                time_range,
-                                pool,
-                            )
-                            .await
-                    }
                     
-                    Self::CombinedCkh(sqlx_pool, ckh_pool) => {
-                        let (ckh_result, sqlx_result) = tokio::join!(metric
-                            .load_metrics(
-                                dimensions,
-                                merchant_id,
-                                filters,
-                                granularity,
-                                time_range,
-                                ckh_pool,
-                            ),
-                            metric
-                            .load_metrics(
-                                dimensions,
-                                merchant_id,
-                                filters,
-                                granularity,
-                                time_range,
-                                sqlx_pool,
-                            ));
-                        match (&sqlx_result, &ckh_result) {
-                            (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                                router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics metrics")
-                            },
-                            _ => {}
-
-                        };
-
-                        ckh_result
-                    }
-                    
-                    Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
-                        let (ckh_result, sqlx_result) = tokio::join!(metric
-                            .load_metrics(
-                                dimensions,
-                                merchant_id,
-                                filters,
-                                granularity,
-                                time_range,
-                                ckh_pool,
-                            ),
-                            metric
-                            .load_metrics(
-                                dimensions,
-                                merchant_id,
-                                filters,
-                                granularity,
-                                time_range,
-                                sqlx_pool,
-                            ));
-                        match (&sqlx_result, &ckh_result) {
-                            (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                                router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics metrics")
-                            },
-                            _ => {}
-
-                        };
-
-                        sqlx_result
-                    }
                 }
             },
             &metrics::METRIC_FETCH_TIME,
@@ -186,74 +103,7 @@ impl AnalyticsProvider {
                     .await
             }
             
-            Self::Clickhouse(pool) => {
-                metric
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
             
-            Self::CombinedCkh(sqlx_pool, ckh_pool) => {
-                let (ckh_result, sqlx_result) = tokio::join!(
-                    metric.load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        ckh_pool,
-                    ),
-                    metric.load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        sqlx_pool,
-                    )
-                );
-                match (&sqlx_result, &ckh_result) {
-                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
-                    }
-                    _ => {}
-                };
-                ckh_result
-            }
-            
-            Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
-                let (ckh_result, sqlx_result) = tokio::join!(
-                    metric.load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        ckh_pool,
-                    ),
-                    metric.load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        sqlx_pool,
-                    )
-                );
-                match (&sqlx_result, &ckh_result) {
-                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
-                    }
-                    _ => {}
-                };
-                sqlx_result
-            }
         }
     }
 
@@ -273,33 +123,6 @@ impl AnalyticsProvider {
                 .await,
             ),
             
-            AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
-                config: Arc::new(clickhouse.clone()),
-            }),
-            
-            AnalyticsConfig::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh(
-                SqlxClient::from_conf(
-                    sqlx,
-                    #[cfg(feature = "kms")]
-                    kms_conf,
-                )
-                .await,
-                ClickhouseClient {
-                    config: Arc::new(clickhouse.clone()),
-                },
-            ),
-            
-            AnalyticsConfig::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx(
-                SqlxClient::from_conf(
-                    sqlx,
-                    #[cfg(feature = "kms")]
-                    kms_conf,
-                )
-                .await,
-                ClickhouseClient {
-                    config: Arc::new(clickhouse.clone()),
-                },
-            ),
         }
     }
 }
@@ -311,17 +134,6 @@ pub enum AnalyticsConfig {
     
     Sqlx { sqlx: Database },
     
-    Clickhouse { clickhouse: ClickhouseConfig },
-    
-    CombinedCkh {
-        sqlx: Database,
-        clickhouse: ClickhouseConfig,
-    },
-    
-    CombinedSqlx {
-        sqlx: Database,
-        clickhouse: ClickhouseConfig,
-    },
 }
 
 impl Default for AnalyticsConfig {

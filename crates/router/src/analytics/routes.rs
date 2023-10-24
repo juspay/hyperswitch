@@ -18,7 +18,7 @@ pub struct Analytics;
 
 impl Analytics {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/analytics/v1").app_data(web::Data::new(state));
+        let route = web::scope("/analytics/v1").app_data(web::Data::new(state));
             route
                 .service(
                     web::resource("metrics/payments").route(web::post().to(get_payment_metrics)),
@@ -71,7 +71,7 @@ pub async fn get_payment_metrics(
         &req,
         payload,
         |state, auth: AuthenticationData, req| {
-            payments::get_metrics(&state.pool, auth.merchant_account, req)
+            payments::get_metrics(state.pool.clone(), auth.merchant_account, req)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
@@ -98,7 +98,7 @@ pub async fn get_refunds_metrics(
         &req,
         payload,
         |state, auth: AuthenticationData, req| {
-            refunds::get_metrics(&state.pool, auth.merchant_account, req)
+            refunds::get_metrics(state.pool.clone(), auth.merchant_account, req)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
@@ -118,7 +118,7 @@ pub async fn get_payment_filters(
         &req,
         json_payload.into_inner(),
         |state, auth: AuthenticationData, req| {
-            payment_filters_core(&state.pool, req, auth.merchant_account)
+            payment_filters_core(state.pool.clone(), req, auth.merchant_account)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
@@ -138,7 +138,7 @@ pub async fn get_refund_filters(
         &req,
         json_payload.into_inner(),
         |state, auth: AuthenticationData, req: GetRefundFilterRequest| {
-            refund_filter_core(&state.pool, req, auth.merchant_account)
+            refund_filter_core(state.pool.clone(), req, auth.merchant_account)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,

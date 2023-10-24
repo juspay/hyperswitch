@@ -19,7 +19,7 @@ use crate::analytics::{
 
 #[instrument(skip_all)]
 pub async fn get_metrics(
-    pool: &AnalyticsProvider,
+    pool: AnalyticsProvider,
     merchant_account: domain::MerchantAccount,
     req: GetPaymentMetricRequest,
 ) -> AnalyticsApiResponse<MetricsResponse<MetricsBucketResponse>> {
@@ -70,13 +70,9 @@ pub async fn get_metrics(
                 "source",
                 match pool {
                     
-                    crate::analytics::AnalyticsProvider::Clickhouse(_) => "Clickhouse",
                     
                     crate::analytics::AnalyticsProvider::Sqlx(_) => "Sqlx",
                     
-                    crate::analytics::AnalyticsProvider::CombinedCkh(_, _) => "CombinedCkh",
-                    
-                    crate::analytics::AnalyticsProvider::CombinedSqlx(_, _) => "CombinedSqlx",
                 },
             ),
         ];

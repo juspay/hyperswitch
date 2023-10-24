@@ -102,27 +102,6 @@ impl GroupByClause<super::SqlxClient> for Granularity {
 }
 
 
-impl GroupByClause<super::ClickhouseClient> for Granularity {
-    fn set_group_by_clause(
-        &self,
-        builder: &mut QueryBuilder<super::ClickhouseClient>,
-    ) -> QueryResult<()> {
-        let interval = match self {
-            Self::OneMin => "1 minute",
-            Self::FiveMin => "5 minute",
-            Self::FifteenMin => "15 minute",
-            Self::ThirtyMin => "30 minute",
-            Self::OneHour => "1 hour",
-            Self::OneDay => "1 day",
-        };
-
-        builder
-            .add_group_by_clause(format!(
-                "toStartOfInterval(created_at, INTERVAL {interval})"
-            ))
-            .attach_printable("Error adding interval group by")
-    }
-}
 
 #[derive(strum::Display)]
 #[strum(serialize_all = "lowercase")]
@@ -307,12 +286,10 @@ impl_to_sql_for_to_string!(
 #[derive(Debug)]
 pub enum FilterTypes {
     Equal,
-    #[cfg_attr(not(feature = "clickhouse_analytics"), allow(dead_code))]
     EqualBool,
     In,
     Gte,
     Lte,
-    #[cfg_attr(not(feature = "clickhouse_analytics"), allow(dead_code))]
     Gt,
 }
 

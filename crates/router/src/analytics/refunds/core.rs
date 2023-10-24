@@ -18,7 +18,7 @@ use crate::analytics::{
 };
 
 pub async fn get_metrics(
-    pool: &AnalyticsProvider,
+    pool: AnalyticsProvider,
     merchant_account: domain::MerchantAccount,
     req: GetRefundMetricRequest,
 ) -> AnalyticsApiResponse<MetricsResponse<RefundMetricsBucketResponse>> {

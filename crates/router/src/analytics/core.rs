@@ -37,72 +37,20 @@ pub async fn get_domain_info(domain: AnalyticsDomain) -> AnalyticsApiResponse<Ge
 }
 
 pub async fn payment_filters_core(
-    pool: &AnalyticsProvider,
+    pool: AnalyticsProvider,
     req: GetPaymentFiltersRequest,
     merchant: domain::MerchantAccount,
 ) -> AnalyticsApiResponse<PaymentFiltersResponse> {
     let mut res = PaymentFiltersResponse::default();
 
     for dim in req.group_by_names {
-        let values = match pool {
+        let values = match pool.clone() {
             
             AnalyticsProvider::Sqlx(pool) => {
-                get_payment_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, &pool)
                     .await
             }
             
-            AnalyticsProvider::Clickhouse(pool) => {
-                get_payment_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
-                    .await
-            }
-            
-            AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
-                let ckh_result = get_payment_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    ckh_pool,
-                )
-                .await;
-                let sqlx_result = get_payment_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    sqlx_poll,
-                )
-                .await;
-                match (&sqlx_result, &ckh_result) {
-                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics filters")
-                    },
-                    _ => {}
-                };
-                ckh_result
-            }
-            
-            AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
-                let ckh_result = get_payment_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    ckh_pool,
-                )
-                .await;
-                let sqlx_result = get_payment_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    sqlx_poll,
-                )
-                .await;
-                match (&sqlx_result, &ckh_result) {
-                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics filters")
-                    },
-                    _ => {}
-                };
-                sqlx_result
-            }
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
@@ -124,71 +72,19 @@ pub async fn payment_filters_core(
 }
 
 pub async fn refund_filter_core(
-    pool: &AnalyticsProvider,
+    pool: AnalyticsProvider,
     req: GetRefundFilterRequest,
     merchant: domain::MerchantAccount,
 ) -> AnalyticsApiResponse<RefundFiltersResponse> {
     let mut res = RefundFiltersResponse::default();
     for dim in req.group_by_names {
-        let values = match pool {
+        let values = match pool.clone() {
             
             AnalyticsProvider::Sqlx(pool) => {
-                get_refund_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
+                get_refund_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, &pool)
                     .await
             }
             
-            AnalyticsProvider::Clickhouse(pool) => {
-                get_refund_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
-                    .await
-            }
-            
-            AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) => {
-                let ckh_result = get_refund_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    ckh_pool,
-                )
-                .await;
-                let sqlx_result = get_refund_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    sqlx_pool,
-                )
-                .await;
-                match (&sqlx_result, &ckh_result) {
-                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
-                    },
-                    _ => {}
-                };
-                ckh_result
-            }
-            
-            AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
-                let ckh_result = get_refund_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    ckh_pool,
-                )
-                .await;
-                let sqlx_result = get_refund_filter_for_dimension(
-                    dim,
-                    &merchant.merchant_id,
-                    &req.time_range,
-                    sqlx_pool,
-                )
-                .await;
-                match (&sqlx_result, &ckh_result) {
-                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
-                    },
-                    _ => {}
-                };
-                sqlx_result
-            }
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()

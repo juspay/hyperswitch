@@ -19,6 +19,7 @@ use serde::{de::Error, Deserialize, Deserializer};
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    analytics::AnalyticsConfig
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;
@@ -101,6 +102,8 @@ pub struct Settings {
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
+    #[cfg(feature = "olap")]
+    pub analytics: AnalyticsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
