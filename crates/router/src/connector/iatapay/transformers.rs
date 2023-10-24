@@ -143,7 +143,7 @@ impl
             | PaymentMethod::BankDebit
             | PaymentMethod::Reward
             | PaymentMethod::Voucher
-            | PaymentMethod::GiftCard => item.get_billing_country()?.to_string(),
+            | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
         };
         let return_url = item.router_data.get_return_url()?;
         let payer_info = match item.router_data.request.payment_method_data.clone() {
