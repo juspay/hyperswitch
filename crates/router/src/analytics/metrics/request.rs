@@ -5,7 +5,7 @@ pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
     router_env::opentelemetry::KeyValue::new(key, value)
 }
 
-#[cfg(any(feature = "sqlx_analytics", feature = "clickhouse_analytics"))]
+
 #[inline]
 pub async fn record_operation_time<F, R>(
     future: F,
@@ -22,13 +22,13 @@ where
         add_attributes(
             "source",
             match source {
-                #[cfg(feature = "clickhouse_analytics")]
+                
                 crate::analytics::AnalyticsProvider::Clickhouse(_) => "Clickhouse",
-                #[cfg(feature = "sqlx_analytics")]
+                
                 crate::analytics::AnalyticsProvider::Sqlx(_) => "Sqlx",
-                #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+                
                 crate::analytics::AnalyticsProvider::CombinedCkh(_, _) => "CombinedCkh",
-                #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+                
                 crate::analytics::AnalyticsProvider::CombinedSqlx(_, _) => "CombinedSqlx",
             },
         ),

@@ -1,7 +1,6 @@
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
-    sdk_events::{SdkEventDimensions, SdkEventMetrics},
     NameDescription,
 };
 use strum::IntoEnumIterator;

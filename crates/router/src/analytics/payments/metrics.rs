@@ -2,7 +2,7 @@ use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
-use storage_models::enums as storage_enums;
+use common_enums::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use crate::analytics::{

@@ -1,20 +1,21 @@
 use std::marker::PhantomData;
 
-#[cfg(feature = "clickhouse_analytics")]
+
 use api_models::analytics::{
     self as analytics_api,
     payments::PaymentDimensions,
     refunds::{RefundDimensions, RefundType},
     Granularity,
 };
-use api_models_oss::{
-    enums::{AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod},
-    refunds::RefundStatus,
-};
+use common_enums::
+    enums::{AttemptStatus, AuthenticationType, Currency, PaymentMethod}
+;
+
+use api_models::{refunds::RefundStatus, enums::Connector};
 use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
-use storage_models::enums as storage_enums;
+use common_enums::enums as storage_enums;
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
 use crate::analytics::types::QueryExecutionError;
@@ -70,7 +71,7 @@ where
     }
 }
 
-#[cfg(feature = "sqlx_analytics")]
+
 impl GroupByClause<super::SqlxClient> for Granularity {
     fn set_group_by_clause(
         &self,
@@ -100,7 +101,7 @@ impl GroupByClause<super::SqlxClient> for Granularity {
     }
 }
 
-#[cfg(feature = "clickhouse_analytics")]
+
 impl GroupByClause<super::ClickhouseClient> for Granularity {
     fn set_group_by_clause(
         &self,
@@ -294,7 +295,6 @@ impl_to_sql_for_to_string!(
     AuthenticationType,
     Connector,
     AttemptStatus,
-    storage_enums::AttemptStatus,
     RefundStatus,
     storage_enums::RefundStatus,
     Currency,
@@ -356,7 +356,7 @@ where
         self.add_custom_filter_clause(key, value, FilterTypes::Equal)
     }
 
-    #[cfg(feature = "clickhouse_analytics")]
+    
     pub fn add_bool_filter_clause(
         &mut self,
         key: impl ToSql<T>,
@@ -433,7 +433,7 @@ where
         self.filters
             .iter()
             .map(|(l, op, r)| match op {
-                #[cfg(feature = "clickhouse_analytics")]
+                
                 FilterTypes::EqualBool => format!("{l} = {r}"),
                 FilterTypes::Equal => format!("{l} = '{r}'"),
                 FilterTypes::In => format!("{l} IN ({r})"),

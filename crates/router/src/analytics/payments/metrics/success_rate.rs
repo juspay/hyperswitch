@@ -4,7 +4,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use hyperswitch_oss::types::transformers::ForeignInto;
+
 use time::PrimitiveDateTime;
 
 use super::PaymentMetricRow;
@@ -96,10 +96,10 @@ where
             .map(|i| {
                 Ok((
                     PaymentMetricsBucketIdentifier::new(
-                        i.currency.as_ref().map(|i| i.0.foreign_into()),
+                        i.currency.as_ref().map(|i| i.0),
                         None,
                         i.connector.clone(),
-                        i.authentication_type.as_ref().map(|i| i.0.foreign_into()),
+                        i.authentication_type.as_ref().map(|i| i.0),
                         i.payment_method.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {

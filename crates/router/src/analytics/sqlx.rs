@@ -5,14 +5,14 @@ use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services_oss::kms;
-use hyperswitch_oss::configs::settings::Database;
+use crate::configs::settings::Database;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
     Decode, Encode,
     Error::ColumnNotFound,
     FromRow, Pool, Postgres, Row,
 };
-use storage_models::enums::{
+use common_enums::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
 use time::PrimitiveDateTime;

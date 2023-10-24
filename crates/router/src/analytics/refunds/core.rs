@@ -5,7 +5,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetRefundMetricRequest, MetricsResponse,
 };
 use error_stack::{IntoReport, ResultExt};
-use hyperswitch_oss::{services::ApplicationResponse, types::domain};
+use crate::{services::ApplicationResponse, types::domain};
 use router_env::{
     logger,
     tracing::{self, Instrument},

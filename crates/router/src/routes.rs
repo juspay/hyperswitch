@@ -37,3 +37,4 @@ pub use self::app::{
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;
+pub use crate::analytics::routes::{self as analytics, Analytics};

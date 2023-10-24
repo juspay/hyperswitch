@@ -4,13 +4,12 @@ use api_models::analytics::{
     RefundFiltersResponse,
 };
 
-#[cfg(all(feature = "sqlx_analytics", feature = "clickhouse_analytics"))]
-use error_stack::IntoReport;
-use error_stack::ResultExt;
-use hyperswitch_oss::{services::ApplicationResponse, types::domain};
 
-#[cfg(all(feature = "sqlx_analytics", feature = "clickhouse_analytics"))]
-use super::types::FiltersError;
+use error_stack::ResultExt;
+use crate::{services::ApplicationResponse, types::domain};
+
+
+
 use super::{
     errors::{self, AnalyticsError},
     payments::filters::{get_payment_filter_for_dimension, FilterRow},
@@ -46,17 +45,17 @@ pub async fn payment_filters_core(
 
     for dim in req.group_by_names {
         let values = match pool {
-            #[cfg(feature = "sqlx_analytics")]
+            
             AnalyticsProvider::Sqlx(pool) => {
                 get_payment_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
                     .await
             }
-            #[cfg(feature = "clickhouse_analytics")]
+            
             AnalyticsProvider::Clickhouse(pool) => {
                 get_payment_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
                     .await
             }
-            #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+            
             AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
@@ -74,13 +73,13 @@ pub async fn payment_filters_core(
                 .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env_oss::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics filters")
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics filters")
                     },
                     _ => {}
                 };
                 ckh_result
             }
-            #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+            
             AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
@@ -98,7 +97,7 @@ pub async fn payment_filters_core(
                 .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env_oss::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics filters")
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics filters")
                     },
                     _ => {}
                 };
@@ -132,17 +131,17 @@ pub async fn refund_filter_core(
     let mut res = RefundFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool {
-            #[cfg(feature = "sqlx_analytics")]
+            
             AnalyticsProvider::Sqlx(pool) => {
                 get_refund_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
                     .await
             }
-            #[cfg(feature = "clickhouse_analytics")]
+            
             AnalyticsProvider::Clickhouse(pool) => {
                 get_refund_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, pool)
                     .await
             }
-            #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+            
             AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_refund_filter_for_dimension(
                     dim,
@@ -160,13 +159,13 @@ pub async fn refund_filter_core(
                 .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env_oss::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
                     },
                     _ => {}
                 };
                 ckh_result
             }
-            #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+            
             AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_refund_filter_for_dimension(
                     dim,
@@ -184,7 +183,7 @@ pub async fn refund_filter_core(
                 .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env_oss::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
                     },
                     _ => {}
                 };

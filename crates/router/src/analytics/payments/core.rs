@@ -5,7 +5,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetPaymentMetricRequest, MetricsResponse,
 };
 use error_stack::{IntoReport, ResultExt};
-use hyperswitch_oss::{services::ApplicationResponse, types::domain};
+use crate::{services::ApplicationResponse, types::domain};
 use router_env::{
     instrument, logger,
     tracing::{self, Instrument},
@@ -69,13 +69,13 @@ pub async fn get_metrics(
             metrics::request::add_attributes(
                 "source",
                 match pool {
-                    #[cfg(feature = "clickhouse_analytics")]
+                    
                     crate::analytics::AnalyticsProvider::Clickhouse(_) => "Clickhouse",
-                    #[cfg(feature = "sqlx_analytics")]
+                    
                     crate::analytics::AnalyticsProvider::Sqlx(_) => "Sqlx",
-                    #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+                    
                     crate::analytics::AnalyticsProvider::CombinedCkh(_, _) => "CombinedCkh",
-                    #[cfg(all(feature = "clickhouse_analytics", feature = "sqlx_analytics"))]
+                    
                     crate::analytics::AnalyticsProvider::CombinedSqlx(_, _) => "CombinedSqlx",
                 },
             ),

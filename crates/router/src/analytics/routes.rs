@@ -3,20 +3,21 @@ use api_models::analytics::{
     GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
     GetRefundMetricRequest,
 };
-#[cfg(feature = "clickhouse_analytics")]
-use hyperswitch_oss::services::authentication::AuthenticationData;
-use router_env::VasFlow;
+
+use crate::services::authentication::AuthenticationData;
+use router_env::AnalyticsFlow;
 
 use super::{core::*, payments, refunds, types::AnalyticsDomain};
 use crate::{
-    services::{api, authentication as auth, authorization::Permission},
-    AppStateVas,
+    core::api_locking,
+    services::{api, authentication as auth},
+    AppState,
 };
 
 pub struct Analytics;
 
 impl Analytics {
-    pub fn server(state: AppStateVas) -> Scope {
+    pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/analytics/v1").app_data(web::Data::new(state));
             route
                 .service(
@@ -34,24 +35,25 @@ impl Analytics {
 }
 
 pub async fn get_info(
-    state: web::Data<AppStateVas>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     domain: actix_web::web::Path<AnalyticsDomain>,
 ) -> impl Responder {
-    let flow = VasFlow::GetInfo;
+    let flow = AnalyticsFlow::GetInfo;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         domain.into_inner(),
         |_, _, domain| get_domain_info(domain),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
 
 pub async fn get_payment_metrics(
-    state: web::Data<AppStateVas>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<[GetPaymentMetricRequest; 1]>,
 ) -> impl Responder {
@@ -62,22 +64,23 @@ pub async fn get_payment_metrics(
         .to_vec()
         .pop()
         .expect("Couldn't get GetPaymentMetricRequest");
-    let flow = VasFlow::GetPaymentMetrics;
+    let flow = AnalyticsFlow::GetPaymentMetrics;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth: AuthenticationData, req| {
             payments::get_metrics(&state.pool, auth.merchant_account, req)
         },
-        &auth::JWTAuth(Permission::Analytics),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
 
 pub async fn get_refunds_metrics(
-    state: web::Data<AppStateVas>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<[GetRefundMetricRequest; 1]>,
 ) -> impl Responder {
@@ -88,54 +91,57 @@ pub async fn get_refunds_metrics(
         .to_vec()
         .pop()
         .expect("Couldn't get GetRefundMetricRequest");
-    let flow = VasFlow::GetRefundsMetrics;
+    let flow = AnalyticsFlow::GetRefundsMetrics;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth: AuthenticationData, req| {
             refunds::get_metrics(&state.pool, auth.merchant_account, req)
         },
-        &auth::JWTAuth(Permission::Analytics),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
 
 pub async fn get_payment_filters(
-    state: web::Data<AppStateVas>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<GetPaymentFiltersRequest>,
 ) -> impl Responder {
-    let flow = VasFlow::GetPaymentFilters;
+    let flow = AnalyticsFlow::GetPaymentFilters;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth: AuthenticationData, req| {
             payment_filters_core(&state.pool, req, auth.merchant_account)
         },
-        &auth::JWTAuth(Permission::Analytics),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
 
 pub async fn get_refund_filters(
-    state: web::Data<AppStateVas>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<GetRefundFilterRequest>,
 ) -> impl Responder {
-    let flow = VasFlow::GetRefundFilters;
+    let flow = AnalyticsFlow::GetRefundFilters;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth: AuthenticationData, req: GetRefundFilterRequest| {
             refund_filter_core(&state.pool, req, auth.merchant_account)
         },
-        &auth::JWTAuth(Permission::Analytics),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

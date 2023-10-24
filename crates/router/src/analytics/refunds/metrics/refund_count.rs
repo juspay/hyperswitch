@@ -4,7 +4,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use hyperswitch_oss::types::transformers::ForeignInto;
+
 use time::PrimitiveDateTime;
 
 use super::RefundMetricRow;
@@ -93,8 +93,8 @@ where
             .map(|i| {
                 Ok((
                     RefundMetricsBucketIdentifier::new(
-                        i.currency.as_ref().map(|i| i.0.foreign_into()),
-                        i.refund_status.as_ref().map(|i| i.0.foreign_into()),
+                        i.currency.as_ref().map(|i| i.0),
+                        i.refund_status.as_ref().map(|i| i.0),
                         i.connector.clone(),
                         i.refund_type.as_ref().map(|i| i.0.to_string()),
                         TimeRange {

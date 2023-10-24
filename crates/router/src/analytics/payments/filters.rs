@@ -1,7 +1,7 @@
 use api_models::analytics::{payments::PaymentDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use storage_models::enums::{AttemptStatus, AuthenticationType, Currency};
+use common_enums::enums::{AttemptStatus, AuthenticationType, Currency};
 use time::PrimitiveDateTime;
 
 use crate::analytics::{

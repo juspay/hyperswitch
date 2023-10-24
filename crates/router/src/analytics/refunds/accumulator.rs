@@ -1,5 +1,5 @@
 use api_models::analytics::refunds::RefundMetricsBucketValue;
-use storage_models::enums as storage_enums;
+use common_enums::enums as storage_enums;
 
 use super::metrics::RefundMetricRow;
 #[derive(Debug, Default)]

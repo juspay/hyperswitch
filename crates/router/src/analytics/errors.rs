@@ -1,4 +1,4 @@
-use api_models_oss::errors::types::{ApiError, ApiErrorResponse};
+use api_models::errors::types::{ApiError, ApiErrorResponse};
 use common_utils::errors::{CustomResult, ErrorSwitch};
 
 pub type AnalyticsResult<T> = CustomResult<T, AnalyticsError>;

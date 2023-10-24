@@ -29,3 +29,18 @@ pub use tracing_appender;
 
 #[doc(inline)]
 pub use self::env::*;
+
+use strum::Display;
+use crate::types::FlowMetric;
+
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
+pub enum AnalyticsFlow {
+    GetInfo,
+    GetPaymentFilters,
+    GetRefundFilters,
+    GetFilters,
+    GetRefundsMetrics,
+    GetPaymentMetrics,
+}
+
+impl FlowMetric for AnalyticsFlow {}

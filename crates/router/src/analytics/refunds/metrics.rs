@@ -4,7 +4,7 @@ use api_models::analytics::{
     },
     Granularity, TimeRange,
 };
-use storage_models::enums as storage_enums;
+use common_enums::enums as storage_enums;
 use time::PrimitiveDateTime;
 mod refund_count;
 mod refund_processed_amount;
