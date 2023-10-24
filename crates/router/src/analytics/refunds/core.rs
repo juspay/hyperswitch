@@ -5,16 +5,19 @@ use api_models::analytics::{
     AnalyticsMetadata, GetRefundMetricRequest, MetricsResponse,
 };
 use error_stack::{IntoReport, ResultExt};
-use crate::{services::ApplicationResponse, types::domain};
 use router_env::{
     logger,
     tracing::{self, Instrument},
 };
 
 use super::RefundMetricsAccumulator;
-use crate::analytics::{
-    core::AnalyticsApiResponse, errors::AnalyticsError, refunds::RefundMetricAccumulator,
-    AnalyticsProvider,
+use crate::{
+    analytics::{
+        core::AnalyticsApiResponse, errors::AnalyticsError, refunds::RefundMetricAccumulator,
+        AnalyticsProvider,
+    },
+    services::ApplicationResponse,
+    types::domain,
 };
 
 pub async fn get_metrics(

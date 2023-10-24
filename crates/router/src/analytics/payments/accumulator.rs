@@ -1,6 +1,6 @@
 use api_models::analytics::payments::PaymentMetricsBucketValue;
-use router_env::logger;
 use common_enums::enums as storage_enums;
+use router_env::logger;
 
 use super::metrics::PaymentMetricRow;
 

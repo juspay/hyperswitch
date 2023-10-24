@@ -1,21 +1,20 @@
 use std::{fmt::Display, str::FromStr};
 
 use api_models::analytics::refunds::RefundType;
+use common_enums::enums::{
+    AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
+};
 use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services_oss::kms;
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
-use crate::configs::settings::Database;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
     Decode, Encode,
     Error::ColumnNotFound,
     FromRow, Pool, Postgres, Row,
-};
-use common_enums::enums::{
-    AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
 use time::PrimitiveDateTime;
 
@@ -26,6 +25,7 @@ use super::{
         TableEngine,
     },
 };
+use crate::configs::settings::Database;
 
 #[derive(Debug, Clone)]
 pub struct SqlxClient {

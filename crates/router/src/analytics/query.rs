@@ -1,21 +1,22 @@
 use std::marker::PhantomData;
 
-
-use api_models::analytics::{
-    self as analytics_api,
-    payments::PaymentDimensions,
-    refunds::{RefundDimensions, RefundType},
-    Granularity,
+use api_models::{
+    analytics::{
+        self as analytics_api,
+        payments::PaymentDimensions,
+        refunds::{RefundDimensions, RefundType},
+        Granularity,
+    },
+    enums::Connector,
+    refunds::RefundStatus,
 };
-use common_enums::
-    enums::{AttemptStatus, AuthenticationType, Currency, PaymentMethod}
-;
-
-use api_models::{refunds::RefundStatus, enums::Connector};
+use common_enums::{
+    enums as storage_enums,
+    enums::{AttemptStatus, AuthenticationType, Currency, PaymentMethod},
+};
 use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
-use common_enums::enums as storage_enums;
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
 use crate::analytics::types::QueryExecutionError;
@@ -71,7 +72,6 @@ where
     }
 }
 
-
 impl GroupByClause<super::SqlxClient> for Granularity {
     fn set_group_by_clause(
         &self,
@@ -100,8 +100,6 @@ impl GroupByClause<super::SqlxClient> for Granularity {
         Ok(())
     }
 }
-
-
 
 #[derive(strum::Display)]
 #[strum(serialize_all = "lowercase")]
@@ -333,7 +331,6 @@ where
         self.add_custom_filter_clause(key, value, FilterTypes::Equal)
     }
 
-    
     pub fn add_bool_filter_clause(
         &mut self,
         key: impl ToSql<T>,
@@ -410,7 +407,6 @@ where
         self.filters
             .iter()
             .map(|(l, op, r)| match op {
-                
                 FilterTypes::EqualBool => format!("{l} = {r}"),
                 FilterTypes::Equal => format!("{l} = '{r}'"),
                 FilterTypes::In => format!("{l} IN ({r})"),

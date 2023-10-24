@@ -3,14 +3,12 @@ use api_models::analytics::{
     GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
     GetRefundMetricRequest,
 };
-
-use crate::services::authentication::AuthenticationData;
 use router_env::AnalyticsFlow;
 
 use super::{core::*, payments, refunds, types::AnalyticsDomain};
 use crate::{
     core::api_locking,
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authentication::AuthenticationData},
     AppState,
 };
 
@@ -19,18 +17,12 @@ pub struct Analytics;
 impl Analytics {
     pub fn server(state: AppState) -> Scope {
         let route = web::scope("/analytics/v1").app_data(web::Data::new(state));
-            route
-                .service(
-                    web::resource("metrics/payments").route(web::post().to(get_payment_metrics)),
-                )
-                .service(
-                    web::resource("metrics/refunds").route(web::post().to(get_refunds_metrics)),
-                )
-                .service(
-                    web::resource("filters/payments").route(web::post().to(get_payment_filters)),
-                )
-                .service(web::resource("filters/refunds").route(web::post().to(get_refund_filters)))
-                .service(web::resource("{domain}/info").route(web::get().to(get_info)))
+        route
+            .service(web::resource("metrics/payments").route(web::post().to(get_payment_metrics)))
+            .service(web::resource("metrics/refunds").route(web::post().to(get_refunds_metrics)))
+            .service(web::resource("filters/payments").route(web::post().to(get_payment_filters)))
+            .service(web::resource("filters/refunds").route(web::post().to(get_refund_filters)))
+            .service(web::resource("{domain}/info").route(web::get().to(get_info)))
     }
 }
 

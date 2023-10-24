@@ -2,10 +2,9 @@ use api_models::analytics::{
     refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
+use common_enums::enums as storage_enums;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-
-use common_enums::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use super::RefundMetricRow;

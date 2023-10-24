@@ -1,4 +1,3 @@
-
 use router_env::{global_meter, histogram_metric, histogram_metric_u64, metrics_context};
 
 metrics_context!(CONTEXT);

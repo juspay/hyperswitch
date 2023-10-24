@@ -3,12 +3,7 @@ use api_models::analytics::{
     GetPaymentFiltersRequest, GetRefundFilterRequest, PaymentFiltersResponse, RefundFilterValue,
     RefundFiltersResponse,
 };
-
-
 use error_stack::ResultExt;
-use crate::{services::ApplicationResponse, types::domain};
-
-
 
 use super::{
     errors::{self, AnalyticsError},
@@ -17,6 +12,7 @@ use super::{
     types::AnalyticsDomain,
     utils, AnalyticsProvider,
 };
+use crate::{services::ApplicationResponse, types::domain};
 
 pub type AnalyticsApiResponse<T> = errors::AnalyticsResult<ApplicationResponse<T>>;
 
@@ -45,12 +41,10 @@ pub async fn payment_filters_core(
 
     for dim in req.group_by_names {
         let values = match pool.clone() {
-            
             AnalyticsProvider::Sqlx(pool) => {
                 get_payment_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, &pool)
                     .await
             }
-            
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
@@ -79,12 +73,10 @@ pub async fn refund_filter_core(
     let mut res = RefundFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool.clone() {
-            
             AnalyticsProvider::Sqlx(pool) => {
                 get_refund_filter_for_dimension(dim, &merchant.merchant_id, &req.time_range, &pool)
                     .await
             }
-            
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()

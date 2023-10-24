@@ -3,12 +3,10 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use common_enums::enums::{
-    AttemptStatus, AuthenticationType, Currency, PaymentMethod,
-};
-use crate::enums::Connector;
+use common_enums::enums::{AttemptStatus, AuthenticationType, Currency, PaymentMethod};
 
 use super::{NameDescription, TimeRange};
+use crate::enums::Connector;
 
 #[derive(Clone, Debug, Default, serde::Deserialize)]
 pub struct PaymentFilters {

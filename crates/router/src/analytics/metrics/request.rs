@@ -5,7 +5,6 @@ pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
     router_env::opentelemetry::KeyValue::new(key, value)
 }
 
-
 #[inline]
 pub async fn record_operation_time<F, R>(
     future: F,
@@ -22,9 +21,7 @@ where
         add_attributes(
             "source",
             match source {
-                
                 crate::analytics::AnalyticsProvider::Sqlx(_) => "Sqlx",
-                
             },
         ),
     ];

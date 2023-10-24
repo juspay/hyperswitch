@@ -4,7 +4,6 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-
 use time::PrimitiveDateTime;
 
 use super::{PaymentMetric, PaymentMetricRow};

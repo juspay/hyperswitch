@@ -17,9 +17,9 @@ use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
+    analytics::AnalyticsConfig,
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
-    analytics::AnalyticsConfig
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;

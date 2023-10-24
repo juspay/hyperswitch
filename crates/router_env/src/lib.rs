@@ -22,6 +22,7 @@ pub mod vergen;
 pub use logger::*;
 pub use once_cell;
 pub use opentelemetry;
+use strum::Display;
 pub use tracing;
 #[cfg(feature = "actix_web")]
 pub use tracing_actix_web;
@@ -29,8 +30,6 @@ pub use tracing_appender;
 
 #[doc(inline)]
 pub use self::env::*;
-
-use strum::Display;
 use crate::types::FlowMetric;
 
 #[derive(Debug, Display, Clone, PartialEq, Eq)]

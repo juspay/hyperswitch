@@ -42,7 +42,7 @@ pub struct AppState {
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
-    pub pool:crate::analytics::AnalyticsProvider,
+    pub pool: crate::analytics::AnalyticsProvider,
 }
 
 impl scheduler::SchedulerAppState for AppState {

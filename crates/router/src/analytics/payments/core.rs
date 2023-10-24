@@ -5,16 +5,19 @@ use api_models::analytics::{
     AnalyticsMetadata, GetPaymentMetricRequest, MetricsResponse,
 };
 use error_stack::{IntoReport, ResultExt};
-use crate::{services::ApplicationResponse, types::domain};
 use router_env::{
     instrument, logger,
     tracing::{self, Instrument},
 };
 
 use super::PaymentMetricsAccumulator;
-use crate::analytics::{
-    core::AnalyticsApiResponse, errors::AnalyticsError, metrics,
-    payments::PaymentMetricAccumulator, AnalyticsProvider,
+use crate::{
+    analytics::{
+        core::AnalyticsApiResponse, errors::AnalyticsError, metrics,
+        payments::PaymentMetricAccumulator, AnalyticsProvider,
+    },
+    services::ApplicationResponse,
+    types::domain,
 };
 
 #[instrument(skip_all)]
@@ -69,10 +72,7 @@ pub async fn get_metrics(
             metrics::request::add_attributes(
                 "source",
                 match pool {
-                    
-                    
                     crate::analytics::AnalyticsProvider::Sqlx(_) => "Sqlx",
-                    
                 },
             ),
         ];
