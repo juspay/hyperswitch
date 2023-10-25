@@ -605,22 +605,38 @@ pub async fn validate_and_create_refund(
         .set_profile_id(payment_intent.profile_id.clone())
         .to_owned();
 
-    refund = db
+    let refund = match db
         .insert_refund(refund_create_req, merchant_account.storage_scheme)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
-
-    schedule_refund_execution(
-        state,
-        refund.clone(),
-        refund_type,
-        merchant_account,
-        key_store,
-        payment_attempt,
-        payment_intent,
-        creds_identifier,
-    )
-    .await?;
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+    {
+        Ok(refund) => {
+            schedule_refund_execution(
+                state,
+                refund.clone(),
+                refund_type,
+                merchant_account,
+                key_store,
+                payment_attempt,
+                payment_intent,
+                creds_identifier,
+            )
+            .await?
+        }
+        Err(err) => {
+            if err == errors::ApiErrorResponse::DuplicateRefundRequest {
+                db.find_refund_by_merchant_id_refund_id(
+                    merchant_account.merchant_id.as_str(),
+                    refund_id.as_str(),
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+            } else {
+                Err(err)
+            }
+        }
+    };
 
     Ok(refund.foreign_into())
 }
