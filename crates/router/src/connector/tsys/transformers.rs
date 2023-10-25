@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
     core::errors,
     types::{
         self, api,
@@ -77,9 +77,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
-            }
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("tsys"),
+            ))?,
         }
     }
 }
@@ -104,13 +104,7 @@ impl TryFrom<&types::ConnectorAuthType> for TsysAuthType {
                 transaction_key: key1.to_owned(),
                 developer_id: api_secret.to_owned(),
             }),
-            types::ConnectorAuthType::HeaderKey { .. }
-            | types::ConnectorAuthType::BodyKey { .. }
-            | types::ConnectorAuthType::MultiAuthKey { .. }
-            | types::ConnectorAuthType::CurrencyAuthKey { .. }
-            | types::ConnectorAuthType::NoKey => {
-                Err(errors::ConnectorError::FailedToObtainAuthType.into())
-            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
