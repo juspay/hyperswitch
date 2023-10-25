@@ -948,7 +948,9 @@ where
                 &connector_name,
             );
 
-            let connector_label = if let Some(connector_label) = connector_label {
+            let connector_label = if let Some(connector_label) =
+                merchant_connector_account.get_mca_id().or(connector_label)
+            {
                 connector_label
             } else {
                 let profile_id = utils::get_profile_id_from_business_details(
