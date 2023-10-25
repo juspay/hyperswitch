@@ -96,7 +96,11 @@ use pii_serializer::PIISerializer;
 mod pii_serializer {
     use std::fmt::Display;
 
-    pub(super) fn pii_serialize<V: Serialize, T: std::fmt::Debug + PeekInterface<V>, S: Serializer>(
+    pub(super) fn pii_serialize<
+        V: Serialize,
+        T: std::fmt::Debug + PeekInterface<V>,
+        S: Serializer,
+    >(
         value: &T,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
