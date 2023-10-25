@@ -17,14 +17,14 @@ impl ConnectorResponseNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
         let payment_attempt_update = PaymentAttemptUpdate::ConnectorResponse {
-            authentication_data: self.authentication_data,
-            encoded_data: self.encoded_data,
-            connector_transaction_id: self.connector_transaction_id,
-            connector: self.connector_name,
-            updated_by: self.updated_by,
+            authentication_data: self.authentication_data.clone(),
+            encoded_data: self.encoded_data.clone(),
+            connector_transaction_id: self.connector_transaction_id.clone(),
+            connector: self.connector_name.clone(),
+            updated_by: self.updated_by.clone(),
         };
 
-        let payment_attempt: PaymentAttempt =
+        let _payment_attempt: PaymentAttempt =
             generics::generic_update_with_unique_predicate_get_result::<
                 <PaymentAttempt as HasTable>::Table,
                 _,
@@ -39,19 +39,7 @@ impl ConnectorResponseNew {
             )
             .await?;
 
-        Ok(ConnectorResponse {
-            id: 0i32,
-            payment_id: payment_attempt.payment_id,
-            merchant_id: payment_attempt.merchant_id,
-            attempt_id: payment_attempt.attempt_id,
-            created_at: payment_attempt.created_at,
-            modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.connector,
-            connector_transaction_id: payment_attempt.connector_transaction_id,
-            authentication_data: payment_attempt.authentication_data,
-            encoded_data: payment_attempt.encoded_data,
-            updated_by: payment_attempt.updated_by,
-        })
+        generics::generic_insert(conn, self).await
     }
 }
 
