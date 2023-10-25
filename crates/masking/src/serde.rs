@@ -2,12 +2,10 @@
 //! Serde-related.
 //!
 
-use std::collections::HashMap;
-
 pub use serde::{de, ser, Deserialize, Serialize, Serializer};
 use serde_json::{value::Serializer as JsonValueSerializer, Value};
 
-use crate::{PeekInterface, Secret, Strategy, StrongSecret, ZeroizableSecret};
+use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};
 
 /// Marker trait for secret types which can be [`Serialize`]-d by [`serde`].
 ///
@@ -51,17 +49,7 @@ where
     where
         S: Serializer,
     {
-        if std::any::type_name::<S>() == std::any::type_name::<PIISerializer>() {
-            format!("{self:?}").serialize(serializer)
-        } else if std::any::type_name::<S>()
-            == std::any::type_name::<
-                serde::__private::ser::FlatMapSerializer<'_, SerializeMap<PIISerializer>>,
-            >()
-        {
-            HashMap::<String, String>::from([]).serialize(serializer)
-        } else {
-            self.peek().serialize(serializer)
-        }
+        pii_serializer::pii_serialize(self, serializer)
     }
 }
 
@@ -87,17 +75,7 @@ where
     where
         S: Serializer,
     {
-        if std::any::type_name::<S>() == std::any::type_name::<PIISerializer>() {
-            format!("{self:?}").serialize(serializer)
-        } else if std::any::type_name::<S>()
-            == std::any::type_name::<
-                serde::__private::ser::FlatMapSerializer<'_, SerializeMap<PIISerializer>>,
-            >()
-        {
-            HashMap::<String, String>::from([]).serialize(serializer)
-        } else {
-            self.peek().serialize(serializer)
-        }
+        pii_serializer::pii_serialize(self, serializer)
     }
 }
 
@@ -113,13 +91,34 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
     })
 }
 
-use pii_serializer::{PIISerializer, SerializeMap};
+use pii_serializer::PIISerializer;
 
 mod pii_serializer {
     use std::fmt::Display;
 
+    pub(super) fn pii_serialize<V: Serialize, T: std::fmt::Debug + PeekInterface<V>, S: Serializer>(
+        value: &T,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        // Mask the value if the serializer is of type PIISerializer
+        // or send empty map if the serializer is of type FlatMapSerializer over PiiSerializer
+        if std::any::type_name::<S>() == std::any::type_name::<PIISerializer>() {
+            format!("{value:?}").serialize(serializer)
+        } else if std::any::type_name::<S>()
+            == std::any::type_name::<
+                serde::__private::ser::FlatMapSerializer<'_, SerializeMap<PIISerializer>>,
+            >()
+        {
+            std::collections::HashMap::<String, String>::from([]).serialize(serializer)
+        } else {
+            value.peek().serialize(serializer)
+        }
+    }
+
     use serde::{Serialize, Serializer};
     use serde_json::{value::Serializer as JsonValueSerializer, Map, Value};
+
+    use crate::PeekInterface;
 
     pub(super) struct PIISerializer {
         pub inner: JsonValueSerializer,
