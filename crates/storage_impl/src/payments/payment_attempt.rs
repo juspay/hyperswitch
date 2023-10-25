@@ -1149,11 +1149,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
             Self::AuthenticationTypeUpdate {
@@ -1369,11 +1373,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             } => Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {

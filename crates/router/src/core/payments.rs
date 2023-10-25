@@ -7,11 +7,11 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::{
     enums,
-    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+    payment_methods::{Surcharge, SurchargeDetailsResponse, SurchargeMetadata},
     payments::HeaderPayload,
 };
 use common_utils::{ext_traits::AsyncExt, pii};
@@ -39,6 +39,7 @@ use self::{
 use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
+    consts::DEFAULT_FULFILLMENT_TIME,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::PaymentMethodRetrieve,
@@ -206,6 +207,13 @@ where
             }
 
             api::ConnectorCallType::Multiple(connectors) => {
+                let session_surcharge_metadata = carry_out_session_surcharge_operations(
+                    state,
+                    &connectors,
+                    &payment_data.payment_attempt,
+                    &merchant_account,
+                )
+                .await?;
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -214,7 +222,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                    None,
+                    session_surcharge_metadata,
                 )
                 .await?
             }
@@ -256,6 +264,69 @@ where
         connector_http_status_code,
         external_latency,
     ))
+}
+
+pub async fn carry_out_session_surcharge_operations(
+    state: &AppState,
+    connectors: &Vec<api::SessionConnectorData>,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<Option<SurchargeMetadata>> {
+    let surcharge_amount = payment_attempt.surcharge_amount.unwrap_or(0);
+    let tax_on_surcharge_amount = payment_attempt.tax_amount.unwrap_or(0);
+    let final_amount = surcharge_amount + tax_on_surcharge_amount;
+    let redis_value = SurchargeDetailsResponse {
+        surcharge: Surcharge::Fixed(surcharge_amount),
+        tax_on_surcharge: None,
+        surcharge_amount,
+        tax_on_surcharge_amount,
+        final_amount,
+    };
+    if connectors.is_empty() {
+        Ok(None)
+    } else {
+        // record the surcharge details in redis before making connector session call, to verify the same during confirm call
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let surcharge_results_futures = connectors
+            .iter()
+            .map(|session_connector_data| async {
+                let payment_method_type = session_connector_data.payment_method_type;
+                let redis_key = SurchargeMetadata::get_consolidated_key(
+                    &payment_method_type.into(),
+                    &payment_method_type,
+                    None,
+                    &payment_attempt.attempt_id,
+                );
+                redis_conn
+                    .serialize_and_set_key_with_expiry(
+                        &redis_key,
+                        redis_value.clone(),
+                        merchant_account
+                            .intent_fulfillment_time
+                            .unwrap_or(DEFAULT_FULFILLMENT_TIME),
+                    )
+                    .await
+                    .map(|_| (redis_key, redis_value.clone()))
+            })
+            .collect::<Vec<_>>();
+        let surcharge_results = join_all(surcharge_results_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<HashMap<_, _>>();
+
+        if surcharge_results.len() == connectors.len() {
+            let surcharge_metadata = SurchargeMetadata { surcharge_results };
+            Ok(Some(surcharge_metadata))
+        } else {
+            Err(errors::ApiErrorResponse::InternalServerError.into())
+                .attach_printable("Failed to set key in redis")
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

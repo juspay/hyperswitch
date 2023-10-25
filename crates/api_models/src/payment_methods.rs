@@ -13,7 +13,7 @@ use utoipa::ToSchema;
 use crate::payouts;
 use crate::{
     admin, enums as api_enums,
-    payments::{self, BankCodeResponse},
+    payments::{self, BankCodeResponse, RequestSurchargeDetails},
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -338,6 +338,16 @@ pub struct SurchargeDetailsResponse {
     pub final_amount: i64,
 }
 
+impl SurchargeDetailsResponse {
+    pub fn is_request_surcharge_matching(
+        &self,
+        request_surcharge_details: RequestSurchargeDetails,
+    ) -> bool {
+        request_surcharge_details.surcharge_amount == self.surcharge_amount
+            && request_surcharge_details.tax_amount.unwrap_or(0) == self.tax_on_surcharge_amount
+    }
+}
+
 #[serde_as]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SurchargeMetadata {
@@ -359,6 +369,25 @@ impl SurchargeMetadata {
         } else {
             format!("{}_{}", payment_method, payment_method_type)
         }
+    }
+    pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
+        format!("surcharge_metadata_{}", payment_attempt_id)
+    }
+    pub fn get_consolidated_key(
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+        card_network: Option<&common_enums::CardNetwork>,
+        payment_attempt_id: &str,
+    ) -> String {
+        format!(
+            "{}_{}",
+            Self::get_surcharge_metadata_redis_key(payment_attempt_id),
+            Self::get_key_for_surcharge_details_hash_map(
+                payment_method,
+                payment_method_type,
+                card_network
+            )
+        )
     }
 }
 

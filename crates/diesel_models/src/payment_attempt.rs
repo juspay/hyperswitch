@@ -141,6 +141,8 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     AuthenticationTypeUpdate {
@@ -501,12 +503,16 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 ..Default::default()
             },
