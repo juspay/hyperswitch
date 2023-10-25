@@ -166,7 +166,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
         ))?;
         let return_url = item.router_data.request.get_return_url()?;
         Ok(Self {
-            amount: item.router_data.request.amount,
+            amount: item.amount,
             currency: item.router_data.request.currency,
             payment_method,
             capture,
@@ -321,7 +321,7 @@ impl<F> TryFrom<&RapydRouterData<&types::RefundsRouterData<F>>> for RapydRefundR
                 .request
                 .connector_transaction_id
                 .to_string(),
-            amount: Some(item.router_data.request.refund_amount),
+            amount: Some(item.amount),
             currency: Some(item.router_data.request.currency),
         })
     }
