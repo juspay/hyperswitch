@@ -491,9 +491,15 @@ impl
 
     fn get_request_body(
         &self,
-        req: RapidRouterData<&types::PaymentsCaptureRouterData>,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = rapyd::CaptureRequest::try_from(&req)?;
+        let connector_router_data = rapyd::RapydRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.capture_method,
+            req,
+        ))?;
+        let req_obj = rapyd::CaptureRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json,
