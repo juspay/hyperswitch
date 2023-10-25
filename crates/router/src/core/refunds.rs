@@ -519,14 +519,13 @@ pub async fn validate_and_create_refund(
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
-    let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
 
     // If Refund Id not passed in request Generate one.
 
-    refund_id = core_utils::get_or_generate_id("refund_id", &req.refund_id, "ref")?;
+    let refund_id = core_utils::get_or_generate_id("refund_id", &req.refund_id, "ref")?;
 
     let predicate = req
         .merchant_id
@@ -546,7 +545,7 @@ pub async fn validate_and_create_refund(
         .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
     })?;
 
-    all_refunds = db
+    let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
             &merchant_account.merchant_id,
             &connecter_transaction_id,
@@ -555,7 +554,7 @@ pub async fn validate_and_create_refund(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
-    currency = payment_attempt.currency.get_required_value("currency")?;
+    let currency = payment_attempt.currency.get_required_value("currency")?;
 
     //[#249]: Add Connector Based Validation here.
     validator::validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
@@ -583,10 +582,10 @@ pub async fn validate_and_create_refund(
         .into_report()
         .attach_printable("No connector populated in payment attempt")?;
 
-    refund_create_req = storage::RefundNew::default()
+    let refund_create_req = storage::RefundNew::default()
         .set_refund_id(refund_id.to_string())
         .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
-        .set_external_reference_id(Some(refund_id))
+        .set_external_reference_id(Some(refund_id.clone()))
         .set_payment_id(req.payment_id)
         .set_merchant_id(merchant_account.merchant_id.clone())
         .set_connector_transaction_id(connecter_transaction_id.to_string())
@@ -605,22 +604,39 @@ pub async fn validate_and_create_refund(
         .set_profile_id(payment_intent.profile_id.clone())
         .to_owned();
 
-    refund = db
+    let refund = match db
         .insert_refund(refund_create_req, merchant_account.storage_scheme)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
-
-    schedule_refund_execution(
-        state,
-        refund.clone(),
-        refund_type,
-        merchant_account,
-        key_store,
-        payment_attempt,
-        payment_intent,
-        creds_identifier,
-    )
-    .await?;
+    {
+        Ok(refund) => {
+            schedule_refund_execution(
+                state,
+                refund.clone(),
+                refund_type,
+                merchant_account,
+                key_store,
+                payment_attempt,
+                payment_intent,
+                creds_identifier,
+            )
+            .await?
+        }
+        Err(err) => {
+            if err.current_context().is_db_unique_violation() {
+                db.find_refund_by_merchant_id_refund_id(
+                    merchant_account.merchant_id.as_str(),
+                    refund_id.as_str(),
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?
+            } else {
+                return Err(err)
+                    .change_context(errors::ApiErrorResponse::RefundNotFound)
+                    .attach_printable("Inserting Refund failed");
+            }
+        }
+    };
 
     Ok(refund.foreign_into())
 }
