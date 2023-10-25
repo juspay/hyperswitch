@@ -496,7 +496,7 @@ impl
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.capture_method,
+            req.request.amount_to_capture,
             req,
         ))?;
         let req_obj = rapyd::CaptureRequest::try_from(&connector_router_data)?;
