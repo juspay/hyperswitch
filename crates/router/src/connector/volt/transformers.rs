@@ -240,11 +240,10 @@ impl From<VoltPaymentStatus> for enums::AttemptStatus {
             VoltPaymentStatus::Completed => Self::Charged,
             VoltPaymentStatus::Received
             | VoltPaymentStatus::NotReceived
-            | VoltPaymentStatus::DelayedAtBank
-            | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::Pending,
-            VoltPaymentStatus::NewPayment | VoltPaymentStatus::BankRedirect => {
-                Self::AuthenticationPending
-            }
+            | VoltPaymentStatus::DelayedAtBank => Self::Pending,
+            VoltPaymentStatus::NewPayment
+            | VoltPaymentStatus::BankRedirect
+            | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
             VoltPaymentStatus::RefusedByBank
             | VoltPaymentStatus::RefusedByRisk
             | VoltPaymentStatus::ErrorAtBank

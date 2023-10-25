@@ -115,19 +115,20 @@ impl ConnectorCommon for Volt {
             .parse_struct("VoltErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let reason = response.exception.error_list.map(|error_list| {
-            error_list
+        let reason = match &response.exception.error_list {
+            Some(error_list) => error_list
                 .iter()
                 .map(|error| error.message.clone())
                 .collect::<Vec<String>>()
-                .join(" & ")
-        });
+                .join(" & "),
+            None => response.exception.message.clone(),
+        };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.exception.message.to_string(),
             message: response.exception.message.clone(),
-            reason,
+            reason: Some(reason),
         })
     }
 }
@@ -554,64 +555,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Volt {
-    fn get_headers(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RefundSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: volt::RefundSyncResponse = res
-            .response
-            .parse_struct("volt RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
+    //Volt does not support Refund Sync
 }
 
 #[async_trait::async_trait]
