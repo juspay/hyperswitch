@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.60.0+hotfix.1 (2023-10-25)
+
+### Bug Fixes
+
+- **payments:** Fix payment update enum being inserted into kv ([#2612](https://github.com/juspay/hyperswitch/pull/2612)) ([`276b1e7`](https://github.com/juspay/hyperswitch/commit/276b1e7fc00bb7e40201615eb39e5051e8813fa9))
+
+**Full Changelog:** [`v1.60.0...v1.60.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.60.0...v1.60.0+hotfix.1)
+
+- - -
+
 ## 1.60.0 (2023-10-17)
 
 ### Features
