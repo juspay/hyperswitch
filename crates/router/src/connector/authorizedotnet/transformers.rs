@@ -261,7 +261,7 @@ struct TransactionVoidOrCaptureRequest {
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: AuthorizedotnetAuthType,
     transaction_request: TransactionRequest,
-    reference: String,
+    ref_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -324,7 +324,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             processing_options,
             subsequent_auth_information,
             authorization_indicator_type,
-            reference: item.router_data.connector_request_reference_id.clone(),
+            ref_id: item.router_data.connector_request_reference_id.clone(),
         };
 
         let merchant_authentication =
@@ -971,9 +971,7 @@ impl<F, Req>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(
-                                transaction_response.transaction_id.clone(),
-                            ),
+                        connector_response_reference_id: Some(transaction.transaction_id.clone()),
                     }),
                     status: payment_status,
                     ..item.data
