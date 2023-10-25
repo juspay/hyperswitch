@@ -248,8 +248,7 @@ impl
             | api_models::payments::BankRedirectData::OpenBankingUk { .. }
             | api_models::payments::BankRedirectData::Przelewy24 { .. }
             | api_models::payments::BankRedirectData::Sofort { .. }
-            | api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::Trustly { .. } => Err(
+            | api_models::payments::BankRedirectData::BancontactCard { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };
