@@ -249,9 +249,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                             "Wallets".to_string(),
                         )),
                     },
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Payment methods".to_string(),
-                    )),
+                    api::PaymentMethodData::CardRedirect(_)
+                    | api::PaymentMethodData::PayLater(_)
+                    | api::PaymentMethodData::BankRedirect(_)
+                    | api::PaymentMethodData::BankDebit(_)
+                    | api::PaymentMethodData::BankTransfer(_)
+                    | api::PaymentMethodData::Crypto(_)
+                    | api::PaymentMethodData::MandatePayment {}
+                    | api::PaymentMethodData::Reward {}
+                    | api::PaymentMethodData::Upi(_)
+                    | api::PaymentMethodData::Voucher(_)
+                    | api::PaymentMethodData::GiftCard(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
+                            connector: "Noon",
+                        })?
+                    }
                 }?,
                 Some(item.request.currency),
                 item.request.order_category.clone(),
