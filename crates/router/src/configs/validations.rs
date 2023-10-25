@@ -56,19 +56,10 @@ impl super::settings::Locker {
         })?;
 
         when(
-            self.redis_temp_locker_encryption_key.is_default_or_empty(),
+            !self.mock_locker && self.basilisk_host.is_default_or_empty(),
             || {
                 Err(ApplicationError::InvalidConfigurationValueError(
-                    "redis_temp_locker_encryption_key must not be empty".into(),
-                ))
-            },
-        )?;
-
-        when(
-            self.redis_temp_locker_encryption_key.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "redis_temp_locker_encryption_key must not be empty".into(),
+                    "basilisk host must not be empty when mock locker is disabled".into(),
                 ))
             },
         )
