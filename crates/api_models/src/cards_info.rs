@@ -8,7 +8,7 @@ pub struct CardsInfoRequestParams {
     pub client_secret: Option<String>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CardsInfoRequest {
     pub client_secret: Option<String>,
     pub card_iin: String,

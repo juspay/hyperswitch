@@ -99,7 +99,7 @@ pub struct DisputeEvidenceBlock {
     pub file_metadata_response: files::FileMetadataResponse,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListConstraints {
     /// limit on the number of objects to return
