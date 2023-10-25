@@ -1966,16 +1966,16 @@ pub fn decide_connector(
         .clone()
         .get_required_value("Routing algorithm")?;
 
-    let (connector_name, connector_id) = match routing_algorithm {
+    let (connector_name, merchant_connector_id) = match routing_algorithm {
         api::StraightThroughAlgorithm::Single(routable_connector_choice) => {
             match routable_connector_choice {
                 api_models::admin::RoutableConnectorChoice::ConnectorName(routable_connector) => {
                     (routable_connector.to_string(), None)
                 }
                 api_models::admin::RoutableConnectorChoice::ConnectorId {
-                    merchant_connector_id: connector_id,
-                    connector: connector_name,
-                } => (connector_name.to_string(), Some(connector_id)),
+                    merchant_connector_id,
+                    connector,
+                } => (connector.to_string(), Some(merchant_connector_id)),
             }
         }
     };
@@ -1984,13 +1984,16 @@ pub fn decide_connector(
         &state.conf.connectors,
         &connector_name,
         api::GetToken::Connector,
-        connector_id.clone(),
+        merchant_connector_id.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Invalid connector name received in routing algorithm")?;
 
     routing_data.routed_through = Some(connector_name);
-    Ok((api::ConnectorCallType::Single(connector_data), connector_id))
+    Ok((
+        api::ConnectorCallType::Single(connector_data),
+        merchant_connector_id,
+    ))
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
