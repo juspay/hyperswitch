@@ -18,13 +18,6 @@ pub enum AnalyticsCollection {
     Refund,
 }
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub enum TableEngine {
-    CollapsingMergeTree { sign: &'static str },
-    BasicTree,
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct DBEnumWrapper<T: FromStr + Display>(pub T);
@@ -62,10 +55,6 @@ where
     async fn load_results<T>(&self, query: &str) -> CustomResult<Vec<T>, QueryExecutionError>
     where
         Self: LoadRow<T>;
-
-    fn get_table_engine(_table: AnalyticsCollection) -> TableEngine {
-        TableEngine::BasicTree
-    }
 }
 
 pub trait LoadRow<T>

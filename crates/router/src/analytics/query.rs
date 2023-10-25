@@ -19,7 +19,7 @@ use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 
-use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
+use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow};
 use crate::analytics::types::QueryExecutionError;
 pub type QueryResult<T> = error_stack::Result<T, QueryBuildingError>;
 pub trait QueryFilter<T>
@@ -242,11 +242,10 @@ where
     table: AnalyticsCollection,
     distinct: bool,
     db_type: PhantomData<T>,
-    table_engine: TableEngine,
 }
 
 pub trait ToSql<T: AnalyticsDataSource> {
-    fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
+    fn to_sql(&self) -> error_stack::Result<String, ParsingError>;
 }
 
 /// Implement `ToSql` on arrays of types that impl `ToString`.
@@ -254,7 +253,7 @@ macro_rules! impl_to_sql_for_to_string {
     ($($type:ty),+) => {
         $(
             impl<T: AnalyticsDataSource> ToSql<T> for $type {
-                fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+                fn to_sql(&self) -> error_stack::Result<String, ParsingError> {
                     Ok(self.to_string())
                 }
             }
@@ -307,14 +306,13 @@ where
             table,
             distinct: Default::default(),
             db_type: Default::default(),
-            table_engine: T::get_table_engine(table),
         }
     }
 
     pub fn add_select_column(&mut self, column: impl ToSql<T>) -> QueryResult<()> {
         self.columns.push(
             column
-                .to_sql(&self.table_engine)
+                .to_sql()
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing select column")?,
         );
@@ -348,11 +346,11 @@ where
         comparison: FilterTypes,
     ) -> QueryResult<()> {
         self.filters.push((
-            lhs.to_sql(&self.table_engine)
+            lhs.to_sql()
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter key")?,
             comparison,
-            rhs.to_sql(&self.table_engine)
+            rhs.to_sql()
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter value")?,
         ));
@@ -368,7 +366,7 @@ where
             .iter()
             .map(|i| {
                 // trimming whitespaces from the filter values received in request, to prevent a possibility of an SQL injection
-                i.to_sql(&self.table_engine).map(|s| {
+                i.to_sql().map(|s| {
                     let trimmed_str = s.replace(' ', "");
                     format!("'{trimmed_str}'")
                 })
@@ -383,7 +381,7 @@ where
     pub fn add_group_by_clause(&mut self, column: impl ToSql<T>) -> QueryResult<()> {
         self.group_by.push(
             column
-                .to_sql(&self.table_engine)
+                .to_sql()
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing group by field")?,
         );
@@ -439,11 +437,11 @@ where
         Aggregate<R>: ToSql<T>,
     {
         let aggregate = aggregate
-            .to_sql(&self.table_engine)
+            .to_sql()
             .change_context(QueryBuildingError::SqlSerializeError)
             .attach_printable("Error serializing having aggregate")?;
         let value = value
-            .to_sql(&self.table_engine)
+            .to_sql()
             .change_context(QueryBuildingError::SqlSerializeError)
             .attach_printable("Error serializing having value")?;
         let entry = (aggregate, filter_type, value);
@@ -493,7 +491,7 @@ where
         query.push_str(
             &self
                 .table
-                .to_sql(&self.table_engine)
+                .to_sql()
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing table value")?,
         );
@@ -506,16 +504,6 @@ where
         if !self.group_by.is_empty() {
             query.push_str(" GROUP BY ");
             query.push_str(&self.get_group_by_clause());
-            if let TableEngine::CollapsingMergeTree { sign } = self.table_engine {
-                self.add_having_clause(
-                    Aggregate::Count {
-                        field: Some(sign),
-                        alias: None,
-                    },
-                    FilterTypes::Gte,
-                    "1",
-                )?;
-            }
         }
 
         if self.having.is_some() {

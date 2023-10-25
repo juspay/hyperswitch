@@ -92,14 +92,14 @@ impl AnalyticsProvider {
 
     pub async fn from_conf(
         config: &AnalyticsConfig,
-        #[cfg(feature = "kms")] kms_conf: &external_services_oss::kms::KmsConfig,
+        #[cfg(feature = "kms")] kms_client: &external_services::kms::KmsClient,
     ) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(
                 SqlxClient::from_conf(
                     sqlx,
                     #[cfg(feature = "kms")]
-                    kms_conf,
+                    kms_client,
                 )
                 .await,
             ),

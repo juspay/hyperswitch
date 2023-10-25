@@ -7,7 +7,10 @@ use common_enums::enums::{
 use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-use external_services_oss::kms;
+use external_services::{
+    kms,
+    kms::decrypt::KmsDecrypt,
+};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use sqlx::{
@@ -22,7 +25,6 @@ use super::{
     query::{Aggregate, ToSql},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, QueryExecutionError,
-        TableEngine,
     },
 };
 use crate::configs::settings::Database;
@@ -335,13 +337,13 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
 }
 
 impl ToSql<SqlxClient> for PrimitiveDateTime {
-    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+    fn to_sql(&self) -> error_stack::Result<String, ParsingError> {
         Ok(self.to_string())
     }
 }
 
 impl ToSql<SqlxClient> for AnalyticsCollection {
-    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+    fn to_sql(&self) -> error_stack::Result<String, ParsingError> {
         match self {
             Self::Payment => Ok("payment_attempt".to_string()),
             Self::Refund => Ok("refund".to_string()),
@@ -353,7 +355,7 @@ impl<T> ToSql<SqlxClient> for Aggregate<T>
 where
     T: ToSql<SqlxClient>,
 {
-    fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+    fn to_sql(&self) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
             Self::Count { field: _, alias } => {
                 format!(
@@ -365,7 +367,7 @@ where
                 format!(
                     "sum({}){}",
                     field
-                        .to_sql(table_engine)
+                        .to_sql()
                         .attach_printable("Failed to sum aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
@@ -374,7 +376,7 @@ where
                 format!(
                     "min({}){}",
                     field
-                        .to_sql(table_engine)
+                        .to_sql()
                         .attach_printable("Failed to min aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
@@ -383,7 +385,7 @@ where
                 format!(
                     "max({}){}",
                     field
-                        .to_sql(table_engine)
+                        .to_sql()
                         .attach_printable("Failed to max aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )

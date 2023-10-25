@@ -41,7 +41,6 @@ pub enum AnalyticsFlow {
     GetInfo,
     GetPaymentFilters,
     GetRefundFilters,
-    GetFilters,
     GetRefundsMetrics,
     GetPaymentMetrics,
 }
