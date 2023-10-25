@@ -580,6 +580,21 @@ pub fn get_card_detail(
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
+pub fn mk_crud_locker_request(
+    locker: &settings::Locker,
+    path: &str,
+    req: api::TokenizePayloadEncrypted,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let body = utils::Encode::<api::TokenizePayloadEncrypted>::encode_to_value(&req)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let mut url = locker.basilisk_host.to_owned();
+    url.push_str(path);
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_default_headers();
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(body.to_string());
+    Ok(request)
+}
 
 pub fn mk_card_value1(
     card_number: cards::CardNumber,
