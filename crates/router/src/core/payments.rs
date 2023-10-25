@@ -612,7 +612,8 @@ where
         state,
         merchant_account,
         payment_data,
-        &connector,
+        &connector.connector_name.to_string(),
+        connector.merchant_connector_id.as_ref(),
         key_store,
         false,
     )
@@ -823,7 +824,11 @@ where
             state,
             merchant_account,
             &mut payment_data,
-            &session_connector_data.connector,
+            &session_connector_data.connector.connector_name.to_string(),
+            session_connector_data
+                .connector
+                .merchant_connector_id
+                .as_ref(),
             key_store,
             false,
         )
@@ -1089,7 +1094,8 @@ pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
-    connector_data: &api::ConnectorData,
+    connector_name: &str,
+    merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
     should_validate: bool,
 ) -> RouterResult<helpers::MerchantConnectorAccountType>
@@ -1114,8 +1120,8 @@ where
         payment_data.creds_identifier.to_owned(),
         key_store,
         &profile_id,
-        &connector_data.connector_name.to_string(),
-        connector_data.connector_id.as_ref(),
+        connector_name,
+        merchant_connector_id,
     )
     .await?;
 

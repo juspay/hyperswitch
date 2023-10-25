@@ -179,7 +179,7 @@ pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
     pub get_token: GetToken,
-    pub connector_id: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -292,7 +292,7 @@ impl ConnectorData {
             connector,
             connector_name,
             get_token: connector_type,
-            connector_id,
+            merchant_connector_id: connector_id,
         })
     }
 
