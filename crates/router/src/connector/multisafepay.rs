@@ -261,7 +261,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        
         let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -357,7 +356,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))
     }
-    
+
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,

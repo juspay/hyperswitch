@@ -271,9 +271,13 @@ impl TryFrom<utils::CardIssuer> for Gateway {
     }
 }
 
-impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>> for MultisafepayPaymentsRequest {
+impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
+    for MultisafepayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let payment_type = match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
             api::PaymentMethodData::MandatePayment => Type::Direct,
@@ -401,8 +405,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>> for M
         };
 
         let billing_address = item
-            .router_data    
-        .get_billing()?
+            .router_data
+            .get_billing()?
             .address
             .as_ref()
             .ok_or_else(utils::missing_field_err("billing.address"))?;
