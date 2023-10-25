@@ -42,6 +42,7 @@
       "connector_name": "stripe",
       "business_country": "US",
       "business_label": "default",
+      "connector_label": "first_stripe_connector",
       "connector_account_details": {
         "auth_type": "HeaderKey",
         "api_key": "{{connector_api_key}}"
