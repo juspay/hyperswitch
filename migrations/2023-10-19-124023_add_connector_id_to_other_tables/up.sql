@@ -10,3 +10,6 @@ ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(32);
 
 ALTER TABLE dispute
 ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(32);
+
+ALTER TABLE mandate
+ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(32);

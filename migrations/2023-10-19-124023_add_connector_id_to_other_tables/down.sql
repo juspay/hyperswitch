@@ -6,3 +6,5 @@ ALTER TABLE refund DROP COLUMN IF EXISTS merchant_connector_id;
 ALTER TABLE payout_attempt DROP COLUMN IF EXISTS merchant_connector_id;
 
 ALTER TABLE dispute DROP COLUMN IF EXISTS merchant_connector_id;
+
+ALTER TABLE mandate DROP COLUMN IF EXISTS merchant_connector_id;
