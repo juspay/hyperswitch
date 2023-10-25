@@ -7,10 +7,7 @@ use common_enums::enums::{
 use common_utils::errors::{CustomResult, ParsingError};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-use external_services::{
-    kms,
-    kms::decrypt::KmsDecrypt,
-};
+use external_services::{kms, kms::decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use sqlx::{
@@ -366,27 +363,21 @@ where
             Self::Sum { field, alias } => {
                 format!(
                     "sum({}){}",
-                    field
-                        .to_sql()
-                        .attach_printable("Failed to sum aggregate")?,
+                    field.to_sql().attach_printable("Failed to sum aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
             Self::Min { field, alias } => {
                 format!(
                     "min({}){}",
-                    field
-                        .to_sql()
-                        .attach_printable("Failed to min aggregate")?,
+                    field.to_sql().attach_printable("Failed to min aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
             Self::Max { field, alias } => {
                 format!(
                     "max({}){}",
-                    field
-                        .to_sql()
-                        .attach_printable("Failed to max aggregate")?,
+                    field.to_sql().attach_printable("Failed to max aggregate")?,
                     alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
                 )
             }
