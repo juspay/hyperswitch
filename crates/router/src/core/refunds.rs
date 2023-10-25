@@ -602,6 +602,7 @@ pub async fn validate_and_create_refund(
         .set_description(req.reason.clone())
         .set_attempt_id(payment_attempt.attempt_id.clone())
         .set_refund_reason(req.reason)
+        .set_profile_id(payment_intent.profile_id.clone())
         .to_owned();
 
     refund = db
@@ -704,6 +705,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             currency: refund.currency.to_string(),
             reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
+            profile_id: refund.profile_id,
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
