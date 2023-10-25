@@ -46,6 +46,3 @@ pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
 pub(crate) const METRICS_HOST_TAG_NAME: &str = "host";
-
-// TTL for KV setup
-pub(crate) const KV_TTL: u32 = 300;

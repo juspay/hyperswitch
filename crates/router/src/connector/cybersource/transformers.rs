@@ -15,6 +15,37 @@ use crate::{
     },
 };
 
+#[derive(Debug, Serialize)]
+pub struct CybersourceRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for CybersourceRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsRequest {
@@ -109,27 +140,33 @@ fn build_bill_to(
     })
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
+impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
+    for CybersourcePaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                let phone = item.get_billing_phone()?;
+                let phone = item.router_data.get_billing_phone()?;
                 let phone_number = phone.get_number()?;
                 let country_code = phone.get_country_code()?;
                 let number_with_code =
                     Secret::new(format!("{}{}", country_code, phone_number.peek()));
                 let email = item
+                    .router_data
                     .request
                     .email
                     .clone()
                     .ok_or_else(utils::missing_field_err("email"))?;
-                let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
+                let bill_to =
+                    build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
 
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {
-                        total_amount: item.request.amount.to_string(),
-                        currency: item.request.currency.to_string().to_uppercase(),
+                        total_amount: item.amount.to_owned(),
+                        currency: item.router_data.request.currency.to_string().to_uppercase(),
                     },
                     bill_to,
                 };
@@ -145,14 +182,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
 
                 let processing_information = ProcessingInformation {
                     capture: matches!(
-                        item.request.capture_method,
+                        item.router_data.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
                     capture_options: None,
                 };
 
                 let client_reference_information = ClientReferenceInformation {
-                    code: Some(item.connector_request_reference_id.clone()),
+                    code: Some(item.router_data.connector_request_reference_id.clone()),
                 };
 
                 Ok(Self {
