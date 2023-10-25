@@ -238,11 +238,19 @@ impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
             VoltPaymentStatus::Completed => Self::Charged,
-            VoltPaymentStatus::Processing => Self::Pending,
-            VoltPaymentStatus::NewPayment | VoltPaymentStatus::Received => {
+            VoltPaymentStatus::Received
+            | VoltPaymentStatus::NotReceived
+            | VoltPaymentStatus::DelayedAtBank
+            | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::Pending,
+            VoltPaymentStatus::NewPayment | VoltPaymentStatus::BankRedirect => {
                 Self::AuthenticationPending
             }
-            VoltPaymentStatus::AbandonedByUser => Self::AuthenticationFailed,
+            VoltPaymentStatus::RefusedByBank
+            | VoltPaymentStatus::RefusedByRisk
+            | VoltPaymentStatus::ErrorAtBank
+            | VoltPaymentStatus::CancelledByUser
+            | VoltPaymentStatus::AbandonedByUser
+            | VoltPaymentStatus::Failed => Self::Failure,
         }
     }
 }
@@ -289,8 +297,16 @@ pub enum VoltPaymentStatus {
     NewPayment,
     Completed,
     Received,
+    NotReceived,
+    BankRedirect,
+    DelayedAtBank,
+    AwaitingCheckoutAuthorisation,
+    RefusedByBank,
+    RefusedByRisk,
+    ErrorAtBank,
+    CancelledByUser,
     AbandonedByUser,
-    Processing,
+    Failed,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
