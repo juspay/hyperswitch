@@ -120,14 +120,6 @@ pub enum KmsError {
     /// The KMS client has not been initialized.
     #[error("The KMS client has not been initialized")]
     KmsClientNotInitialized,
-
-    /// The KMS client has not been initialized.
-    #[error("Hex decode failed")]
-    HexDecodeFailed,
-
-    /// The KMS client has not been initialized.
-    #[error("Utf8 decode failed")]
-    Utf8DecodeFailed,
 }
 
 impl KmsConfig {
@@ -148,7 +140,7 @@ impl KmsConfig {
 /// A wrapper around a KMS value that can be decrypted.
 #[derive(Clone, Debug, Default, serde::Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct KmsValue(pub Secret<String>);
+pub struct KmsValue(Secret<String>);
 
 impl common_utils::ext_traits::ConfigExt for KmsValue {
     fn is_empty_after_trim(&self) -> bool {
