@@ -65,8 +65,6 @@ pub enum StorageError {
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
-    #[error("DB transaction failure")]
-    TransactionFailed(#[from] async_bb8_diesel::ConnectionError),
 }
 
 impl ErrorSwitch<DataStorageError> for StorageError {
@@ -100,6 +98,9 @@ impl Into<DataStorageError> for &StorageError {
                 storage_errors::DatabaseError::QueryGenerationFailed => {
                     DataStorageError::DatabaseError("Query generation failed".to_string())
                 }
+                storage_errors::DatabaseError::TransactionFailed(e) => {
+                    DataStorageError::DatabaseError(e.to_string())
+                }
                 storage_errors::DatabaseError::Others => {
                     DataStorageError::DatabaseError("Unknown database error".to_string())
                 }
@@ -126,7 +127,6 @@ impl Into<DataStorageError> for &StorageError {
                 RedisError::JsonDeserializationFailed => DataStorageError::DeserializationFailed,
                 i => DataStorageError::RedisError(format!("{:?}", i)),
             },
-            StorageError::TransactionFailed(i) => DataStorageError::DatabaseError(i.to_string()),
         }
     }
 }
@@ -140,12 +140,6 @@ impl From<error_stack::Report<RedisError>> for StorageError {
 impl From<error_stack::Report<DatabaseError>> for StorageError {
     fn from(err: error_stack::Report<DatabaseError>) -> Self {
         Self::DatabaseError(err)
-    }
-}
-
-impl From<diesel::result::Error> for StorageError {
-    fn from(err: diesel::result::Error) -> Self {
-        StorageError::TransactionFailed(err.into())
     }
 }
 

@@ -73,37 +73,36 @@ impl MerchantAccountInterface for Store {
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        let key_store = merchant_key_store
-            .clone()
-            .construct_new()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?;
+        conn.transaction_async(|e| async move {
+            let key_store = merchant_key_store
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&e)
+                .await
+                .map_err(Into::into)
+                .into_report()?
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError);
 
-        let account = merchant_account
-            .construct_new()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?;
-
-        let final_account = conn
-            .transaction_async(|e| async move {
-                let _ = key_store.insert(&e).await;
-                account
-                    .insert(&e)
-                    .await
-                    .map_err(|_| errors::StorageError::DatabaseConnectionError)
-            })
-            .await;
-
-        final_account
-            .map_err(Into::into)
-            .into_report()?
-            .convert(merchant_key_store.key.get_inner())
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+            merchant_account
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&e)
+                .await
+                .map_err(Into::into)
+                .into_report()?
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        })
+        .await
     }
 
     async fn find_merchant_account_by_merchant_id(
