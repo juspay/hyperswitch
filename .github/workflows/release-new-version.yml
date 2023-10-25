@@ -83,7 +83,7 @@ jobs:
           PREVIOUS_TAG="$(git tag --sort='version:refname' --merged | tail --lines 1)"
           if [[ "$(cog bump --auto --dry-run)" == *"No conventional commits for your repository that required a bump"* ]]; then
             NEW_TAG="$(cog bump --patch --dry-run)"
-          else if [[ "${PREVIOUS_TAG}" != "${NEW_TAG}" ]]
+          elif [[ "${PREVIOUS_TAG}" != "${NEW_TAG}" ]]; then
             NEW_TAG="$(cog bump --auto --dry-run)"
           fi
           echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
