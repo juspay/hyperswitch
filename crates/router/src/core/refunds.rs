@@ -146,6 +146,7 @@ pub async fn trigger_refund_to_gateway(
         &state.conf.connectors,
         &routed_through,
         api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
     )?;
 
     let currency = payment_attempt.currency.ok_or_else(|| {
@@ -380,6 +381,7 @@ pub async fn sync_refund_with_gateway(
         &state.conf.connectors,
         &connector_id,
         api::GetToken::Connector,
+        payment_attempt.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;

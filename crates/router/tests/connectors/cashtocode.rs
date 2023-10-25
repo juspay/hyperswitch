@@ -16,6 +16,7 @@ impl utils::Connector for CashtocodeTest {
             connector: Box::new(&Cashtocode),
             connector_name: types::Connector::Cashtocode,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

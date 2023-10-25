@@ -44,14 +44,16 @@ pub async fn files_create_core(
         available: false,
         connector_label: None,
         profile_id: None,
+        merchant_connector_id: None,
     };
+
     let file_metadata_object = state
         .store
         .insert_file_metadata(file_new)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert file_metadata")?;
-    let (provider_file_id, file_upload_provider, connector_label) =
+    let (provider_file_id, file_upload_provider, profile_id, merchant_connector_id) =
         helpers::upload_and_get_provider_provider_file_id_profile_id(
             &state,
             &merchant_account,
@@ -60,12 +62,14 @@ pub async fn files_create_core(
             file_key.clone(),
         )
         .await?;
-    //Update file metadata
+
+    // Update file metadata
     let update_file_metadata = diesel_models::file::FileMetadataUpdate::Update {
         provider_file_id: Some(provider_file_id),
         file_upload_provider: Some(file_upload_provider),
         available: true,
-        connector_label,
+        profile_id,
+        merchant_connector_id,
     };
     state
         .store
