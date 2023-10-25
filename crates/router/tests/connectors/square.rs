@@ -20,6 +20,7 @@ impl Connector for SquareTest {
             connector: Box::new(&Square),
             connector_name: types::Connector::Square,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
