@@ -584,6 +584,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c59bdb34bc650a32731b31bd8f0829cc15d24a708ee31559e0bb34f2bc320cba"
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5566,9 +5572,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-actix-web"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94982c2ad939d5d0bfd71c2f9b7ed273c72348485c72bb87bb4db6bd69df10cb"
+checksum = "a512ec11fae6c666707625e84f83e5d58f941e9ab15723289c0d380edfe48f09"
 dependencies = [
  "actix-web",
  "opentelemetry",
@@ -5880,6 +5886,7 @@ version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79daa5ed5740825c40b389c5e50312b9c86df53fccd33f281df655642b43869d"
 dependencies = [
+ "atomic",
  "getrandom 0.2.10",
  "serde",
 ]
