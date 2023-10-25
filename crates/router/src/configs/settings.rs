@@ -18,7 +18,6 @@ use serde::{de::Error, Deserialize, Deserializer};
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
-
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
