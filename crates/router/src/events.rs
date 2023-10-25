@@ -9,13 +9,14 @@ pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
 
 dyn_clone::clone_trait_object!(EventHandler);
 
+#[derive(Debug)]
 pub struct RawEvent {
-    event_type: EventType,
-    key: String,
-    payload: serde_json::Value,
+    pub event_type: EventType,
+    pub key: String,
+    pub payload: serde_json::Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
     PaymentIntent,
