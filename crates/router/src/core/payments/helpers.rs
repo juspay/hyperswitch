@@ -408,7 +408,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<storage_enums::PaymentMethodType>,
     Option<MandateData>,
     Option<payments::RecurringMandatePaymentData>,
-    Option<String>,
+    Option<payments::MandateConnectorDetails>,
 )> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     match mandate_type {
@@ -460,7 +460,7 @@ pub async fn get_token_for_recurring_mandate(
     Option<storage_enums::PaymentMethod>,
     Option<payments::RecurringMandatePaymentData>,
     Option<storage_enums::PaymentMethodType>,
-    Option<String>,
+    Option<payments::MandateConnectorDetails>,
 )> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
@@ -498,6 +498,11 @@ pub async fn get_token_for_recurring_mandate(
 
     let token = Uuid::new_v4().to_string();
     let payment_method_type = payment_method.payment_method_type;
+    let mandate_connector_details = payments::MandateConnectorDetails {
+        connector: mandate.connector,
+        merchant_connector_id: mandate.merchant_connector_id,
+    };
+
     if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
         let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
         if let Some(payment_method_from_request) = req.payment_method {
@@ -519,7 +524,7 @@ pub async fn get_token_for_recurring_mandate(
                 payment_method_type,
             }),
             payment_method.payment_method_type,
-            Some(mandate.connector),
+            Some(mandate_connector_details),
         ))
     } else {
         Ok((
@@ -529,7 +534,7 @@ pub async fn get_token_for_recurring_mandate(
                 payment_method_type,
             }),
             payment_method.payment_method_type,
-            Some(mandate.connector),
+            Some(mandate_connector_details),
         ))
     }
 }
@@ -2105,6 +2110,7 @@ pub fn generate_mandate(
     network_txn_id: Option<String>,
     payment_method_data_option: Option<api_models::payments::PaymentMethodData>,
     mandate_reference: Option<MandateReference>,
+    merchant_connector_id: Option<String>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -2140,7 +2146,8 @@ pub fn generate_mandate(
                 }))
                 .set_connector_mandate_id(
                     mandate_reference.and_then(|reference| reference.connector_mandate_id),
-                );
+                )
+                .set_merchant_connector_id(merchant_connector_id);
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
@@ -2593,6 +2600,13 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
+
+    pub fn get_mca_id(&self) -> Option<String> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.merchant_connector_id.to_string()),
+            Self::CacheVal(_) => None,
+        }
+    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -2605,6 +2619,7 @@ pub async fn get_merchant_connector_account(
     key_store: &domain::MerchantKeyStore,
     profile_id: &String,
     connector_name: &str,
+    merchant_connector_id: Option<&String>,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
     match creds_identifier {
@@ -2647,17 +2662,31 @@ pub async fn get_merchant_connector_account(
             Ok(MerchantConnectorAccountType::CacheVal(res))
         }
         None => {
-            db.find_merchant_connector_account_by_profile_id_connector_name(
-                profile_id,
-                connector_name,
-                key_store,
-            )
-            .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: format!("profile id {profile_id} and connector name {connector_name}"),
-                },
-            )
+            if let Some(merchant_connector_id) = merchant_connector_id {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    merchant_id,
+                    merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.to_string(),
+                    },
+                )
+            } else {
+                db.find_merchant_connector_account_by_profile_id_connector_name(
+                    profile_id,
+                    connector_name,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: format!("profile id {profile_id} and connector name {connector_name}"),
+                    },
+                )
+            }
         }
         .map(MerchantConnectorAccountType::DbVal),
     }
@@ -2904,6 +2933,7 @@ impl AttemptType {
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
             updated_by: storage_scheme.to_string(),
+            merchant_connector_id: None,
         }
     }
 

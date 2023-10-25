@@ -20,6 +20,7 @@ impl utils::Connector for PaymeTest {
             connector: Box::new(&Payme),
             connector_name: types::Connector::Payme,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

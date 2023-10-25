@@ -17,6 +17,7 @@ impl utils::Connector for MultisafepayTest {
             connector: Box::new(&Multisafepay),
             connector_name: types::Connector::Multisafepay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
