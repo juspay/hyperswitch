@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![warn(missing_docs, missing_debug_implementations)]
+#![warn(missing_debug_implementations)]
 
 //!
 //! Environment of payment router: logger, basic config, its environment awareness.
@@ -32,6 +32,10 @@ pub use tracing_appender;
 pub use self::env::*;
 use crate::types::FlowMetric;
 
+/// Analytics Flow routes Enums
+/// Info - Dimensions and filters available for the domain
+/// Filters - Set of values present for the dimension
+/// Metrics - Analytical data on dimensions and metrics
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum AnalyticsFlow {
     GetInfo,

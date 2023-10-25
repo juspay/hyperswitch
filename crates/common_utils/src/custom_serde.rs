@@ -171,6 +171,10 @@ pub mod json_string {
     }
 }
 
+/// Use a custom ISO 8601 format when serializing and deserializing
+/// [`PrimitiveDateTime`][PrimitiveDateTime].
+///
+/// [PrimitiveDateTime]: ::time::PrimitiveDateTime
 pub mod iso8601custom {
 
     use serde::{ser::Error as _, Deserializer, Serialize, Serializer};

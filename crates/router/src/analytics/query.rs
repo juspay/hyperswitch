@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::marker::PhantomData;
 
 use api_models::{
@@ -281,6 +282,7 @@ impl_to_sql_for_to_string!(
     &u64
 );
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum FilterTypes {
     Equal,

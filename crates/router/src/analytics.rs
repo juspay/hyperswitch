@@ -116,8 +116,8 @@ pub enum AnalyticsConfig {
 
 impl Default for AnalyticsConfig {
     fn default() -> Self {
-        return Self::Sqlx {
+        Self::Sqlx {
             sqlx: Database::default(),
-        };
+        }
     }
 }

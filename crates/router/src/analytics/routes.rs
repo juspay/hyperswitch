@@ -44,6 +44,9 @@ pub async fn get_info(
     .await
 }
 
+/// # Panics
+///
+/// Panics if `json_payload` array does not contain one `GetPaymentMetricRequest` element.
 pub async fn get_payment_metrics(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
@@ -71,6 +74,9 @@ pub async fn get_payment_metrics(
     .await
 }
 
+/// # Panics
+///
+/// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
 pub async fn get_refunds_metrics(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,

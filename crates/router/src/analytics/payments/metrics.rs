@@ -73,7 +73,7 @@ where
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         match self {
             Self::PaymentSuccessRate => {
-                PaymentSuccessRate::default()
+                PaymentSuccessRate
                     .load_metrics(
                         dimensions,
                         merchant_id,
@@ -85,7 +85,7 @@ where
                     .await
             }
             Self::PaymentCount => {
-                PaymentCount::default()
+                PaymentCount
                     .load_metrics(
                         dimensions,
                         merchant_id,
@@ -97,7 +97,7 @@ where
                     .await
             }
             Self::PaymentSuccessCount => {
-                PaymentSuccessCount::default()
+                PaymentSuccessCount
                     .load_metrics(
                         dimensions,
                         merchant_id,
@@ -109,7 +109,7 @@ where
                     .await
             }
             Self::PaymentProcessedAmount => {
-                PaymentProcessedAmount::default()
+                PaymentProcessedAmount
                     .load_metrics(
                         dimensions,
                         merchant_id,
@@ -121,7 +121,7 @@ where
                     .await
             }
             Self::AvgTicketSize => {
-                AvgTicketSize::default()
+                AvgTicketSize
                     .load_metrics(
                         dimensions,
                         merchant_id,
