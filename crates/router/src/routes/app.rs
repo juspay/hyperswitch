@@ -42,6 +42,7 @@ pub struct AppState {
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
+    #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
 }
 
@@ -154,6 +155,7 @@ impl AppState {
             kms_secrets: Arc::new(kms_secrets),
             api_client,
             event_handler: Box::<EventLogger>::default(),
+            #[cfg(feature = "olap")]
             pool,
         }
     }

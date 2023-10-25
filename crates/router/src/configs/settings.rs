@@ -16,8 +16,10 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsConfig;
+
 use crate::{
-    analytics::AnalyticsConfig,
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
