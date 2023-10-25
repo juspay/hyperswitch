@@ -491,7 +491,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        req: RapidRouterData<&types::PaymentsCaptureRouterData>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = rapyd::CaptureRequest::try_from(&req)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(

@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct RapydRouterData<T> {
-    pub amount: String,
+    pub amount: i64,
     pub router_data: T,
 }
 
@@ -426,7 +426,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsCaptureRouterData>> for CaptureReq
         item: &RapydRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.router_data.request.amount_to_capture),
+            amount: Some(item.amount),
             receipt_email: None,
             statement_descriptor: None,
         })
