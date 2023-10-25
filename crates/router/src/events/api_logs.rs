@@ -11,6 +11,8 @@ pub struct ApiEvent {
     request_id: String,
     latency: u128,
     status_code: i64,
+    request: String,
+    response: String,
 }
 
 impl ApiEvent {
@@ -19,6 +21,8 @@ impl ApiEvent {
         request_id: &RequestId,
         latency: u128,
         status_code: i64,
+        request: String,
+        response: String,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
@@ -26,6 +30,8 @@ impl ApiEvent {
             request_id: request_id.as_hyphenated().to_string(),
             latency,
             status_code,
+            request,
+            response,
         }
     }
 }
