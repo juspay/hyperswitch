@@ -503,7 +503,7 @@ pub struct SecureAcceptance {
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
     pub messages: ResponseMessages,
-    pub reference: Option<String>,
+    pub ref_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
