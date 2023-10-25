@@ -798,7 +798,6 @@ where
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let req_message = format!("{:?}", payload);
     let output = {
         lock_action
             .clone()
