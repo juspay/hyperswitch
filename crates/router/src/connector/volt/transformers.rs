@@ -237,15 +237,14 @@ impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
 impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
-            VoltPaymentStatus::Completed => Self::Charged,
-            VoltPaymentStatus::Received
-            | VoltPaymentStatus::NotReceived
-            | VoltPaymentStatus::DelayedAtBank => Self::Pending,
+            VoltPaymentStatus::Completed | VoltPaymentStatus::Received => Self::Charged,
+            VoltPaymentStatus::DelayedAtBank => Self::Pending,
             VoltPaymentStatus::NewPayment
             | VoltPaymentStatus::BankRedirect
             | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
             VoltPaymentStatus::RefusedByBank
             | VoltPaymentStatus::RefusedByRisk
+            | VoltPaymentStatus::NotReceived
             | VoltPaymentStatus::ErrorAtBank
             | VoltPaymentStatus::CancelledByUser
             | VoltPaymentStatus::AbandonedByUser
@@ -312,6 +311,7 @@ pub enum VoltPaymentStatus {
 pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
     id: String,
+    merchant_internal_reference: Option<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, VoltPsyncResponse, T, types::PaymentsResponseData>>
@@ -329,7 +329,10 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, VoltPsyncResponse, T, types::Pay
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: item
+                    .response
+                    .merchant_internal_reference
+                    .or(Some(item.response.id)),
             }),
             ..item.data
         })
@@ -376,10 +379,9 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -392,30 +394,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::Pending,
-            }),
-            ..item.data
-        })
-    }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundSyncResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::Pending, //We get Refund Status only by Webhooks
             }),
             ..item.data
         })
