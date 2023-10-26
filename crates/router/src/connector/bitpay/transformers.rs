@@ -29,6 +29,7 @@ pub struct BitpayPaymentsRequest {
     notification_url: String,
     transaction_speed: TransactionSpeed,
     token: Secret<String>,
+    order_id: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
@@ -138,7 +139,12 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                // connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response
+                        .reference
+                        .unwrap_or(item.response.transaction_id),
+                ),
             }),
             ..item.data
         })
@@ -244,6 +250,7 @@ fn get_crypto_specific_payment_data(
         ConnectorAuthType::HeaderKey { api_key } => api_key,
         _ => String::default().into(),
     };
+    let order_id = item.connector_request_reference_id.clone();
 
     Ok(BitpayPaymentsRequest {
         price,
