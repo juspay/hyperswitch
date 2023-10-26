@@ -265,6 +265,7 @@ fn get_crypto_specific_payment_data(
     let auto_settle = true;
     let success_url = item.router_data.get_return_url()?;
     let callback_url = item.router_data.request.get_webhook_url()?;
+    let order_id = item.router_data.connector_request_reference_id.clone();
 
     Ok(OpennodePaymentsRequest {
         amount,
@@ -273,7 +274,7 @@ fn get_crypto_specific_payment_data(
         auto_settle,
         success_url,
         callback_url,
-        order_id: item.connector_request_reference_id.clone(),
+        order_id,
     })
 }
 
