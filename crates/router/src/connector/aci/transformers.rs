@@ -91,7 +91,7 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                     account_id: None,
                 }))
             }
-            | api_models::payments::WalletData::AliPayHkRedirect(_)
+            api_models::payments::WalletData::AliPayHkRedirect(_)
             | api_models::payments::WalletData::MomoRedirect(_)
             | api_models::payments::WalletData::KakaoPayRedirect(_)
             | api_models::payments::WalletData::GoPayRedirect(_)
