@@ -71,6 +71,7 @@ pub struct MerchantDetails {
     merchant_id: Secret<String>,
     terminal_id: Option<String>,
 }
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionInteraction {
