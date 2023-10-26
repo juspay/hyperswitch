@@ -7340,8 +7340,7 @@
         "type": "object",
         "required": [
           "product_name",
-          "quantity",
-          "requires_shipping"
+          "quantity"
         ],
         "properties": {
           "product_name": {
@@ -7358,11 +7357,35 @@
             "minimum": 0
           },
           "requires_shipping": {
-            "type": "boolean"
+            "type": "boolean",
+            "nullable": true
           },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -7372,8 +7395,7 @@
         "required": [
           "product_name",
           "quantity",
-          "amount",
-          "requires_shipping"
+          "amount"
         ],
         "properties": {
           "product_name": {
@@ -7395,11 +7417,35 @@
             "description": "the amount per quantity of product"
           },
           "requires_shipping": {
-            "type": "boolean"
+            "type": "boolean",
+            "nullable": true
           },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }

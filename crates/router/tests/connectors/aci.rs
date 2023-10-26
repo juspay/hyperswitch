@@ -69,7 +69,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             complete_authorize_url: None,
             customer_id: None,
             surcharge_details: None,
-            frm_metadata: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -95,6 +94,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_http_status_code: None,
         apple_pay_flow: None,
         external_latency: None,
+        frm_metadata: None,
     }
 }
 
