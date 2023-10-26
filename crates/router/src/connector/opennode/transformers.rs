@@ -57,7 +57,7 @@ impl TryFrom<&OpennodeRouterData<&types::PaymentsAuthorizeRouterData>> for Openn
     fn try_from(
         item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        get_crypto_specific_payment_data(item.router_data)
+        get_crypto_specific_payment_data(item)
     }
 }
 
@@ -256,14 +256,14 @@ pub struct OpennodeErrorResponse {
 }
 
 fn get_crypto_specific_payment_data(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &OpennodeRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<OpennodePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let amount = item.request.amount;
-    let currency = item.request.currency.to_string();
-    let description = item.get_description()?;
+    let amount = item.amount;
+    let currency = item.router_data.request.currency.to_string();
+    let description = item.router_data.get_description()?;
     let auto_settle = true;
-    let success_url = item.get_return_url()?;
-    let callback_url = item.request.get_webhook_url()?;
+    let success_url = item.router_data.get_return_url()?;
+    let callback_url = item.router_data.request.get_webhook_url()?;
 
     Ok(OpennodePaymentsRequest {
         amount,

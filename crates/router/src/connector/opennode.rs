@@ -73,7 +73,7 @@ impl ConnectorCommon for Opennode {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
