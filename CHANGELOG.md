@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.60.0+hotfix.2 (2023-10-26)
+
+### Refactors
+
+- **connector:** [Cryptopay] add psync reference id validation for Cryptopay ([#2686](https://github.com/juspay/hyperswitch/pull/2686)) ([`467053b`](https://github.com/juspay/hyperswitch/commit/467053b254a75ec8080386600b6338df76aa0e45))
+
+**Full Changelog:** [`v1.60.0+hotfix.1...v1.60.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.60.0+hotfix.1...v1.60.0+hotfix.2)
+
+- - -
+
 ## 1.60.0+hotfix.1 (2023-10-25)
 
 ### Bug Fixes
