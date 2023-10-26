@@ -15,6 +15,7 @@ impl utils::Connector for MollieTest {
             connector: Box::new(&Mollie),
             connector_name: types::Connector::Mollie,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

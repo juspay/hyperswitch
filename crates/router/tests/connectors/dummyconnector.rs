@@ -17,6 +17,7 @@ impl utils::Connector for DummyConnectorTest {
             connector: Box::new(&DummyConnector::<1>),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

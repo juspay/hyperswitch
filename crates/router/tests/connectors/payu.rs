@@ -14,6 +14,7 @@ impl Connector for Payu {
             connector: Box::new(&Payu),
             connector_name: types::Connector::Payu,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
