@@ -18,6 +18,7 @@ impl Connector for IatapayTest {
             connector: Box::new(&Iatapay),
             connector_name: types::Connector::Iatapay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
