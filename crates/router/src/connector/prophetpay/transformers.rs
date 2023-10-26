@@ -91,6 +91,7 @@ impl ProphetpayEntryMethod {
         }
     }
 }
+
 #[derive(Debug, Clone)]
 #[repr(i8)]
 pub enum ProphetpayTokenType {
@@ -247,6 +248,7 @@ fn get_redirect_url_form(
 pub struct ProphetpayCompleteRequest {
     amount: f64,
     ref_info: String,
+    inquiry_reference: String,
     profile: Secret<String>,
     action_type: i8,
     card_token: String,
@@ -264,6 +266,10 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
         Ok(Self {
             amount: item.amount.to_owned(),
             ref_info: item.router_data.connector_request_reference_id.to_owned(),
+            inquiry_reference: format!(
+                "inquiry_{}",
+                item.router_data.connector_request_reference_id
+            ),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Charge),
             card_token,
@@ -305,7 +311,9 @@ fn get_card_token(
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpaySyncRequest {
+    transaction_id: String,
     ref_info: String,
+    inquiry_reference: String,
     profile: Secret<String>,
     action_type: i8,
 }
@@ -331,8 +339,15 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let auth_data = ProphetpayAuthType::try_from(&item.connector_auth_type)?;
+        let transaction_id = item
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(Self {
+            transaction_id,
             ref_info: item.attempt_id.to_owned(),
+            inquiry_reference: format!("inquiry_{}", item.attempt_id),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
@@ -343,6 +358,10 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
 pub enum ProphetpayPaymentStatus {
     Success,
     Failure,
+    #[serde(rename = "Transaction Voided")]
+    Voided,
+    #[serde(rename = "Requires a card on file.")]
+    CardTokenNotFound,
 }
 
 impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
@@ -350,6 +369,8 @@ impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
         match item {
             ProphetpayPaymentStatus::Success => Self::Charged,
             ProphetpayPaymentStatus::Failure => Self::Failure,
+            ProphetpayPaymentStatus::Voided => Self::Voided,
+            ProphetpayPaymentStatus::CardTokenNotFound => Self::Failure,
         }
     }
 }
@@ -392,6 +413,7 @@ pub struct ProphetpayVoidRequest {
     pub transaction_id: String,
     pub profile: Secret<String>,
     pub ref_info: String,
+    pub inquiry_reference: String,
     pub action_type: i8,
 }
 
@@ -403,6 +425,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
         Ok(Self {
             transaction_id,
             ref_info: item.attempt_id.to_owned(),
+            inquiry_reference: format!("inquiry_{}", item.attempt_id),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
@@ -413,8 +436,10 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundRequest {
     pub amount: f64,
+    pub transaction_id: String,
     pub profile: Secret<String>,
     pub ref_info: String,
+    pub inquiry_reference: String,
     pub action_type: i8,
 }
 
@@ -424,10 +449,13 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
         item: &ProphetpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let transaction_id = item.router_data.request.connector_transaction_id.to_owned();
         Ok(Self {
+            transaction_id,
             amount: item.amount.to_owned(),
             profile: auth_data.profile_id,
-            ref_info: item.router_data.attempt_id.to_owned(),
+            ref_info: item.router_data.request.refund_id.to_owned(),
+            inquiry_reference: format!("inquiry_{}", item.router_data.request.refund_id),
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
         })
     }
@@ -438,20 +466,21 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
 pub enum RefundStatus {
     Success,
     Failure,
+    #[serde(rename = "Requires a card on file.")]
+    CardTokenNotFound,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Success => Self::Success,
-            RefundStatus::Failure => Self::Failure,
+            RefundStatus::Failure | RefundStatus::CardTokenNotFound => Self::Failure,
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct ProphetpayRefundResponse {
     pub response_text: RefundStatus,
     #[serde(rename = "transactionID")]
