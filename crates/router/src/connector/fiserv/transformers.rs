@@ -62,7 +62,7 @@ pub struct Amount {
 pub struct TransactionDetails {
     capture_flag: Option<bool>,
     reversal_reason_code: Option<String>,
-    merchant_transaction_id: String
+    merchant_transaction_id: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
