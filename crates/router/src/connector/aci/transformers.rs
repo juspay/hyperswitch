@@ -91,8 +91,6 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                     account_id: None,
                 }))
             }
-            api_models::payments::WalletData::MbWayRedirect(_)
-            | api_models::payments::WalletData::AliPayRedirect(_)
             | api_models::payments::WalletData::AliPayHkRedirect(_)
             | api_models::payments::WalletData::MomoRedirect(_)
             | api_models::payments::WalletData::KakaoPayRedirect(_)
@@ -239,6 +237,10 @@ impl
             }
             api_models::payments::BankRedirectData::Bizum { .. }
             | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::Eps { .. }
+            | api_models::payments::BankRedirectData::Giropay { .. }
+            | api_models::payments::BankRedirectData::Ideal { .. }
+            | api_models::payments::BankRedirectData::Interac { .. }
             | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
@@ -246,7 +248,10 @@ impl
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
             | api_models::payments::BankRedirectData::OpenBankingUk { .. }
-            | api_models::payments::BankRedirectData::BancontactCard { .. } => Err(
+            | api_models::payments::BankRedirectData::Przelewy24 { .. }
+            | api_models::payments::BankRedirectData::Sofort { .. }
+            | api_models::payments::BankRedirectData::BancontactCard { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };
