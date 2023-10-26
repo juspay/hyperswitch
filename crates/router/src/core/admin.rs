@@ -145,6 +145,11 @@ pub async fn create_merchant_account(
         .transpose()?;
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
+        db.find_organization_by_org_id(organization_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "organization with the given id does not exist".to_string(),
+            })?;
         organization_id.to_string()
     } else {
         let new_organization = api_models::organization::OrganizationNew::new(None);
