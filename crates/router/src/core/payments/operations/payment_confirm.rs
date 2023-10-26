@@ -531,6 +531,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         };
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+
         let straight_through_algorithm = payment_data
             .payment_attempt
             .straight_through_algorithm
@@ -609,6 +611,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     surcharge_amount,
                     tax_amount,
                     updated_by: storage_scheme.to_string(),
+                    merchant_connector_id,
                 },
                 storage_scheme,
             )

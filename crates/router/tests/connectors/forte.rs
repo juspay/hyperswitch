@@ -19,6 +19,7 @@ impl utils::Connector for ForteTest {
             connector: Box::new(&Forte),
             connector_name: types::Connector::Forte,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

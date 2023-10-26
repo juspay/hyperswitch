@@ -17,6 +17,7 @@ impl utils::Connector for CryptopayTest {
             connector: Box::new(&Cryptopay),
             connector_name: types::Connector::Cryptopay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

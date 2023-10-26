@@ -14,6 +14,7 @@ impl utils::Connector for BokuTest {
             connector: Box::new(&Boku),
             connector_name: types::Connector::Boku,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

@@ -58,6 +58,7 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -67,6 +68,7 @@ pub struct PaymentListFilters {
     pub status: Vec<storage_enums::IntentStatus>,
     pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
+
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -117,6 +119,7 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +147,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -169,6 +173,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -275,6 +280,7 @@ pub struct PaymentAttemptUpdateInternal {
     tax_amount: Option<i64>,
     amount_capturable: Option<i64>,
     updated_by: String,
+    merchant_connector_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -326,6 +332,7 @@ impl PaymentAttemptUpdate {
                 .amount_capturable
                 .unwrap_or(source.amount_capturable),
             updated_by: pa_update.updated_by,
+            merchant_connector_id: pa_update.merchant_connector_id,
             ..source
         }
     }
@@ -396,6 +403,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -417,6 +425,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -506,6 +515,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id,
             } => Self {
                 payment_token,
                 connector,
@@ -514,6 +524,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
