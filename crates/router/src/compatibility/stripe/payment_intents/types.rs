@@ -281,7 +281,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             });
 
         let routing = routable_connector
-            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(|connector| {
+                crate::types::api::RoutingAlgorithm::Single(
+                    api_models::admin::RoutableConnectorChoice::ConnectorName(connector),
+                )
+            })
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()
@@ -479,6 +483,7 @@ pub struct StripePaymentIntentResponse {
     pub capture_method: Option<api_models::enums::CaptureMethod>,
     pub name: Option<masking::Secret<String>>,
     pub last_payment_error: Option<LastPaymentError>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
@@ -551,6 +556,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
                 },
                 error_type: code,
             }),
+            connector_transaction_id: resp.connector_transaction_id,
         }
     }
 }

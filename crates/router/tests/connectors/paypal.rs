@@ -17,6 +17,7 @@ impl Connector for PaypalTest {
             connector: Box::new(&Paypal),
             connector_name: types::Connector::Paypal,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

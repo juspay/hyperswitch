@@ -53,6 +53,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
         pm_auth_config: Option<serde_json::Value>,
+        connector_label: Option<String>,
     },
 }
 
@@ -175,6 +176,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_webhook_details,
                 applepay_verified_domains,
                 pm_auth_config,
+                connector_label,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -191,6 +193,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_webhook_details,
                 applepay_verified_domains,
                 pm_auth_config,
+                connector_label,
             },
         }
     }

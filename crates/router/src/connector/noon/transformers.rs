@@ -506,7 +506,6 @@ pub struct NoonActionTransaction {
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionOrder {
     id: String,
-    cancellation_reason: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -522,7 +521,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
@@ -552,11 +550,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: item
-                .request
-                .cancellation_reason
-                .clone()
-                .map(|reason| reason.chars().take(100).collect()), // Max 100 chars
         };
         Ok(Self {
             api_operation: NoonApiOperations::Reverse,
@@ -570,7 +563,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(

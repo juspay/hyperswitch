@@ -10,10 +10,12 @@ use data_models::{
         },
         PaymentIntent,
     },
-    MerchantStorageScheme,
 };
 use diesel_models::{
-    enums::{MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType},
+    enums::{
+        MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
+        MerchantStorageScheme,
+    },
     kv,
     payment_attempt::{
         PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
@@ -28,7 +30,7 @@ use router_env::{instrument, tracing};
 use crate::{
     diesel_error_to_data_error,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
 };
@@ -358,14 +360,27 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     multiple_capture_count: payment_attempt.multiple_capture_count,
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
-                    surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
+                    updated_by: storage_scheme.to_string(),
+                    merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
 
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Insert {
+                        insertable: kv::Insertable::PaymentAttempt(
+                            payment_attempt.to_storage_model(),
+                        ),
+                    },
+                };
+
                 match kv_wrapper::<PaymentAttempt, _, _>(
                     self,
-                    KvOperation::HSetNx(&field, &created_attempt),
+                    KvOperation::HSetNx(
+                        &field,
+                        &created_attempt.clone().to_storage_model(),
+                        redis_entry,
+                    ),
                     &key,
                 )
                 .await
@@ -387,26 +402,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             pk_id: key,
                             sk_id: field,
                             source: "payment_attempt".to_string(),
+                            updated_by: storage_scheme.to_string(),
                         };
                         self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                             .await?;
 
-                        let redis_entry = kv::TypedSql {
-                            op: kv::DBOperation::Insert {
-                                insertable: kv::Insertable::PaymentAttempt(
-                                    payment_attempt.to_storage_model(),
-                                ),
-                            },
-                        };
-                        self.push_to_drainer_stream::<DieselPaymentAttempt>(
-                            redis_entry,
-                            PartitionKey::MerchantIdPaymentId {
-                                merchant_id: &created_attempt.merchant_id,
-                                payment_id: &created_attempt.payment_id,
-                            },
-                        )
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
                         Ok(created_attempt)
                     }
                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
@@ -444,9 +444,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .change_context(errors::StorageError::KVError)?;
                 let field = format!("pa_{}", updated_attempt.attempt_id);
 
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Update {
+                        updatable: kv::Updateable::PaymentAttemptUpdate(
+                            kv::PaymentAttemptUpdateMems {
+                                orig: this.clone().to_storage_model(),
+                                update_data: payment_attempt.to_storage_model(),
+                            },
+                        ),
+                    },
+                };
+
                 kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::Hset::<PaymentAttempt>((&field, redis_value)),
+                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), redis_entry),
                     &key,
                 )
                 .await
@@ -513,25 +524,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PaymentAttemptUpdate(
-                            kv::PaymentAttemptUpdateMems {
-                                orig: this.to_storage_model(),
-                                update_data: payment_attempt.to_storage_model(),
-                            },
-                        ),
-                    },
-                };
-                self.push_to_drainer_stream::<DieselPaymentAttempt>(
-                    redis_entry,
-                    PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &updated_attempt.merchant_id,
-                        payment_id: &updated_attempt.payment_id,
-                    },
-                )
-                .await
-                .change_context(errors::StorageError::KVError)?;
                 Ok(updated_attempt)
             }
         }
@@ -565,7 +557,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
                     },
                         || async {self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await},
                     )
@@ -597,7 +589,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let redis_fut = async {
                     let kv_result = kv_wrapper::<PaymentAttempt, _, _>(
                         self,
-                        KvOperation::<PaymentAttempt>::Scan(pattern),
+                        KvOperation::<DieselPaymentAttempt>::Scan(pattern),
                         key,
                     )
                     .await?
@@ -645,7 +637,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id),
+                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -690,7 +682,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let field = format!("pa_{attempt_id}");
                 try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<PaymentAttempt>::HGet(&field), key)
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&field), key)
                             .await?
                             .try_into_hget()
                     },
@@ -736,7 +728,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id),
+                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -784,7 +776,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id),
+                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -824,7 +816,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
 
-                kv_wrapper(self, KvOperation::<PaymentAttempt>::Scan("pa_*"), key)
+                kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_scan()
@@ -964,7 +956,9 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
             amount_capturable: self.amount_capturable,
-            surcharge_metadata: self.surcharge_metadata,
+
+            updated_by: self.updated_by,
+            merchant_connector_id: self.merchant_connector_id,
         }
     }
 
@@ -1013,7 +1007,9 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             amount_capturable: storage_model.amount_capturable,
-            surcharge_metadata: storage_model.surcharge_metadata,
+
+            updated_by: storage_model.updated_by,
+            merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
 }
@@ -1062,7 +1058,9 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
             amount_capturable: self.amount_capturable,
-            surcharge_metadata: self.surcharge_metadata,
+
+            updated_by: self.updated_by,
+            merchant_connector_id: self.merchant_connector_id,
         }
     }
 
@@ -1109,7 +1107,9 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
             amount_capturable: storage_model.amount_capturable,
-            surcharge_metadata: storage_model.surcharge_metadata,
+
+            updated_by: storage_model.updated_by,
+            merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
 }
@@ -1132,6 +1132,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                updated_by,
             } => DieselPaymentAttemptUpdate::Update {
                 amount,
                 currency,
@@ -1145,22 +1146,29 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                updated_by,
             },
             Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                updated_by,
+                merchant_connector_id,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                updated_by,
+                merchant_connector_id,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
+                updated_by,
             } => DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
+                updated_by,
             },
             Self::ConfirmUpdate {
                 amount,
@@ -1179,6 +1187,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
+                updated_by,
+                merchant_connector_id: connector_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1196,13 +1208,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
+                updated_by,
+                merchant_connector_id: connector_id,
             },
             Self::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
             } => DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
             },
             Self::ResponseUpdate {
                 status,
@@ -1218,6 +1236,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                updated_by,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1232,6 +1251,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                updated_by,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1242,6 +1262,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                updated_by,
             } => DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
                 connector,
@@ -1251,8 +1272,11 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                updated_by,
             },
-            Self::StatusUpdate { status } => DieselPaymentAttemptUpdate::StatusUpdate { status },
+            Self::StatusUpdate { status, updated_by } => {
+                DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
+            }
             Self::ErrorUpdate {
                 connector,
                 status,
@@ -1260,6 +1284,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                updated_by,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1267,11 +1292,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                updated_by,
             },
             Self::MultipleCaptureCountUpdate {
                 multiple_capture_count,
+                updated_by,
             } => DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
+                updated_by,
             },
             Self::PreprocessingUpdate {
                 status,
@@ -1280,6 +1308,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+                updated_by,
             } => DieselPaymentAttemptUpdate::PreprocessingUpdate {
                 status,
                 payment_method_id,
@@ -1287,32 +1316,27 @@ impl DataModelExt for PaymentAttemptUpdate {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+                updated_by,
             },
             Self::RejectUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
             } => DieselPaymentAttemptUpdate::RejectUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
             },
             Self::AmountToCaptureUpdate {
                 status,
                 amount_capturable,
+                updated_by,
             } => DieselPaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
                 amount_capturable,
-            },
-            Self::SurchargeMetadataUpdate { surcharge_metadata } => {
-                DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata }
-            }
-            Self::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-            } => DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
+                updated_by,
             },
         }
     }
@@ -1332,6 +1356,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                updated_by,
             } => Self::Update {
                 amount,
                 currency,
@@ -1345,22 +1370,29 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                updated_by,
+                merchant_connector_id: connector_id,
             } => Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                updated_by,
+                merchant_connector_id: connector_id,
             },
             DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
+                updated_by,
             } => Self::AuthenticationTypeUpdate {
                 authentication_type,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -1379,6 +1411,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
+                updated_by,
+                merchant_connector_id: connector_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1396,13 +1432,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
+                updated_by,
+                merchant_connector_id: connector_id,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
             } => Self::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -1418,6 +1460,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                updated_by,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -1432,6 +1475,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -1442,6 +1486,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                updated_by,
             } => Self::UnresolvedResponseUpdate {
                 status,
                 connector,
@@ -1451,8 +1496,11 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                updated_by,
             },
-            DieselPaymentAttemptUpdate::StatusUpdate { status } => Self::StatusUpdate { status },
+            DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by } => {
+                Self::StatusUpdate { status, updated_by }
+            }
             DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1460,6 +1508,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                updated_by,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -1467,11 +1516,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
+                updated_by,
             } => Self::MultipleCaptureCountUpdate {
                 multiple_capture_count,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::PreprocessingUpdate {
                 status,
@@ -1480,6 +1532,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+                updated_by,
             } => Self::PreprocessingUpdate {
                 status,
                 payment_method_id,
@@ -1487,32 +1540,27 @@ impl DataModelExt for PaymentAttemptUpdate {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::RejectUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
             } => Self::RejectUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
             },
             DieselPaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
                 amount_capturable,
+                updated_by,
             } => Self::AmountToCaptureUpdate {
                 status,
                 amount_capturable,
-            },
-            DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => {
-                Self::SurchargeMetadataUpdate { surcharge_metadata }
-            }
-            DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-            } => Self::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
+                updated_by,
             },
         }
     }
@@ -1533,6 +1581,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
+        updated_by: storage_scheme.to_string(),
     };
     store
         .insert_reverse_lookup(reverse_lookup_new, storage_scheme)
@@ -1554,6 +1603,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
+        updated_by: storage_scheme.to_string(),
     };
     store
         .insert_reverse_lookup(reverse_lookup_new, storage_scheme)

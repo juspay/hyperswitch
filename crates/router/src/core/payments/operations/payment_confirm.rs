@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payment_methods};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{IntoReport, ResultExt};
@@ -410,6 +410,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm
         });
 
+        // populate payment_data.surcharge_details from request
+        let surcharge_details = request.surcharge_details.map(|surcharge_details| {
+            payment_methods::SurchargeDetailsResponse {
+                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
+                tax_on_surcharge: None,
+                surcharge_amount: surcharge_details.surcharge_amount,
+                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
+                final_amount: payment_attempt.amount
+                    + surcharge_details.surcharge_amount
+                    + surcharge_details.tax_amount.unwrap_or(0),
+            }
+        });
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -443,7 +456,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
-                surcharge_details: None,
+                surcharge_details,
                 frm_message: None,
                 payment_link_data: None,
             },
@@ -578,6 +591,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         };
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+
         let straight_through_algorithm = payment_data
             .payment_attempt
             .straight_through_algorithm
@@ -620,7 +635,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let authorized_amount = payment_data.payment_attempt.amount;
+        
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let authorized_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.payment_attempt.amount);
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
         let m_payment_data_amount = payment_data.amount.clone();
@@ -638,6 +666,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_db = db.clone();
+        let m_authorized_amount = authorized_amount.clone();
+        let m_tax_amount = tax_amount.clone();
+        let m_surcharge_amount = surcharge_amount.clone();
+
         let payment_attempt_fut = tokio::spawn(async move {
             m_db.update_payment_attempt_with_attempt_id(
                 m_payment_data_payment_attempt,
@@ -657,7 +689,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     straight_through_algorithm: m_straight_through_algorithm,
                     error_code: m_error_code,
                     error_message: m_error_message,
-                    amount_capturable: Some(authorized_amount),
+                    amount_capturable: Some(m_authorized_amount),
+                    surcharge_amount: m_surcharge_amount,
+                    tax_amount: m_tax_amount,
+                    updated_by: storage_scheme.to_string(),
+                    merchant_connector_id,
                 },
                 storage_scheme,
             )
@@ -681,6 +717,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_metadata = metadata.clone();
         let m_header_payload_payment_confirm_source = header_payload.payment_confirm_source.clone();
         let m_db = db.clone();
+        let m_storage_scheme = storage_scheme.to_string();
         let payment_intent_fut = tokio::spawn(async move {
             m_db.update_payment_intent(
                 m_payment_data_payment_intent,
@@ -701,6 +738,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     order_details: m_order_details,
                     metadata: m_metadata,
                     payment_confirm_source: m_header_payload_payment_confirm_source,
+                    updated_by: m_storage_scheme,
                 },
                 storage_scheme,
             )

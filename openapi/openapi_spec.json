@@ -1063,32 +1063,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
-              },
-              "examples": {
-                "Create a 3DS payment": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"authentication_type\" : \"three_ds\"\n    }"
-                },
-                "Create a manual capture payment": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"capture_method\":\"manual\"\n    }"
-                },
-                "Create a payment": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"payment_id\": \"abcdefghijklmnopqrstuvwxyz\",\n        \"customer\": {\n            \"id\":\"cus_abcdefgh\",\n            \"name\":\"John Dough\",\n            \"phone\":\"9999999999\",\n            \"email\":\"john@example.com\"\n        },\n        \"description\": \"Its my first payment request\",\n        \"statement_descriptor_name\": \"joseph\",\n        \"statement_descriptor_suffix\": \"JS\",\n        \"metadata\": {\n            \"udf1\": \"some-value\",\n            \"udf2\": \"some-value\"\n        }\n    }"
-                },
-                "Create a payment with address": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"customer\": {\n            \"id\" : \"cus_abcdefgh\"\n        },\n        \"billing\": {\n            \"address\": {\n                \"line1\": \"1467\",\n                \"line2\": \"Harrison Street\",\n                \"line3\": \"Harrison Street\",\n                \"city\": \"San Fransico\",\n                \"state\": \"California\",\n                \"zip\": \"94122\",\n                \"country\": \"US\",\n                \"first_name\": \"joseph\",\n                \"last_name\": \"Doe\"\n            },\n            \"phone\": {\n                \"number\": \"8056594427\",\n                \"country_code\": \"+91\"\n            }\n        }\n    }"
-                },
-                "Create a payment with customer details": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"customer\": {\n            \"id\":\"cus_abcdefgh\",\n            \"name\":\"John Dough\",\n            \"phone\":\"9999999999\",\n            \"email\":\"john@example.com\"\n        }\n    }"
-                },
-                "Create a payment with minimul fields": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n    }"
-                },
-                "Create a payment with order category for noon": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"connector_metadata\": {\n            \"noon\": {\n                \"order_category\":\"shoes\"\n            }\n        }\n    }"
-                },
-                "Create a payment with order details": {
-                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"order_details\": [\n            {\n                \"product_name\": \"Apple iPhone 15\",\n                \"quantity\": 1,\n                \"amount\" : 6540\n            }\n        ]\n    }"
-                }
               }
             }
           },
@@ -6172,6 +6146,14 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6345,6 +6327,9 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6477,6 +6462,9 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6493,6 +6481,12 @@
           },
           "connector_name": {
             "$ref": "#/components/schemas/Connector"
+          },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "example": "stripe_US_travel",
+            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6706,6 +6700,12 @@
             "description": "Name of the Connector",
             "example": "stripe"
           },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "example": "stripe_US_travel",
+            "nullable": true
+          },
           "merchant_connector_id": {
             "type": "string",
             "description": "Unique ID of the connector",
@@ -6844,6 +6844,11 @@
         "properties": {
           "connector_type": {
             "$ref": "#/components/schemas/ConnectorType"
+          },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "nullable": true
           },
           "connector_account_details": {
             "type": "object",
@@ -7323,6 +7328,11 @@
             "description": "The quantity of the product to be purchased",
             "example": 1,
             "minimum": 0
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7351,6 +7361,11 @@
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7789,6 +7804,40 @@
             }
           }
         ]
+      },
+      "PaymentLinkColorSchema": {
+        "type": "object",
+        "properties": {
+          "primary_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "primary_accent_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondary_color": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkConfig": {
+        "type": "object",
+        "properties": {
+          "merchant_logo": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_scheme": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkColorSchema"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
@@ -8778,7 +8827,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -9142,7 +9191,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -9680,6 +9729,14 @@
             "description": "The business profile that is associated with this payment",
             "nullable": true
           },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
           "attempt_count": {
             "type": "integer",
             "format": "int32",
@@ -9688,6 +9745,11 @@
           "merchant_decision": {
             "type": "string",
             "description": "Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
             "nullable": true
           }
         }
@@ -10623,6 +10685,10 @@
             "type": "string",
             "description": "The connector used for the refund and the corresponding payment",
             "example": "stripe"
+          },
+          "profile_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

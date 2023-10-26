@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::FrmMessage;
+use api_models::payments::{FrmMessage, RequestSurchargeDetails};
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -424,7 +424,13 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-
+    let surcharge_details =
+        payment_attempt
+            .surcharge_amount
+            .map(|surcharge_amount| RequestSurchargeDetails {
+                surcharge_amount,
+                tax_amount: payment_attempt.tax_amount,
+            });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
@@ -449,7 +455,7 @@ where
         headers.extend(
             external_latency
                 .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
-                .unwrap_or(vec![]),
+                .unwrap_or_default(),
         );
     }
     let output = Ok(match payment_request {
@@ -557,6 +563,7 @@ where
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(Some(payment_attempt.amount_capturable))
                         .set_amount_received(payment_intent.amount_captured)
+                        .set_surcharge_details(surcharge_details)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
@@ -684,6 +691,7 @@ where
                         .set_payment_link(payment_link_data)
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
+                        .set_merchant_connector_id(payment_attempt.merchant_connector_id)
                         .to_owned(),
                     headers,
                 ))
@@ -743,6 +751,7 @@ where
                 reference_id: payment_attempt.connector_response_reference_id,
                 attempt_count: payment_intent.attempt_count,
                 payment_link: payment_link_data,
+                surcharge_details,
                 ..Default::default()
             },
             headers,
@@ -916,6 +925,7 @@ pub fn change_order_details_to_new_type(
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,
+        product_img_link: order_details.product_img_link,
     }])
 }
 
@@ -1093,6 +1103,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let amount_to_capture: i64 = payment_data
             .payment_attempt
@@ -1141,6 +1152,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
