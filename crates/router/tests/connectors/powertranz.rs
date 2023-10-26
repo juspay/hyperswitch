@@ -16,6 +16,7 @@ impl utils::Connector for PowertranzTest {
             connector: Box::new(&Powertranz),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

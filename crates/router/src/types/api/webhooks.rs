@@ -156,6 +156,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             &state.conf.connectors,
             connector_name,
             types::api::GetToken::Connector,
+            None,
         )
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
         .attach_printable("invalid connector name received in payment attempt")?;

@@ -14,6 +14,7 @@ impl utils::Connector for HelcimTest {
             connector: Box::new(&Helcim),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
