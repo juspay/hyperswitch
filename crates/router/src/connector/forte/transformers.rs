@@ -68,7 +68,7 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
 
 #[derive(Debug, Serialize)]
 pub struct ForteRouterData<T> {
-    amount: i64,
+    amount: f64,
     router_data: T,
 }
 impl<T>
@@ -89,7 +89,7 @@ impl<T>
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount,
+            amount: amount as f64,
             router_data: item,
         })
     }
@@ -114,7 +114,7 @@ impl
                 PaymentsResponseData,
             >,
         >,
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<FortePaymentsRequest, Self::Error> {
         let payment_data = match &item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(card) => {
                 let action = match item.router_data.request.is_auto_capture()? {
@@ -135,10 +135,7 @@ impl
                     first_name: address.get_first_name()?.to_owned(),
                     last_name: address.get_last_name()?.to_owned(),
                 };
-                let authorization_amount = utils::to_currency_base_unit_asf64(
-                    item.router_data.request.amount,
-                    item.router_data.request.currency,
-                )?;
+                let authorization_amount = item.amount.to_owned();
                 Ok(Self {
                     action,
                     authorization_amount,
@@ -146,10 +143,22 @@ impl
                     card,
                 })
             }
-            _ => {
-                return Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                )
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment {}
+            | api_models::payments::PaymentMethodData::Reward {}
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Forte",
+                })?
             }
         };
         payment_data
