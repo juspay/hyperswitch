@@ -7,10 +7,17 @@ const isPayoutCreation = path.match(/\/payouts\/create$/) && isPostRequest;
 if (isPaymentCreation || isPayoutCreation) {
   try {
     const request = JSON.parse(pm.request.body.toJSON().raw);
+
+    // Attach profile_id
     const profile_id = isPaymentCreation
       ? pm.collectionVariables.get("payment_profile_id")
       : pm.collectionVariables.get("payout_profile_id");
     request["profile_id"] = profile_id;
+
+    // Attach routing
+    const routing = { type: "single", data: "adyen" };
+    request["routing"] = routing;
+
     let updatedRequest = {
       mode: "raw",
       raw: JSON.stringify(request),

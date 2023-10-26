@@ -83,14 +83,6 @@
       "metadata": {
         "city": "NY",
         "unit": "245"
-      },
-      "routing_algorithm": {
-        "type": "single",
-        "data": "adyen"
-      },
-      "payout_routing_algorithm": {
-        "type": "single",
-        "data": "adyen"
       }
     }
   },
