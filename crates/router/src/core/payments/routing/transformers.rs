@@ -56,13 +56,19 @@ impl ForeignFrom<api_enums::RoutableConnectors> for dsl_enums::Connector {
     fn foreign_from(from: api_enums::RoutableConnectors) -> Self {
         match from {
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector1 => unimplemented!(),
-            api_enums::RoutableConnectors::DummyConnector2 => unimplemented!(),
-            api_enums::RoutableConnectors::DummyConnector3 => unimplemented!(),
-            api_enums::RoutableConnectors::DummyConnector4 => unimplemented!(),
-            api_enums::RoutableConnectors::DummyConnector5 => unimplemented!(),
-            api_enums::RoutableConnectors::DummyConnector6 => unimplemented!(),
-            api_enums::RoutableConnectors::DummyConnector7 => unimplemented!(),
+            api_enums::RoutableConnectors::DummyConnector1 => Self::DummyConnector1 ,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::RoutableConnectors::DummyConnector2 => Self::DummyConnector2 ,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::RoutableConnectors::DummyConnector3 => Self::DummyConnector3 ,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::RoutableConnectors::DummyConnector4 => Self::DummyConnector4 ,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::RoutableConnectors::DummyConnector5 => Self::DummyConnector5 ,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::RoutableConnectors::DummyConnector6 => Self::DummyConnector6 ,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::RoutableConnectors::DummyConnector7 => Self::DummyConnector7 ,
             api_enums::RoutableConnectors::Aci => Self::Aci,
             api_enums::RoutableConnectors::Adyen => Self::Adyen,
             api_enums::RoutableConnectors::Airwallex => Self::Airwallex,
