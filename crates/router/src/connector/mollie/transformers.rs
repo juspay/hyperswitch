@@ -159,10 +159,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
     ) -> Result<Self, Self::Error> {
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: utils::to_currency_base_unit(
-                item.router_data.request.amount,
-                item.router_data.request.currency,
-            )?,
+            value: item.amount
         };
         let description = item.router_data.get_description()?;
         let redirect_url = item.router_data.request.get_return_url()?;
