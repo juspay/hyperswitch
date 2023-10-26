@@ -345,6 +345,23 @@ pub struct SurchargeMetadata {
     pub surcharge_results: HashMap<String, SurchargeDetailsResponse>,
 }
 
+impl SurchargeMetadata {
+    pub fn get_key_for_surcharge_details_hash_map(
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+        card_network: Option<&common_enums::CardNetwork>,
+    ) -> String {
+        if let Some(card_network) = card_network {
+            format!(
+                "{}_{}_{}",
+                payment_method, payment_method_type, card_network
+            )
+        } else {
+            format!("{}_{}", payment_method, payment_method_type)
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
@@ -752,6 +769,13 @@ pub struct GetTokenizePayloadRequest {
 pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
     pub service_name: String,
+}
+
+#[derive(Debug, serde::Serialize)] // Blocked: Yet to be implemented by `basilisk`
+pub struct DeleteTokenizeByDateRequest {
+    pub buffer_minutes: i32,
+    pub service_name: String,
+    pub max_rows: i32,
 }
 
 #[derive(Debug, serde::Deserialize)]

@@ -290,6 +290,7 @@ impl MandateInterface for MockDb {
             end_date: mandate_new.end_date,
             metadata: mandate_new.metadata,
             connector_mandate_ids: mandate_new.connector_mandate_ids,
+            merchant_connector_id: mandate_new.merchant_connector_id,
         };
         mandates.push(mandate.clone());
         Ok(mandate)

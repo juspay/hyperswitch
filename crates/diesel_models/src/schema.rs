@@ -246,6 +246,8 @@ diesel::table! {
         evidence -> Jsonb,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -293,6 +295,8 @@ diesel::table! {
         connector_label -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -404,6 +408,8 @@ diesel::table! {
         connector_mandate_ids -> Nullable<Jsonb>,
         #[max_length = 64]
         original_payment_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -559,9 +565,10 @@ diesel::table! {
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         amount_capturable -> Int8,
-        surcharge_metadata -> Nullable<Jsonb>,
         #[max_length = 32]
         updated_by -> Varchar,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -622,6 +629,7 @@ diesel::table! {
         payment_confirm_source -> Nullable<PaymentSource>,
         #[max_length = 32]
         updated_by -> Varchar,
+        surcharge_applicable -> Nullable<Bool>,
     }
 }
 
@@ -721,6 +729,8 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -828,6 +838,8 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         updated_by -> Varchar,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 

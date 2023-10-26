@@ -19,6 +19,7 @@ impl utils::Connector for BamboraTest {
             connector: Box::new(&Bambora),
             connector_name: types::Connector::Bambora,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

@@ -104,6 +104,7 @@ impl PaymentIntentInterface for MockDb {
             payment_link_id: new.payment_link_id,
             payment_confirm_source: new.payment_confirm_source,
             updated_by: storage_scheme.to_string(),
+            surcharge_applicable: new.surcharge_applicable,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
