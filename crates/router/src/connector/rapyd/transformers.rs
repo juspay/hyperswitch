@@ -36,7 +36,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = item.amount.to_owned();
+        let amount = item.amount;
         Ok(Self {
             amount,
             router_data: item,
