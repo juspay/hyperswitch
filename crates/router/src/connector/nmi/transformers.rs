@@ -279,13 +279,13 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.clone()
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -372,13 +372,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.clone()
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -425,13 +425,13 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.clone()
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -474,13 +474,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.clone()
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -525,13 +525,13 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
             status: enums::AttemptStatus::from(NmiStatus::from(response.transaction.condition)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    response.transaction.transaction_id,
+                    response.transaction.transaction_id.clone()
                 ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.transaction.transaction_id),
             }),
             ..item.data
         })
