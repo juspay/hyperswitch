@@ -19,6 +19,7 @@ impl utils::Connector for AdyenTest {
             connector: Box::new(&Adyen),
             connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

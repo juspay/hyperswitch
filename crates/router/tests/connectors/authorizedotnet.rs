@@ -18,6 +18,7 @@ impl utils::Connector for AuthorizedotnetTest {
             connector: Box::new(&Authorizedotnet),
             connector_name: types::Connector::Authorizedotnet,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

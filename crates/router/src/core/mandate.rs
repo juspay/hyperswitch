@@ -143,6 +143,7 @@ pub async fn mandate_procedure<F, FData>(
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<domain::Customer>,
     pm_id: Option<String>,
+    merchant_connector_id: Option<String>,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
@@ -228,6 +229,7 @@ where
                         network_txn_id,
                         get_insensitive_payment_method_data_if_exists(&resp),
                         mandate_reference,
+                        merchant_connector_id,
                     )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
