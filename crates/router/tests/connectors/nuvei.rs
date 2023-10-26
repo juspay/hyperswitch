@@ -22,6 +22,7 @@ impl utils::Connector for NuveiTest {
             connector: Box::new(&Nuvei),
             connector_name: types::Connector::Nuvei,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

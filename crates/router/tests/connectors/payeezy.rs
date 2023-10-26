@@ -24,6 +24,7 @@ impl utils::Connector for PayeezyTest {
             connector: Box::new(&Payeezy),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
