@@ -21,6 +21,7 @@ impl utils::Connector for ZenTest {
             connector: Box::new(&Zen),
             connector_name: types::Connector::Zen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
