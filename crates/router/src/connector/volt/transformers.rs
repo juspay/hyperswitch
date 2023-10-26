@@ -237,7 +237,9 @@ impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
 impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
-            VoltPaymentStatus::Completed | VoltPaymentStatus::Received => Self::Charged,
+            VoltPaymentStatus::Completed
+            | VoltPaymentStatus::Received
+            | VoltPaymentStatus::Settled => Self::Charged,
             VoltPaymentStatus::DelayedAtBank => Self::Pending,
             VoltPaymentStatus::NewPayment
             | VoltPaymentStatus::BankRedirect
@@ -305,6 +307,7 @@ pub enum VoltPaymentStatus {
     CancelledByUser,
     AbandonedByUser,
     Failed,
+    Settled,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
