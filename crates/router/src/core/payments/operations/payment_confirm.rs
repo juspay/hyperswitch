@@ -342,20 +342,28 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         Self::validate_request_surcharge_details(state, &payment_attempt, request).await?;
 
         // populate payment_data.surcharge_details from request
-        let surcharge_details =
-            request
-                .surcharge_details
-                .map(|surcharge_details| SurchargeDetailsResponse {
-                    surcharge: payment_methods::Surcharge::Fixed(
-                        surcharge_details.surcharge_amount,
-                    ),
+        let surcharge_details = request
+            .surcharge_details
+            .map(|surcharge_details| SurchargeDetailsResponse {
+                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
+                tax_on_surcharge: None,
+                surcharge_amount: surcharge_details.surcharge_amount,
+                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
+                final_amount: payment_attempt.amount
+                    + surcharge_details.surcharge_amount
+                    + surcharge_details.tax_amount.unwrap_or(0),
+            }) // if not passed in confirm request, look inside payment_attempt
+            .or(payment_attempt.surcharge_amount.map(|surcharge_amount| {
+                SurchargeDetailsResponse {
+                    surcharge: payment_methods::Surcharge::Fixed(surcharge_amount),
                     tax_on_surcharge: None,
-                    surcharge_amount: surcharge_details.surcharge_amount,
-                    tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
+                    surcharge_amount,
+                    tax_on_surcharge_amount: payment_attempt.tax_amount.unwrap_or(0),
                     final_amount: payment_attempt.amount
-                        + surcharge_details.surcharge_amount
-                        + surcharge_details.tax_amount.unwrap_or(0),
-                });
+                        + surcharge_amount
+                        + payment_attempt.tax_amount.unwrap_or(0),
+                }
+            }));
 
         Ok((
             Box::new(self),
