@@ -79,11 +79,14 @@ pub async fn validate_file_upload(
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
                     dispute_id: dispute_id.to_string(),
                 })?;
+            // Connector is not called for validating the file, connector_id can be passed as None safely
             let connector_data = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &dispute.connector,
                 api::GetToken::Connector,
+                None,
             )?;
+
             let validation = connector_data.connector.validate_file_upload(
                 create_file_request.purpose,
                 create_file_request.file_size,
@@ -162,6 +165,7 @@ pub async fn retrieve_file_from_connector(
         &state.conf.connectors,
         connector,
         api::GetToken::Connector,
+        file_metadata.merchant_connector_id.clone(),
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -271,6 +275,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
         String,
         api_models::enums::FileUploadProvider,
         Option<String>,
+        Option<String>,
     ),
     errors::ApiErrorResponse,
 > {
@@ -289,6 +294,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 &state.conf.connectors,
                 &dispute.connector,
                 api::GetToken::Connector,
+                dispute.merchant_connector_id.clone(),
             )?;
             if connector_data.connector_name.supports_file_storage_module() {
                 let payment_intent = state
@@ -339,6 +345,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while calling upload file connector api")?;
+
                 let upload_file_response = response.response.map_err(|err| {
                     errors::ApiErrorResponse::ExternalConnectorError {
                         code: err.code,
@@ -354,6 +361,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                         &connector_data.connector_name,
                     )?,
                     payment_intent.profile_id,
+                    payment_attempt.merchant_connector_id,
                 ))
             } else {
                 upload_file(
@@ -366,6 +374,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 Ok((
                     file_key,
                     api_models::enums::FileUploadProvider::Router,
+                    None,
                     None,
                 ))
             }

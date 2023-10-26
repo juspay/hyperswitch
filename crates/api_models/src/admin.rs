@@ -15,6 +15,11 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
+pub struct MerchantAccountListRequest {
+    pub organization_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
@@ -441,7 +446,17 @@ pub mod payout_routing_algorithm {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithm {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RoutableConnectorChoice {
+    ConnectorName(api_enums::RoutableConnectors),
+    ConnectorId {
+        merchant_connector_id: String,
+        connector: api_enums::RoutableConnectors,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -453,13 +468,13 @@ pub enum RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum StraightThroughAlgorithmInner {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -582,10 +597,9 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    // /// Connector label for specific country and Business
-    #[serde(skip_deserializing)]
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
     #[schema(example = "stripe_US_travel")]
-    pub connector_label: String,
+    pub connector_label: Option<String>,
 
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
@@ -678,8 +692,8 @@ pub struct MerchantConnectorResponse {
     /// Name of the Connector
     #[schema(example = "stripe")]
     pub connector_name: String,
-    // /// Connector label for specific country and Business
-    #[serde(skip_deserializing)]
+
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -771,6 +785,9 @@ pub struct MerchantConnectorUpdate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    pub connector_label: Option<String>,
 
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]

@@ -311,7 +311,9 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]
+#[derive(
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
+)]
 pub struct RequestSurchargeDetails {
     pub surcharge_amount: i64,
     pub tax_amount: Option<i64>,
@@ -2096,11 +2098,17 @@ pub struct PaymentsResponse {
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
+    /// details of surcharge applied on this payment
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+
+    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]

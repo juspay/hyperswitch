@@ -207,6 +207,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
+                    updated_by: storage_scheme.to_string(),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {
@@ -229,6 +230,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             storage::PaymentAttemptUpdate::VoidUpdate {
                 status: attempt_status_update,
                 cancellation_reason,
+                updated_by: storage_scheme.to_string(),
             },
             storage_scheme,
         )
