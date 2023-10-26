@@ -86,7 +86,7 @@ impl MerchantAccountInterface for Store {
                 .await
                 .map_err(Into::into)
                 .into_report()?
-                .convert(merchant_key_store.key.get_inner())
+                .convert(self.get_master_key())
                 .await
                 .change_context(errors::StorageError::DecryptionError);
 
