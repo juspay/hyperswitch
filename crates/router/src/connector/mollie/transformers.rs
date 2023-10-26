@@ -570,10 +570,7 @@ impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefun
     ) -> Result<Self, Self::Error> {
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: utils::to_currency_base_unit(
-                item.router_data.request.refund_amount,
-                item.router_data.request.currency,
-            )?,
+            value: item.amount,
         };
         Ok(Self {
             amount,
