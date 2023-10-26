@@ -584,7 +584,11 @@ impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for Airwalle
             request_id: Uuid::new_v4().to_string(),
             amount: Some(item.amount.to_owned()),
             reason: item.router_data.request.reason.clone(),
-            payment_intent_id: item.router_data.request.connector_transaction_id.clone(),
+            payment_intent_id: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .clone(),
         })
     }
 }
