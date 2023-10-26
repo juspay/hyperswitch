@@ -279,7 +279,7 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.clone()
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -372,7 +372,7 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.clone()
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -425,7 +425,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.clone()
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -474,7 +474,7 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.clone()
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -525,7 +525,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
             status: enums::AttemptStatus::from(NmiStatus::from(response.transaction.condition)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    response.transaction.transaction_id.clone()
+                    response.transaction.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
