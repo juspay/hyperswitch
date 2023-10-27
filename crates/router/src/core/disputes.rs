@@ -108,6 +108,7 @@ pub async fn accept_dispute(
         &state.conf.connectors,
         &dispute.connector,
         api::GetToken::Connector,
+        dispute.merchant_connector_id.clone(),
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -220,7 +221,9 @@ pub async fn submit_evidence(
         &state.conf.connectors,
         &dispute.connector,
         api::GetToken::Connector,
+        dispute.merchant_connector_id.clone(),
     )?;
+
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Evidence,

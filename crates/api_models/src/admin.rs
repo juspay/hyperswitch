@@ -14,12 +14,12 @@ use crate::{
     payment_methods,
 };
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
@@ -111,7 +111,7 @@ pub struct MerchantAccountMetadata {
     #[serde(flatten)]
     pub data: Option<pii::SecretSerdeValue>,
 }
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
     /// The identifier for the Merchant Account
@@ -446,7 +446,17 @@ pub mod payout_routing_algorithm {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithm {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RoutableConnectorChoice {
+    ConnectorName(api_enums::RoutableConnectors),
+    ConnectorId {
+        merchant_connector_id: String,
+        connector: api_enums::RoutableConnectors,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -458,13 +468,13 @@ pub enum RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum StraightThroughAlgorithmInner {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -996,7 +1006,7 @@ pub enum PayoutStraightThroughAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Default)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
     /// A short name to identify the business profile
@@ -1117,7 +1127,7 @@ pub struct BusinessProfileResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
     /// A short name to identify the business profile
