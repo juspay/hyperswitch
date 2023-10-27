@@ -477,7 +477,7 @@ impl
                     self, req, connectors,
                 )?)
                 .body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req, connectors
+                    self, req, connectors,
                 )?)
                 .build(),
         );

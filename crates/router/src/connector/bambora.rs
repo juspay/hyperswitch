@@ -776,7 +776,7 @@ impl
                 self, req, connectors,
             )?)
             .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                self, req, connectors
+                self, req, connectors,
             )?)
             .build();
         Ok(Some(request))
