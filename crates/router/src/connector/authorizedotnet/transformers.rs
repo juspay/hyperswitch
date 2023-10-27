@@ -324,6 +324,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             processing_options,
             subsequent_auth_information,
             authorization_indicator_type,
+            ref_id: item.router_data.connector_request_reference_id.clone(),
         };
 
         let merchant_authentication =
@@ -502,7 +503,6 @@ pub struct SecureAcceptance {
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
     pub messages: ResponseMessages,
-    pub ref_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
