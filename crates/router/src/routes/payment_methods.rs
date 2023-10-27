@@ -7,7 +7,7 @@ use time::PrimitiveDateTime;
 
 use super::app::AppState;
 use crate::{
-    core::{errors, payment_methods::cards},
+    core::{api_locking, errors, payment_methods::cards},
     services::{api, authentication as auth},
     types::api::payment_methods::{self, PaymentMethodId},
 };
@@ -43,10 +43,10 @@ pub async fn create_payment_method_api(
             cards::add_payment_method(state, req, &auth.merchant_account, &auth.key_store).await
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// List payment methods for a Merchant
 ///
 /// To filter and list the applicable payment methods for a particular Merchant ID
@@ -93,10 +93,10 @@ pub async fn list_payment_method_api(
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -150,10 +150,10 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -206,10 +206,10 @@ pub async fn list_customer_payment_method_api_client(
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payment Method - Retrieve
 ///
 /// To retrieve a payment method
@@ -246,10 +246,10 @@ pub async fn payment_method_retrieve_api(
         payload,
         |state, _auth, pm| cards::retrieve_payment_method(state, pm),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payment Method - Update
 ///
 /// To update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments
@@ -293,10 +293,10 @@ pub async fn payment_method_update_api(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payment Method - Delete
 ///
 /// Delete payment method
@@ -331,10 +331,10 @@ pub async fn payment_method_delete_api(
         pm,
         |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

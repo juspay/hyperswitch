@@ -40,31 +40,33 @@ pub async fn get_mca_for_payout<'a>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
-) -> RouterResult<helpers::MerchantConnectorAccountType> {
+) -> RouterResult<(helpers::MerchantConnectorAccountType, String)> {
     let payout_attempt = &payout_data.payout_attempt;
+    let profile_id = get_profile_id_from_business_details(
+        payout_attempt.business_country,
+        payout_attempt.business_label.as_ref(),
+        merchant_account,
+        payout_attempt.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payout_attempt")?;
     match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok(mca),
+        Some(mca) => Ok((mca, profile_id)),
         None => {
-            let profile_id = payout_attempt
-                .profile_id
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "business_profile",
-                })
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?;
-
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
                 merchant_account.merchant_id.as_str(),
                 None,
                 key_store,
-                profile_id,
+                &profile_id,
                 connector_id,
+                payout_attempt.merchant_connector_id.as_ref(),
             )
             .await?;
-            Ok(merchant_connector_account)
+            Ok((merchant_connector_account, profile_id))
         }
     }
 }
@@ -79,12 +81,7 @@ pub async fn construct_payout_router_data<'a, F>(
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (business_country, _) = helpers::get_business_details(
-        payout_data.payout_attempt.business_country,
-        payout_data.payout_attempt.business_label.as_ref(),
-        merchant_account,
-    )?;
-    let merchant_connector_account = get_mca_for_payout(
+    let (merchant_connector_account, profile_id) = get_mca_for_payout(
         state,
         connector_id,
         merchant_account,
@@ -130,10 +127,11 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
+    let connector_label = format!("{profile_id}_{}", payout_attempt.connector);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get("id"))
+        .and_then(|cc| cc.get(connector_label))
         .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -161,7 +159,6 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
-            country_code: business_country,
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
@@ -187,6 +184,8 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
 
     Ok(router_data)
@@ -211,6 +210,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_account,
         payment_intent.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -223,6 +223,7 @@ pub async fn construct_refund_router_data<'a, F>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -270,6 +271,15 @@ pub async fn construct_refund_router_data<'a, F>(
         None
     };
 
+    let browser_info: Option<types::BrowserInformation> = payment_attempt
+        .browser_info
+        .clone()
+        .map(|b| b.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -298,6 +308,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: refund.connector_refund_id.clone(),
+            browser_info,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -324,6 +335,8 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
 
     Ok(router_data)
@@ -484,6 +497,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         merchant_account,
         payment_intent.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -496,6 +510,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         key_store,
         &profile_id,
         &dispute.connector,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -549,6 +564,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -570,6 +587,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         merchant_account,
         payment_intent.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -582,6 +600,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -632,6 +651,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -654,6 +675,7 @@ pub async fn construct_upload_file_router_data<'a>(
         merchant_account,
         payment_intent.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -666,8 +688,10 @@ pub async fn construct_upload_file_router_data<'a>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -720,6 +744,8 @@ pub async fn construct_upload_file_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -741,6 +767,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         merchant_account,
         payment_intent.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -753,6 +780,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -806,6 +834,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -835,6 +865,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         key_store,
         profile_id,
         connector_id,
+        file_metadata.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -886,6 +917,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -992,16 +1025,19 @@ pub async fn get_profile_id_from_business_details(
     merchant_account: &domain::MerchantAccount,
     request_profile_id: Option<&String>,
     db: &dyn StorageInterface,
+    should_validate: bool,
 ) -> RouterResult<String> {
     match request_profile_id.or(merchant_account.default_profile.as_ref()) {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
-            let _ = validate_and_get_business_profile(
-                db,
-                Some(profile_id),
-                &merchant_account.merchant_id,
-            )
-            .await?;
+            if should_validate {
+                let _ = validate_and_get_business_profile(
+                    db,
+                    Some(profile_id),
+                    &merchant_account.merchant_id,
+                )
+                .await?;
+            }
             Ok(profile_id.clone())
         }
         None => match business_country.zip(business_label) {
@@ -1024,4 +1060,16 @@ pub async fn get_profile_id_from_business_details(
             })),
         },
     }
+}
+
+#[inline]
+pub fn get_flow_name<F>() -> RouterResult<String> {
+    Ok(std::any::type_name::<F>()
+        .to_string()
+        .rsplit("::")
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Flow stringify failed")?
+        .to_string())
 }

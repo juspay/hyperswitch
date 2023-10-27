@@ -1,12 +1,11 @@
 pub mod types;
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::refunds,
+    core::{api_locking, refunds},
     routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
@@ -50,10 +49,10 @@ pub async fn refund_create(
             refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
 pub async fn refund_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
@@ -96,10 +95,10 @@ pub async fn refund_retrieve_with_gateway_creds(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
 pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
@@ -139,10 +138,10 @@ pub async fn refund_retrieve(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 pub async fn refund_update(
     state: web::Data<routes::AppState>,
@@ -174,6 +173,7 @@ pub async fn refund_update(
             refunds::refund_update_core(state, auth.merchant_account, &refund_id, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

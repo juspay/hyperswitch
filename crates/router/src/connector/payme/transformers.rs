@@ -25,6 +25,36 @@ use crate::{
 const LANGUAGE: &str = "en";
 
 #[derive(Debug, Serialize)]
+pub struct PaymeRouterData<T> {
+    pub amount: i64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for PaymeRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct PayRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
@@ -311,33 +341,37 @@ pub enum SalePaymentMethod {
     ApplePay,
 }
 
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
+impl TryFrom<&PaymeRouterData<&types::PaymentsPreProcessingRouterData>> for GenerateSaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let sale_type = SaleType::try_from(item)?;
-        let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
-        let order_details = item.request.get_order_details()?;
-        let services = get_services(item);
+    fn try_from(
+        item: &PaymeRouterData<&types::PaymentsPreProcessingRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let sale_type = SaleType::try_from(item.router_data)?;
+        let seller_payme_id =
+            PaymeAuthType::try_from(&item.router_data.connector_auth_type)?.seller_payme_id;
+        let order_details = item.router_data.request.get_order_details()?;
+        let services = get_services(item.router_data);
         let product_name = order_details
             .first()
             .ok_or_else(missing_field_err("order_details"))?
             .product_name
             .clone();
         let pmd = item
+            .router_data
             .request
             .payment_method_data
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_data"))?;
         Ok(Self {
             seller_payme_id,
-            sale_price: item.request.get_amount()?,
-            currency: item.request.get_currency()?,
+            sale_price: item.amount.to_owned(),
+            currency: item.router_data.request.get_currency()?,
             product_name,
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
-            transaction_id: item.payment_id.clone(),
-            sale_return_url: item.request.get_return_url()?,
-            sale_callback_url: item.request.get_webhook_url()?,
+            transaction_id: item.router_data.payment_id.clone(),
+            sale_return_url: item.router_data.request.get_return_url()?,
+            sale_callback_url: item.router_data.request.get_webhook_url()?,
             language: LANGUAGE.to_string(),
             services,
         })
@@ -400,13 +434,15 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
+impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for PaymePaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payme_request = if value.request.mandate_id.is_some() {
+    fn try_from(
+        value: &PaymeRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let payme_request = if value.router_data.request.mandate_id.is_some() {
             Self::MandateRequest(MandateRequest::try_from(value)?)
         } else {
-            Self::PayRequest(PayRequest::try_from(value)?)
+            Self::PayRequest(PayRequest::try_from(value.router_data)?)
         };
         Ok(payme_request)
     }
@@ -562,25 +598,28 @@ impl<F>
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
+impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for MandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
-        let order_details = item.request.get_order_details()?;
+    fn try_from(
+        item: &PaymeRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let seller_payme_id =
+            PaymeAuthType::try_from(&item.router_data.connector_auth_type)?.seller_payme_id;
+        let order_details = item.router_data.request.get_order_details()?;
         let product_name = order_details
             .first()
             .ok_or_else(missing_field_err("order_details"))?
             .product_name
             .clone();
         Ok(Self {
-            currency: item.request.currency,
-            sale_price: item.request.amount,
-            transaction_id: item.payment_id.clone(),
+            currency: item.router_data.request.currency,
+            sale_price: item.amount.to_owned(),
+            transaction_id: item.router_data.payment_id.clone(),
             product_name,
-            sale_return_url: item.request.get_return_url()?,
+            sale_return_url: item.router_data.request.get_return_url()?,
             seller_payme_id,
-            sale_callback_url: item.request.get_webhook_url()?,
-            buyer_key: Secret::new(item.request.get_connector_mandate_id()?),
+            sale_callback_url: item.router_data.request.get_webhook_url()?,
+            buyer_key: Secret::new(item.router_data.request.get_connector_mandate_id()?),
             language: LANGUAGE.to_string(),
         })
     }
@@ -851,18 +890,20 @@ pub struct PaymentCaptureRequest {
     sale_price: i64,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
+impl TryFrom<&PaymeRouterData<&types::PaymentsCaptureRouterData>> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        if item.request.amount_to_capture != item.request.payment_amount {
+    fn try_from(
+        item: &PaymeRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        if item.router_data.request.amount_to_capture != item.router_data.request.payment_amount {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
                 connector: "Payme",
             })?
         }
         Ok(Self {
-            payme_sale_id: item.request.connector_transaction_id.clone(),
-            sale_price: item.request.amount_to_capture,
+            payme_sale_id: item.router_data.request.connector_transaction_id.clone(),
+            sale_price: item.amount,
         })
     }
 }
@@ -877,14 +918,14 @@ pub struct PaymeRefundRequest {
     language: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
+impl<F> TryFrom<&PaymeRouterData<&types::RefundsRouterData<F>>> for PaymeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth_type = PaymeAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(item: &PaymeRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
-            payme_sale_id: item.request.connector_transaction_id.clone(),
+            payme_sale_id: item.router_data.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
-            sale_refund_amount: item.request.refund_amount,
+            sale_refund_amount: item.amount.to_owned(),
             language: LANGUAGE.to_string(),
         })
     }

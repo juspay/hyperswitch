@@ -36,7 +36,7 @@ pub struct Zen;
 impl api::Payment for Zen {}
 impl api::PaymentSession for Zen {}
 impl api::ConnectorAccessToken for Zen {}
-impl api::PreVerify for Zen {}
+impl api::MandateSetup for Zen {}
 impl api::PaymentAuthorize for Zen {}
 impl api::PaymentSync for Zen {}
 impl api::PaymentCapture for Zen {}
@@ -76,6 +76,10 @@ where
 impl ConnectorCommon for Zen {
     fn id(&self) -> &'static str {
         "zen"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -157,8 +161,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Zen
 {
 }
 
@@ -208,7 +216,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = zen::ZenPaymentsRequest::try_from(req)?;
+        let connector_router_data = zen::ZenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = zen::ZenPaymentsRequest::try_from(&connector_router_data)?;
         let zen_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json,
@@ -397,7 +411,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = zen::ZenRefundRequest::try_from(req)?;
+        let connector_router_data = zen::ZenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = zen::ZenRefundRequest::try_from(&connector_router_data)?;
         let zen_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json,
@@ -528,6 +548,7 @@ impl api::IncomingWebhook for Zen {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: zen::ZenWebhookSignature = request
             .body
@@ -543,7 +564,7 @@ impl api::IncomingWebhook for Zen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: zen::ZenWebhookBody = request
             .body
@@ -567,23 +588,25 @@ impl api::IncomingWebhook for Zen {
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
-
-        let signature = self.get_webhook_source_verification_signature(request)?;
-        let mut connector_webhook_secrets = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
                 connector_label,
                 merchant_connector_account,
             )
             .await?;
+        let signature =
+            self.get_webhook_source_verification_signature(request, &connector_webhook_secrets)?;
+
         let mut message = self.get_webhook_source_verification_message(
             request,
             &merchant_account.merchant_id,
-            &connector_webhook_secrets.secret,
+            &connector_webhook_secrets,
         )?;
-        message.append(&mut connector_webhook_secrets.secret);
+        let mut secret = connector_webhook_secrets.secret;
+        message.append(&mut secret);
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(&secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -660,8 +683,12 @@ impl services::ConnectorRedirectResponse for Zen {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

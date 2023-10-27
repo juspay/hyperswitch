@@ -15,7 +15,7 @@ kv_store = []
 s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 
 [dependencies]
-async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
+async-bb8-diesel = "0.1.0"
 aws-config = { version = "0.55.3", optional = true }
 aws-sdk-s3 = { version = "0.28.0", optional = true }
 diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time", "64-column-tables"] }

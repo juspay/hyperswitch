@@ -2,7 +2,10 @@ use actix_web::web;
 use router_env::{instrument, tracing};
 
 use super::app;
-use crate::services::{api, authentication as auth};
+use crate::{
+    core::api_locking,
+    services::{api, authentication as auth},
+};
 
 mod consts;
 mod core;
@@ -26,10 +29,10 @@ pub async fn dummy_connector_authorize_payment(
         payload,
         |state, _, req| core::payment_authorize(state, req),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_complete_payment(
     state: web::Data<app::AppState>,
@@ -50,10 +53,10 @@ pub async fn dummy_connector_complete_payment(
         payload,
         |state, _, req| core::payment_complete(state, req),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_payment(
     state: web::Data<app::AppState>,
@@ -69,10 +72,10 @@ pub async fn dummy_connector_payment(
         payload,
         |state, _, req| core::payment(state, req),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentRetrieve))]
 pub async fn dummy_connector_payment_data(
     state: web::Data<app::AppState>,
@@ -89,10 +92,10 @@ pub async fn dummy_connector_payment_data(
         payload,
         |state, _, req| core::payment_data(state, req),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyRefundCreate))]
 pub async fn dummy_connector_refund(
     state: web::Data<app::AppState>,
@@ -110,10 +113,10 @@ pub async fn dummy_connector_refund(
         payload,
         |state, _, req| core::refund_payment(state, req),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyRefundRetrieve))]
 pub async fn dummy_connector_refund_data(
     state: web::Data<app::AppState>,
@@ -130,6 +133,7 @@ pub async fn dummy_connector_refund_data(
         payload,
         |state, _, req| core::refund_data(state, req),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

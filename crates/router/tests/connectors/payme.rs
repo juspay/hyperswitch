@@ -20,6 +20,7 @@ impl utils::Connector for PaymeTest {
             connector: Box::new(&Payme),
             connector_name: types::Connector::Payme,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -76,6 +77,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             product_name: "iphone 13".to_string(),
             quantity: 1,
             amount: 1000,
+            product_img_link: None,
         }]),
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -370,6 +372,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: 100,
+                    product_img_link: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -402,6 +405,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: 100,
+                    product_img_link: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -434,6 +438,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: 100,
+                    product_img_link: None,
                 }]),
                 router_return_url: Some("https://hyperswitch.io".to_string()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),

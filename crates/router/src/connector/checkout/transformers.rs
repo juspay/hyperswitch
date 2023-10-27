@@ -1,6 +1,6 @@
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -12,6 +12,36 @@ use crate::{
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
+
+#[derive(Debug, Serialize)]
+pub struct CheckoutRouterData<T> {
+    pub amount: i64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for CheckoutRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -235,10 +265,12 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
         }
     }
 }
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
+impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let source_var = match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &CheckoutRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let source_var = match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let a = PaymentSource::Card(CardSource {
                     source_type: CheckoutSourceTypes::Card,
@@ -250,17 +282,58 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 Ok(a)
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::ApplePay(_) => {
+                api_models::payments::WalletData::GooglePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
-                        token: match item.get_payment_method_token()? {
+                        token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token,
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
                         },
                     }))
+                }
+                api_models::payments::WalletData::ApplePay(_) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        types::PaymentMethodToken::Token(apple_pay_payment_token) => {
+                            Ok(PaymentSource::Wallets(WalletSource {
+                                source_type: CheckoutSourceTypes::Token,
+                                token: apple_pay_payment_token,
+                            }))
+                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            let expiry_year_4_digit = Secret::new(format!(
+                                "20{}",
+                                decrypt_data
+                                    .clone()
+                                    .application_expiration_date
+                                    .peek()
+                                    .get(0..2)
+                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                            ));
+                            let exp_month = Secret::new(
+                                decrypt_data
+                                    .clone()
+                                    .application_expiration_date
+                                    .peek()
+                                    .get(2..4)
+                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                                    .to_owned(),
+                            );
+                            Ok(PaymentSource::ApplePayPredecrypt(Box::new(
+                                ApplePayPredecrypt {
+                                    token: decrypt_data.application_primary_account_number,
+                                    decrypt_type: "network_token".to_string(),
+                                    token_type: "applepay".to_string(),
+                                    expiry_month: exp_month,
+                                    expiry_year: expiry_year_4_digit,
+                                    eci: decrypt_data.payment_data.eci_indicator,
+                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                },
+                            )))
+                        }
+                    }
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
@@ -309,7 +382,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             }
         }?;
 
-        let three_ds = match item.auth_type {
+        let three_ds = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
@@ -322,11 +395,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
 
         let return_url = ReturnUrl {
             success_url: item
+                .router_data
                 .request
                 .router_return_url
                 .as_ref()
                 .map(|return_url| format!("{return_url}?status=success")),
             failure_url: item
+                .router_data
                 .request
                 .router_return_url
                 .as_ref()
@@ -334,22 +409,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
         };
 
         let capture = matches!(
-            item.request.capture_method,
+            item.router_data.request.capture_method,
             Some(enums::CaptureMethod::Automatic)
         );
 
-        let connector_auth = &item.connector_auth_type;
+        let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(Self {
             source: source_var,
-            amount: item.request.amount,
-            currency: item.request.currency.to_string(),
+            amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
             return_url,
             capture,
-            reference: item.connector_request_reference_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
@@ -665,24 +740,27 @@ pub struct PaymentCaptureRequest {
     pub reference: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
+impl TryFrom<&CheckoutRouterData<&types::PaymentsCaptureRouterData>> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let connector_auth = &item.connector_auth_type;
+    fn try_from(
+        item: &CheckoutRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let capture_type = if item.request.is_multiple_capture() {
+        let capture_type = if item.router_data.request.is_multiple_capture() {
             CaptureType::NonFinal
         } else {
             CaptureType::Final
         };
         let reference = item
+            .router_data
             .request
             .multiple_capture_data
             .as_ref()
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
-            amount: Some(item.request.amount_to_capture),
+            amount: Some(item.amount.to_owned()),
             capture_type: Some(capture_type),
             processing_channel_id,
             reference, // hyperswitch's reference for this capture
@@ -742,13 +820,14 @@ pub struct RefundRequest {
     reference: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<F> TryFrom<&CheckoutRouterData<&types::RefundsRouterData<F>>> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount;
-        let reference = item.request.refund_id.clone();
+    fn try_from(
+        item: &CheckoutRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let reference = item.router_data.request.refund_id.clone();
         Ok(Self {
-            amount: Some(amount),
+            amount: Some(item.amount.to_owned()),
             reference,
         })
     }

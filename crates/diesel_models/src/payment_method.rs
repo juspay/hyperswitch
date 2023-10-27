@@ -99,13 +99,19 @@ pub struct TokenizeCoreWorkflow {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
-    MetadataUpdate { metadata: Option<serde_json::Value> },
+    MetadataUpdate {
+        metadata: Option<serde_json::Value>,
+    },
+    PaymentMethodDataUpdate {
+        payment_method_data: Option<Encryption>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
+    payment_method_data: Option<Encryption>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -119,7 +125,16 @@ impl PaymentMethodUpdateInternal {
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
-            PaymentMethodUpdate::MetadataUpdate { metadata } => Self { metadata },
+            PaymentMethodUpdate::MetadataUpdate { metadata } => Self {
+                metadata,
+                payment_method_data: None,
+            },
+            PaymentMethodUpdate::PaymentMethodDataUpdate {
+                payment_method_data,
+            } => Self {
+                metadata: None,
+                payment_method_data,
+            },
         }
     }
 }

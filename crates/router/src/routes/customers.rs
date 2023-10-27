@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::customers::*,
+    core::{api_locking, customers::*},
     services::{api, authentication as auth},
     types::api::customers,
 };
@@ -37,10 +37,10 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth, req| create_customer(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Retrieve Customer
 ///
 /// Retrieve a customer's details.
@@ -81,6 +81,37 @@ pub async fn customers_retrieve(
         payload,
         |state, auth, req| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+/// List customers for a merchant
+///
+/// To filter and list the customers for a particular merchant id
+#[utoipa::path(
+    post,
+    path = "/customers/list",
+    responses(
+        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Customers List",
+    operation_id = "List all Customers for a Merchant",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
+pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::CustomersList;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _| list_customers(state, auth.merchant_account.merchant_id, auth.key_store),
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
@@ -118,10 +149,10 @@ pub async fn customers_update(
         json_payload.into_inner(),
         |state, auth, req| update_customer(state, auth.merchant_account, req, auth.key_store),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Delete Customer
 ///
 /// Delete a customer record.
@@ -155,10 +186,10 @@ pub async fn customers_delete(
         payload,
         |state, auth, req| delete_customer(state, auth.merchant_account, req, auth.key_store),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
@@ -179,6 +210,7 @@ pub async fn get_customer_mandates(
             crate::core::mandate::get_customer_mandates(state, auth.merchant_account, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

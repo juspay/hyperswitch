@@ -16,6 +16,38 @@ use crate::{
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
+
+#[derive(Debug, Serialize)]
+pub struct ZenRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for ZenRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 // Auth Struct
 pub struct ZenAuthType {
     pub(super) api_key: Secret<String>,
@@ -171,14 +203,16 @@ pub struct WalletSessionData {
     pub pay_wall_secret: Option<String>,
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsRequest {
+impl TryFrom<(&ZenRouterData<&types::PaymentsAuthorizeRouterData>, &Card)> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: (&types::PaymentsAuthorizeRouterData, &Card)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (&ZenRouterData<&types::PaymentsAuthorizeRouterData>, &Card),
+    ) -> Result<Self, Self::Error> {
         let (item, ccard) = value;
-        let browser_info = item.request.get_browser_info()?;
+        let browser_info = item.router_data.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
         let browser_details = get_browser_details(&browser_info)?;
-        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
+        let amount = item.amount.to_owned();
         let payment_specific_data =
             ZenPaymentSpecificData::ZenOnetimePayment(Box::new(ZenPaymentData {
                 browser_details,
@@ -191,17 +225,22 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
                         .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned()),
                     cvv: ccard.card_cvc.clone(),
                 }),
-                descriptor: item.get_description()?.chars().take(24).collect(),
-                return_verify_url: item.request.router_return_url.clone(),
+                descriptor: item
+                    .router_data
+                    .get_description()?
+                    .chars()
+                    .take(24)
+                    .collect(),
+                return_verify_url: item.router_data.request.router_return_url.clone(),
             }));
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.connector_request_reference_id.clone(),
+            merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             payment_channel: ZenPaymentChannels::PclCard,
-            currency: item.request.currency,
+            currency: item.router_data.request.currency,
             payment_specific_data,
-            customer: get_customer(item, ip)?,
-            custom_ipn_url: item.request.get_webhook_url()?,
-            items: get_item_object(item, amount.clone())?,
+            customer: get_customer(item.router_data, ip)?,
+            custom_ipn_url: item.router_data.request.get_webhook_url()?,
+            items: get_item_object(item.router_data)?,
             amount,
         })))
     }
@@ -209,29 +248,26 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
 
 impl
     TryFrom<(
-        &types::PaymentsAuthorizeRouterData,
+        &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
         &api_models::payments::VoucherData,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
-            &types::PaymentsAuthorizeRouterData,
+            &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
             &api_models::payments::VoucherData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, voucher_data) = value;
-        let browser_info = item.request.get_browser_info()?;
+        let browser_info = item.router_data.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
-        let amount = utils::to_currency_base_unit_with_zero_decimal_check(
-            item.request.amount,
-            item.request.currency,
-        )?;
+        let amount = item.amount.to_owned();
         let payment_specific_data =
             ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
                 //Connector Specific for Latam Methods
                 payment_type: ZenPaymentTypes::General,
-                return_url: item.request.get_router_return_url()?,
+                return_url: item.router_data.request.get_router_return_url()?,
             });
         let payment_channel = match voucher_data {
             api_models::payments::VoucherData::Boleto { .. } => {
@@ -261,13 +297,13 @@ impl
             }
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.connector_request_reference_id.clone(),
+            merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             payment_channel,
-            currency: item.request.currency,
+            currency: item.router_data.request.currency,
             payment_specific_data,
-            customer: get_customer(item, ip)?,
-            custom_ipn_url: item.request.get_webhook_url()?,
-            items: get_item_object(item, amount.clone())?,
+            customer: get_customer(item.router_data, ip)?,
+            custom_ipn_url: item.router_data.request.get_webhook_url()?,
+            items: get_item_object(item.router_data)?,
             amount,
         })))
     }
@@ -275,26 +311,26 @@ impl
 
 impl
     TryFrom<(
-        &types::PaymentsAuthorizeRouterData,
+        &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
         &Box<api_models::payments::BankTransferData>,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
-            &types::PaymentsAuthorizeRouterData,
+            &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
             &Box<api_models::payments::BankTransferData>,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_transfer_data) = value;
-        let browser_info = item.request.get_browser_info()?;
+        let browser_info = item.router_data.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
-        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
+        let amount = item.amount.to_owned();
         let payment_specific_data =
             ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
                 //Connector Specific for Latam Methods
                 payment_type: ZenPaymentTypes::General,
-                return_url: item.request.get_router_return_url()?,
+                return_url: item.router_data.request.get_router_return_url()?,
             });
         let payment_channel = match **bank_transfer_data {
             api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
@@ -327,13 +363,13 @@ impl
             }
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.connector_request_reference_id.clone(),
+            merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             payment_channel,
-            currency: item.request.currency,
+            currency: item.router_data.request.currency,
             payment_specific_data,
-            customer: get_customer(item, ip)?,
-            custom_ipn_url: item.request.get_webhook_url()?,
-            items: get_item_object(item, amount.clone())?,
+            customer: get_customer(item.router_data, ip)?,
+            custom_ipn_url: item.router_data.request.get_webhook_url()?,
+            items: get_item_object(item.router_data)?,
             amount,
         })))
     }
@@ -421,19 +457,19 @@ impl
 
 impl
     TryFrom<(
-        &types::PaymentsAuthorizeRouterData,
+        &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
         &api_models::payments::WalletData,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, wallet_data): (
-            &types::PaymentsAuthorizeRouterData,
+            &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
             &api_models::payments::WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
-        let connector_meta = item.get_connector_meta()?;
+        let amount = item.amount.to_owned();
+        let connector_meta = item.router_data.get_connector_meta()?;
         let session: SessionObject = connector_meta
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -489,15 +525,15 @@ impl
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let mut checkout_request = CheckoutRequest {
-            merchant_transaction_id: item.connector_request_reference_id.clone(),
+            merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
             specified_payment_channel,
-            currency: item.request.currency,
-            custom_ipn_url: item.request.get_webhook_url()?,
-            items: get_item_object(item, amount.clone())?,
+            currency: item.router_data.request.currency,
+            custom_ipn_url: item.router_data.request.get_webhook_url()?,
+            items: get_item_object(item.router_data)?,
             amount,
             terminal_uuid: Secret::new(terminal_uuid),
             signature: None,
-            url_redirect: item.request.get_return_url()?,
+            url_redirect: item.router_data.request.get_return_url()?,
         };
         checkout_request.signature =
             Some(get_checkout_signature(&checkout_request, &session_data)?);
@@ -588,7 +624,6 @@ fn get_customer(
 
 fn get_item_object(
     item: &types::PaymentsAuthorizeRouterData,
-    _amount: String,
 ) -> Result<Vec<ZenItemObject>, error_stack::Report<errors::ConnectorError>> {
     let order_details = item.request.get_order_details()?;
 
@@ -649,10 +684,12 @@ fn get_browser_details(
     })
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
+impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match &item.request.payment_method_data {
+    fn try_from(
+        item: &ZenRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match &item.router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(card) => Self::try_from((item, card)),
             api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
                 Self::try_from((item, wallet_data))
@@ -969,17 +1006,14 @@ pub struct ZenRefundRequest {
     merchant_transaction_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
+impl<F> TryFrom<&ZenRouterData<&types::RefundsRouterData<F>>> for ZenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &ZenRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
-            )?,
-            transaction_id: item.request.connector_transaction_id.clone(),
-            currency: item.request.currency,
-            merchant_transaction_id: item.request.refund_id.clone(),
+            amount: item.amount.to_owned(),
+            transaction_id: item.router_data.request.connector_transaction_id.clone(),
+            currency: item.router_data.request.currency,
+            merchant_transaction_id: item.router_data.request.refund_id.clone(),
         })
     }
 }

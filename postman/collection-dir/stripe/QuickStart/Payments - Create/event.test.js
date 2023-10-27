@@ -59,3 +59,32 @@ if (jsonData?.client_secret) {
     "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.",
   );
 }
+
+// Response body should have value "failed" for "status"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/payments - Content check if value for 'status' matches 'failed'",
+    function () {
+      pm.expect(jsonData.status).to.eql("failed");
+    },
+  );
+}
+
+// Response body should have an error message
+if (jsonData?.error_message) {
+  pm.test(
+    "[POST]::/payments - Content check if value for 'error_message' is not 'null'",
+    function () {
+      pm.expect(jsonData.error_message).is.not.null;
+    },
+  );
+}
+
+// Response body should have "connector_transaction_id"
+pm.test(
+  "[POST]::/payments - Content check if 'connector_transaction_id' exists",
+  function () {
+    pm.expect(typeof jsonData.connector_transaction_id !== "undefined").to.be
+      .true;
+  },
+);

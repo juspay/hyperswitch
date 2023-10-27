@@ -16,13 +16,20 @@ jobs:
     name: Validate generated OpenAPI spec file
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Checkout PR from fork
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         uses: actions/checkout@v3
         with:
-          # Checkout pull request branch instead of merge commit
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Checkout PR with token
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
 
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
@@ -47,7 +54,21 @@ jobs:
         shell: bash
         run: swagger-cli validate ./openapi/openapi_spec.json
 
+      - name: Commit the JSON file if it is not up-to-date
+        # PR originated from same repository
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add openapi/openapi_spec.json
+            git commit --message 'docs(openapi): re-generate OpenAPI specification'
+            git push
+          fi
+
       - name: Fail check if the JSON file is not up-to-date
+        if: ${{ (github.event_name == 'merge_group') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)) }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then

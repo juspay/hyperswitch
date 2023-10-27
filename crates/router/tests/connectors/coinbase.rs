@@ -18,6 +18,7 @@ impl utils::Connector for CoinbaseTest {
             connector: Box::new(&Coinbase),
             connector_name: types::Connector::Coinbase,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -92,6 +93,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         complete_authorize_url: None,
         capture_method: None,
         customer_id: None,
+        surcharge_details: None,
     })
 }
 

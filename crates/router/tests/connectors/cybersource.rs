@@ -20,6 +20,7 @@ impl utils::Connector for Cybersource {
             connector: Box::new(&Cybersource),
             connector_name: types::Connector::Cybersource,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -314,7 +315,7 @@ async fn should_partially_refund_succeeded_payment() {
 }
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_partially_refund_manually_captured_payment() {
     let connector = Cybersource {};
     let response = connector
@@ -373,17 +374,17 @@ async fn should_sync_refund() {
 }
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_sync_manually_captured_refund() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_auto_captured_payment() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_refund_succeeded_payment_multiple_times() {}
 
 #[actix_web::test]
-#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+#[ignore = "refunds tests are ignored for this connector because it takes one day for a payment to be settled."]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {}

@@ -15,7 +15,7 @@ pub struct CardSecurityCode(StrongSecret<u16>);
 impl TryFrom<u16> for CardSecurityCode {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(csc: u16) -> Result<Self, Self::Error> {
-        if (1..=9999).contains(&csc) {
+        if (0..=9999).contains(&csc) {
             Ok(Self(StrongSecret::new(csc)))
         } else {
             Err(report!(errors::ValidationError::InvalidValue {

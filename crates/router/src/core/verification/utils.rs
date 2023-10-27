@@ -58,6 +58,8 @@ pub async fn check_existence_and_add_domain_to_db(
         frm_configs: None,
         connector_webhook_details: None,
         applepay_verified_domains: Some(already_verified_domains.clone()),
+        pm_auth_config: None,
+        connector_label: None,
     };
     state
         .store

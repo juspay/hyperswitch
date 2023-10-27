@@ -124,6 +124,7 @@ pub struct RefundResponse {
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe")]
     pub connector: String,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
@@ -132,6 +133,8 @@ pub struct RefundListRequest {
     pub payment_id: Option<String>,
     /// The identifier for the refund
     pub refund_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects

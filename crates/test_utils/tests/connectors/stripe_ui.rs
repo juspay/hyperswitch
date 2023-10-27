@@ -418,7 +418,6 @@ fn should_make_3ds_mandate_with_zero_dollar_payment_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }

@@ -15,12 +15,44 @@ use crate::{
     },
 };
 
+#[derive(Debug, Serialize)]
+pub struct CybersourceRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for CybersourceRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
+    client_reference_information: ClientReferenceInformation,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -108,27 +140,33 @@ fn build_bill_to(
     })
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest {
+impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
+    for CybersourcePaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                let phone = item.get_billing_phone()?;
+                let phone = item.router_data.get_billing_phone()?;
                 let phone_number = phone.get_number()?;
                 let country_code = phone.get_country_code()?;
                 let number_with_code =
                     Secret::new(format!("{}{}", country_code, phone_number.peek()));
                 let email = item
+                    .router_data
                     .request
                     .email
                     .clone()
                     .ok_or_else(utils::missing_field_err("email"))?;
-                let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
+                let bill_to =
+                    build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
 
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {
-                        total_amount: item.request.amount.to_string(),
-                        currency: item.request.currency.to_string().to_uppercase(),
+                        total_amount: item.amount.to_owned(),
+                        currency: item.router_data.request.currency.to_string().to_uppercase(),
                     },
                     bill_to,
                 };
@@ -144,16 +182,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
 
                 let processing_information = ProcessingInformation {
                     capture: matches!(
-                        item.request.capture_method,
+                        item.router_data.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
                     capture_options: None,
+                };
+
+                let client_reference_information = ClientReferenceInformation {
+                    code: Some(item.router_data.connector_request_reference_id.clone()),
                 };
 
                 Ok(Self {
                     processing_information,
                     payment_information,
                     order_information,
+                    client_reference_information,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -179,6 +222,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
                 },
                 ..Default::default()
             },
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.connector_request_reference_id.clone()),
+            },
             ..Default::default()
         })
     }
@@ -194,6 +240,9 @@ impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
                     currency: value.request.currency.to_string(),
                 },
                 ..Default::default()
+            },
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.connector_request_reference_id.clone()),
             },
             ..Default::default()
         })
@@ -275,6 +324,13 @@ pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
     error_information: Option<CybersourceErrorInformation>,
+    client_reference_information: Option<ClientReferenceInformation>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientReferenceInformation {
+    code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -313,12 +369,18 @@ impl<F, T>
                     status_code: item.http_code,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(item.response.id)),
                 }),
             },
             ..item.data
@@ -331,6 +393,7 @@ impl<F, T>
 pub struct CybersourceTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
+    client_reference_information: Option<ClientReferenceInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -378,12 +441,16 @@ impl<F, T>
                 item.response.application_information.status.into(),
             ),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .client_reference_information
+                    .map(|cref| cref.code)
+                    .unwrap_or(Some(item.response.id)),
             }),
             ..item.data
         })

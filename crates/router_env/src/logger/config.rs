@@ -101,6 +101,8 @@ pub struct LogTelemetry {
     pub otel_exporter_otlp_timeout: Option<u64>,
     /// Whether to use xray ID generator, (enable this if you plan to use AWS-XRAY)
     pub use_xray_generator: bool,
+    /// Route Based Tracing
+    pub route_to_trace: Option<Vec<String>>,
 }
 
 /// Telemetry / tracing.
