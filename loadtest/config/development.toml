@@ -32,7 +32,6 @@ jwt_secret = "secret"
 host = ""
 mock_locker = true
 basilisk_host = ""
-redis_temp_locker_encryption_key = "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f"
 
 [eph_key]
 validity = 1
