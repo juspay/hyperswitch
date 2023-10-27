@@ -48,6 +48,7 @@ pub struct CardPaymentRequest {
     pub custom_reference: String,
     pub ship_to: Option<OrderShippingAddress>,
     pub card: ElavonCardData,
+    pub do_capture: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,6 +62,12 @@ pub enum ElavonFlowType {
     Sale,
     Refund,
     Void,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonCaptureRequest {
+    do_capture: bool
 }
 
 #[derive(Debug, Serialize)]
@@ -129,6 +136,11 @@ impl TryFrom<&ElavonRouterData<&types::PaymentsAuthorizeRouterData>> for ElavonP
                         expiration_year: req_card.get_expiry_year_4_digit(),
                         security_code: req_card.card_cvc.to_owned(),
                     },
+                    do_capture: if item.router_data.request.is_auto_capture()? {
+                        true
+                    } else {
+                        false
+                    }
                 };
 
                 Ok(ElavonPaymentsRequest::CardPaymentRequest(card_data))
@@ -186,7 +198,7 @@ impl TryFrom<&types::ConnectorAuthType> for ElavonAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub enum ElavonPaymentStatus {
+pub enum ElavonStatus {
     Declined,
     Authorized,
     Captured,
@@ -201,20 +213,20 @@ pub enum ElavonPaymentStatus {
     AuthorizationPending,
 }
 
-impl From<ElavonPaymentStatus> for enums::AttemptStatus {
-    fn from(item: ElavonPaymentStatus) -> Self {
+impl From<ElavonStatus> for enums::AttemptStatus {
+    fn from(item: ElavonStatus) -> Self {
         match item {
-            ElavonPaymentStatus::Declined => Self::Failure,
-            ElavonPaymentStatus::Captured => Self::Charged,
-            ElavonPaymentStatus::Voided => Self::Voided,
-            ElavonPaymentStatus::Settled => Self::Charged,
-            ElavonPaymentStatus::Expired => Self::Failure,
-            ElavonPaymentStatus::SettlementDelayed => Self::Pending,
-            ElavonPaymentStatus::Rejected => Self::Failure,
-            ElavonPaymentStatus::HeldForReview => Self::ConfirmationAwaited,
-            ElavonPaymentStatus::Unknown => Self::Unresolved,
-            ElavonPaymentStatus::AuthorizationPending => Self::Authorizing,
-            ElavonPaymentStatus::Authorized => Self::Authorized,
+            ElavonStatus::Declined => Self::Failure,
+            ElavonStatus::Captured => Self::Charged,
+            ElavonStatus::Voided => Self::Voided,
+            ElavonStatus::Settled => Self::Charged,
+            ElavonStatus::Expired => Self::Failure,
+            ElavonStatus::SettlementDelayed => Self::Pending,
+            ElavonStatus::Rejected => Self::Failure,
+            ElavonStatus::HeldForReview => Self::ConfirmationAwaited,
+            ElavonStatus::Unknown => Self::Unresolved,
+            ElavonStatus::AuthorizationPending => Self::Authorizing,
+            ElavonStatus::Authorized => Self::Authorized,
         }
     }
 }
@@ -223,7 +235,7 @@ impl From<ElavonPaymentStatus> for enums::AttemptStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ElavonPaymentsResponse {
-    state: ElavonPaymentStatus,
+    state: ElavonStatus,
     id: String,
     custom_reference: String,
 }
@@ -258,18 +270,18 @@ impl<F, T>
 pub struct ElavonRefundRequest {
     #[serde(rename = "type")]
     pub flow_type: ElavonFlowType,
-    pub parent_transaction: String,
+    pub parent_transaction: Option<String>, //has to be populated with the base url followed by /transactions/transaction_id
     pub total: TotalAmount,
 }
 
 impl<F> TryFrom<&ElavonRouterData<&types::RefundsRouterData<F>>> for ElavonRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ElavonRouterData<&types::RefundsRouterData<F>>,
+        item: &ElavonRouterData<&types::RefundsRouterData<F>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             flow_type: ElavonFlowType::Refund,
-            parent_transaction: item.router_data.attempt_id.clone(),
+            parent_transaction: Some(item.router_data.attempt_id.clone()),
             total: TotalAmount {
                 amount: item.amount.clone(),
                 currency_code: item.router_data.request.currency,
@@ -278,24 +290,21 @@ impl<F> TryFrom<&ElavonRouterData<&types::RefundsRouterData<F>>> for ElavonRefun
     }
 }
 
-// Type definition for Refund Response
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<ElavonStatus> for enums::RefundStatus {
+    fn from(item: ElavonStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            ElavonStatus::Declined => Self::Failure,
+            ElavonStatus::Authorized => Self::Pending,
+            ElavonStatus::Captured => Self::Pending,
+            ElavonStatus::Voided => Self::Failure,
+            ElavonStatus::Settled => Self::Success,
+            ElavonStatus::Expired => Self::Failure,
+            ElavonStatus::SettlementDelayed => Self::Pending,
+            ElavonStatus::Rejected => Self::Failure,
+            ElavonStatus::HeldForReview => Self::ManualReview,
+            ElavonStatus::Unknown => Self::ManualReview, //what should we map this 
+            ElavonStatus::AuthorizationPending => Self::Pending,
         }
     }
 }
@@ -304,7 +313,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    state: ElavonStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -317,7 +326,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.state),
             }),
             ..item.data
         })
@@ -334,7 +343,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.state),
             }),
             ..item.data
         })
@@ -348,4 +357,32 @@ pub struct ElavonErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for ElavonCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        _item: &types::PaymentsCaptureRouterData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            do_capture: true
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CancelRequest {
+    #[serde(rename = "type")]
+    pub flow_type: ElavonFlowType,
+    pub parent_transaction: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            flow_type: ElavonFlowType::Void,
+            parent_transaction: None
+        })
+    }
 }
