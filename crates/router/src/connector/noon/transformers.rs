@@ -271,7 +271,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                             Err(errors::ConnectorError::NotSupported {
                                 message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
                                 connector: "Noon",
-                            })?
+                            })
                         }
                     },
                     api::PaymentMethodData::CardRedirect(_)
@@ -288,7 +288,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         Err(errors::ConnectorError::NotSupported {
                             message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
                             connector: "Noon",
-                        })?
+                        })
                     }
                 }?,
                 Some(item.request.currency),
