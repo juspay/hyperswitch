@@ -8,7 +8,7 @@ All notable changes to HyperSwitch will be documented here.
 
 ### Features
 
-- **connector:** [OpenNode] Use connector_request_reference_id as referemce to connector ([#2596](https://github.com/juspay/hyperswitch/pull/2596)) ([`96b790c`](https://github.com/juspay/hyperswitch/commit/96b790cb4b44cd4867be62e2889cb4aa23622161))
+- **connector:** [OpenNode] Use connector_request_reference_id as reference to connector ([#2596](https://github.com/juspay/hyperswitch/pull/2596)) ([`96b790c`](https://github.com/juspay/hyperswitch/commit/96b790cb4b44cd4867be62e2889cb4aa23622161))
 
 ### Bug Fixes
 
