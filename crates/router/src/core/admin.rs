@@ -148,7 +148,8 @@ pub async fn create_merchant_account(
                 .await?,
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
-            routing_algorithm: Some(serde_json::json!({"timestamp":0})),
+            routing_algorithm: Some(serde_json::json!({
+                "algorithm_id":null,"timestamp":0})),
             sub_merchants_enabled: req.sub_merchants_enabled,
             parent_merchant_id,
             enable_payment_response_hash,
@@ -453,7 +454,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        routing_algorithm: Some(serde_json::json!({"timestamp":0})),
+        routing_algorithm: None,
         sub_merchants_enabled: req.sub_merchants_enabled,
 
         parent_merchant_id: get_parent_merchant(
@@ -1254,7 +1255,7 @@ pub async fn update_business_profile(
         redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
         webhook_details,
         metadata: request.metadata,
-        routing_algorithm: Some(serde_json::json!({"timestamp":0})),
+        routing_algorithm: None,
         intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
         frm_routing_algorithm: request.frm_routing_algorithm,
         payout_routing_algorithm: request.payout_routing_algorithm,
