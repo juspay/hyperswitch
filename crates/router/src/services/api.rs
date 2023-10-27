@@ -759,7 +759,7 @@ where
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
-    T: Debug,
+    T: Debug + Serialize,
     A: AppStateInfo + Clone,
     U: AuthInfo,
     E: ErrorSwitch<OErr> + error_stack::Context,
@@ -776,7 +776,12 @@ where
 
     request_state.add_request_id(request_id);
     let start_instant = Instant::now();
+    let serialized_request = masking::masked_serialize(&payload)
+        .into_report()
+        .attach_printable("Failed to serialize json request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
+    // Currently auth failures are not recorded as API events
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), &request_state)
         .await
@@ -793,7 +798,6 @@ where
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let req_message = format!("{:?}", payload);
     let output = {
         lock_action
             .clone()
@@ -813,17 +817,30 @@ where
         .saturating_duration_since(start_instant)
         .as_millis();
 
+    let mut serialized_response = None;
     let status_code = match output.as_ref() {
-        Ok(res) => metrics::request::track_response_status_code(res),
+        Ok(res) => {
+            if let ApplicationResponse::Json(data) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+            }
+
+            metrics::request::track_response_status_code(res)
+        }
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
+
     let api_event = ApiEvent::new(
         flow,
         &request_id,
         request_duration,
         status_code,
-        req_message,
-        format!("{:?}", output),
+        serialized_request,
+        serialized_response,
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -856,7 +873,7 @@ where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
-    T: Debug,
+    T: Debug + Serialize,
     U: AuthInfo,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
