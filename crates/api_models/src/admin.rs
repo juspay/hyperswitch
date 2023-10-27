@@ -446,7 +446,17 @@ pub mod payout_routing_algorithm {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithm {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RoutableConnectorChoice {
+    ConnectorName(api_enums::RoutableConnectors),
+    ConnectorId {
+        merchant_connector_id: String,
+        connector: api_enums::RoutableConnectors,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -458,13 +468,13 @@ pub enum RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum StraightThroughAlgorithmInner {
-    Single(api_enums::RoutableConnectors),
+    Single(RoutableConnectorChoice),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
