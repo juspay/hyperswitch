@@ -145,7 +145,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                             .clone()
                             .map(|_| "1".to_string()),
                     }),
-                    order_id: item.router_data.payment_id.clone(),
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                     three_dsecure: match item.router_data.auth_type {
                         diesel_models::enums::AuthenticationType::ThreeDs => {
                             Some(ThreeDSecureReqData { force: true })
@@ -237,7 +237,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest
             authorization_id: item.request.connector_transaction_id.clone(),
             amount: item.request.amount_to_capture,
             currency: item.request.currency.to_string(),
-            order_id: item.payment_id.clone(),
+            order_id: item.connector_request_reference_id.clone(),
         })
     }
 }
