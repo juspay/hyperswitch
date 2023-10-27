@@ -18,23 +18,22 @@
       }
     },
     "raw_json_formatted": {
-      "amount": 6540,
+      "amount": 0,
       "currency": "USD",
       "confirm": true,
-      "routing": {
-        "type": "single",
-        "data": "forte"
-      },
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 6540,
       "customer_id": "StripeCustomer",
       "email": "guest@example.com",
       "name": "John Doe",
       "phone": "999999999",
-      "phone_country_code": "+1",
+      "phone_country_code": "+65",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
+      "routing": {
+        "type": "single",
+        "data": "forte"
+      },
       "return_url": "https://duck.com",
       "payment_method": "card",
       "payment_method_data": {
