@@ -22,6 +22,7 @@ mod cybersource;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
+mod elavon;
 mod fiserv;
 mod forte;
 mod globalpay;
