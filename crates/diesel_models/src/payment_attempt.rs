@@ -58,9 +58,9 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
-    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -121,9 +121,9 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
-    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -289,9 +289,9 @@ pub struct PaymentAttemptUpdateInternal {
     tax_amount: Option<i64>,
     amount_capturable: Option<i64>,
     updated_by: String,
+    merchant_connector_id: Option<String>,
     authentication_data: Option<serde_json::Value>,
     encoded_data: Option<String>,
-    merchant_connector_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
