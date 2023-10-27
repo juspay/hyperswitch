@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 /// The request body for creating an API Key.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateApiKeyRequest {
     /// A unique name for the API Key to help you identify it.
@@ -111,7 +111,7 @@ pub struct RetrieveApiKeyResponse {
 }
 
 /// The request body for updating an API Key.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateApiKeyRequest {
     /// A unique name for the API Key to help you identify it.
