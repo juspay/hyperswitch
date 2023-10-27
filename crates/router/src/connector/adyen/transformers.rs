@@ -397,7 +397,7 @@ pub enum ActionType {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
-    pub currency: String,
+    pub currency: storage_enums::Currency,
     pub value: i64,
 }
 
@@ -1509,7 +1509,7 @@ fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Optio
 
 fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -> Amount {
     Amount {
-        currency: item.router_data.request.currency.to_string(),
+        currency: item.router_data.request.currency,
         value: item.amount.to_owned(),
     }
 }
@@ -2879,7 +2879,7 @@ impl<F>
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
                 amount: item.response.balance.value,
-                currency: item.response.balance.currency,
+                currency: item.response.balance.currency.to_string(),
             }),
             ..item.data
         })
@@ -3451,7 +3451,7 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
             merchant_account: auth_type.merchant_account,
             reference,
             amount: Amount {
-                currency: item.router_data.request.currency.to_string(),
+                currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
         })
@@ -3541,7 +3541,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::RefundsRouterData<F>>> for AdyenRefundR
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
-                currency: item.router_data.request.currency.to_string(),
+                currency: item.router_data.request.currency,
                 value: item.router_data.request.refund_amount,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
@@ -3623,7 +3623,7 @@ pub struct AdyenAdditionalDataWH {
 #[derive(Debug, Deserialize)]
 pub struct AdyenAmountWH {
     pub value: i64,
-    pub currency: String,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, strum::Display, PartialEq)]
@@ -3949,7 +3949,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             )?;
         Ok(Self {
             amount: Amount {
-                currency: item.router_data.request.destination_currency.to_string(),
+                currency: item.router_data.request.destination_currency,
                 value: item.amount.to_owned(),
             },
             merchant_account: auth_type.merchant_account,
@@ -4020,7 +4020,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                 Ok(Self {
                     amount: Amount {
                         value: item.amount.to_owned(),
-                        currency: item.router_data.request.destination_currency.to_string(),
+                        currency: item.router_data.request.destination_currency,
                     },
                     recurring: RecurringContract {
                         contract: Contract::Payout,
@@ -4067,7 +4067,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                 Ok(Self::Card(Box::new(PayoutFulfillCardRequest {
                     amount: Amount {
                         value: item.amount.to_owned(),
-                        currency: item.router_data.request.destination_currency.to_string(),
+                        currency: item.router_data.request.destination_currency,
                     },
                     card: get_payout_card_details(&item.router_data.get_payout_method_data()?)
                         .map_or(

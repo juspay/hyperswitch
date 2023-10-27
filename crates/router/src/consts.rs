@@ -23,7 +23,7 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Balance in the payment method is low";
+pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 
 // General purpose base64 engines

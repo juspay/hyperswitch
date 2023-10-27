@@ -738,7 +738,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let currency = match data.request.currency {
-            Some(currency) => currency.to_string(),
+            Some(currency) => currency,
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "currency",
             })?,
@@ -754,8 +754,8 @@ impl
             Ok(types::RouterData {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
-                    message: consts::LOW_BALANCE_ERROR_MESSAGE.to_string(),
-                    reason: None,
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
                     status_code: res.status_code,
                 }),
                 ..data.clone()
@@ -1568,7 +1568,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: notif.amount.value.to_string(),
-            currency: notif.amount.currency,
+            currency: notif.amount.currency.to_string(),
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
             connector_dispute_id: notif.psp_reference,
             connector_reason: notif.reason,
