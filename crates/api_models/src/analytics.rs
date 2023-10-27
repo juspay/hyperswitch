@@ -33,12 +33,12 @@ pub struct TimeRange {
     pub end_time: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, masking::Serialize)]
 pub struct TimeSeries {
     pub granularity: Granularity,
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, masking::Serialize)]
 pub enum Granularity {
     #[serde(rename = "G_ONEMIN")]
     OneMin,
@@ -54,7 +54,7 @@ pub enum Granularity {
     OneDay,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, masking::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentMetricRequest {
     pub time_series: Option<TimeSeries>,
@@ -67,7 +67,7 @@ pub struct GetPaymentMetricRequest {
     #[serde(default)]
     pub delta: bool,
 }
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, masking::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetRefundMetricRequest {
     pub time_series: Option<TimeSeries>,
@@ -86,7 +86,7 @@ pub struct AnalyticsMetadata {
     pub current_time_range: TimeRange,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, masking::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentFiltersRequest {
     pub time_range: TimeRange,
@@ -107,9 +107,8 @@ pub struct FilterValue {
     pub values: Vec<String>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, masking::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetRefundFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]

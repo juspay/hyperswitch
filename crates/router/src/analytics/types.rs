@@ -5,7 +5,7 @@ use error_stack::{report, Report, ResultExt};
 
 use super::query::QueryBuildingError;
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, masking::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AnalyticsDomain {
     Payments,

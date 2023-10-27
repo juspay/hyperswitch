@@ -28,7 +28,7 @@ pub enum RefundType {
 }
 
 use super::{NameDescription, TimeRange};
-#[derive(Clone, Debug, Default, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, masking::Serialize)]
 pub struct RefundFilters {
     #[serde(default)]
     pub currency: Vec<Currency>,

@@ -8,7 +8,7 @@ use common_enums::enums::{AttemptStatus, AuthenticationType, Currency, PaymentMe
 use super::{NameDescription, TimeRange};
 use crate::enums::Connector;
 
-#[derive(Clone, Debug, Default, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, masking::Serialize)]
 pub struct PaymentFilters {
     #[serde(default)]
     pub currency: Vec<Currency>,
