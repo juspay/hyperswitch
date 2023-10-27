@@ -19,6 +19,7 @@ pub struct OpennodePaymentsRequest {
     auto_settle: bool,
     success_url: String,
     callback_url: String,
+    order_id: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpennodePaymentsRequest {
@@ -237,6 +238,7 @@ fn get_crypto_specific_payment_data(
         auto_settle,
         success_url,
         callback_url,
+        order_id: item.connector_request_reference_id.clone(),
     })
 }
 

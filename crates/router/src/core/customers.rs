@@ -63,7 +63,13 @@ pub async fn create_customer(
         let customer_address: api_models::payments::AddressDetails = addr.clone();
 
         let address = customer_data
-            .get_domain_address(customer_address, merchant_id, customer_id, key)
+            .get_domain_address(
+                customer_address,
+                merchant_id,
+                customer_id,
+                key,
+                merchant_account.storage_scheme,
+            )
             .await
             .switch()
             .attach_printable("Failed while encrypting address")?;
@@ -255,6 +261,7 @@ pub async fn delete_customer(
         last_name: Some(redacted_encrypted_value.clone()),
         phone_number: Some(redacted_encrypted_value.clone()),
         country_code: Some(REDACTED.to_string()),
+        updated_by: merchant_account.storage_scheme.to_string(),
     };
 
     match db
@@ -336,7 +343,7 @@ pub async fn update_customer(
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
                 let update_address = update_customer
-                    .get_address_update(customer_address, key)
+                    .get_address_update(customer_address, key, merchant_account.storage_scheme)
                     .await
                     .switch()
                     .attach_printable("Failed while encrypting Address while Update")?;
@@ -359,6 +366,7 @@ pub async fn update_customer(
                         &merchant_account.merchant_id,
                         &customer.customer_id,
                         key,
+                        merchant_account.storage_scheme,
                     )
                     .await
                     .switch()
