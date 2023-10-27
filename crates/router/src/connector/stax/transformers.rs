@@ -67,7 +67,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                 connector: "Stax",
             })?
         }
-        let total: f64 = item.amount;
+        let total = item.amount as f64;
 
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
@@ -384,7 +384,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCapture
     fn try_from(
         item: &StaxRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let total: f64 = item.amount;
+        let tota = item.amount as f64;
         Ok(Self { total: Some(total) })
     }
 }
@@ -399,7 +399,7 @@ pub struct StaxRefundRequest {
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &StaxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self { total: item.amount })
+        Ok(Self { total: item.amount as f64 })
     }
 }
 
