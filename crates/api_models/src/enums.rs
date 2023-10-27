@@ -43,7 +43,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Elavon,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -87,6 +86,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
+    Elavon,
     Fiserv,
     Forte,
     Globalpay,
