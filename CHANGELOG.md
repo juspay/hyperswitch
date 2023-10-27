@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.67.0 (2023-10-26)
+
+### Features
+
+- **connector:** [OpenNode] Use connector_request_reference_id as referemce to connector ([#2596](https://github.com/juspay/hyperswitch/pull/2596)) ([`96b790c`](https://github.com/juspay/hyperswitch/commit/96b790cb4b44cd4867be62e2889cb4aa23622161))
+
+### Bug Fixes
+
+- **connector:** [Paypal]fix paypal error reason mapping when it is empty string. ([#2700](https://github.com/juspay/hyperswitch/pull/2700)) ([`2c00767`](https://github.com/juspay/hyperswitch/commit/2c007675aec13b0696c74568af36eea2c799d9ef))
+
+### Refactors
+
+- **connector:**
+  - [Worldpay] Remove Default Case Handling ([#2488](https://github.com/juspay/hyperswitch/pull/2488)) ([`2b2c381`](https://github.com/juspay/hyperswitch/commit/2b2c38146dc6dcf8d967dcc557281d3689bf746b))
+  - Added default case for Opayo ([#2687](https://github.com/juspay/hyperswitch/pull/2687)) ([`1186f8c`](https://github.com/juspay/hyperswitch/commit/1186f8c4e2f04f470f4d6c058c18cd63f35b3804))
+- **router:** Tsys default case handling ([#2672](https://github.com/juspay/hyperswitch/pull/2672)) ([`9ff2721`](https://github.com/juspay/hyperswitch/commit/9ff272121a4b6d8d5e1565863d7f13caf06785b1))
+
+### Testing
+
+- **postman:** Update postman collection files ([`9875687`](https://github.com/juspay/hyperswitch/commit/9875687e044a3b5f916fd65b9e457caec7f4e0f6))
+
+### Build System / Dependencies
+
+- **docker:** Copy over `.gitignore` as `.dockerignore` ([#2691](https://github.com/juspay/hyperswitch/pull/2691)) ([`d680eb2`](https://github.com/juspay/hyperswitch/commit/d680eb2b49f85795daafdda9caa0fd3fe6db8108))
+
+**Full Changelog:** [`v1.66.0...v1.67.0`](https://github.com/juspay/hyperswitch/compare/v1.66.0...v1.67.0)
+
+- - -
+
+
 ## 1.66.0 (2023-10-25)
 
 ### Features

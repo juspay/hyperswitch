@@ -62,7 +62,7 @@ pub struct MandateCardDetails {
     pub card_fingerprint: Option<Secret<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MandateListConstraints {
     /// limit on the number of objects to return
