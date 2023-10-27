@@ -211,7 +211,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotSupported {
+                Err(errors::ConnectorError::NotImplemented {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Cybersource",
                 })
