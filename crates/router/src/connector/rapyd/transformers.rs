@@ -13,6 +13,36 @@ use crate::{
     utils::OptionExt,
 };
 
+#[derive(Debug, Serialize)]
+pub struct RapydRouterData<T> {
+    pub amount: i64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for RapydRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct RapydPaymentsRequest {
     pub amount: i64,
@@ -69,18 +99,23 @@ pub struct RapydWallet {
     token: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
+impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let (capture, payment_method_options) = match item.payment_method {
+    fn try_from(
+        item: &RapydRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let (capture, payment_method_options) = match item.router_data.payment_method {
             diesel_models::enums::PaymentMethod::Card => {
-                let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
+                let three_ds_enabled = matches!(
+                    item.router_data.auth_type,
+                    enums::AuthenticationType::ThreeDs
+                );
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
                 };
                 (
                     Some(matches!(
-                        item.request.capture_method,
+                        item.router_data.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     )),
                     Some(payment_method_options),
@@ -88,7 +123,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             }
             _ => (None, None),
         };
-        let payment_method = match item.request.payment_method_data {
+        let payment_method = match item.router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
@@ -128,10 +163,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         .change_context(errors::ConnectorError::NotImplemented(
             "payment_method".to_owned(),
         ))?;
-        let return_url = item.request.get_return_url()?;
+        let return_url = item.router_data.request.get_return_url()?;
         Ok(Self {
-            amount: item.request.amount,
-            currency: item.request.currency,
+            amount: item.amount,
+            currency: item.router_data.request.currency,
             payment_method,
             capture,
             payment_method_options,
@@ -276,13 +311,17 @@ pub struct RapydRefundRequest {
     pub currency: Option<enums::Currency>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
+impl<F> TryFrom<&RapydRouterData<&types::RefundsRouterData<F>>> for RapydRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &RapydRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment: item.request.connector_transaction_id.to_string(),
-            amount: Some(item.request.refund_amount),
-            currency: Some(item.request.currency),
+            payment: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .to_string(),
+            amount: Some(item.amount),
+            currency: Some(item.router_data.request.currency),
         })
     }
 }
@@ -380,11 +419,13 @@ pub struct CaptureRequest {
     statement_descriptor: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
+impl TryFrom<&RapydRouterData<&types::PaymentsCaptureRouterData>> for CaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &RapydRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.request.amount_to_capture),
+            amount: Some(item.amount),
             receipt_email: None,
             statement_descriptor: None,
         })
