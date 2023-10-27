@@ -567,10 +567,10 @@ diesel::table! {
         amount_capturable -> Int8,
         #[max_length = 32]
         updated_by -> Varchar,
-        authentication_data -> Nullable<Json>,
-        encoded_data -> Nullable<Text>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        authentication_data -> Nullable<Json>,
+        encoded_data -> Nullable<Text>,
     }
 }
 
