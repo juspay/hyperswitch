@@ -6135,7 +6135,7 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "organization_id": {
             "type": "string",
@@ -6445,7 +6445,7 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "default_profile": {
             "type": "string",
@@ -7223,13 +7223,13 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session is requested",
-            "minimum": 0
+            "minimum": 0.0
           },
           "expires_at": {
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session expires",
-            "minimum": 0
+            "minimum": 0.0
           },
           "merchant_session_identifier": {
             "type": "string",
@@ -7263,7 +7263,7 @@
             "type": "integer",
             "format": "int32",
             "description": "The number of retries to get the session response",
-            "minimum": 0
+            "minimum": 0.0
           },
           "psp_id": {
             "type": "string",
@@ -7317,7 +7317,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0
+            "minimum": 0.0
           },
           "product_img_link": {
             "type": "string",
@@ -7345,7 +7345,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0
+            "minimum": 0.0
           },
           "amount": {
             "type": "integer",
@@ -7680,7 +7680,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "cancellation_reason": {
@@ -7899,8 +7898,8 @@
             "format": "int32",
             "description": "limit on the number of objects to return",
             "default": 10,
-            "maximum": 100,
-            "minimum": 0
+            "maximum": 100.0,
+            "minimum": 0.0
           },
           "created": {
             "type": "string",
@@ -7949,7 +7948,7 @@
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0
+            "minimum": 0.0
           },
           "data": {
             "type": "array",
@@ -8552,7 +8551,14 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
+        "required": [
+          "payment_id"
+        ],
         "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The unique identifier for the payment"
+          },
           "merchant_id": {
             "type": "string",
             "description": "The unique identifier for the merchant",
@@ -8617,7 +8623,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "routing": {
             "allOf": [
@@ -8751,7 +8757,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8981,7 +8986,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "routing": {
             "allOf": [
@@ -9115,7 +9120,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -9347,12 +9351,7 @@
             "maxLength": 255
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/IntentStatus"
-              }
-            ],
-            "default": "requires_confirmation"
+            "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
             "type": "integer",
@@ -9366,7 +9365,7 @@
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100
+            "minimum": 100.0
           },
           "amount_received": {
             "type": "integer",
@@ -9374,7 +9373,7 @@
             "description": "The amount which is already captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100
+            "minimum": 100.0
           },
           "connector": {
             "type": "string",
@@ -9562,7 +9561,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "statement_descriptor_name": {
@@ -10525,7 +10523,7 @@
           "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
-            "minimum": 0
+            "minimum": 0.0
           },
           "total_count": {
             "type": "integer",
@@ -10575,7 +10573,7 @@
             "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
             "example": 6540,
             "nullable": true,
-            "minimum": 100
+            "minimum": 100.0
           },
           "reason": {
             "type": "string",
@@ -10590,7 +10588,6 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
-            "default": "Instant",
             "nullable": true
           },
           "metadata": {
