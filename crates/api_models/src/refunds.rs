@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{admin, enums};
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -54,7 +54,7 @@ pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
     #[schema(
@@ -72,7 +72,7 @@ pub struct RefundsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundUpdateRequest {
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
@@ -124,6 +124,7 @@ pub struct RefundResponse {
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe")]
     pub connector: String,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

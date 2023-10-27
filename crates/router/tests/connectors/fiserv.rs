@@ -19,6 +19,7 @@ impl utils::Connector for FiservTest {
             connector: Box::new(&Fiserv),
             connector_name: types::Connector::Fiserv,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

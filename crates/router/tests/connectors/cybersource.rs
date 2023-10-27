@@ -20,6 +20,7 @@ impl utils::Connector for Cybersource {
             connector: Box::new(&Cybersource),
             connector_name: types::Connector::Cybersource,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
     fn get_auth_token(&self) -> types::ConnectorAuthType {
