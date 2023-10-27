@@ -97,7 +97,6 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
             | api_models::payments::WalletData::GoPayRedirect(_)
             | api_models::payments::WalletData::GcashRedirect(_)
             | api_models::payments::WalletData::ApplePay(_)
-            | api_models::payments::WalletData::AliPayRedirect(_)
             | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
             | api_models::payments::WalletData::DanaRedirect { .. }
             | api_models::payments::WalletData::GooglePay(_)
