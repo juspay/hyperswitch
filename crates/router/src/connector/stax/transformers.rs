@@ -399,7 +399,9 @@ pub struct StaxRefundRequest {
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &StaxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self { total: item.amount as f64 })
+        Ok(Self {
+            total: item.amount as f64,
+        })
     }
 }
 
