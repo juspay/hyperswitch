@@ -171,11 +171,15 @@ pub enum GetToken {
     Connector,
 }
 
+/// Routing algorithm will output merchant connector identifier instead of connector name
+/// In order to support backwards compatibility for older routing algorithms and merchant accounts
+/// the support for connector name is retained
 #[derive(Clone)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
     pub get_token: GetToken,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -276,6 +280,7 @@ impl ConnectorData {
         connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
+        connector_id: Option<String>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
@@ -287,6 +292,7 @@ impl ConnectorData {
             connector,
             connector_name,
             get_token: connector_type,
+            merchant_connector_id: connector_id,
         })
     }
 
