@@ -126,7 +126,7 @@ impl From<CryptopayPaymentStatus> for enums::AttemptStatus {
         match item {
             CryptopayPaymentStatus::New => Self::AuthenticationPending,
             CryptopayPaymentStatus::Completed => Self::Charged,
-            CryptopayPaymentStatus::Cancelled => Self::Voided,
+            CryptopayPaymentStatus::Cancelled => Self::Failure,
             CryptopayPaymentStatus::Unresolved | CryptopayPaymentStatus::Refunded => {
                 Self::Unresolved
             } //mapped refunded to Unresolved because refund api is not available, also merchant has done the action on the connector dashboard.
