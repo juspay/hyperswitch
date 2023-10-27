@@ -54,7 +54,7 @@ impl<T>
         T,
     )> for NmiRouterData<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
