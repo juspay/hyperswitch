@@ -610,17 +610,17 @@ pub struct NmiRefundRequest {
     amount: f64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
+impl<F> TryFrom<&NmiRouterData<&types::RefundsRouterData<F>>> for NmiRefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &NmiRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         Ok(Self {
             transaction_type: TransactionType::Refund,
             security_key: auth_type.api_key,
             transactionid: item.request.connector_transaction_id.clone(),
             amount: utils::to_currency_base_unit_asf64(
-                item.request.refund_amount,
-                item.request.currency,
+                item.router_data.request.refund_amount,
+                item.router_data.request.currency,
             )?,
         })
     }
