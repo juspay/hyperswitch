@@ -76,11 +76,23 @@ pub struct PayeezyRoutedData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, types::storage::enums::Currency, i64, T)> for PayeezyRoutedData<T> {
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for PayeezyRoutedData<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (currency_unit, currency, amount, router_data): (&types::api::CurrencyUnit, types::storage::enums::Currency, i64, T),
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
@@ -115,13 +127,16 @@ pub enum Initiator {
 impl TryFrom<&PayeezyRoutedData<&types::PaymentsAuthorizeRouterData>> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &PayeezyRoutedData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &PayeezyRoutedData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let merchant_ref = item.router_data.attempt_id.to_string();
         let method = PayeezyPaymentMethodType::CreditCard;
         let amount = item.router_data.request.amount;
         let currency_code = item.router_data.request.currency.to_string();
         let credit_card = get_payment_method_data(item.router_data)?;
-        let (transaction_type, stored_credentials) = get_transaction_type_and_stored_creds(item.router_data)?;
+        let (transaction_type, stored_credentials) =
+            get_transaction_type_and_stored_creds(item.router_data)?;
         Ok(PayeezyPaymentsRequest {
             merchant_ref,
             transaction_type,
@@ -137,12 +152,15 @@ impl TryFrom<&PayeezyRoutedData<&types::PaymentsAuthorizeRouterData>> for Payeez
 
 fn get_transaction_type_and_stored_creds(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<(PayeezyTransactionType, Option<StoredCredentials>), error_stack::Report<errors::ConnectorError>> {
+) -> Result<
+    (PayeezyTransactionType, Option<StoredCredentials>),
+    error_stack::Report<errors::ConnectorError>,
+> {
     let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
         match &mandate_ids.mandate_reference_id {
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                Some(connector_mandate_ids.connector_mandate_id.clone())
-            }
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_ids,
+            )) => Some(connector_mandate_ids.connector_mandate_id.clone()),
             _ => None,
         }
     });
@@ -163,15 +181,22 @@ fn get_transaction_type_and_stored_creds(
         let is_scheduled = true;
         let cardbrand_original_transaction_id = connector_mandate_id;
 
-        Ok((transaction_type, Some(StoredCredentials {
-            sequence,
-            initiator,
-            is_scheduled,
-            cardbrand_original_transaction_id,
-        })))
+        Ok((
+            transaction_type,
+            Some(StoredCredentials {
+                sequence,
+                initiator,
+                is_scheduled,
+                cardbrand_original_transaction_id,
+            }),
+        ))
     } else {
         // Other types of payments
-        match item.request.capture_method.unwrap_or(diesel_models::enums::CaptureMethod::Automatic) {
+        match item
+            .request
+            .capture_method
+            .unwrap_or(diesel_models::enums::CaptureMethod::Automatic)
+        {
             diesel_models::enums::CaptureMethod::Manual => {
                 Ok((PayeezyTransactionType::Authorize, None))
             }
@@ -181,7 +206,6 @@ fn get_transaction_type_and_stored_creds(
         }
     }
 }
-
 
 fn is_mandate_payment(
     item: &types::PaymentsAuthorizeRouterData,

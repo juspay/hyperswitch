@@ -357,7 +357,9 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
 impl api::PaymentAuthorize for Payeezy {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData> for Payeezy {
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Payeezy
+{
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -439,7 +441,9 @@ impl api::Refund for Payeezy {}
 impl api::RefundExecute for Payeezy {}
 impl api::RefundSync for Payeezy {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Payeezy {
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for Payeezy
+{
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
