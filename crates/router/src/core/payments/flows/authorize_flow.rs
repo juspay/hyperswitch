@@ -118,7 +118,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 }
             }?;
 
-            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+            Ok(mandate::mandate_procedure(
+                state,
+                resp,
+                maybe_customer,
+                pm_id,
+                connector.merchant_connector_id.clone(),
+            )
+            .await?)
         } else {
             Ok(self.clone())
         }

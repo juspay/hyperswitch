@@ -834,10 +834,12 @@ pub struct DefendDisputeResponse {
     pub connector_status: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct UploadFileRequestData {
     pub file_key: String,
+    #[serde(skip)]
     pub file: Vec<u8>,
+    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
     pub file_type: mime::Mime,
     pub file_size: i32,
 }
