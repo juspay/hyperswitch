@@ -70,6 +70,26 @@ pub struct PayeezyPaymentsRequest {
     pub reference: String,
 }
 
+//  the PayeezyRoutedData structure
+pub struct PayeezyRoutedData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(&types::api::CurrencyUnit, types::storage::enums::Currency, i64, T)> for PayeezyRoutedData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (&types::api::CurrencyUnit, types::storage::enums::Currency, i64, T),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Serialize, Debug)]
 pub struct StoredCredentials {
     pub sequence: Sequence,
@@ -92,87 +112,76 @@ pub enum Initiator {
     CardHolder,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
+impl TryFrom<&PayeezyRoutedData<&types::PaymentsAuthorizeRouterData>> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.payment_method {
-            diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+
+    fn try_from(item: &PayeezyRoutedData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let merchant_ref = item.router_data.attempt_id.to_string();
+        let method = PayeezyPaymentMethodType::CreditCard;
+        let amount = item.router_data.request.amount;
+        let currency_code = item.router_data.request.currency.to_string();
+        let credit_card = get_payment_method_data(item.router_data)?;
+        let (transaction_type, stored_credentials) = get_transaction_type_and_stored_creds(item.router_data)?;
+        Ok(PayeezyPaymentsRequest {
+            merchant_ref,
+            transaction_type,
+            method,
+            amount,
+            currency_code,
+            credit_card,
+            stored_credentials,
+            reference: item.router_data.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+fn get_transaction_type_and_stored_creds(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<(PayeezyTransactionType, Option<StoredCredentials>), error_stack::Report<errors::ConnectorError>> {
+    let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
+        match &mandate_ids.mandate_reference_id {
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(connector_mandate_ids.connector_mandate_id.clone())
+            }
+            _ => None,
+        }
+    });
+
+    if is_mandate_payment(item, connector_mandate_id.as_ref()) {
+        // Mandate payment
+        let transaction_type = PayeezyTransactionType::Recurring;
+        let sequence = if connector_mandate_id.is_some() {
+            Sequence::Subsequent
+        } else {
+            Sequence::First
+        };
+        let initiator = if item.request.off_session.unwrap_or(false) {
+            Initiator::Merchant
+        } else {
+            Initiator::CardHolder
+        };
+        let is_scheduled = true;
+        let cardbrand_original_transaction_id = connector_mandate_id;
+
+        Ok((transaction_type, Some(StoredCredentials {
+            sequence,
+            initiator,
+            is_scheduled,
+            cardbrand_original_transaction_id,
+        })))
+    } else {
+        // Other types of payments
+        match item.request.capture_method.unwrap_or(diesel_models::enums::CaptureMethod::Automatic) {
+            diesel_models::enums::CaptureMethod::Manual => {
+                Ok((PayeezyTransactionType::Authorize, None))
+            }
+            diesel_models::enums::CaptureMethod::Automatic => {
+                Ok((PayeezyTransactionType::Purchase, None))
+            }
         }
     }
 }
 
-fn get_card_specific_payment_data(
-    item: &types::PaymentsAuthorizeRouterData,
-) -> Result<PayeezyPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let merchant_ref = item.attempt_id.to_string();
-    let method = PayeezyPaymentMethodType::CreditCard;
-    let amount = item.request.amount;
-    let currency_code = item.request.currency.to_string();
-    let credit_card = get_payment_method_data(item)?;
-    let (transaction_type, stored_credentials) = get_transaction_type_and_stored_creds(item)?;
-    Ok(PayeezyPaymentsRequest {
-        merchant_ref,
-        transaction_type,
-        method,
-        amount,
-        currency_code,
-        credit_card,
-        stored_credentials,
-        reference: item.connector_request_reference_id.clone(),
-    })
-}
-fn get_transaction_type_and_stored_creds(
-    item: &types::PaymentsAuthorizeRouterData,
-) -> Result<
-    (PayeezyTransactionType, Option<StoredCredentials>),
-    error_stack::Report<errors::ConnectorError>,
-> {
-    let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
-        match mandate_ids.mandate_reference_id.clone() {
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                connector_mandate_ids,
-            )) => connector_mandate_ids.connector_mandate_id,
-            _ => None,
-        }
-    });
-    let (transaction_type, stored_credentials) =
-        if is_mandate_payment(item, connector_mandate_id.as_ref()) {
-            // Mandate payment
-            (
-                PayeezyTransactionType::Recurring,
-                Some(StoredCredentials {
-                    // connector_mandate_id is not present then it is a First payment, else it is a Subsequent mandate payment
-                    sequence: match connector_mandate_id.is_some() {
-                        true => Sequence::Subsequent,
-                        false => Sequence::First,
-                    },
-                    // off_session true denotes the customer not present during the checkout process. In other cases customer present at the checkout.
-                    initiator: match item.request.off_session {
-                        Some(true) => Initiator::Merchant,
-                        _ => Initiator::CardHolder,
-                    },
-                    is_scheduled: true,
-                    // In case of first mandate payment connector_mandate_id would be None, otherwise holds some value
-                    cardbrand_original_transaction_id: connector_mandate_id,
-                }),
-            )
-        } else {
-            match item.request.capture_method {
-                Some(diesel_models::enums::CaptureMethod::Manual) => {
-                    Ok((PayeezyTransactionType::Authorize, None))
-                }
-                Some(diesel_models::enums::CaptureMethod::Automatic) => {
-                    Ok((PayeezyTransactionType::Purchase, None))
-                }
-                _ => Err(errors::ConnectorError::FlowNotSupported {
-                    flow: item.request.capture_method.unwrap_or_default().to_string(),
-                    connector: "Payeezy".to_string(),
-                }),
-            }?
-        };
-    Ok((transaction_type, stored_credentials))
-}
 
 fn is_mandate_payment(
     item: &types::PaymentsAuthorizeRouterData,
