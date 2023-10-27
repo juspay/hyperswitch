@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use async_bb8_diesel::{AsyncRunQueryDsl, ConnectionError};
+use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -93,10 +93,9 @@ where
     {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
-            ConnectionError::Query(DieselError::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
+            DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
+                Err(err).change_context(errors::DatabaseError::UniqueViolation)
+            }
             _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
@@ -168,14 +167,12 @@ where
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
         }
-        Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
+        Err(DieselError::QueryBuilderError(_)) => {
             Err(report!(errors::DatabaseError::NoFieldsToUpdate))
                 .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
         }
-        Err(ConnectionError::Query(DieselError::NotFound)) => {
-            Err(report!(errors::DatabaseError::NotFound))
-                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
-        }
+        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
         _ => Err(report!(errors::DatabaseError::Others))
             .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
     }
@@ -259,14 +256,12 @@ where
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
         }
-        Err(ConnectionError::Query(DieselError::QueryBuilderError(_))) => {
+        Err(DieselError::QueryBuilderError(_)) => {
             Err(report!(errors::DatabaseError::NoFieldsToUpdate))
                 .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
         }
-        Err(ConnectionError::Query(DieselError::NotFound)) => {
-            Err(report!(errors::DatabaseError::NotFound))
-                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
-        }
+        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+            .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
         _ => Err(report!(errors::DatabaseError::Others))
             .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
     }
@@ -353,9 +348,7 @@ where
     {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => {
-                Err(err).change_context(errors::DatabaseError::NotFound)
-            }
+            DieselError::NotFound => Err(err).change_context(errors::DatabaseError::NotFound),
             _ => Err(err).change_context(errors::DatabaseError::Others),
         },
     }
@@ -404,9 +397,7 @@ where
         .await
         .into_report()
         .map_err(|err| match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => {
-                err.change_context(errors::DatabaseError::NotFound)
-            }
+            DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
             _ => err.change_context(errors::DatabaseError::Others),
         })
         .attach_printable_lazy(|| "Error finding record by predicate")

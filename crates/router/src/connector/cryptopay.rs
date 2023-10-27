@@ -39,7 +39,7 @@ pub struct Cryptopay;
 impl api::Payment for Cryptopay {}
 impl api::PaymentSession for Cryptopay {}
 impl api::ConnectorAccessToken for Cryptopay {}
-impl api::PreVerify for Cryptopay {}
+impl api::MandateSetup for Cryptopay {}
 impl api::PaymentAuthorize for Cryptopay {}
 impl api::PaymentSync for Cryptopay {}
 impl api::PaymentCapture for Cryptopay {}
@@ -171,8 +171,6 @@ impl ConnectorCommon for Cryptopay {
     }
 }
 
-impl ConnectorValidation for Cryptopay {}
-
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Cryptopay
 {
@@ -183,8 +181,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cryptopay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cryptopay
 {
 }
 
@@ -272,6 +274,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
+    }
+}
+
+impl ConnectorValidation for Cryptopay {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
     }
 }
 
@@ -373,6 +385,7 @@ impl api::IncomingWebhook for Cryptopay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
             utils::get_header_key_value("X-Cryptopay-Signature", request.headers)?;
@@ -385,7 +398,7 @@ impl api::IncomingWebhook for Cryptopay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

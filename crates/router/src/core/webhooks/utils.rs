@@ -17,6 +17,7 @@ fn default_webhook_config() -> api::MerchantWebhookConfig {
         api::IncomingWebhookEvent::PaymentIntentSuccess,
         api::IncomingWebhookEvent::PaymentIntentFailure,
         api::IncomingWebhookEvent::PaymentIntentProcessing,
+        api::IncomingWebhookEvent::PaymentIntentCancelled,
         api::IncomingWebhookEvent::PaymentActionRequired,
         api::IncomingWebhookEvent::RefundSuccess,
     ])
@@ -118,6 +119,7 @@ pub async fn construct_webhook_router_data<'a>(
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)

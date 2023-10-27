@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_utils::{crypto::OptionalEncryptableName, pii};
+use common_utils::{
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, pii,
+    types::Percentage,
+};
 use serde::de;
+use serde_with::serde_as;
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
@@ -171,6 +175,7 @@ pub struct PaymentMethodDataBankCreds {
 pub struct BankAccountConnectorDetails {
     pub connector: String,
     pub account_id: String,
+    pub mca_id: String,
     pub access_token: BankAccountAccessCreds,
 }
 
@@ -247,11 +252,27 @@ pub struct PaymentExperienceTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct CardNetworkTypes {
     /// The card network enabled
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: api_enums::CardNetwork,
+
+    /// surcharge details for this card network
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": 2.5
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+        }
+    "#)]
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 
     /// The list of eligible connectors for a given card network
     #[schema(example = json!(["stripe", "adyen"]))]
@@ -263,7 +284,7 @@ pub struct BankDebitTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna")]
@@ -285,6 +306,69 @@ pub struct ResponsePaymentMethodTypes {
 
     /// Required fields for the payment_method_type.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+
+    /// surcharge details for this payment method type if exists
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": 2.5
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+        }
+    "#)]
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
+}
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SurchargeDetailsResponse {
+    /// surcharge value
+    pub surcharge: Surcharge,
+    /// tax on surcharge value
+    pub tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+    /// surcharge amount for this payment
+    pub surcharge_amount: i64,
+    /// tax on surcharge amount for this payment
+    pub tax_on_surcharge_amount: i64,
+    /// sum of original amount,
+    pub final_amount: i64,
+}
+
+#[serde_as]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SurchargeMetadata {
+    #[serde_as(as = "HashMap<_, _>")]
+    pub surcharge_results: HashMap<String, SurchargeDetailsResponse>,
+}
+
+impl SurchargeMetadata {
+    pub fn get_key_for_surcharge_details_hash_map(
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+        card_network: Option<&common_enums::CardNetwork>,
+    ) -> String {
+        if let Some(card_network) = card_network {
+            format!(
+                "{}_{}_{}",
+                payment_method, payment_method_type, card_network
+            )
+        } else {
+            format!("{}_{}", payment_method, payment_method_type)
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum Surcharge {
+    /// Fixed Surcharge value
+    Fixed(i64),
+    /// Surcharge percentage
+    Rate(Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>),
 }
 
 /// Required fields info used while listing the payment_method_data
@@ -303,7 +387,7 @@ pub struct RequiredFieldInfo {
     pub value: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled
     #[schema(value_type = PaymentMethod)]
@@ -538,6 +622,13 @@ pub struct PaymentMethodListResponse {
 
     #[schema(value_type = Option<String>)]
     pub merchant_name: OptionalEncryptableName,
+
+    /// flag to indicate if surcharge and tax breakup screen should be shown or not
+    #[schema(value_type = bool)]
+    pub show_surcharge_breakup_screen: bool,
+
+    #[schema(value_type = Option<PaymentType>)]
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]

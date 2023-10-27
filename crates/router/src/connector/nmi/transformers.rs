@@ -112,14 +112,51 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 api_models::payments::WalletData::ApplePay(ref applepay_data) => {
                     Ok(Self::from(applepay_data))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))
-                .into_report(),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                        connector: "nmi",
+                    })
+                    .into_report()
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "nmi",
+            })
             .into_report(),
         }
     }
@@ -158,9 +195,9 @@ impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
     }
 }
 
-impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
+impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
     type Error = Error;
-    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
         Ok(Self {
@@ -314,13 +351,18 @@ pub struct StandardResponse {
 
 impl<T>
     TryFrom<
-        types::ResponseRouterData<api::Verify, StandardResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<api::Verify, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            api::SetupMandate,
+            StandardResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<api::SetupMandate, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<
-            api::Verify,
+            api::SetupMandate,
             StandardResponse,
             T,
             types::PaymentsResponseData,

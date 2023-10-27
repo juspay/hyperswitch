@@ -10,14 +10,15 @@ use crate::{
     self as app,
     core::{
         errors::http_not_implemented,
+        payment_methods::{Oss, PaymentMethodRetrieve},
         payments::{self, PaymentRedirectFlow},
     },
-    openapi::examples::{
-        PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
-        PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
-        PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-        PAYMENTS_CREATE_WITH_ORDER_DETAILS,
-    },
+    // openapi::examples::{
+    //     PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
+    //     PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
+    //     PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
+    //     PAYMENTS_CREATE_WITH_ORDER_DETAILS,
+    // },
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
@@ -35,48 +36,49 @@ use crate::{
     path = "/payments",
     request_body(
         content = PaymentsCreateRequest,
-        examples(
-            (
-                "Create a payment with minimul fields" = (
-                    value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
-                )
-            ),
-            (
-                "Create a manual capture payment" = (
-                    value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
-                )
-            ),
-            (
-                "Create a payment with address" = (
-                    value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
-                )
-            ),
-            (
-                "Create a payment with customer details" = (
-                    value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
-                )
-            ),
-            (
-                "Create a 3DS payment" = (
-                    value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
-                )
-            ),
-            (
-                "Create a payment" = (
-                    value = json!(PAYMENTS_CREATE)
-                )
-            ),
-            (
-                "Create a payment with order details" = (
-                    value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
-                )
-            ),
-            (
-                "Create a payment with order category for noon" = (
-                    value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
-                )
-            ),
-        )),
+        // examples(
+        //     (
+        //         "Create a payment with minimul fields" = (
+        //             value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a manual capture payment" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with address" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with customer details" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
+        //         )
+        //     ),
+        //     (
+        //         "Create a 3DS payment" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment" = (
+        //             value = json!(PAYMENTS_CREATE)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with order details" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with order category for noon" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
+        //         )
+        //     ),
+        // )
+    ),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -106,7 +108,7 @@ pub async fn payments_create(
         &req,
         payload,
         |state, auth, req| {
-            authorize_verify_select(
+            authorize_verify_select::<_, Oss>(
                 payments::PaymentCreate,
                 state,
                 auth.merchant_account,
@@ -160,8 +162,15 @@ pub async fn payments_start(
         state,
         &req,
         payload,
-        |state,auth, req| {
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -227,7 +236,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -288,7 +297,7 @@ pub async fn payments_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -354,7 +363,7 @@ pub async fn payments_update(
         &req,
         payload,
         |state, auth, req| {
-            authorize_verify_select(
+            authorize_verify_select::<_, Oss>(
                 payments::PaymentUpdate,
                 state,
                 auth.merchant_account,
@@ -430,7 +439,7 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, auth, req| {
-            authorize_verify_select(
+            authorize_verify_select::<_, Oss>(
                 payments::PaymentConfirm,
                 state,
                 auth.merchant_account,
@@ -485,7 +494,14 @@ pub async fn payments_capture(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Capture,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -539,6 +555,7 @@ pub async fn payments_connector_session(
                 _,
                 _,
                 _,
+                Oss,
             >(
                 state,
                 auth.merchant_account,
@@ -600,7 +617,8 @@ pub async fn payments_redirect_response(
         &req,
         payload,
         |state, auth, req| {
-            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+            <payments::PaymentRedirectSync as PaymentRedirectFlow<Oss>>::handle_payments_redirect_response(
+                &payments::PaymentRedirectSync {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -657,7 +675,8 @@ pub async fn payments_redirect_response_with_creds_identifier(
         &req,
         payload,
         |state, auth, req| {
-            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+           <payments::PaymentRedirectSync as PaymentRedirectFlow<Oss>>::handle_payments_redirect_response(
+                &payments::PaymentRedirectSync {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -696,7 +715,9 @@ pub async fn payments_complete_authorize(
         &req,
         payload,
         |state, auth, req| {
-            payments::PaymentRedirectCompleteAuthorize {}.handle_payments_redirect_response(
+
+            <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow<Oss>>::handle_payments_redirect_response(
+                &payments::PaymentRedirectCompleteAuthorize {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -745,7 +766,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -846,7 +867,7 @@ pub async fn get_filters_for_payments(
     )
     .await
 }
-async fn authorize_verify_select<Op>(
+async fn authorize_verify_select<Op, Ctx>(
     operation: Op,
     state: app::AppState,
     merchant_account: domain::MerchantAccount,
@@ -856,11 +877,19 @@ async fn authorize_verify_select<Op>(
     auth_flow: api::AuthFlow,
 ) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
+    Ctx: PaymentMethodRetrieve,
     Op: Sync
         + Clone
         + std::fmt::Debug
-        + payments::operations::Operation<api_types::Authorize, api_models::payments::PaymentsRequest>
-        + payments::operations::Operation<api_types::Verify, api_models::payments::PaymentsRequest>,
+        + payments::operations::Operation<
+            api_types::Authorize,
+            api_models::payments::PaymentsRequest,
+            Ctx,
+        > + payments::operations::Operation<
+            api_types::SetupMandate,
+            api_models::payments::PaymentsRequest,
+            Ctx,
+        >,
 {
     // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
     // This is a temporary fix.
@@ -868,27 +897,38 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    match req.amount.as_ref() {
-        Some(api_types::Amount::Value(_)) | None => payments::payments_core::<
-            api_types::Authorize,
-            payment_types::PaymentsResponse,
-            _,
-            _,
-            _,
-        >(
-            state,
-            merchant_account,
-            key_store,
-            operation,
-            req,
-            auth_flow,
-            payments::CallConnectorAction::Trigger,
-            header_payload,
-        )
-        .await,
-
-        Some(api_types::Amount::Zero) => {
-            payments::payments_core::<api_types::Verify, payment_types::PaymentsResponse, _, _, _>(
+    match req.payment_type.unwrap_or_default() {
+        api_models::enums::PaymentType::Normal
+        | api_models::enums::PaymentType::RecurringMandate
+        | api_models::enums::PaymentType::NewMandate => {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state,
+                merchant_account,
+                key_store,
+                operation,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                header_payload,
+            )
+            .await
+        }
+        api_models::enums::PaymentType::SetupMandate => {
+            payments::payments_core::<
+                api_types::SetupMandate,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
                 state,
                 merchant_account,
                 key_store,

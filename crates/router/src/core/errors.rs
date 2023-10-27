@@ -178,6 +178,8 @@ pub enum ConnectorError {
         message: String,
         connector: &'static str,
     },
+    #[error("Invalid Configuration")]
+    InvalidConnectorConfig { config: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
