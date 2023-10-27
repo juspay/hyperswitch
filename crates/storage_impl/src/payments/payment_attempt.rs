@@ -363,6 +363,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     updated_by: storage_scheme.to_string(),
                     authentication_data: payment_attempt.authentication_data.clone(),
                     encoded_data: payment_attempt.encoded_data.clone(),
+                    merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -957,10 +958,10 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
             amount_capturable: self.amount_capturable,
-
             updated_by: self.updated_by,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
+            merchant_connector_id: self.merchant_connector_id,
         }
     }
 
@@ -1009,10 +1010,10 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             amount_capturable: storage_model.amount_capturable,
-
             updated_by: storage_model.updated_by,
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
+            merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
 }
@@ -1065,6 +1066,7 @@ impl DataModelExt for PaymentAttemptNew {
             updated_by: self.updated_by,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
+            merchant_connector_id: self.merchant_connector_id,
         }
     }
 
@@ -1111,10 +1113,10 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
             amount_capturable: storage_model.amount_capturable,
-
             updated_by: storage_model.updated_by,
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
+            merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
 }
@@ -1159,12 +1161,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1193,6 +1197,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id: connector_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1213,6 +1218,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id: connector_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1392,12 +1398,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id: connector_id,
             } => Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
+                merchant_connector_id: connector_id,
             },
             DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1426,6 +1434,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id: connector_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1446,6 +1455,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                merchant_connector_id: connector_id,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

@@ -143,6 +143,7 @@ impl PaymentAttemptInterface for MockDb {
             updated_by: storage_scheme.to_string(),
             authentication_data: payment_attempt.authentication_data,
             encoded_data: payment_attempt.encoded_data,
+            merchant_connector_id: payment_attempt.merchant_connector_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

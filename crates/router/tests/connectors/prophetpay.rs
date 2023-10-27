@@ -14,6 +14,7 @@ impl utils::Connector for ProphetpayTest {
             connector: Box::new(&Prophetpay),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

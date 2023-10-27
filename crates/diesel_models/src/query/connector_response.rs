@@ -192,14 +192,12 @@ impl ConnectorResponse {
                         connector_response.connector_name
                     );
                 }
-            
             }
             Err(err) => {
                 logger::error!(
                     "Error while finding payment attempt in connector_response flow {:?}",
                     err
                 );
-                
             }
         }
 
