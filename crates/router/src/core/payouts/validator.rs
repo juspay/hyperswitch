@@ -8,7 +8,6 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    logger,
     routes::AppState,
     types::{api::payouts, domain, storage},
     utils,
@@ -24,8 +23,6 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     let payout = db
         .find_payout_by_merchant_id_payout_id(merchant_id, payout_id)
         .await;
-
-    logger::debug!(?payout);
     match payout {
         Err(err) => {
             if err.current_context().is_db_not_found() {

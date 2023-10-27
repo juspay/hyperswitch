@@ -1221,7 +1221,7 @@ pub async fn payout_create_db_entries(
     } else {
         storage_enums::PayoutStatus::RequiresPayoutMethodData
     };
-    let payout_attempt_id = format!("{}_{}", merchant_id.to_owned(), payout_id.to_owned());
+    let payout_attempt_id = utils::get_payment_attempt_id(payout_id, 1);
 
     let payout_attempt_req = storage::PayoutAttemptNew::default()
         .set_payout_attempt_id(payout_attempt_id.to_string())
