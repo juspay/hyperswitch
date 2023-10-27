@@ -59,11 +59,14 @@ pub async fn intiate_payment_link_flow(
     let payment_link = payment_intent
         .payment_link_id
         .as_ref()
-        .async_and_then(
-            |pli| async move { db.find_payment_link_by_payment_link_id(pli).await.ok() },
-        )
+        .async_and_then(|pli| async {
+            db.find_payment_link_by_payment_link_id(pli)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)
+                .ok()
+        })
         .await
-        .ok_or(errors::ApiErrorResponse::PaymentNotFound)?;
+        .ok_or(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let payment_link_config = merchant_account
         .payment_link_config
