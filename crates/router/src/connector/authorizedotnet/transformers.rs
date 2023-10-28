@@ -324,7 +324,6 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             processing_options,
             subsequent_auth_information,
             authorization_indicator_type,
-            ref_id: item.router_data.connector_request_reference_id.clone(),
         };
 
         let merchant_authentication =
@@ -334,6 +333,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
                 transaction_request,
+                ref_id: item.router_data.connector_request_reference_id.clone(),
             },
         })
     }
