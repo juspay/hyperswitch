@@ -605,7 +605,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let router_obj = fiserv::FiservRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            req.request.refund_amount,
             req,
         ))?;
         let connector_request = fiserv::FiservRefundRequest::try_from(&router_obj)?;
