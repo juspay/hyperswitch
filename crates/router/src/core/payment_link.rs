@@ -107,6 +107,7 @@ pub async fn intiate_payment_link_flow(
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency,
+        currency_symbol: currency.to_currency_symbol(),
         payment_id: payment_intent.payment_id,
         merchant_name: merchant_account.merchant_name,
         order_details,

@@ -773,6 +773,375 @@ impl Currency {
             | Self::ZAR => false,
         }
     }
+
+    pub fn to_currency_symbol(&self) -> CurrencySymbol {
+        match self {
+            Self::AED => CurrencySymbol::AED,
+            Self::ALL => CurrencySymbol::ALL,
+            Self::AMD => CurrencySymbol::AMD,
+            Self::ANG => CurrencySymbol::ANG,
+            Self::ARS => CurrencySymbol::ARS,
+            Self::AUD => CurrencySymbol::AUD,
+            Self::AWG => CurrencySymbol::AWG,
+            Self::AZN => CurrencySymbol::AZN,
+            Self::BBD => CurrencySymbol::BBD,
+            Self::BDT => CurrencySymbol::BDT,
+            Self::BHD => CurrencySymbol::BHD,
+            Self::BIF => CurrencySymbol::BIF,
+            Self::BMD => CurrencySymbol::BMD,
+            Self::BND => CurrencySymbol::BND,
+            Self::BOB => CurrencySymbol::BOB,
+            Self::BRL => CurrencySymbol::BRL,
+            Self::BSD => CurrencySymbol::BSD,
+            Self::BWP => CurrencySymbol::BWP,
+            Self::BZD => CurrencySymbol::BZD,
+            Self::CAD => CurrencySymbol::CAD,
+            Self::CHF => CurrencySymbol::CHF,
+            Self::CLP => CurrencySymbol::CLP,
+            Self::COP => CurrencySymbol::COP,
+            Self::CRC => CurrencySymbol::CRC,
+            Self::CUP => CurrencySymbol::CUP,
+            Self::CZK => CurrencySymbol::CZK,
+            Self::DJF => CurrencySymbol::DJF,
+            Self::DKK => CurrencySymbol::DKK,
+            Self::DOP => CurrencySymbol::DOP,
+            Self::DZD => CurrencySymbol::DZD,
+            Self::EGP => CurrencySymbol::EGP,
+            Self::ETB => CurrencySymbol::ETB,
+            Self::EUR => CurrencySymbol::EUR,
+            Self::FJD => CurrencySymbol::FJD,
+            Self::GBP => CurrencySymbol::GBP,
+            Self::GHS => CurrencySymbol::GHS,
+            Self::GIP => CurrencySymbol::GIP,
+            Self::GMD => CurrencySymbol::GMD,
+            Self::GNF => CurrencySymbol::GNF,
+            Self::GTQ => CurrencySymbol::GTQ,
+            Self::GYD => CurrencySymbol::GYD,
+            Self::HKD => CurrencySymbol::HKD,
+            Self::HNL => CurrencySymbol::HNL,
+            Self::HTG => CurrencySymbol::HTG,
+            Self::HUF => CurrencySymbol::HUF,
+            Self::HRK => CurrencySymbol::HRK,
+            Self::IDR => CurrencySymbol::IDR,
+            Self::ILS => CurrencySymbol::ILS,
+            Self::INR => CurrencySymbol::INR,
+            Self::JMD => CurrencySymbol::JMD,
+            Self::JOD => CurrencySymbol::JOD,
+            Self::JPY => CurrencySymbol::JPY,
+            Self::KES => CurrencySymbol::KES,
+            Self::KGS => CurrencySymbol::KGS,
+            Self::KHR => CurrencySymbol::KHR,
+            Self::KMF => CurrencySymbol::KMF,
+            Self::KRW => CurrencySymbol::KRW,
+            Self::KWD => CurrencySymbol::KWD,
+            Self::KYD => CurrencySymbol::KYD,
+            Self::KZT => CurrencySymbol::KZT,
+            Self::LAK => CurrencySymbol::LAK,
+            Self::LBP => CurrencySymbol::LBP,
+            Self::LKR => CurrencySymbol::LKR,
+            Self::LRD => CurrencySymbol::LRD,
+            Self::LSL => CurrencySymbol::LSL,
+            Self::MAD => CurrencySymbol::MAD,
+            Self::MDL => CurrencySymbol::MDL,
+            Self::MGA => CurrencySymbol::MGA,
+            Self::MKD => CurrencySymbol::MKD,
+            Self::MMK => CurrencySymbol::MMK,
+            Self::MNT => CurrencySymbol::MNT,
+            Self::MOP => CurrencySymbol::MOP,
+            Self::MUR => CurrencySymbol::MUR,
+            Self::MVR => CurrencySymbol::MVR,
+            Self::MWK => CurrencySymbol::MWK,
+            Self::MXN => CurrencySymbol::MXN,
+            Self::MYR => CurrencySymbol::MYR,
+            Self::NAD => CurrencySymbol::NAD,
+            Self::NGN => CurrencySymbol::NGN,
+            Self::NIO => CurrencySymbol::NIO,
+            Self::NOK => CurrencySymbol::NOK,
+            Self::NPR => CurrencySymbol::NPR,
+            Self::NZD => CurrencySymbol::NZD,
+            Self::OMR => CurrencySymbol::OMR,
+            Self::PEN => CurrencySymbol::PEN,
+            Self::PGK => CurrencySymbol::PGK,
+            Self::PHP => CurrencySymbol::PHP,
+            Self::PKR => CurrencySymbol::PKR,
+            Self::PLN => CurrencySymbol::PLN,
+            Self::PYG => CurrencySymbol::PYG,
+            Self::QAR => CurrencySymbol::QAR,
+            Self::RON => CurrencySymbol::RON,
+            Self::CNY => CurrencySymbol::CNY,
+            Self::RUB => CurrencySymbol::RUB,
+            Self::RWF => CurrencySymbol::RWF,
+            Self::SAR => CurrencySymbol::SAR,
+            Self::SCR => CurrencySymbol::SCR,
+            Self::SEK => CurrencySymbol::SEK,
+            Self::SGD => CurrencySymbol::SGD,
+            Self::SLL => CurrencySymbol::SLL,
+            Self::SOS => CurrencySymbol::SOS,
+            Self::SSP => CurrencySymbol::SSP,
+            Self::SVC => CurrencySymbol::SVC,
+            Self::SZL => CurrencySymbol::SZL,
+            Self::THB => CurrencySymbol::THB,
+            Self::TRY => CurrencySymbol::TRY,
+            Self::TTD => CurrencySymbol::TTD,
+            Self::TWD => CurrencySymbol::TWD,
+            Self::TZS => CurrencySymbol::TZS,
+            Self::UGX => CurrencySymbol::UGX,
+            Self::USD => CurrencySymbol::USD,
+            Self::UYU => CurrencySymbol::UYU,
+            Self::UZS => CurrencySymbol::UZS,
+            Self::VND => CurrencySymbol::VND,
+            Self::VUV => CurrencySymbol::VUV,
+            Self::XAF => CurrencySymbol::XAF,
+            Self::XOF => CurrencySymbol::XOF,
+            Self::XPF => CurrencySymbol::XPF,
+            Self::YER => CurrencySymbol::YER,
+            Self::ZAR => CurrencySymbol::ZAR,
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub enum CurrencySymbol {
+    #[serde(rename = "د.إ")]
+    AED,
+    #[serde(rename = "L")]
+    ALL,
+    #[serde(rename = "֏")]
+    AMD,
+    #[serde(rename = "ƒ")]
+    ANG,
+    #[serde(rename = "$")]
+    ARS,
+    #[serde(rename = "$")]
+    AUD,
+    #[serde(rename = "ƒ")]
+    AWG,
+    #[serde(rename = "₼")]
+    AZN,
+    #[serde(rename = "$")]
+    BBD,
+    #[serde(rename = "৳")]
+    BDT,
+    #[serde(rename = ".د.ب")]
+    BHD,
+    #[serde(rename = "FBu")]
+    BIF,
+    #[serde(rename = "$")]
+    BMD,
+    #[serde(rename = "$")]
+    BND,
+    #[serde(rename = "Bs.")]
+    BOB,
+    #[serde(rename = "R$")]
+    BRL,
+    #[serde(rename = "$")]
+    BSD,
+    #[serde(rename = "P")]
+    BWP,
+    #[serde(rename = "BZ$")]
+    BZD,
+    #[serde(rename = "$")]
+    CAD,
+    #[serde(rename = "CHF")]
+    CHF,
+    #[serde(rename = "$")]
+    CLP,
+    #[serde(rename = "¥")]
+    CNY,
+    #[serde(rename = "$")]
+    COP,
+    #[serde(rename = "₡")]
+    CRC,
+    #[serde(rename = "$")]
+    CUP,
+    #[serde(rename = "Kč")]
+    CZK,
+    #[serde(rename = "Fdj")]
+    DJF,
+    #[serde(rename = "kr")]
+    DKK,
+    #[serde(rename = "$")]
+    DOP,
+    #[serde(rename = "DA")]
+    DZD,
+    #[serde(rename = "E£")]
+    EGP,
+    #[serde(rename = "Br")]
+    ETB,
+    #[serde(rename = "€")]
+    EUR,
+    #[serde(rename = "$")]
+    FJD,
+    #[serde(rename = "£")]
+    GBP,
+    #[serde(rename = "₵")]
+    GHS,
+    #[serde(rename = "£")]
+    GIP,
+    #[serde(rename = "D")]
+    GMD,
+    #[serde(rename = "GNF")]
+    GNF,
+    #[serde(rename = "Q")]
+    GTQ,
+    #[serde(rename = "$")]
+    GYD,
+    #[serde(rename = "$")]
+    HKD,
+    #[serde(rename = "L")]
+    HNL,
+    #[serde(rename = "kn")]
+    HRK,
+    #[serde(rename = "G")]
+    HTG,
+    #[serde(rename = "Ft")]
+    HUF,
+    #[serde(rename = "Rp")]
+    IDR,
+    #[serde(rename = "₪")]
+    ILS,
+    #[serde(rename = "₹")]
+    INR,
+    #[serde(rename = "$")]
+    JMD,
+    #[serde(rename = "JD")]
+    JOD,
+    #[serde(rename = "¥")]
+    JPY,
+    #[serde(rename = "KSh")]
+    KES,
+    #[serde(rename = "som")]
+    KGS,
+    #[serde(rename = "៛")]
+    KHR,
+    #[serde(rename = "CF")]
+    KMF,
+    #[serde(rename = "₩")]
+    KRW,
+    #[serde(rename = "KD")]
+    KWD,
+    #[serde(rename = "$")]
+    KYD,
+    #[serde(rename = "₸")]
+    KZT,
+    #[serde(rename = "₭")]
+    LAK,
+    #[serde(rename = "£")]
+    LBP,
+    #[serde(rename = "Rs")]
+    LKR,
+    #[serde(rename = "$")]
+    LRD,
+    #[serde(rename = "L")]
+    LSL,
+    #[serde(rename = "DH")]
+    MAD,
+    #[serde(rename = "MDL")]
+    MDL,
+    #[serde(rename = "Ar")]
+    MGA,
+    #[serde(rename = "ден")]
+    MKD,
+    #[serde(rename = "Ks")]
+    MMK,
+    #[serde(rename = "₮")]
+    MNT,
+    #[serde(rename = "P")]
+    MOP,
+    #[serde(rename = "Rs")]
+    MUR,
+    #[serde(rename = "Rf")]
+    MVR,
+    #[serde(rename = "MK")]
+    MWK,
+    #[serde(rename = "$")]
+    MXN,
+    #[serde(rename = "RM")]
+    MYR,
+    #[serde(rename = "$")]
+    NAD,
+    #[serde(rename = "₦")]
+    NGN,
+    #[serde(rename = "C$")]
+    NIO,
+    #[serde(rename = "kr")]
+    NOK,
+    #[serde(rename = "रू")]
+    NPR,
+    #[serde(rename = "$")]
+    NZD,
+    #[serde(rename = "ر.ع.")]
+    OMR,
+    #[serde(rename = "S/")]
+    PEN,
+    #[serde(rename = "K")]
+    PGK,
+    #[serde(rename = "₱")]
+    PHP,
+    #[serde(rename = "Rs")]
+    PKR,
+    #[serde(rename = "zł")]
+    PLN,
+    #[serde(rename = "₲")]
+    PYG,
+    #[serde(rename = "ر.ق")]
+    QAR,
+    #[serde(rename = "lei")]
+    RON,
+    #[serde(rename = "₽")]
+    RUB,
+    #[serde(rename = "RWF")]
+    RWF,
+    #[serde(rename = "ر.س")]
+    SAR,
+    #[serde(rename = "Rs")]
+    SCR,
+    #[serde(rename = "kr")]
+    SEK,
+    #[serde(rename = "$")]
+    SGD,
+    #[serde(rename = "Le")]
+    SLL,
+    #[serde(rename = "Sh")]
+    SOS,
+    #[serde(rename = "£")]
+    SSP,
+    #[serde(rename = "$")]
+    SVC,
+    #[serde(rename = "L")] // L or E
+    SZL,
+    #[serde(rename = "฿")]
+    THB,
+    #[serde(rename = "₺")]
+    TRY,
+    #[serde(rename = "$")]
+    TTD,
+    #[serde(rename = "$")]
+    TWD,
+    #[serde(rename = "TSh")]
+    TZS,
+    #[serde(rename = "USh")]
+    UGX,
+    #[serde(rename = "$")]
+    USD,
+    #[serde(rename = "$")]
+    UYU,
+    #[serde(rename = "лв")]
+    UZS,
+    #[serde(rename = "₫")]
+    VND,
+    #[serde(rename = "VT")]
+    VUV,
+    #[serde(rename = "FCFA")]
+    XAF,
+    #[serde(rename = "CFA")]
+    XOF,
+    #[serde(rename = "₣")]
+    XPF,
+    #[serde(rename = "ر.ي")]
+    YER,
+    #[serde(rename = "R")]
+    ZAR,
 }
 
 #[derive(
