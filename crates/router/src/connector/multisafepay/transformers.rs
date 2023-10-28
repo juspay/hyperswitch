@@ -701,14 +701,18 @@ pub struct MultisafepayRefundRequest {
     pub checkout_data: Option<ShoppingCart>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
+impl<F> TryFrom<&MultisafepayRouterData<&types::RefundsRouterData<F>>>
+    for MultisafepayRefundRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &MultisafepayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            currency: item.request.currency,
-            amount: item.request.refund_amount,
-            description: item.description.clone(),
-            refund_order_id: Some(item.request.refund_id.clone()),
+            currency: item.router_data.request.currency,
+            amount: item.amount,
+            description: item.router_data.description.clone(),
+            refund_order_id: Some(item.router_data.request.refund_id.clone()),
             checkout_data: None,
         })
     }

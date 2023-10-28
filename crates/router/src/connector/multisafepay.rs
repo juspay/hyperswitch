@@ -361,9 +361,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(req)?;
+        let connector_req = multisafepay::MultisafepayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
+
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
