@@ -198,7 +198,9 @@ impl
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                .body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -277,6 +279,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         // encode only for for urlencoded things.
         let connector_req = aci::AciPaymentsRequest::try_from(req)?;
@@ -308,7 +311,9 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -377,6 +382,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = aci::AciCancelRequest::try_from(req)?;
         let aci_req = types::RequestBody::log_and_get_request_body(
@@ -397,7 +403,9 @@ impl
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -470,6 +478,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = aci::AciRefundRequest::try_from(req)?;
         let body = types::RequestBody::log_and_get_request_body(
@@ -493,7 +502,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::RefundExecuteType::get_request_body(self, req)?)
+                .body(types::RefundExecuteType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }

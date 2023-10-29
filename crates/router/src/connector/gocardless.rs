@@ -152,6 +152,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::ConnectorCustomerRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessCustomerRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -177,7 +178,9 @@ impl
                 .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::ConnectorCustomerType::get_request_body(self, req)?)
+                .body(types::ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -247,6 +250,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessBankAccountRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -268,7 +272,9 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
+                .body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -365,6 +371,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessMandateRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -388,7 +395,9 @@ impl
                     .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                    .body(types::SetupMandateType::get_request_body(self, req)?)
+                    .body(types::SetupMandateType::get_request_body(
+                        self, req, connectors,
+                    )?)
                     .build(),
             ))
         } else {
@@ -446,6 +455,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = gocardless::GocardlessRouterData::try_from((
             &self.get_currency_unit(),
@@ -477,7 +487,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -611,6 +623,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = gocardless::GocardlessRouterData::try_from((
             &self.get_currency_unit(),
@@ -639,7 +652,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
