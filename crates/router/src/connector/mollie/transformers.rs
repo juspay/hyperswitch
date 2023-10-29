@@ -65,6 +65,7 @@ pub struct MolliePaymentsRequest {
     metadata: Option<serde_json::Value>,
     sequence_type: SequenceType,
     mandate_id: Option<String>,
+    merchant_order_id: String,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -162,6 +163,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             value: item.amount.clone(),
         };
         let description = item.router_data.get_description()?;
+        let merchant_order_id: item.connector_request_reference_id.clone(),
         let redirect_url = item.router_data.request.get_return_url()?;
         let payment_method_data = match item.router_data.request.capture_method.unwrap_or_default()
         {
