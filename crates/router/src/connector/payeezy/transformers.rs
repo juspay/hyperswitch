@@ -139,7 +139,7 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for Payeez
 fn get_card_specific_payment_data(
     item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<PayeezyPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let merchant_ref = item.router_data.attempt_id.to_string();
+    let merchant_ref = item.attempt_id.to_string();
     let method = PayeezyPaymentMethodType::CreditCard;
     let amount = item.router_data.request.amount;
     let currency_code = item.router_data.request.currency.to_string();
@@ -153,7 +153,7 @@ fn get_card_specific_payment_data(
         currency_code,
         credit_card,
         stored_credentials,
-        reference,
+        reference: item.connector_request_reference_id.clone(),
     })
 }
 fn get_transaction_type_and_stored_creds(
