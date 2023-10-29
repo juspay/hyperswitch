@@ -53,6 +53,7 @@ pub struct RapydPaymentsRequest {
     pub description: Option<String>,
     pub complete_payment_url: Option<String>,
     pub error_payment_url: Option<String>,
+    pub merchant_order_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -173,6 +174,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
+            merchant_order_id: item.connector_request_reference_id.clone(),
         })
     }
 }
