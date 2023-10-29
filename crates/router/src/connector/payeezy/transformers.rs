@@ -41,7 +41,6 @@ impl<T>
     }
 }
 
-
 #[derive(Serialize, Debug)]
 pub struct PayeezyCard {
     #[serde(rename = "type")]
@@ -126,7 +125,7 @@ pub enum Initiator {
 
 impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-        fn try_from(
+    fn try_from(
         item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.payment_method {
