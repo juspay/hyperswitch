@@ -23,6 +23,7 @@ pub struct StaxPaymentsRequest {
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
+    idempotency_id: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
@@ -51,6 +52,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
+                    idempotency_id: Some(item.connector_request_reference_id.clone()),
                 })
             }
             api::PaymentMethodData::BankDebit(
@@ -69,6 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
+                    idempotency_id: Some(item.connector_request_reference_id.clone()),
                 })
             }
             api::PaymentMethodData::BankDebit(_)
@@ -282,6 +285,7 @@ pub struct StaxPaymentsResponse {
     child_captures: Vec<StaxChildCapture>,
     #[serde(rename = "type")]
     payment_response_type: StaxPaymentResponseTypes,
+    idempotency_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -323,12 +327,14 @@ impl<F, T>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.idempotency_id.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })

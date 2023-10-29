@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models::enums::PaymentMethod;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
@@ -82,7 +83,22 @@ pub struct IatapayPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let country = item.get_billing_country()?.to_string();
+        let payment_method = item.payment_method;
+        let country = match payment_method {
+            PaymentMethod::Upi => "IN".to_string(),
+
+            PaymentMethod::Card
+            | PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::Voucher
+            | PaymentMethod::GiftCard => item.get_billing_country()?.to_string(),
+        };
         let return_url = item.get_return_url()?;
         let payer_info = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
@@ -94,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_payment_id: Some(item.payment_id.clone()),
+            merchant_payment_id: Some(item.connector_request_reference_id.clone()),
             amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
@@ -152,7 +168,6 @@ pub enum IatapayPaymentStatus {
     Cleared,
     Failed,
     Locked,
-    Cancel,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
     #[serde(other)]
@@ -162,17 +177,11 @@ pub enum IatapayPaymentStatus {
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
     fn from(item: IatapayPaymentStatus) -> Self {
         match item {
-            IatapayPaymentStatus::Authorized => Self::Authorized,
-            IatapayPaymentStatus::Settled
-            | IatapayPaymentStatus::Cleared
-            | IatapayPaymentStatus::Tobeinvestigated
-            | IatapayPaymentStatus::Blocked => Self::Charged,
-            IatapayPaymentStatus::Failed
-            | IatapayPaymentStatus::UnexpectedSettled
-            | IatapayPaymentStatus::Unknown => Self::Failure,
+            IatapayPaymentStatus::Authorized | IatapayPaymentStatus::Settled => Self::Charged,
+            IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
-            IatapayPaymentStatus::Initiated | IatapayPaymentStatus::Locked => Self::Pending,
-            IatapayPaymentStatus::Cancel => Self::Voided,
+            IatapayPaymentStatus::Initiated => Self::Pending,
+            _ => Self::Voided,
         }
     }
 }
@@ -214,10 +223,14 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = match item.response.iata_payment_id {
+        let id = match item.response.iata_payment_id.clone() {
             Some(s) => types::ResponseId::ConnectorTransactionId(s),
             None => types::ResponseId::NoResponseId,
         };
+        let connector_response_reference_id = item
+            .response
+            .merchant_payment_id
+            .or(item.response.iata_payment_id);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
@@ -227,7 +240,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: connector_response_reference_id.clone(),
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -240,7 +253,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: connector_response_reference_id.clone(),
                     })
                 },
             ),

@@ -33,7 +33,7 @@ impl api::Payment for Bitpay {}
 impl api::PaymentToken for Bitpay {}
 impl api::PaymentSession for Bitpay {}
 impl api::ConnectorAccessToken for Bitpay {}
-impl api::PreVerify for Bitpay {}
+impl api::MandateSetup for Bitpay {}
 impl api::PaymentAuthorize for Bitpay {}
 impl api::PaymentSync for Bitpay {}
 impl api::PaymentCapture for Bitpay {}
@@ -133,8 +133,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bitpay
 {
 }
 

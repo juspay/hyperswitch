@@ -1,0 +1,167 @@
+name: Hotfix-PR-Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+    branches:
+      - "hotfix-*"
+
+jobs:
+  hotfix_pr_check:
+    name: Verify Hotfix PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get hotfix pull request body
+        shell: bash
+        run: |
+          echo '${{ github.event.pull_request.body }}' > hotfix_pr_body.txt
+
+      - name: Get a list of all original PR numbers
+        shell: bash
+        run: |
+
+          # Extract a list of lines with the format 'juspay/hyperswitch/pull/1200' or '#1200' using 'sed'.
+          # If empty, then error out and exit.
+          # else, use 'grep' to extract out 'juspay/hyperswitch/pull/1200' or '#1200' patterns from each line.
+          # Use 'sed' to remove the part of the matched strings that precedes the last "/" character (in cases like, juspay/hyperswitch/pull/1200 - 1200) 
+          # and sed again to remove any "#" characters from the extracted numeric part (in cases like #1200 - 1200), ultimately getting PR/issue number. 
+          # Finally, remove (if any) duplicates from the list
+
+          SED_OUTPUT=$(sed -E '/\/juspay\/hyperswitch\/pull\/[0-9]+|#[0-9]+/!d' hotfix_pr_body.txt)
+
+          if [ -z "$SED_OUTPUT" ]; then
+            echo "::error::No original PRs found"
+            exit 1
+          else
+             PR_NUMBERS=($(echo "$SED_OUTPUT" | grep -oE 'juspay/hyperswitch/pull/[0-9]+|#([0-9]+)' | sed 's/.*\///' | sed 's/#//' | sort -u))
+             echo "PR_NUMBERS=${PR_NUMBERS[@]}" >> $GITHUB_ENV
+             echo "Original PR's found: ("${PR_NUMBERS[*]/#/#}")"
+          fi
+
+      - name: Verify Original PRs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBERS="${PR_NUMBERS[*]}"
+          all_checks_failed=1
+
+          PR_AUTHORS=()
+          PR_TITLES=()
+          PR_BASE_REFS=()
+          PR_STATES=()
+
+          for pr_number in ${PR_NUMBERS}; do
+            is_pull_request="$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "/repos/juspay/hyperswitch/issues/${pr_number}" | jq '.pull_request')"
+
+            if [[ "$is_pull_request" == null ]]; then
+              continue
+            else
+              pr_info=$(gh pr view "${pr_number}" --json number,title,baseRefName,state,author)
+              pr_author=$(echo "${pr_info}" | jq -r '.author.login')
+              pr_title=$(echo "${pr_info}" | jq -r '.title')
+              pr_base_ref=$(echo "${pr_info}" | jq -r '.baseRefName')
+              pr_state=$(echo "${pr_info}" | jq -r '.state')
+
+              if [[ "${pr_author}" == "${{ github.event.pull_request.user.login }}" && \
+                    "${pr_title}" == "${{ github.event.pull_request.title }}" && \
+                    "${pr_base_ref}" == "main" && \
+                    "${pr_state}" == "MERGED" ]]; then
+
+                all_checks_failed=0
+                break
+              fi
+
+              PR_AUTHORS+=("$pr_author")
+              PR_TITLES+=("$pr_title")
+              PR_BASE_REFS+=("$pr_base_ref")
+              PR_STATES+=("$pr_state")
+              
+            fi
+          done
+
+          if [[ $all_checks_failed -eq 1 ]]; then
+
+            # Set a flag to track if a author match is found
+            author_match_found=0
+
+            for ((i = 0; i < ${#PR_AUTHORS[@]}; i++)); do
+              if [[ "${{github.event.pull_request.user.login}}" == "${PR_AUTHORS[i]}" ]]; then
+                # If a match is found, set the flag to 1 and break out of the loop
+                author_match_found=1
+                break
+              fi
+            done
+
+            if [[ $author_match_found -eq 0 ]]; then
+              echo "::error::Hotfix PR author does not match any of the Original PR authors. Hotfix PR author: '${{ github.event.pull_request.user.login }}'"
+            fi
+
+
+            # Set a flag to track if a title match is found
+            title_match_found=0
+
+            for ((i = 0; i < ${#PR_TITLES[@]}; i++)); do
+              if [[ "${{github.event.pull_request.title}}" == "${PR_TITLES[i]}" ]]; then
+                # If a match is found, set the flag to 1 and break out of the loop
+                title_match_found=1
+                break
+              fi
+            done
+
+            if [[ $title_match_found -eq 0 ]]; then
+              echo "::error::Hotfix PR title does not match any of the Original PR titles. Hotfix PR title: '${{ github.event.pull_request.title }}'"
+            fi
+
+
+            # Set a flag to track if any of the original PRs point to the 'main'
+            original_pr_points_to_main=0
+
+            for ((i = 0; i < ${#PR_BASE_REFS[@]}; i++)); do
+              if [[ "${PR_BASE_REFS[i]}" == "main" ]]; then
+                # If a match is found, set the flag to 1 and break out of the loop
+                original_pr_points_to_main=1
+                break
+              fi
+            done
+
+            if [[ $original_pr_points_to_main -eq 0 ]]; then
+              echo "::error::None of the Original PR's baseRef is 'main'"
+            fi
+
+
+            # Set a flag to track if any of the original PR's state is 'MERGED'
+            original_pr_merged=0
+
+            for ((i = 0; i < ${#PR_STATES[@]}; i++)); do
+              if [[ "${PR_STATES[i]}" == "MERGED" ]]; then
+                # If a match is found, set the flag to 1 and break out of the loop
+                original_pr_merged=1
+                break
+              fi
+            done
+
+            if [[ $original_pr_merged -eq 0 ]]; then
+              echo "::error::None of the Original PR is merged"
+            fi
+
+            # Print all Original PR's (number), (pr_title), (pr_author), (pr_base_ref) and (pr_state)
+            i=0
+            echo "Original PR info:"
+            for pr_number in ${PR_NUMBERS}; do
+              echo "#${pr_number} - pr_title: '${PR_TITLES[i]}' - pr_author: '${PR_AUTHORS[i]}' - pr_base_ref: '${PR_BASE_REFS[i]}' - pr_state: '${PR_STATES[i]}'"
+              i+=1
+            done
+
+            exit 1
+
+          else
+            echo "::notice::Hotfix PR satisfies all the required conditions"
+
+          fi

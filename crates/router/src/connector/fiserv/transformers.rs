@@ -62,6 +62,7 @@ pub struct Amount {
 pub struct TransactionDetails {
     capture_flag: Option<bool>,
     reversal_reason_code: Option<String>,
+    merchant_transaction_id: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -112,6 +113,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             reversal_reason_code: None,
+            merchant_transaction_id: item.connector_request_reference_id.clone(),
         };
         let metadata = item.get_connector_meta()?;
         let session: SessionObject = metadata
@@ -208,6 +210,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
             transaction_details: TransactionDetails {
                 capture_flag: None,
                 reversal_reason_code: Some(item.request.get_cancellation_reason()?),
+                merchant_transaction_id: item.connector_request_reference_id.clone(),
             },
         })
     }
@@ -315,7 +318,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    gateway_resp.transaction_processing_details.order_id,
+                ),
             }),
             ..item.data
         })
@@ -350,7 +355,13 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    gateway_resp
+                        .gateway_response
+                        .transaction_processing_details
+                        .order_id
+                        .clone(),
+                ),
             }),
             ..item.data
         })
@@ -399,6 +410,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
             transaction_details: TransactionDetails {
                 capture_flag: Some(true),
                 reversal_reason_code: None,
+                merchant_transaction_id: item.connector_request_reference_id.clone(),
             },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,

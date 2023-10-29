@@ -28,3 +28,13 @@ if (jsonData?.refund_id) {
     "INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.",
   );
 }
+
+
+// Response body should have "profile_id" and not "null"
+pm.test(
+  "[POST]::/payments - Content check if 'profile_id' exists and is not 'null'",
+  function () {
+    pm.expect(typeof jsonData.profile_id !== "undefined").to.be.true;
+    pm.expect(jsonData.profile_id).is.not.null;
+  },
+);

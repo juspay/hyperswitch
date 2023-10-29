@@ -207,12 +207,12 @@ impl
     }
 }
 
-impl api::PreVerify for Klarna {}
+impl api::MandateSetup for Klarna {}
 
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Klarna
 {
