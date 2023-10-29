@@ -200,7 +200,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
+        let connector_router_data = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = payeezy::PayeezyPaymentsRequest::try_from(&connector_router_data)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
