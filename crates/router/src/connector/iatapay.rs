@@ -345,7 +345,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth: iatapay::IatapayAuthType = iatapay::IatapayAuthType::try_from(&req.connector_auth_type)?;
+        let auth: iatapay::IatapayAuthType =
+            iatapay::IatapayAuthType::try_from(&req.connector_auth_type)?;
         let merchant_id = auth.merchant_id.peek();
         Ok(format!(
             "{}/merchants/{merchant_id}/payments/{}",
