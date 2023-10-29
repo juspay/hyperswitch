@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion,
+    enums::{FrmSuggestion, PaymentMethodType},
     payment_methods::{self, SurchargeDetailsResponse, SurchargeMetadata},
-    payments::GetPaymentMethodType,
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
@@ -736,8 +735,9 @@ impl PaymentConfirm {
                 })?;
 
             // if payment method is wallet, verify if session call surcharge details are same as the one sent in confirm request
-            if let api::payments::PaymentMethodData::Wallet(wallet_data) = payment_method_data {
-                let payment_method_type = wallet_data.get_payment_method_type();
+            if let Some(payment_method_type) =
+                Self::get_payment_method_type_if_sdk_payment(payment_method_data)
+            {
                 let redis_conn = state
                     .store
                     .get_redis_conn()
@@ -779,6 +779,37 @@ impl PaymentConfirm {
             }
         } else {
             Ok(())
+        }
+    }
+    fn get_payment_method_type_if_sdk_payment(
+        payment_method_data: &api::payments::PaymentMethodData,
+    ) -> Option<PaymentMethodType> {
+        match payment_method_data {
+            api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
+                api_models::payments::WalletData::ApplePay(_) => Some(PaymentMethodType::ApplePay),
+                api_models::payments::WalletData::GooglePay(_) => {
+                    Some(PaymentMethodType::GooglePay)
+                }
+                api_models::payments::WalletData::PaypalSdk(_) => Some(PaymentMethodType::Paypal),
+                _ => None,
+            },
+            api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
+                api_models::payments::PayLaterData::KlarnaSdk { .. } => {
+                    Some(PaymentMethodType::Klarna)
+                }
+                _ => None,
+            },
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => None,
         }
     }
 }
