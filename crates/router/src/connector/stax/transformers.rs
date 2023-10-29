@@ -384,7 +384,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCapture
     fn try_from(
         item: &StaxRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let tota = item.amount as f64;
+        let total = item.amount as f64;
         Ok(Self { total: Some(total) })
     }
 }
