@@ -337,7 +337,7 @@ impl<F>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelcimMetaData {
-    pub preauth_transaction_id: u64,
+    pub connector_request_reference_id: u64,
 }
 
 impl<F>
@@ -369,7 +369,7 @@ impl<F>
         };
         let connector_metadata = if !item.data.request.is_auto_capture()? {
             Some(serde_json::json!(HelcimMetaData {
-                preauth_transaction_id: item.response.transaction_id,
+                connector_request_reference_id: item.response.transaction_id,
             }))
         } else {
             None
