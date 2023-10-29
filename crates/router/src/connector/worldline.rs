@@ -13,7 +13,7 @@ use transformers as worldline;
 
 use super::utils::RefundsRequestData;
 use crate::{
-    configs::settings::{self, Connectors},
+    configs::settings::Connectors,
     connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
