@@ -216,7 +216,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -334,7 +340,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -448,7 +460,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -570,7 +588,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -702,7 +726,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -848,7 +878,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -959,7 +995,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -1105,7 +1147,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -1214,7 +1262,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -1309,7 +1363,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -1445,7 +1505,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -1539,7 +1605,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
@@ -1656,7 +1728,13 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .unwrap_or(message)
+            }),
         })
     }
 }
