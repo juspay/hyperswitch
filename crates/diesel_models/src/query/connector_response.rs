@@ -65,11 +65,11 @@ impl ConnectorResponse {
                 connector_name,
                 updated_by,
             } => PaymentAttemptUpdate::ConnectorResponse {
-                authentication_data: authentication_data.to_owned(),
-                encoded_data: encoded_data.to_owned(),
-                connector_transaction_id: connector_transaction_id.to_owned(),
-                connector: connector_name.to_owned(),
-                updated_by: updated_by.to_owned(),
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector: connector_name,
+                updated_by,
             },
             ConnectorResponseUpdate::ErrorUpdate {
                 connector_name,
@@ -78,8 +78,8 @@ impl ConnectorResponse {
                 authentication_data: None,
                 encoded_data: None,
                 connector_transaction_id: None,
-                connector: connector_name.clone(),
-                updated_by: updated_by.to_owned(),
+                connector: connector_name,
+                updated_by,
             },
         };
 
