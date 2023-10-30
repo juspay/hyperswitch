@@ -14,7 +14,6 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
-    
     routes::AppState,
     services,
     types::{

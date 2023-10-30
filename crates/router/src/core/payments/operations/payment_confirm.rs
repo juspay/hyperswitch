@@ -6,7 +6,7 @@ use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{IntoReport, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -88,11 +88,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .await
         });
 
-        let (payment_intent1, mandate_details1) =
-            futures::try_join!(payment_intent_fut, mandate_details_fut)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed join")?;
+        let (payment_intent1, mandate_details1) = futures::try_join!(
+            payment_intent_fut.in_current_span(),
+            mandate_details_fut.in_current_span()
+        )
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed join")?;
 
         let mut payment_intent = payment_intent1?;
         let mandate_details = mandate_details1?;
@@ -221,7 +223,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
                     let attempt_id = payment_intent.active_attempt.get_id();
 
-                    
                     let m_db = state.clone().store;
                     let m_attempt_id = attempt_id.clone();
                     let m_payment_intent_payment_id = payment_intent.payment_id.clone();
@@ -240,11 +241,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
                     let (payment_attempt, shipping_address, billing_address, connector_response, _) =
                         futures::try_join!(
-                            payment_attempt_fut,
-                            shipping_address_fut,
-                            billing_address_fut,
-                            connector_response_fut,
-                            config_update_fut
+                            payment_attempt_fut.in_current_span(),
+                            shipping_address_fut.in_current_span(),
+                            billing_address_fut.in_current_span(),
+                            connector_response_fut.in_current_span(),
+                            config_update_fut.in_current_span(),
                         )
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -260,10 +261,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 _ => {
                     let (payment_attempt, shipping_address, billing_address, _) =
                         futures::try_join!(
-                            payment_attempt_fut,
-                            shipping_address_fut,
-                            billing_address_fut,
-                            config_update_fut
+                            payment_attempt_fut.in_current_span(),
+                            shipping_address_fut.in_current_span(),
+                            billing_address_fut.in_current_span(),
+                            config_update_fut.in_current_span(),
                         )
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -561,7 +562,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
-
         let db = state.store;
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
@@ -635,7 +635,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        
+
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -771,11 +771,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             tokio::spawn(async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) })
         };
 
-        let (payment_intent, payment_attempt, _) =
-            futures::try_join!(payment_intent_fut, payment_attempt_fut, customer_fut)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed join")?;
+        let (payment_intent, payment_attempt, _) = futures::try_join!(
+            payment_intent_fut.in_current_span(),
+            payment_attempt_fut.in_current_span(),
+            customer_fut.in_current_span()
+        )
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed join")?;
         let (payment_intent, payment_attempt) = (payment_intent?, payment_attempt?);
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;

@@ -188,7 +188,7 @@ where
                 .await?;
 
                 let operation = Box::new(PaymentResponse);
-                
+
                 connector_http_status_code = router_data.connector_http_status_code;
                 external_latency = router_data.external_latency;
                 //add connector http status code metrics

@@ -1,7 +1,13 @@
 use std::collections::HashMap;
 
+use async_trait::async_trait;
+use error_stack::{IntoReport, ResultExt};
+use futures::FutureExt;
+use router_derive;
+use router_env::{instrument, tracing};
+
 use super::{Operation, PostUpdateTracker};
-use crate::AppState;
+use router_env::tracing::Instrument;
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -10,7 +16,6 @@ use crate::{
         payments::{types::MultipleCaptureData, PaymentData},
         utils as core_utils,
     },
-    
     routes::metrics,
     services::RedirectForm,
     types::{
@@ -22,14 +27,8 @@ use crate::{
         transformers::ForeignTryFrom,
         CaptureSyncResponse,
     },
-    utils,
+    utils, AppState,
 };
-use async_trait::async_trait;
-use error_stack::IntoReport;
-use error_stack::ResultExt;
-use futures::FutureExt;
-use router_derive;
-use router_env::{instrument, tracing};
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
@@ -289,14 +288,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(
-            state,
-            payment_id,
-            payment_data,
-            response,
-            storage_scheme,
-        )
-        .await
+        payment_response_update_tracker(state, payment_id, payment_data, response, storage_scheme)
+            .await
     }
 }
 
@@ -628,11 +621,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await
     });
 
-    let (payment_attempt, connector_response) =
-        futures::try_join!(payment_attempt_fut, connector_response_fut)
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed join")?;
+    let (payment_attempt, connector_response) = futures::try_join!(
+        payment_attempt_fut.in_current_span(),
+        connector_response_fut.in_current_span(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed join")?;
     let (payment_attempt, connector_response) = (payment_attempt?, connector_response?);
     payment_data.payment_attempt = payment_attempt;
     payment_data.connector_response = connector_response;
@@ -689,10 +684,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await
     });
 
-    let (payment_intent, _) = futures::try_join!(payment_intent_fut, mandate_update_fut)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed join")?;
+    let (payment_intent, _) = futures::try_join!(
+        payment_intent_fut.in_current_span(),
+        mandate_update_fut.in_current_span()
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed join")?;
     let payment_intent = payment_intent?;
     payment_data.payment_intent = payment_intent;
 
