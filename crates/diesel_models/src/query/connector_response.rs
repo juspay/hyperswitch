@@ -57,13 +57,13 @@ impl ConnectorResponse {
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
     ) -> StorageResult<Self> {
-        let payment_attempt_update = match connector_response {
+        let payment_attempt_update = match connector_response.clone() {
             ConnectorResponseUpdate::ResponseUpdate {
-                ref connector_transaction_id,
-                ref authentication_data,
-                ref encoded_data,
-                ref connector_name,
-                ref updated_by,
+                connector_transaction_id,
+                authentication_data,
+                encoded_data,
+                connector_name,
+                updated_by,
             } => PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data: authentication_data.to_owned(),
                 encoded_data: encoded_data.to_owned(),
@@ -72,8 +72,8 @@ impl ConnectorResponse {
                 updated_by: updated_by.to_owned(),
             },
             ConnectorResponseUpdate::ErrorUpdate {
-                ref connector_name,
-                ref updated_by,
+                connector_name,
+                updated_by,
             } => PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data: None,
                 encoded_data: None,
