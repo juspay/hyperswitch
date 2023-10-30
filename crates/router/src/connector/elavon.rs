@@ -48,7 +48,6 @@ impl
         types::PaymentsResponseData,
     > for Elavon
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Elavon
@@ -137,7 +136,6 @@ impl ConnectorCommon for Elavon {
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Elavon
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>

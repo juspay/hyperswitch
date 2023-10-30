@@ -177,8 +177,6 @@ impl TryFrom<&api_models::payments::Address> for OrderShippingAddress {
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct ElavonAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -198,8 +196,7 @@ impl TryFrom<&types::ConnectorAuthType> for ElavonAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum ElavonStatus {
@@ -235,7 +232,6 @@ impl From<ElavonStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ElavonPaymentsResponse {
@@ -307,13 +303,12 @@ impl From<ElavonStatus> for enums::RefundStatus {
             ElavonStatus::SettlementDelayed => Self::Pending,
             ElavonStatus::Rejected => Self::Failure,
             ElavonStatus::HeldForReview => Self::ManualReview,
-            ElavonStatus::Unknown => Self::ManualReview, //what should we map this
+            ElavonStatus::Unknown => Self::Pending, // Have to get confirmation from the connector
             ElavonStatus::AuthorizationPending => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -354,7 +349,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ElavonErrorResponse {
     pub status: u16,
