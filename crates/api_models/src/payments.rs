@@ -3147,6 +3147,7 @@ pub struct PaymentLinkDetails {
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: crypto::OptionalEncryptableName,
-    pub order_details: Vec<pii::SecretSerdeValue>,
+    pub order_details: Vec<OrderDetailsWithAmount>,
     pub max_items_visible_after_collapse: i8,
+    pub sdk_theme: Option<String>,
 }

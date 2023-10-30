@@ -112,8 +112,8 @@
       }
 
       #hyper-checkout-merchant-image > img {
-        height: 48px;
-        width: 48px;
+        height: 40px;
+        width: 40px;
       }
 
       #hyper-checkout-cart-image {
@@ -175,8 +175,8 @@
       }
 
       .hyper-checkout-cart-product-image {
-        height: 72px;
-        width: 72px;
+        height: 56px;
+        width: 56px;
       }
 
       .hyper-checkout-card-item-name {
@@ -825,7 +825,7 @@ S619.162,694.432,619.162,716.897z"
         var client_secret = paymentDetails.client_secret;
         const appearance = {
           variables: {
-            colorPrimary: "rgb(0, 109, 249)",
+            colorPrimary: paymentDetails.sdk_theme,
             fontFamily: "Work Sans, sans-serif",
             fontSizeBase: "16px",
             colorText: "rgb(51, 65, 85)",
