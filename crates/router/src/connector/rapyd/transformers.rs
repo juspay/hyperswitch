@@ -484,7 +484,9 @@ impl<F, T>
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
-                                connector_response_reference_id: None,
+                                connector_response_reference_id: Some(
+                                    item.data.merchant_reference_id.unwrap_or(item.response.id)
+                                ),
                             }),
                         )
                     }
