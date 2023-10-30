@@ -19,6 +19,7 @@ impl utils::Connector for TsysTest {
             connector: Box::new(&Tsys),
             connector_name: types::Connector::Tsys,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

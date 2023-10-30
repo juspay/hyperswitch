@@ -31,7 +31,7 @@ where
     U: auth::AuthInfo,
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
-    T: std::fmt::Debug,
+    T: std::fmt::Debug + Serialize,
     A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();

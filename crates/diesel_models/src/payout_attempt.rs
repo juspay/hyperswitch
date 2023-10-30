@@ -27,6 +27,7 @@ pub struct PayoutAttempt {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
     pub profile_id: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 impl Default for PayoutAttempt {
@@ -51,6 +52,7 @@ impl Default for PayoutAttempt {
             created_at: now,
             last_modified_at: now,
             profile_id: None,
+            merchant_connector_id: None,
         }
     }
 }
@@ -88,6 +90,7 @@ pub struct PayoutAttemptNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub profile_id: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug)]
