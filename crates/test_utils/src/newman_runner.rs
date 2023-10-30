@@ -2,6 +2,7 @@ use std::{
     env,
     fs::OpenOptions,
     io::{self, Write},
+    path::Path,
     process::Command,
 };
 
@@ -13,20 +14,20 @@ use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
 struct Args {
     /// Admin API Key of the environment
-    #[arg(short, long = "admin_api_key")]
+    #[arg(short, long)]
     admin_api_key: String,
     /// Base URL of the Hyperswitch environment
-    #[arg(short, long = "base_url")]
+    #[arg(short, long)]
     base_url: String,
     /// Name of the connector
-    #[arg(short, long = "connector_name")]
+    #[arg(short, long)]
     connector_name: String,
     /// Custom headers
-    #[arg(long = "custom_headers")]
+    #[arg(long)]
     custom_headers: Option<String>,
-    /// Minimum delay to be added before sending a request
+    /// Minimum delay in milliseconds to be added before sending a request
     /// By default, 7 milliseconds will be the delay
-    #[arg(short, long = "delay_request", default_value_t = 7)]
+    #[arg(short, long, default_value_t = 7)]
     delay_request: u32,
     /// Folder name of specific tests
     #[arg(short, long = "folder")]
@@ -45,20 +46,25 @@ fn get_path(name: impl AsRef<str>) -> String {
 
 // This function currently allows you to add only custom headers.
 // In future, as we scale, this can be modified based on the need
-fn insert_content(dir: &String, content_to_insert: &str) -> io::Result<bool> {
+fn insert_content<T>(dir: T, content_to_insert: impl AsRef<str>) -> io::Result<()>
+where
+    T: AsRef<Path> + std::fmt::Debug,
+{
     let file_name = "event.prerequest.js";
-    let file_path = format!("{}/{}", dir, file_name);
+    let file_path = format!("{:#?}/{}", dir, file_name);
 
     // Open the file in write mode or create it if it doesn't exist
     let mut file = OpenOptions::new()
         .write(true)
-        .create(true)
+        .append(true)
         .open(file_path)?;
 
-    // Write the content to the file
-    file.write_all(content_to_insert.as_bytes())?;
+    // Convert the content to insert to a byte slice
+    let content_bytes = content_to_insert.as_ref().as_bytes();
 
-    Ok(true)
+    // Write the content to the file
+    file.write_all(content_bytes)?;
+    Ok(())
 }
 
 pub fn command_generate() -> (Command, bool, String) {
