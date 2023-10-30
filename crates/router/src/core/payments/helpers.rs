@@ -978,6 +978,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer: &domain::Customer,
+    email: Option<String>,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method_data {
         Some(pm_data) => match payment_method {
@@ -1003,6 +1004,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .card_network
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
+                        email,
                     };
                     Ok(payment_method_request)
                 }
@@ -1016,6 +1018,7 @@ pub(crate) async fn get_payment_method_create_request(
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
+                        email,
                     };
                     Ok(payment_method_request)
                 }

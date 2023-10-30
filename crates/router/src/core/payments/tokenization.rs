@@ -43,22 +43,26 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let connector_token = if token_store {
-                let tokens = resp
-                    .payment_method_token
-                    .to_owned()
-                    .get_required_value("payment_token")?;
-                let token = match tokens {
-                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+            let tokens = resp
+                .payment_method_token
+                .to_owned()
+                .get_required_value("payment_token")?;
+
+            let (connector_token, connector_email) = if token_store {
+                let (token, email) = match tokens {
+                    types::PaymentMethodToken::Token(connector_token) => (connector_token, None),
+                    types::PaymentMethodToken::TokenWithParameters(connector_token) => {
+                        (connector_token.token, connector_token.email)
+                    }
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ApiErrorResponse::NotSupported {
                             message: "Apple Pay Decrypt token is not supported".to_string(),
                         })?
                     }
                 };
-                Some((connector, token))
+                (Some((connector, token)), email)
             } else {
-                None
+                (None, None)
             };
 
             let pm_id = if resp.request.get_setup_future_usage().is_some() {
@@ -68,6 +72,7 @@ where
                     Some(resp.payment_method),
                     payment_method_type,
                     &customer,
+                    connector_email,
                 )
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;

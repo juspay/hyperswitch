@@ -287,7 +287,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
                             types::PaymentMethodToken::Token(token) => token,
-                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                            types::PaymentMethodToken::ApplePayDecrypt(_)
+                            | types::PaymentMethodToken::TokenWithParameters(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
                         },
@@ -332,6 +333,11 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                     cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                 },
                             )))
+                        }
+                        types::PaymentMethodToken::TokenWithParameters(_) => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("checkout"),
+                            ))
                         }
                     }
                 }

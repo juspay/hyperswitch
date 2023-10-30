@@ -278,7 +278,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        types::PaymentMethodToken::ApplePayDecrypt(_)
+                        | types::PaymentMethodToken::TokenWithParameters(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),

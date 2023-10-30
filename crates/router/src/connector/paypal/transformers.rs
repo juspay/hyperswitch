@@ -398,7 +398,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         .router_data
                         .request
                         .setup_future_usage
-                        .clone()
                         .map(|_| AttributesStruct { vault });
 
                     let payment_source = Some(PaymentSourceItem::Paypal(
@@ -804,6 +803,7 @@ pub struct PaypalVaultSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttributeResponse {
+    email: String,
     attributes: VaultData,
 }
 
@@ -962,8 +962,15 @@ impl<F, T>
         let status = storage_enums::AttemptStatus::from(status);
         Ok(Self {
             status,
+            payment_method_token: Some(types::PaymentMethodToken::TokenWithParameters(
+                types::TokenWithParameters {
+                    token: vault_id,
+                    email: Some(item.response.payment_source.paypal.email),
+                    metadata: None,
+                },
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(vault_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

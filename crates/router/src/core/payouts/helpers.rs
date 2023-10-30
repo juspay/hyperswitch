@@ -237,6 +237,7 @@ pub async fn save_payout_data_to_locker(
         metadata: None,
         customer_id: Some(payout_attempt.customer_id.to_owned()),
         card_network: None,
+        email: None,
     };
 
     cards::create_payment_method(

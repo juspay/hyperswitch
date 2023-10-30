@@ -111,7 +111,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             }
         }?;
 
-        Ok(mandate::mandate_procedure(state, resp, customer, pm_id).await?)
+        Ok(mandate::mandate_procedure(
+            state,
+            resp,
+            customer,
+            pm_id,
+            connector.merchant_connector_id.clone(),
+        )
+        .await?)
     }
 
     async fn add_access_token<'a>(

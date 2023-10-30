@@ -175,7 +175,8 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                 shipping_address: get_shipping_details(item.router_data)?,
                                 card_token: Some(Secret::new(match pm_token {
                                     types::PaymentMethodToken::Token(token) => token,
-                                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    types::PaymentMethodToken::ApplePayDecrypt(_)
+                                    | types::PaymentMethodToken::TokenWithParameters(_) => {
                                         Err(errors::ConnectorError::InvalidWalletToken)?
                                     }
                                 })),
