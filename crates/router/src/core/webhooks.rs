@@ -180,6 +180,7 @@ pub async fn payments_incoming_webhook_flow<
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -480,6 +481,7 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
