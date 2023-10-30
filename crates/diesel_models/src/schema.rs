@@ -509,6 +509,17 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    organization (org_id) {
+        #[max_length = 32]
+        org_id -> Varchar,
+        org_name -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     payment_attempt (id) {
         id -> Int4,
         #[max_length = 64]
@@ -879,6 +890,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    organization,
     payment_attempt,
     payment_intent,
     payment_link,
