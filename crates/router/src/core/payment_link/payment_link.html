@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     {{ hyperloader_sdk_link }}
     <style>
       {{ css_color_scheme }}
@@ -41,9 +43,18 @@
       .hyper-checkout {
         display: flex;
         background-color: #fafafa;
-        height: 100%;
         width: 100%;
+        height: 100%;
         max-width: 1900px;
+      }
+
+      #hyper-footer {
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        background-color: white;
+        z-index: 100;
+        padding: 20px 0;
       }
 
       .main {
@@ -338,32 +349,94 @@
       }
 
       #hyper-checkout-status {
-        margin: 40px !important;
+        display: flex;
+        flex-flow: column;
+        font-family: "Montserrat";
+        height: 100%;
+        width: 100%;
       }
 
-      .hyper-checkout-status-header {
+      #hyper-checkout-status-header {
+        max-width: 1200px;
+        border: 1px solid #e6e6e6;
+        border-radius: 3px;
+        padding: 20px;
+      }
+
+      #hyper-checkout-status-header,
+      #hyper-checkout-status-content {
+        width: 100%;
         display: flex;
         align-items: center;
-        font-family: "Montserrat";
+        justify-content: space-between;
         font-size: 24px;
         font-weight: 600;
       }
 
-      #status-img {
-        height: 70px;
+      .hyper-checkout-status-amount {
+        font-family: "Montserrat";
+        font-size: 40px;
+        font-weight: 700;
       }
 
-      #status-date {
-        font-size: 13px;
-        font-weight: 500;
-        color: #53655c;
+      .hyper-checkout-status-merchant-logo {
+        border: 1px solid #e6e6e6;
+        height: 62px;
+        width: 62px;
       }
 
-      #status-details {
-        margin-left: 10px;
+      #hyper-checkout-status-content {
         justify-content: center;
+        align-items: center;
+        flex-flow: column;
+        height: 100%;
+      }
+
+      .hyper-checkout-status-image {
+        height: 200px;
+        width: 200px;
+      }
+
+      .hyper-checkout-status-text {
+        text-align: center;
+        font-size: 28px;
+        font-weight: 600;
+      }
+
+      .hyper-checkout-status-message {
+        text-align: center;
+        font-size: 12px;
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .hyper-checkout-status-details {
         display: flex;
         flex-flow: column;
+        margin-top: 20px;
+        border-radius: 3px;
+        border: 1px solid #e6e6e6;
+      }
+
+      .hyper-checkout-status-item {
+        display: flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-bottom: 1px solid #e6e6e6;
+      }
+
+      .hyper-checkout-status-item:last-child {
+        border-bottom: 0;
+      }
+
+      .hyper-checkout-item-header {
+        width: 15ch;
+        font-size: 12px;
+      }
+
+      .hyper-checkout-item-value {
+        font-size: 12px;
       }
 
       @keyframes loading {
@@ -513,31 +586,11 @@
         #payment-form-wrap {
           min-width: 300px;
           padding: 10px;
-          width: 100vw;
+          width: calc(100vw - 20px);
         }
 
-        #hyper-checkout-status {
-          padding: 15px;
-        }
-
-        #status-img {
-          height: 60px;
-        }
-
-        #status-text {
-          font-size: 19px;
-        }
-
-        #status-date {
-          font-size: 12px;
-        }
-
-        .hyper-checkout-item-header {
-          font-size: 11px;
-        }
-
-        .hyper-checkout-item-value {
-          font-size: 17px;
+        #hyper-checkout-status-header {
+          max-width: calc(100% - 40px);
         }
       }
     </style>
@@ -551,16 +604,10 @@
     <div class="page-spinner hidden" id="page-spinner"></div>
     <div class="hyper-checkout">
       <div class="main hidden" id="hyper-checkout-status">
-        <div class="hyper-checkout-status-header">
-          <img id="status-img" />
-          <div id="status-details">
-            <div id="status-text"></div>
-            <div id="status-date"></div>
-          </div>
-        </div>
-        <div id="hyper-checkout-status-items"></div>
+        <div id="hyper-checkout-status-header"></div>
+        <div id="hyper-checkout-status-content"></div>
       </div>
-      <div class="main" id="hyper-checkout-details">
+      <div class="main hidden" id="hyper-checkout-details">
         <div class="hyper-checkout-payment">
           <div class="hyper-checkout-payment-content-details">
             <div id="hyper-checkout-payment-context">
@@ -606,7 +653,7 @@ S619.162,694.432,619.162,716.897z"
           </div>
           <div id="hyper-checkout-payment-footer"></div>
         </div>
-        <div id="hyper-checkout-cart" class="hidden">
+        <div id="hyper-checkout-cart" class="">
           <div class="hyper-checkout-cart-header">
             <svg
               width="16"
@@ -658,7 +705,7 @@ S619.162,694.432,619.162,716.897z"
           <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
         </div>
       </div>
-      <div class="hyper-checkout-sdk" id="hyper-checkout-sdk">
+      <div class="hyper-checkout-sdk hidden" id="hyper-checkout-sdk">
         <div id="payment-form-wrap">
           <form id="payment-form">
             <div id="unified-checkout">
@@ -685,22 +732,14 @@ S619.162,694.432,619.162,716.897z"
             <div id="payment-message" class="hidden"></div>
           </form>
         </div>
-
         <div class="powered-by-hyper">
-          <svg
-            id="powerd-by-hyper"
-            xmlns="http://www.w3.org/2000/svg"
-            width="130"
-            height="13"
-            viewBox="0 0 130 13"
-            fill="none"
-          >
+          <svg class="fill-current" height="18px" width="130px" transform="">
             <path
-              opacity="0.2"
+              opacity="0.4"
               d="M0.791016 11.7578H1.64062V9.16992H1.71875C2.00684 9.73145 2.63672 10.0928 3.35938 10.0928C4.69727 10.0928 5.56641 9.02344 5.56641 7.37305V7.36328C5.56641 5.72266 4.69238 4.64355 3.35938 4.64355C2.62695 4.64355 2.04102 4.99023 1.71875 5.57617H1.64062V4.73633H0.791016V11.7578ZM3.16406 9.34082C2.20703 9.34082 1.62109 8.58887 1.62109 7.37305V7.36328C1.62109 6.14746 2.20703 5.39551 3.16406 5.39551C4.12598 5.39551 4.69727 6.1377 4.69727 7.36328V7.37305C4.69727 8.59863 4.12598 9.34082 3.16406 9.34082ZM8.85762 10.0928C10.3566 10.0928 11.2844 9.05762 11.2844 7.37305V7.36328C11.2844 5.67383 10.3566 4.64355 8.85762 4.64355C7.35859 4.64355 6.43086 5.67383 6.43086 7.36328V7.37305C6.43086 9.05762 7.35859 10.0928 8.85762 10.0928ZM8.85762 9.34082C7.86152 9.34082 7.3 8.61328 7.3 7.37305V7.36328C7.3 6.11816 7.86152 5.39551 8.85762 5.39551C9.85371 5.39551 10.4152 6.11816 10.4152 7.36328V7.37305C10.4152 8.61328 9.85371 9.34082 8.85762 9.34082ZM13.223 10H14.0727L15.2445 5.92773H15.3227L16.4994 10H17.3539L18.8285 4.73633H17.9838L16.9486 8.94531H16.8705L15.6938 4.73633H14.8881L13.7113 8.94531H13.6332L12.598 4.73633H11.7484L13.223 10ZM21.7047 10.0928C22.9449 10.0928 23.6969 9.38965 23.8775 8.67676L23.8873 8.6377H23.0377L23.0182 8.68164C22.8766 8.99902 22.4371 9.33594 21.7242 9.33594C20.7867 9.33594 20.1861 8.70117 20.1617 7.6123H23.9508V7.28027C23.9508 5.70801 23.0816 4.64355 21.651 4.64355C20.2203 4.64355 19.2926 5.75684 19.2926 7.38281V7.3877C19.2926 9.03809 20.2008 10.0928 21.7047 10.0928ZM21.6461 5.40039C22.4225 5.40039 22.9986 5.89355 23.0865 6.93359H20.1764C20.2691 5.93262 20.8648 5.40039 21.6461 5.40039ZM25.0691 10H25.9188V6.73828C25.9188 5.9668 26.4949 5.4541 27.3055 5.4541C27.491 5.4541 27.6521 5.47363 27.8279 5.50293V4.67773C27.7449 4.66309 27.5643 4.64355 27.4031 4.64355C26.6902 4.64355 26.1971 4.96582 25.9969 5.51758H25.9188V4.73633H25.0691V10ZM30.6797 10.0928C31.9199 10.0928 32.6719 9.38965 32.8525 8.67676L32.8623 8.6377H32.0127L31.9932 8.68164C31.8516 8.99902 31.4121 9.33594 30.6992 9.33594C29.7617 9.33594 29.1611 8.70117 29.1367 7.6123H32.9258V7.28027C32.9258 5.70801 32.0566 4.64355 30.626 4.64355C29.1953 4.64355 28.2676 5.75684 28.2676 7.38281V7.3877C28.2676 9.03809 29.1758 10.0928 30.6797 10.0928ZM30.6211 5.40039C31.3975 5.40039 31.9736 5.89355 32.0615 6.93359H29.1514C29.2441 5.93262 29.8398 5.40039 30.6211 5.40039ZM35.9875 10.0928C36.7199 10.0928 37.3059 9.74609 37.6281 9.16016H37.7062V10H38.5559V2.64648H37.7062V5.56641H37.6281C37.34 5.00488 36.7102 4.64355 35.9875 4.64355C34.6496 4.64355 33.7805 5.71289 33.7805 7.36328V7.37305C33.7805 9.01367 34.6545 10.0928 35.9875 10.0928ZM36.1828 9.34082C35.2209 9.34082 34.6496 8.59863 34.6496 7.37305V7.36328C34.6496 6.1377 35.2209 5.39551 36.1828 5.39551C37.1398 5.39551 37.7258 6.14746 37.7258 7.36328V7.37305C37.7258 8.58887 37.1398 9.34082 36.1828 9.34082ZM45.2164 10.0928C46.5494 10.0928 47.4234 9.01367 47.4234 7.37305V7.36328C47.4234 5.71289 46.5543 4.64355 45.2164 4.64355C44.4938 4.64355 43.8639 5.00488 43.5758 5.56641H43.4977V2.64648H42.648V10H43.4977V9.16016H43.5758C43.898 9.74609 44.484 10.0928 45.2164 10.0928ZM45.0211 9.34082C44.0641 9.34082 43.4781 8.58887 43.4781 7.37305V7.36328C43.4781 6.14746 44.0641 5.39551 45.0211 5.39551C45.983 5.39551 46.5543 6.1377 46.5543 7.36328V7.37305C46.5543 8.59863 45.983 9.34082 45.0211 9.34082ZM48.7957 11.8457C49.7283 11.8457 50.1629 11.5039 50.5975 10.3223L52.6531 4.73633H51.7596L50.3191 9.06738H50.241L48.7957 4.73633H47.8875L49.8357 10.0049L49.7381 10.3174C49.5477 10.9229 49.2547 11.1426 48.7713 11.1426C48.6541 11.1426 48.5223 11.1377 48.4197 11.1182V11.8164C48.5369 11.8359 48.6834 11.8457 48.7957 11.8457Z"
               fill="currentColor"
             ></path>
-            <g opacity="0.4">
+            <g opacity="0.6">
               <path
                 d="M78.42 6.9958C78.42 9.15638 77.085 10.4444 75.2379 10.4444C74.2164 10.4444 73.3269 10.0276 72.9206 9.33816V12.9166H71.4929V3.65235H72.8018L72.9193 4.66772C73.3256 3.97825 74.189 3.5225 75.2366 3.5225C77.017 3.5225 78.4186 4.75861 78.4186 6.9971L78.42 6.9958ZM76.94 6.9958C76.94 5.62985 76.1288 4.78328 74.9492 4.78328C73.8232 4.77029 72.9598 5.62855 72.9598 7.00878C72.9598 8.38901 73.8246 9.18235 74.9492 9.18235C76.0739 9.18235 76.94 8.36304 76.94 6.9958Z"
                 fill="currentColor"
@@ -906,12 +945,13 @@ S619.162,694.432,619.162,716.897z"
 
       // Fetches the payment status after payment submission
       async function checkStatus() {
-        const clientSecret = new URLSearchParams(window.location.search).get(
-          "payment_intent_client_secret"
-        );
         const res = {
           showSdk: true,
         };
+
+        const clientSecret = new URLSearchParams(window.location.search).get(
+          "payment_intent_client_secret"
+        );
 
         if (!clientSecret) {
           return res;
@@ -950,101 +990,74 @@ S619.162,694.432,619.162,716.897z"
         show("#payment-message");
         addText("#payment-message", msg);
       }
+
       function showStatus(paymentDetails) {
         const status = paymentDetails.status;
         let statusDetails = {
           imageSource: "",
-          message: "",
+          message: null,
           status: status,
           amountText: "",
           items: [],
         };
 
+        // Payment details
+        var paymentId = createItem("Ref Id", paymentDetails.payment_id);
+        // @ts-ignore
+        statusDetails.items.push(paymentId);
+
+        // Status specific information
         switch (status) {
           case "succeeded":
             statusDetails.imageSource =
               "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
-            statusDetails.message = "Payment successful";
-            statusDetails.status = "Succeeded";
+            statusDetails.message =
+              "We have successfully recieved your payment";
+            statusDetails.status = "Paid successfully";
             statusDetails.amountText = new Date(
               paymentDetails.created
             ).toTimeString();
-
-            // Payment details
-            var amountNode = createItem(
-              "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
-            );
-            var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
-            // @ts-ignore
-            statusDetails.items.push(amountNode, paymentId);
             break;
 
           case "processing":
             statusDetails.imageSource =
               "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
-            statusDetails.message = "Payment in progress";
-            statusDetails.status = "Processing";
-            // Payment details
-            var amountNode = createItem(
-              "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
-            );
-            var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
-            // @ts-ignore
-            statusDetails.items.push(amountNode, paymentId);
+            statusDetails.message =
+              "Sorry! Your payment is taking longer than expected. Please check back again in sometime.";
+            statusDetails.status = "Payment Pending";
             break;
 
           case "failed":
-            statusDetails.imageSource = "";
-            statusDetails.message = "Payment failed";
-            statusDetails.status = "Failed";
-            // Payment details
-            var amountNode = createItem(
-              "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
+            statusDetails.imageSource =
+              "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
+            statusDetails.status = "Payment Failed!";
+            var errorCodeNode = createItem(
+              "Error code",
+              paymentDetails.error_code
             );
-            var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
+            var errorMessageNode = createItem(
+              "Error message",
+              paymentDetails.error_message
+            );
             // @ts-ignore
-            statusDetails.items.push(amountNode, paymentId);
+            statusDetails.items.push(errorMessageNode, errorCodeNode);
             break;
 
           case "cancelled":
-            statusDetails.imageSource = "";
-            statusDetails.message = "Payment cancelled";
-            statusDetails.status = "Cancelled";
-            // Payment details
-            var amountNode = createItem(
-              "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
-            );
-            var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
-            // @ts-ignore
-            statusDetails.items.push(amountNode, paymentId);
+            statusDetails.imageSource =
+              "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
+            statusDetails.status = "Payment Cancelled";
             break;
 
           case "requires_merchant_action":
-            statusDetails.imageSource = "";
-            statusDetails.message = "Payment under review";
-            statusDetails.status = "Under review";
-            // Payment details
-            var amountNode = createItem(
-              "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
-            );
-            var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
-            var paymentId = createItem(
-              "MESSAGE",
-              "Your payment is under review by the merchant."
-            );
-            // @ts-ignore
-            statusDetails.items.push(amountNode, paymentId);
+            statusDetails.imageSource =
+              "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
+            statusDetails.status = "Payment under review";
             break;
 
           default:
             statusDetails.imageSource =
               "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
-            statusDetails.message = "Something went wrong";
             statusDetails.status = "Something went wrong";
             // Error details
             if (typeof paymentDetails.error === "object") {
@@ -1062,36 +1075,52 @@ S619.162,694.432,619.162,716.897z"
             break;
         }
 
-        // Append status
-        var statusTextNode = document.getElementById("status-text");
-        if (statusTextNode !== null) {
-          statusTextNode.innerText = statusDetails.message;
-        }
+        // Form header items
+        var amountNode = document.createElement("div");
+        amountNode.className = "hyper-checkout-status-amount";
+        amountNode.innerText =
+          paymentDetails.currency + " " + paymentDetails.amount;
+        var merchantLogoNode = document.createElement("img");
+        merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
+        merchantLogoNode.src = "";
+        merchantLogoNode.alt = "";
 
-        // Append image
-        var statusImageNode = document.getElementById("status-img");
-        if (statusImageNode !== null) {
-          statusImageNode.src = statusDetails.imageSource;
-        }
-
-        // Append status details
-        var statusDateNode = document.getElementById("status-date");
-        if (statusDateNode !== null) {
-          statusDateNode.innerText = statusDetails.amountText;
-        }
+        // Form content items
+        var statusImageNode = document.createElement("img");
+        statusImageNode.className = "hyper-checkout-status-image";
+        statusImageNode.src = statusDetails.imageSource;
+        var statusTextNode = document.createElement("div");
+        statusTextNode.className = "hyper-checkout-status-text";
+        statusTextNode.innerText = statusDetails.status;
+        var statusMessageNode = document.createElement("div");
+        statusMessageNode.className = "hyper-checkout-status-message";
+        statusMessageNode.innerText = statusDetails.message;
+        var statusDetailsNode = document.createElement("div");
+        statusDetailsNode.className = "hyper-checkout-status-details";
 
         // Append items
-        var statusItemNode = document.getElementById(
-          "hyper-checkout-status-items"
+        statusDetails.items.map((item) => statusDetailsNode?.append(item));
+        const statusHeaderNode = document.getElementById(
+          "hyper-checkout-status-header"
         );
-        if (statusItemNode !== null) {
-          statusDetails.items.map((item) => statusItemNode?.append(item));
+        if (statusHeaderNode !== null) {
+          statusHeaderNode.append(amountNode, merchantLogoNode);
+        }
+        const statusContentNode = document.getElementById(
+          "hyper-checkout-status-content"
+        );
+        if (statusContentNode !== null) {
+          statusContentNode.append(statusImageNode, statusTextNode);
+          if (statusDetails.message !== null) {
+            statusContentNode.append(statusMessageNode);
+          }
+          statusContentNode.append(statusDetailsNode);
         }
       }
 
       function createItem(heading, value) {
         var itemNode = document.createElement("div");
-        itemNode.className = "hyper-checkout-item";
+        itemNode.className = "hyper-checkout-status-item";
         var headerNode = document.createElement("div");
         headerNode.className = "hyper-checkout-item-header";
         headerNode.innerText = heading;
@@ -1389,6 +1418,8 @@ S619.162,694.432,619.162,716.897z"
               show("#hyper-checkout-sdk");
               show("#hyper-checkout-details");
             } else {
+              hide("#hyper-checkout-sdk");
+              hide("#hyper-checkout-details");
               show("#hyper-checkout-status");
               show("#hyper-footer");
             }
