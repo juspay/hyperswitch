@@ -12,7 +12,7 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CoinbaseRouterdata<T> {
-    amount: i64,
+    amount: String,
     router_data: T,
 }
 
