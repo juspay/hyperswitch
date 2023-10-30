@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
-use self::transformers::{PaypalAuthResponse, PaypalMeta};
+use self::transformers::{PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
 use super::utils::PaymentsCompleteAuthorizeRequestData;
 use crate::{
     configs::settings,
@@ -30,6 +30,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -174,26 +175,34 @@ impl ConnectorCommon for Paypal {
             .map(|error_details| {
                 error_details
                     .iter()
-                    .try_fold::<_, _, CustomResult<_, errors::ConnectorError>>(
-                        String::new(),
-                        |mut acc, error| {
-                            write!(acc, "description - {} ;", error.description)
+                    .try_fold(String::new(), |mut acc, error| {
+                        if let Some(description) = &error.description {
+                            write!(acc, "description - {} ;", description)
                                 .into_report()
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
                                 .attach_printable("Failed to concatenate error details")
                                 .map(|_| acc)
-                        },
-                    )
+                        } else {
+                            Ok(acc)
+                        }
+                    })
             })
             .transpose()?;
+        let reason = match error_reason {
+            Some(err_reason) => err_reason
+                .is_empty()
+                .then(|| response.message.to_owned())
+                .or(Some(err_reason)),
+            None => Some(response.message.to_owned()),
+        };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
             message: response.message.clone(),
-            reason: error_reason.or(Some(response.message)),
+            reason,
         })
     }
 }
@@ -210,6 +219,10 @@ impl ConnectorValidation for Paypal {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
     }
 }
 
@@ -370,7 +383,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            req.request
+                .surcharge_details
+                .as_ref()
+                .map_or(req.request.amount, |surcharge| surcharge.final_amount),
             req,
         ))?;
         let req_obj = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
@@ -1091,7 +1107,7 @@ impl api::IncomingWebhook for Paypal {
                         resource
                             .purchase_units
                             .first()
-                            .map(|unit| unit.reference_id.clone())
+                            .and_then(|unit| unit.invoice_id.clone().or(unit.reference_id.clone()))
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1099,6 +1115,17 @@ impl api::IncomingWebhook for Paypal {
             paypal::PaypalResource::PaypalRefundWebhooks(resource) => {
                 Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                     api_models::webhooks::RefundIdType::ConnectorRefundId(resource.id),
+                ))
+            }
+            paypal::PaypalResource::PaypalDisputeWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        resource
+                            .dispute_transactions
+                            .first()
+                            .map(|transaction| transaction.reference_id.clone())
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
                 ))
             }
         }
@@ -1112,7 +1139,33 @@ impl api::IncomingWebhook for Paypal {
             .body
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(api::IncomingWebhookEvent::from(payload.event_type))
+        let outcome = match payload.event_type {
+            PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated => Some(
+                request
+                    .body
+                    .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
+                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+                    .outcome_code,
+            ),
+            PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderCompleted
+            | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::Unknown => None,
+        };
+
+        Ok(api::IncomingWebhookEvent::foreign_from((
+            payload.event_type,
+            outcome,
+        )))
     }
 
     fn get_webhook_resource_object(
@@ -1140,8 +1193,38 @@ impl api::IncomingWebhook for Paypal {
             )
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+            paypal::PaypalResource::PaypalDisputeWebhooks(_) => serde_json::to_value(details)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
         };
         Ok(sync_payload)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let payload: paypal::PaypalDisputeWebhooks = request
+            .body
+            .parse_struct("PaypalDisputeWebhooks")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: connector_utils::to_currency_lower_unit(
+                payload.dispute_amount.value,
+                payload.dispute_amount.currency_code,
+            )?,
+            currency: payload.dispute_amount.currency_code.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::from(
+                payload.dispute_life_cycle_stage.clone(),
+            ),
+            connector_status: payload.status.to_string(),
+            connector_dispute_id: payload.dispute_id,
+            connector_reason: payload.reason,
+            connector_reason_code: payload.external_reason_code,
+            challenge_required_by: payload.seller_response_due_date,
+            created_at: payload.create_time,
+            updated_at: payload.update_time,
+        })
     }
 }
 
@@ -1150,8 +1233,12 @@ impl services::ConnectorRedirectResponse for Paypal {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
+        action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

@@ -37,6 +37,8 @@ pub struct Refund {
     pub refund_reason: Option<String>,
     pub refund_error_code: Option<String>,
     pub profile_id: Option<String>,
+    pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(
@@ -77,6 +79,8 @@ pub struct RefundNew {
     pub attempt_id: String,
     pub refund_reason: Option<String>,
     pub profile_id: Option<String>,
+    pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -87,20 +91,24 @@ pub enum RefundUpdate {
         sent_to_gateway: bool,
         refund_error_message: Option<String>,
         refund_arn: String,
+        updated_by: String,
     },
     MetadataAndReasonUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         reason: Option<String>,
+        updated_by: String,
     },
     StatusUpdate {
         connector_refund_id: Option<String>,
         sent_to_gateway: bool,
         refund_status: storage_enums::RefundStatus,
+        updated_by: String,
     },
     ErrorUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<String>,
         refund_error_code: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -115,6 +123,7 @@ pub struct RefundUpdateInternal {
     metadata: Option<pii::SecretSerdeValue>,
     refund_reason: Option<String>,
     refund_error_code: Option<String>,
+    updated_by: String,
 }
 
 impl RefundUpdateInternal {
@@ -128,6 +137,7 @@ impl RefundUpdateInternal {
             metadata: self.metadata,
             refund_reason: self.refund_reason,
             refund_error_code: self.refund_error_code,
+            updated_by: self.updated_by,
             ..source
         }
     }
@@ -142,37 +152,48 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 sent_to_gateway,
                 refund_error_message,
                 refund_arn,
+                updated_by,
             } => Self {
                 connector_refund_id: Some(connector_refund_id),
                 refund_status: Some(refund_status),
                 sent_to_gateway: Some(sent_to_gateway),
                 refund_error_message,
                 refund_arn: Some(refund_arn),
+                updated_by,
                 ..Default::default()
             },
-            RefundUpdate::MetadataAndReasonUpdate { metadata, reason } => Self {
+            RefundUpdate::MetadataAndReasonUpdate {
+                metadata,
+                reason,
+                updated_by,
+            } => Self {
                 metadata,
                 refund_reason: reason,
+                updated_by,
                 ..Default::default()
             },
             RefundUpdate::StatusUpdate {
                 connector_refund_id,
                 sent_to_gateway,
                 refund_status,
+                updated_by,
             } => Self {
                 connector_refund_id,
                 sent_to_gateway: Some(sent_to_gateway),
                 refund_status: Some(refund_status),
+                updated_by,
                 ..Default::default()
             },
             RefundUpdate::ErrorUpdate {
                 refund_status,
                 refund_error_message,
                 refund_error_code,
+                updated_by,
             } => Self {
                 refund_status,
                 refund_error_message,
                 refund_error_code,
+                updated_by,
                 ..Default::default()
             },
         }
@@ -193,6 +214,7 @@ impl RefundUpdate {
             refund_arn: pa_update.refund_arn.or(source.refund_arn),
             metadata: pa_update.metadata.or(source.metadata),
             refund_reason: pa_update.refund_reason.or(source.refund_reason),
+            updated_by: pa_update.updated_by,
             ..source
         }
     }

@@ -29,6 +29,8 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         payment_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        updated_by -> Varchar,
     }
 }
 
@@ -175,6 +177,8 @@ diesel::table! {
         connector_transaction_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Json>,
         encoded_data -> Nullable<Text>,
+        #[max_length = 32]
+        updated_by -> Varchar,
     }
 }
 
@@ -242,6 +246,8 @@ diesel::table! {
         evidence -> Jsonb,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -289,6 +295,8 @@ diesel::table! {
         connector_label -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -400,6 +408,8 @@ diesel::table! {
         connector_mandate_ids -> Nullable<Jsonb>,
         #[max_length = 64]
         original_payment_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -442,6 +452,7 @@ diesel::table! {
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
+        payment_link_config -> Nullable<Jsonb>,
     }
 }
 
@@ -491,6 +502,17 @@ diesel::table! {
         merchant_id -> Varchar,
         key -> Bytea,
         created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    organization (org_id) {
+        #[max_length = 32]
+        org_id -> Varchar,
+        org_name -> Nullable<Text>,
     }
 }
 
@@ -554,7 +576,10 @@ diesel::table! {
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         amount_capturable -> Int8,
-        surcharge_metadata -> Nullable<Jsonb>,
+        #[max_length = 32]
+        updated_by -> Varchar,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -610,7 +635,33 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_decision -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_link_id -> Nullable<Varchar>,
         payment_confirm_source -> Nullable<PaymentSource>,
+        #[max_length = 32]
+        updated_by -> Varchar,
+        surcharge_applicable -> Nullable<Bool>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    payment_link (payment_link_id) {
+        #[max_length = 255]
+        payment_link_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Varchar,
+        #[max_length = 255]
+        link_to_pay -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        amount -> Int8,
+        currency -> Nullable<Currency>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+        fulfilment_time -> Nullable<Timestamp>,
     }
 }
 
@@ -689,6 +740,8 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -794,6 +847,10 @@ diesel::table! {
         refund_error_code -> Nullable<Text>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        updated_by -> Varchar,
+        #[max_length = 32]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -810,6 +867,8 @@ diesel::table! {
         pk_id -> Varchar,
         #[max_length = 128]
         source -> Varchar,
+        #[max_length = 32]
+        updated_by -> Varchar,
     }
 }
 
@@ -831,8 +890,10 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    organization,
     payment_attempt,
     payment_intent,
+    payment_link,
     payment_methods,
     payout_attempt,
     payouts,

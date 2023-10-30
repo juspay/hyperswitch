@@ -13,7 +13,7 @@ kms = ["external_services/kms"]
 vergen = ["router_env/vergen"]
 
 [dependencies]
-async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
+async-bb8-diesel = "0.1.0"
 bb8 = "0.8"
 clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }

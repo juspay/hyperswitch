@@ -62,6 +62,10 @@ impl ConnectorCommon for Mollie {
         "mollie"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.mollie.base_url.as_ref()
     }
@@ -229,7 +233,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = mollie::MolliePaymentsRequest::try_from(req)?;
+        let router_obj = mollie::MollieRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = mollie::MolliePaymentsRequest::try_from(&router_obj)?;
         let mollie_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<mollie::MolliePaymentsRequest>::encode_to_string_of_json,
@@ -417,7 +427,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = mollie::MollieRefundRequest::try_from(req)?;
+        let router_obj = mollie::MollieRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = mollie::MollieRefundRequest::try_from(&router_obj)?;
         let mollie_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json,
@@ -566,8 +582,12 @@ impl services::ConnectorRedirectResponse for Mollie {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

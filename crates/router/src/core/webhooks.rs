@@ -226,6 +226,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .into_report()
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
+            updated_by: merchant_account.storage_scheme.to_string(),
         };
         db.update_refund(
             refund.to_owned(),
@@ -360,6 +361,7 @@ pub async fn get_or_update_dispute_object(
                 connector_updated_at: dispute_details.updated_at,
                 profile_id: None,
                 evidence: None,
+                merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
             };
             state
                 .store
@@ -1193,6 +1195,7 @@ async fn fetch_mca_and_connector(
             &state.conf.connectors,
             &mca.connector_name,
             api::GetToken::Connector,
+            Some(mca.merchant_connector_id.clone()),
         )
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "invalid connector name received".to_string(),
@@ -1201,10 +1204,12 @@ async fn fetch_mca_and_connector(
 
         Ok((mca, connector))
     } else {
+        // Merchant connector account is already being queried, it is safe to set connector id as None
         let connector = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             connector_name_or_mca_id,
             api::GetToken::Connector,
+            None,
         )
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "invalid connector name received".to_string(),

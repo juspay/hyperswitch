@@ -54,6 +54,38 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct AirwallexRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for AirwallexRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct AirwallexPaymentsRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
@@ -125,16 +157,21 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
+    for AirwallexPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
-        let payment_method = match item.request.payment_method_data.clone() {
+        let request = &item.router_data.request;
+        let payment_method = match request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
-                            item.request.capture_method,
+                            request.capture_method,
                             Some(enums::CaptureMethod::Automatic) | None
                         ),
                     }));
@@ -149,8 +186,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                 }))
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Unknown payment method".to_string(),
+            api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("airwallex"),
             )),
         }?;
 
@@ -158,7 +205,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.request.complete_authorize_url.clone(),
+            return_url: request.complete_authorize_url.clone(),
         })
     }
 }
@@ -178,9 +225,35 @@ fn get_wallet_details(
                 payment_method_type: AirwallexPaymentType::Googlepay,
             }))
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment method".to_string(),
-        ))?,
+        api_models::payments::WalletData::AliPayQr(_)
+        | api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::AliPayHkRedirect(_)
+        | api_models::payments::WalletData::MomoRedirect(_)
+        | api_models::payments::WalletData::KakaoPayRedirect(_)
+        | api_models::payments::WalletData::GoPayRedirect(_)
+        | api_models::payments::WalletData::GcashRedirect(_)
+        | api_models::payments::WalletData::ApplePay(_)
+        | api_models::payments::WalletData::ApplePayRedirect(_)
+        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+        | api_models::payments::WalletData::DanaRedirect {}
+        | api_models::payments::WalletData::GooglePayRedirect(_)
+        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+        | api_models::payments::WalletData::MbWayRedirect(_)
+        | api_models::payments::WalletData::MobilePayRedirect(_)
+        | api_models::payments::WalletData::PaypalRedirect(_)
+        | api_models::payments::WalletData::PaypalSdk(_)
+        | api_models::payments::WalletData::SamsungPay(_)
+        | api_models::payments::WalletData::TwintRedirect {}
+        | api_models::payments::WalletData::VippsRedirect {}
+        | api_models::payments::WalletData::TouchNGoRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayQr(_)
+        | api_models::payments::WalletData::CashappQr(_)
+        | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("airwallex"),
+            ))?
+        }
     };
     Ok(wallet_details)
 }
@@ -538,17 +611,16 @@ pub struct AirwallexRefundRequest {
     payment_intent_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
+impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for AirwallexRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
-            )?),
-            reason: item.request.reason.clone(),
-            payment_intent_id: item.request.connector_transaction_id.clone(),
+            amount: Some(item.amount.to_owned()),
+            reason: item.router_data.request.reason.clone(),
+            payment_intent_id: item.router_data.request.connector_transaction_id.clone(),
         })
     }
 }

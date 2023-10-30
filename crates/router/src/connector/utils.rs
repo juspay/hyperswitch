@@ -248,19 +248,25 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
     }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
-pub trait SetupMandateRequestData {
+pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
-impl SetupMandateRequestData for types::SetupMandateRequestData {
+impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
         self.browser_info
             .clone()
@@ -283,6 +289,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -369,6 +376,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
+    fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>> {
+        self.browser_info.clone().and_then(|browser_info| {
+            browser_info
+                .ip_address
+                .map(|ip| Secret::new(ip.to_string()))
+        })
     }
 }
 
@@ -503,6 +517,7 @@ pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -517,11 +532,17 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
             .clone()
             .ok_or_else(missing_field_err("cancellation_reason"))
     }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -536,6 +557,11 @@ impl RefundsRequestData for types::RefundsData {
         self.webhook_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
@@ -1051,7 +1077,7 @@ pub fn get_amount_as_string(
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => amount.to_string(),
+        types::api::CurrencyUnit::Minor => to_currency_lower_unit(amount.to_string(), currency)?,
         types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)
