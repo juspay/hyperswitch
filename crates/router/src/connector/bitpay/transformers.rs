@@ -250,7 +250,6 @@ fn get_crypto_specific_payment_data(
         ConnectorAuthType::HeaderKey { api_key } => api_key,
         _ => String::default().into(),
     };
-    let order_id = item.connector_request_reference_id.clone();
 
     Ok(BitpayPaymentsRequest {
         price,
