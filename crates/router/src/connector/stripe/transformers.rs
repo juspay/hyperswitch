@@ -2468,7 +2468,10 @@ impl<F, T>
                         .decline_code
                         .clone()
                         .map(|decline_code| {
-                            format!("{}, decline_code - {}", error.message, decline_code)
+                            format!(
+                                "message - {}, decline_code - {}",
+                                error.message, decline_code
+                            )
                         })
                         .or(Some(error.message.clone())),
                     status_code: item.http_code,

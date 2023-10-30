@@ -220,7 +220,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -344,7 +346,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -464,7 +468,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -592,7 +598,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -730,7 +738,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -882,7 +892,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -999,7 +1011,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -1151,7 +1165,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -1266,7 +1282,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -1367,7 +1385,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -1509,7 +1529,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -1609,7 +1631,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
@@ -1732,7 +1756,9 @@ impl
                 response
                     .error
                     .decline_code
-                    .map(|decline_code| format!("{}, decline_code - {}", message, decline_code))
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
                     .unwrap_or(message)
             }),
         })
