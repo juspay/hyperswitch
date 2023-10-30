@@ -173,13 +173,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = bitpay::BitPayRouterData::try_from((
+        let connector_router_data = bitpay::BitpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = bitpay::BitPayPaymentsRequest::try_from(&connector_router_data)?;
+        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
         let bitpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
