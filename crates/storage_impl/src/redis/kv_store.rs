@@ -6,7 +6,7 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{consts, metrics, store::kv::TypedSql, KVRouterStore};
+use crate::{metrics, store::kv::TypedSql, KVRouterStore};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -102,6 +102,8 @@ where
     let type_name = std::any::type_name::<T>();
     let operation = op.to_string();
 
+    let ttl = store.ttl_for_kv;
+
     let partition_key = PartitionKey::MerchantIdPaymentIdCombination { combination: key };
 
     let result = async {
@@ -109,9 +111,7 @@ where
             KvOperation::Hset(value, sql) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
-                redis_conn
-                    .set_hash_fields(key, value, Some(consts::KV_TTL))
-                    .await?;
+                redis_conn.set_hash_fields(key, value, Some(ttl)).await?;
 
                 store
                     .push_to_drainer_stream::<S>(sql, partition_key)
@@ -136,12 +136,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
-                    .serialize_and_set_hash_field_if_not_exist(
-                        key,
-                        field,
-                        value,
-                        Some(consts::KV_TTL),
-                    )
+                    .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(ttl))
                     .await?;
 
                 if matches!(result, redis_interface::HsetnxReply::KeySet) {
@@ -156,7 +151,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
-                    .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
+                    .serialize_and_set_key_if_not_exist(key, value, Some(ttl.into()))
                     .await?;
 
                 if matches!(result, redis_interface::SetnxReply::KeySet) {
