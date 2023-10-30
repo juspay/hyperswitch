@@ -1,0 +1,42 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_id": "{{payment_id}}",
+      "amount": 600,
+      "reason": "Customer returned product",
+      "refund_type": "instant",
+      "metadata": {
+        "udf1": "value1",
+        "new_customer": "true",
+        "login_date": "2019-09-10T10:11:12Z"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/refunds",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "refunds"
+    ]
+  },
+  "description": "To create a refund against an already processed payment"
+}

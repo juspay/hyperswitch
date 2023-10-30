@@ -132,6 +132,7 @@ pub async fn trigger_refund_to_gateway(
         .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
 
+    let storage_scheme = merchant_account.storage_scheme;
     metrics::REFUND_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -145,6 +146,7 @@ pub async fn trigger_refund_to_gateway(
         &state.conf.connectors,
         &routed_through,
         api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
     )?;
 
     let currency = payment_attempt.currency.ok_or_else(|| {
@@ -206,6 +208,7 @@ pub async fn trigger_refund_to_gateway(
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: err.reason.or(Some(err.message)),
             refund_error_code: Some(err.code),
+            updated_by: storage_scheme.to_string(),
         },
         Ok(response) => {
             if response.refund_status == diesel_models::enums::RefundStatus::Success {
@@ -224,6 +227,7 @@ pub async fn trigger_refund_to_gateway(
                 sent_to_gateway: true,
                 refund_error_message: None,
                 refund_arn: "".to_string(),
+                updated_by: storage_scheme.to_string(),
             }
         }
     };
@@ -377,9 +381,12 @@ pub async fn sync_refund_with_gateway(
         &state.conf.connectors,
         &connector_id,
         api::GetToken::Connector,
+        payment_attempt.connector.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
+
+    let storage_scheme = merchant_account.storage_scheme;
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
@@ -434,6 +441,7 @@ pub async fn sync_refund_with_gateway(
             refund_status: None,
             refund_error_message: error_message.reason.or(Some(error_message.message)),
             refund_error_code: Some(error_message.code),
+            updated_by: storage_scheme.to_string(),
         },
         Ok(response) => storage::RefundUpdate::Update {
             connector_refund_id: response.connector_refund_id,
@@ -441,6 +449,7 @@ pub async fn sync_refund_with_gateway(
             sent_to_gateway: true,
             refund_error_message: None,
             refund_arn: "".to_string(),
+            updated_by: storage_scheme.to_string(),
         },
     };
 
@@ -486,6 +495,7 @@ pub async fn refund_update_core(
             storage::RefundUpdate::MetadataAndReasonUpdate {
                 metadata: req.metadata,
                 reason: req.reason,
+                updated_by: merchant_account.storage_scheme.to_string(),
             },
             merchant_account.storage_scheme,
         )
@@ -511,14 +521,13 @@ pub async fn validate_and_create_refund(
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
-    let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
 
     // If Refund Id not passed in request Generate one.
 
-    refund_id = core_utils::get_or_generate_id("refund_id", &req.refund_id, "ref")?;
+    let refund_id = core_utils::get_or_generate_id("refund_id", &req.refund_id, "ref")?;
 
     let predicate = req
         .merchant_id
@@ -533,96 +542,78 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
-        db,
-        &payment_intent.payment_id,
-        &merchant_account.merchant_id,
-        &refund_id,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| {
-        format!(
-            "Unique violation while checking refund_id: {} against merchant_id: {}",
-            refund_id, merchant_account.merchant_id
+    let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
+        report!(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
+    })?;
+
+    let all_refunds = db
+        .find_refund_by_merchant_id_connector_transaction_id(
+            &merchant_account.merchant_id,
+            &connecter_transaction_id,
+            merchant_account.storage_scheme,
         )
-    })? {
-        Some(refund) => refund,
-        None => {
-            let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
-                report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
-            })?;
-            all_refunds = db
-                .find_refund_by_merchant_id_connector_transaction_id(
-                    &merchant_account.merchant_id,
-                    &connecter_transaction_id,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
-            currency = payment_attempt.currency.get_required_value("currency")?;
+    let currency = payment_attempt.currency.get_required_value("currency")?;
 
-            //[#249]: Add Connector Based Validation here.
-            validator::validate_payment_order_age(
-                &payment_intent.created_at,
+    //[#249]: Add Connector Based Validation here.
+    validator::validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "created_at".to_string(),
+            expected_format: format!(
+                "created_at not older than {} days",
                 state.conf.refund.max_age,
-            )
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "created_at".to_string(),
-                expected_format: format!(
-                    "created_at not older than {} days",
-                    state.conf.refund.max_age,
-                ),
-            })?;
+            ),
+        })?;
 
-            validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
-                .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+    validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
+        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
-            validator::validate_maximum_refund_against_payment_attempt(
-                &all_refunds,
-                state.conf.refund.max_attempts,
-            )
-            .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
+    validator::validate_maximum_refund_against_payment_attempt(
+        &all_refunds,
+        state.conf.refund.max_attempts,
+    )
+    .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
-            let connector = payment_attempt
-                .connector
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("No connector populated in payment attempt")?;
+    let connector = payment_attempt
+        .connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("No connector populated in payment attempt")?;
 
-            refund_create_req = storage::RefundNew::default()
-                .set_refund_id(refund_id.to_string())
-                .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
-                .set_external_reference_id(Some(refund_id))
-                .set_payment_id(req.payment_id)
-                .set_merchant_id(merchant_account.merchant_id.clone())
-                .set_connector_transaction_id(connecter_transaction_id.to_string())
-                .set_connector(connector)
-                .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
-                .set_total_amount(payment_attempt.amount)
-                .set_refund_amount(refund_amount)
-                .set_currency(currency)
-                .set_created_at(Some(common_utils::date_time::now()))
-                .set_modified_at(Some(common_utils::date_time::now()))
-                .set_refund_status(enums::RefundStatus::Pending)
-                .set_metadata(req.metadata)
-                .set_description(req.reason.clone())
-                .set_attempt_id(payment_attempt.attempt_id.clone())
-                .set_refund_reason(req.reason)
-                .to_owned();
+    let refund_create_req = storage::RefundNew::default()
+        .set_refund_id(refund_id.to_string())
+        .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
+        .set_external_reference_id(Some(refund_id.clone()))
+        .set_payment_id(req.payment_id)
+        .set_merchant_id(merchant_account.merchant_id.clone())
+        .set_connector_transaction_id(connecter_transaction_id.to_string())
+        .set_connector(connector)
+        .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
+        .set_total_amount(payment_attempt.amount)
+        .set_refund_amount(refund_amount)
+        .set_currency(currency)
+        .set_created_at(Some(common_utils::date_time::now()))
+        .set_modified_at(Some(common_utils::date_time::now()))
+        .set_refund_status(enums::RefundStatus::Pending)
+        .set_metadata(req.metadata)
+        .set_description(req.reason.clone())
+        .set_attempt_id(payment_attempt.attempt_id.clone())
+        .set_refund_reason(req.reason)
+        .set_profile_id(payment_intent.profile_id.clone())
+        .to_owned();
 
-            refund = db
-                .insert_refund(refund_create_req, merchant_account.storage_scheme)
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
-
+    let refund = match db
+        .insert_refund(refund_create_req, merchant_account.storage_scheme)
+        .await
+    {
+        Ok(refund) => {
             schedule_refund_execution(
                 state,
-                refund,
+                refund.clone(),
                 refund_type,
                 merchant_account,
                 key_store,
@@ -631,6 +622,21 @@ pub async fn validate_and_create_refund(
                 creds_identifier,
             )
             .await?
+        }
+        Err(err) => {
+            if err.current_context().is_db_unique_violation() {
+                db.find_refund_by_merchant_id_refund_id(
+                    merchant_account.merchant_id.as_str(),
+                    refund_id.as_str(),
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?
+            } else {
+                return Err(err)
+                    .change_context(errors::ApiErrorResponse::RefundNotFound)
+                    .attach_printable("Inserting Refund failed");
+            }
         }
     };
 
@@ -717,6 +723,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             currency: refund.currency.to_string(),
             reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
+            profile_id: refund.profile_id,
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,

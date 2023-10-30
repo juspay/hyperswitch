@@ -18,6 +18,7 @@ impl utils::Connector for TrustpayTest {
             connector: Box::new(&Trustpay),
             connector_name: types::Connector::Trustpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

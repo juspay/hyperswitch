@@ -1496,10 +1496,45 @@ impl services::ConnectorRedirectResponse for Braintree {
     fn get_flow_type(
         &self,
         _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        json_payload: Option<serde_json::Value>,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync => match json_payload {
+                Some(payload) => {
+                    let redirection_response:braintree_graphql_transformers::BraintreeRedirectionResponse = serde_json::from_value(payload)
+                            .into_report()
+                            .change_context(
+                                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                                    field_name: "redirection_response",
+                                },
+                            )?;
+                    let braintree_payload =
+                        serde_json::from_str::<
+                            braintree_graphql_transformers::BraintreeThreeDsErrorResponse,
+                        >(&redirection_response.authentication_response);
+                    let (error_code, error_message) = match braintree_payload {
+                        Ok(braintree_response_payload) => (
+                            braintree_response_payload.code,
+                            braintree_response_payload.message,
+                        ),
+                        Err(_) => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            redirection_response.authentication_response,
+                        ),
+                    };
+                    Ok(payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::AuthenticationFailed,
+                        error_code: Some(error_code),
+                        error_message: Some(error_message),
+                    })
+                }
+                None => Ok(payments::CallConnectorAction::Avoid),
+            },
+            services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

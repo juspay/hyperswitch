@@ -13,6 +13,7 @@ pub mod pii;
 pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
+pub mod types;
 pub mod validation;
 
 /// Date-time utilities.

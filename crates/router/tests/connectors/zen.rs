@@ -21,6 +21,7 @@ impl utils::Connector for ZenTest {
             connector: Box::new(&Zen),
             connector_name: types::Connector::Zen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -102,7 +103,6 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
-                payment_attempt_created_at_as_utc: 0,
             }),
             None,
         )
@@ -217,7 +217,6 @@ async fn should_sync_auto_captured_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
-                payment_attempt_created_at_as_utc: 0,
             }),
             None,
         )
@@ -315,6 +314,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     product_name: "test".to_string(),
                     quantity: 1,
                     amount: 1000,
+                    product_img_link: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -350,6 +350,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     product_name: "test".to_string(),
                     quantity: 1,
                     amount: 1000,
+                    product_img_link: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -385,6 +386,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     product_name: "test".to_string(),
                     quantity: 1,
                     amount: 1000,
+                    product_img_link: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -420,6 +422,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     product_name: "test".to_string(),
                     quantity: 1,
                     amount: 1000,
+                    product_img_link: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),

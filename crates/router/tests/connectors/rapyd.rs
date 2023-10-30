@@ -19,6 +19,7 @@ impl utils::Connector for Rapyd {
             connector: Box::new(&Rapyd),
             connector_name: types::Connector::Rapyd,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

@@ -19,6 +19,7 @@ impl utils::Connector for ForteTest {
             connector: Box::new(&Forte),
             connector_name: types::Connector::Forte,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -153,7 +154,6 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
-                payment_attempt_created_at_as_utc: 0,
             }),
             get_default_payment_info(),
         )
