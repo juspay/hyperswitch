@@ -68,7 +68,7 @@ pub struct CoinbasePaymentsRequest {
 impl TryFrom<CoinbseRouterData<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item:&CoinbseRouterData<&types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        get_crypto_specific_payment_data(item)
+        get_crypto_specific_payment_data(item.RouterData)
     }
 }
 
