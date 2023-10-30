@@ -62,7 +62,7 @@ pub struct BitpayPaymentsRequest {
     token: Secret<String>,
 }
 
-impl TryFrom<&BitpayRouterData<&types::PaymentsAuthorizeRouterData>> for BitpayPaymentsRequest  {
+impl TryFrom<&BitpayRouterData<&types::PaymentsAuthorizeRouterData>> for BitpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &BitpayRouterData<&types::PaymentsAuthorizeRouterData>,
