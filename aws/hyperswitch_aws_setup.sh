@@ -172,7 +172,7 @@ echo "RDS with PSQL CREATED.\n"
 
 echo "Downloading Hyperswitch PSQL Schema..."
 
-curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/aws/schema.sql > schema.sql
+curl https://raw.githubusercontent.com/juspay/hyperswitch/main/aws/schema-beta.sql > schema.sql
 
 echo "Schema.sql downloaded.\n"
 
