@@ -691,6 +691,7 @@ where
                         .set_payment_link(payment_link_data)
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
+                        .set_merchant_connector_id(payment_attempt.merchant_connector_id)
                         .to_owned(),
                     headers,
                 ))
@@ -1102,6 +1103,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let amount_to_capture: i64 = payment_data
             .payment_attempt
@@ -1150,6 +1152,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt

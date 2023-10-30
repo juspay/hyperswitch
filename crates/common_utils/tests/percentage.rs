@@ -1,5 +1,5 @@
 #![allow(clippy::panic_in_result_fn)]
-use common_utils::{errors::ApiModelsError, types::Percentage};
+use common_utils::{errors::PercentageError, types::Percentage};
 const PRECISION_2: u8 = 2;
 const PRECISION_0: u8 = 0;
 
@@ -10,7 +10,7 @@ fn invalid_range_more_than_100() -> Result<(), Box<dyn std::error::Error + Send 
     if let Err(err) = percentage {
         assert_eq!(
             *err.current_context(),
-            ApiModelsError::InvalidPercentageValue
+            PercentageError::InvalidPercentageValue
         )
     }
     Ok(())
@@ -22,7 +22,7 @@ fn invalid_range_less_than_0() -> Result<(), Box<dyn std::error::Error + Send + 
     if let Err(err) = percentage {
         assert_eq!(
             *err.current_context(),
-            ApiModelsError::InvalidPercentageValue
+            PercentageError::InvalidPercentageValue
         )
     }
     Ok(())
@@ -35,7 +35,7 @@ fn invalid_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Err(err) = percentage {
         assert_eq!(
             *err.current_context(),
-            ApiModelsError::InvalidPercentageValue
+            PercentageError::InvalidPercentageValue
         )
     }
     Ok(())
@@ -92,7 +92,7 @@ fn invalid_precision() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Err(err) = percentage {
         assert_eq!(
             *err.current_context(),
-            ApiModelsError::InvalidPercentageValue
+            PercentageError::InvalidPercentageValue
         )
     }
     Ok(())

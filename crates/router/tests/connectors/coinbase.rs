@@ -18,6 +18,7 @@ impl utils::Connector for CoinbaseTest {
             connector: Box::new(&Coinbase),
             connector_name: types::Connector::Coinbase,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
