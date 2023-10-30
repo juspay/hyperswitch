@@ -1,9 +1,10 @@
 use common_utils::{
     crypto::{Encryptable, OptionalEncryptableName},
-    pii,
+    custom_serde, pii,
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url;
 use utoipa::ToSchema;
 
@@ -776,6 +777,10 @@ pub struct MerchantConnectorResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+    #[serde(with = "custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
