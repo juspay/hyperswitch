@@ -1502,6 +1502,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             tsys::transformers::TsysAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Volt => {
+            volt::transformers::VoltAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Wise => {
             wise::transformers::WiseAuthType::try_from(val)?;
             Ok(())
