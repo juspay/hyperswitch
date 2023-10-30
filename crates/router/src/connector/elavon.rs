@@ -9,6 +9,7 @@ use transformers as elavon;
 
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -59,13 +60,20 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let mut headers: Vec<(String, masking::Maskable<String>)> = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (headers::ACCEPT_VERSION.to_string(), "1".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json;charset=UTF-8".to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 }
 
@@ -75,14 +83,11 @@ impl ConnectorCommon for Elavon {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/json;charset=UTF-8"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -110,11 +115,21 @@ impl ConnectorCommon for Elavon {
             .parse_struct("ElavonErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let description = response
+            .failures
+            .iter()
+            .map(|error| error.description.clone())
+            .collect::<Vec<String>>()
+            .join(" & ");
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: match response.failures.get(0) {
+                Some(failure_data) => failure_data.code.clone(),
+                None => consts::NO_ERROR_CODE.to_string(),
+            },
+            message: description.clone(),
+            reason: Some(description),
         })
     }
 }
@@ -165,6 +180,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = elavon::ElavonRouterData::try_from((
             &self.get_currency_unit(),
@@ -196,7 +212,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -331,6 +349,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = elavon::ElavonCaptureRequest::try_from(req)?;
         let elavon_req = types::RequestBody::log_and_get_request_body(
@@ -354,7 +373,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -407,6 +428,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = elavon::ElavonRouterData::try_from((
             &self.get_currency_unit(),
@@ -414,7 +436,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = elavon::ElavonRefundRequest::try_from(&connector_router_data)?;
+        let req_obj = elavon::ElavonRefundRequest::try_from((
+            &connector_router_data,
+            self.base_url(connectors).to_owned(),
+        ))?;
         let elavon_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<elavon::ElavonRefundRequest>::encode_to_string_of_json,
@@ -435,7 +460,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -496,7 +523,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
+                .body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -556,22 +585,16 @@ impl ConnectorValidation for Elavon {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual  => Ok(()),
-            enums::CaptureMethod::ManualMultiple            
-            |enums::CaptureMethod::Scheduled => Err(
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 super::utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Elavon
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Elavon
 {
     fn get_headers(
         &self,
@@ -595,7 +618,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        _req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "/transactions"))
@@ -604,8 +627,10 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = elavon::CancelRequest::try_from(req)?;
+        let connector_request =
+            elavon::CancelRequest::try_from((req, self.base_url(connectors).to_owned()))?;
         let stripe_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<elavon::CancelRequest>::url_encode,
@@ -624,7 +649,9 @@ impl
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-            .body(types::PaymentsVoidType::get_request_body(self, req)?)
+            .body(types::PaymentsVoidType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }

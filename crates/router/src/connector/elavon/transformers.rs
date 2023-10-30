@@ -1,9 +1,10 @@
-use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use base64::Engine;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{AddressDetailsData, CardData, PaymentsAuthorizeRequestData},
+    consts,
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -30,7 +31,6 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
             amount: crate::connector::utils::get_amount_as_string(currency_unit, amount, currency)?,
             router_data: item,
@@ -67,7 +67,7 @@ pub enum ElavonFlowType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ElavonCaptureRequest {
-    do_capture: bool
+    do_capture: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -140,7 +140,7 @@ impl TryFrom<&ElavonRouterData<&types::PaymentsAuthorizeRouterData>> for ElavonP
                         true
                     } else {
                         false
-                    }
+                    },
                 };
 
                 Ok(ElavonPaymentsRequest::CardPaymentRequest(card_data))
@@ -187,10 +187,14 @@ impl TryFrom<&types::ConnectorAuthType> for ElavonAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
+                let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+                Ok(Self {
+                    api_key: Secret::new(auth_header),
+                })
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -263,25 +267,26 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct ElavonRefundRequest {
     #[serde(rename = "type")]
     pub flow_type: ElavonFlowType,
-    pub parent_transaction: Option<String>, //has to be populated with the base url followed by /transactions/transaction_id
+    pub parent_transaction: String,
     pub total: TotalAmount,
 }
 
-impl<F> TryFrom<&ElavonRouterData<&types::RefundsRouterData<F>>> for ElavonRefundRequest {
+impl<F> TryFrom<(&ElavonRouterData<&types::RefundsRouterData<F>>, String)> for ElavonRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ElavonRouterData<&types::RefundsRouterData<F>>
+        refund_data: (&ElavonRouterData<&types::RefundsRouterData<F>>, String),
     ) -> Result<Self, Self::Error> {
+        let item = refund_data.0;
         Ok(Self {
             flow_type: ElavonFlowType::Refund,
-            parent_transaction: Some(item.router_data.attempt_id.clone()),
+            parent_transaction: format!(
+                "{}/transactions/{}",
+                refund_data.1, item.router_data.request.connector_transaction_id
+            ),
             total: TotalAmount {
                 amount: item.amount.clone(),
                 currency_code: item.router_data.request.currency,
@@ -289,7 +294,6 @@ impl<F> TryFrom<&ElavonRouterData<&types::RefundsRouterData<F>>> for ElavonRefun
         })
     }
 }
-
 
 impl From<ElavonStatus> for enums::RefundStatus {
     fn from(item: ElavonStatus) -> Self {
@@ -303,7 +307,7 @@ impl From<ElavonStatus> for enums::RefundStatus {
             ElavonStatus::SettlementDelayed => Self::Pending,
             ElavonStatus::Rejected => Self::Failure,
             ElavonStatus::HeldForReview => Self::ManualReview,
-            ElavonStatus::Unknown => Self::ManualReview, //what should we map this 
+            ElavonStatus::Unknown => Self::ManualReview, //what should we map this
             ElavonStatus::AuthorizationPending => Self::Pending,
         }
     }
@@ -353,20 +357,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ElavonErrorResponse {
-    pub status_code: u16,
+    pub status: u16,
+    pub failures: Vec<ElavonFailureData>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ElavonFailureData {
     pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub description: String,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for ElavonCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        _item: &types::PaymentsCaptureRouterData,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            do_capture: true
-        })
+    fn try_from(_item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self { do_capture: true })
     }
 }
 
@@ -374,15 +378,21 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ElavonCaptureRequest {
 pub struct CancelRequest {
     #[serde(rename = "type")]
     pub flow_type: ElavonFlowType,
-    pub parent_transaction: Option<String>,
+    pub parent_transaction: String,
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
+impl TryFrom<(&types::PaymentsCancelRouterData, String)> for CancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        void_data: (&types::PaymentsCancelRouterData, String),
+    ) -> Result<Self, Self::Error> {
+        let item = void_data.0;
         Ok(Self {
             flow_type: ElavonFlowType::Void,
-            parent_transaction: None
+            parent_transaction: format!(
+                "{}/transactions/{}",
+                void_data.1, item.request.connector_transaction_id
+            ),
         })
     }
 }
