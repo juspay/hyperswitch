@@ -67,3 +67,11 @@ if (jsonData?.merchant_id) {
     "INFO - Unable to assign variable {{organization_id}}, as jsonData.organization_id is undefined.",
   );
 }
+
+// Response body should have "mandate_id"
+pm.test(
+  "[POST]::/accounts - Organization id is generated",
+  function () {
+    pm.expect(typeof jsonData.organization_id !== "undefined").to.be.true;
+  },
+);

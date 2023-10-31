@@ -45,6 +45,10 @@ impl ConnectorCommon for Multisafepay {
         "multisafepay"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -257,7 +261,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(req)?;
+        let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
@@ -351,9 +361,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(req)?;
+        let connector_req = multisafepay::MultisafepayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
+
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;

@@ -436,3 +436,8 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private
 
 [payment_link]
 sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+
+# Config for KV setup
+[kv_config]
+# TTL for KV in seconds
+ttl = 900

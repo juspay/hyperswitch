@@ -80,6 +80,7 @@ pub struct NmiPaymentsRequest {
     currency: enums::Currency,
     #[serde(flatten)]
     payment_method: PaymentMethod,
+    orderid: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -127,6 +128,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
             amount,
             currency: item.router_data.request.currency,
             payment_method,
+            orderid: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -239,6 +241,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
             amount: 0.0,
             currency: item.request.currency,
             payment_method,
+            orderid: item.connector_request_reference_id.clone(),
         })
     }
 }
