@@ -1400,6 +1400,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Fiserv => {
             fiserv::transformers::FiservAuthType::try_from(val)?;
+            fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Forte => {

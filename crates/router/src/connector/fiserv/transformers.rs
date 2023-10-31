@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -114,9 +114,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             reversal_reason_code: None,
         };
         let metadata = item.get_connector_meta()?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject =
+            metadata.parse_value("FiservSessionObject").change_context(
+                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+            )?;
 
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
@@ -194,9 +195,10 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
         let metadata = item.get_connector_meta()?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject =
+            metadata.parse_value("FiservSessionObject").change_context(
+                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+            )?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -381,9 +383,19 @@ pub struct ReferenceTransactionDetails {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionObject {
+pub struct FiservSessionObject {
     pub terminal_id: String,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
@@ -394,9 +406,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject =
+            metadata.parse_value("FiservSessionObject").change_context(
+                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+            )?;
         let amount =
             utils::to_currency_base_unit(item.request.amount_to_capture, item.request.currency)?;
         Ok(Self {
@@ -481,9 +494,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject =
+            metadata.parse_value("FiservSessionObject").change_context(
+                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+            )?;
         Ok(Self {
             amount: Amount {
                 total: utils::to_currency_base_unit(
