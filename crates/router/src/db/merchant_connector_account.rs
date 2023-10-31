@@ -435,6 +435,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
+            // Redact both the caches as any one or both might be used because of backwards compatibility
             super::cache::publish_and_redact_multiple(
                 self,
                 [

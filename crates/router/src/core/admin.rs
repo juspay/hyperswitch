@@ -952,8 +952,8 @@ pub async fn update_payment_connector(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
-        test_mode: mca.test_mode,
-        disabled: mca.disabled,
+        test_mode: req.test_mode,
+        disabled: req.disabled,
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
