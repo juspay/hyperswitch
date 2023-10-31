@@ -34,7 +34,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-    let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -400,9 +400,7 @@ pub struct StaxRefundRequest {
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &StaxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            total: item.amount,
-        })
+        Ok(Self { total: item.amount })
     }
 }
 
