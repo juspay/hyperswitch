@@ -3098,6 +3098,7 @@ pub struct PaymentLinkObject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
+    pub payment_link_config: Option<admin::PaymentLinkConfig>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
@@ -3142,8 +3143,8 @@ pub struct PaymentLinkDetails {
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: crypto::OptionalEncryptableName,

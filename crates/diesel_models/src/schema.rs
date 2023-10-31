@@ -651,6 +651,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         fulfilment_time -> Nullable<Timestamp>,
+        payment_link_config -> Nullable<Jsonb>,
     }
 }
 

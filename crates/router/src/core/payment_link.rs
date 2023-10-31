@@ -10,7 +10,6 @@ use crate::{
     routes::AppState,
     services,
     types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
-    utils::OptionExt,
 };
 
 pub async fn retrieve_payment_link(
@@ -56,31 +55,39 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let fulfillment_time = payment_intent
+    let payment_link = payment_intent
         .payment_link_id
         .as_ref()
-        .async_and_then(|pli| async move {
+        .async_and_then(|pli| async {
             db.find_payment_link_by_payment_link_id(pli)
                 .await
-                .ok()?
-                .fulfilment_time
-                .ok_or(errors::ApiErrorResponse::PaymentNotFound)
+                .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)
                 .ok()
         })
         .await
-        .get_required_value("fulfillment_time")
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        .ok_or(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let payment_link_config = merchant_account
-        .payment_link_config
-        .map(|pl_config| {
+    let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
+        Some(
             serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
                 .into_report()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
-                })
-        })
-        .transpose()?;
+                }),
+        )
+        .transpose()?
+    } else {
+        merchant_account
+            .payment_link_config
+            .map(|pl_config| {
+                serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_link_config",
+                    })
+            })
+            .transpose()?
+    };
 
     let order_details = validate_order_details(payment_intent.order_details)?;
 
@@ -111,7 +118,7 @@ pub async fn intiate_payment_link_flow(
         merchant_name: merchant_account.merchant_name,
         order_details,
         return_url,
-        expiry: fulfillment_time,
+        expiry: payment_link.fulfilment_time,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config
