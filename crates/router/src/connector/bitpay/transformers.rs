@@ -274,7 +274,7 @@ fn get_crypto_specific_payment_data(
     let redirect_url = item.router_data.request.get_return_url()?;
     let notification_url = item.router_data.request.get_webhook_url()?;
     let transaction_speed = TransactionSpeed::Medium;
-    let auth_type = item.connector_auth_type.clone();
+    let auth_type = item.router_data.connector_auth_type.clone();
     let token = match auth_type {
         ConnectorAuthType::HeaderKey { api_key } => api_key,
         _ => String::default().into(),
