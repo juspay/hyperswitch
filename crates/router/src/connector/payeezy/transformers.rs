@@ -126,7 +126,7 @@ pub enum Initiator {
     CardHolder,
 }
 
-impl TryFrom<types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest{
+impl TryFrom<types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -476,7 +476,7 @@ pub struct PayeezyRefundRequest {
     currency_code: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest
+impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PayeezyRouterData<&types::RefundsRouterData<F>>,
