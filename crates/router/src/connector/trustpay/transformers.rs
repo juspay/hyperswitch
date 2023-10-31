@@ -1053,6 +1053,7 @@ pub struct GpayTokenizationSpecification {
 pub struct GpayAllowedMethodsParameters {
     pub allowed_auth_methods: Vec<String>,
     pub allowed_card_networks: Vec<String>,
+    pub assurance_details_required: Option<bool>,
 }
 
 #[derive(Clone, Default, Debug, Deserialize)]
@@ -1263,6 +1264,7 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
         Self {
             allowed_auth_methods: value.allowed_auth_methods,
             allowed_card_networks: value.allowed_card_networks,
+            assurance_details_required: value.assurance_details_required,
         }
     }
 }
