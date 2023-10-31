@@ -43,6 +43,7 @@
         "auth_type": "HeaderKey",
         "api_key": "{{connector_api_key}}"
       },
+      "connector_label": "updated_stripe_connector",
       "test_mode": false,
       "disabled": false,
       "payment_methods_enabled": [

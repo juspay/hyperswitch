@@ -26,12 +26,10 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
-
-const DEFAULT_ORG_ID: &str = "org_abcdefghijklmn";
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
@@ -146,6 +144,24 @@ pub async fn create_merchant_account(
         })
         .transpose()?;
 
+    let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
+        db.find_organization_by_org_id(organization_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "organization with the given id does not exist".to_string(),
+            })?;
+        organization_id.to_string()
+    } else {
+        let new_organization = api_models::organization::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        let organization = db
+            .insert_organization(db_organization)
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error when creating organization")?;
+        organization.org_id
+    };
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -177,7 +193,7 @@ pub async fn create_merchant_account(
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
-            organization_id: req.organization_id.unwrap_or(DEFAULT_ORG_ID.to_string()),
+            organization_id,
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
@@ -661,12 +677,38 @@ pub async fn create_payment_connector(
         &merchant_account,
     )?;
 
-    let connector_label = core_utils::get_connector_label(
+    // Business label support will be deprecated soon
+    let profile_id = core_utils::get_profile_id_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        req.business_sub_label.as_ref(),
-        &req.connector_name.to_string(),
-    );
+        &merchant_account,
+        req.profile_id.as_ref(),
+        store,
+        true,
+    )
+    .await?;
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    // If connector label is not passed in the request, generate one
+    let connector_label = req
+        .connector_label
+        .or(core_utils::get_connector_label(
+            req.business_country,
+            req.business_label.as_ref(),
+            req.business_sub_label.as_ref(),
+            &req.connector_name.to_string(),
+        ))
+        .unwrap_or(format!(
+            "{}_{}",
+            req.connector_name, business_profile.profile_name
+        ));
 
     let mut vec = Vec::new();
     let payment_methods_enabled = match req.payment_methods_enabled {
@@ -718,16 +760,6 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        req.business_country,
-        req.business_label.as_ref(),
-        &merchant_account,
-        req.profile_id.as_ref(),
-        &*state.store,
-        true,
-    )
-    .await?;
-
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -749,7 +781,7 @@ pub async fn create_payment_connector(
         disabled: req.disabled,
         metadata: req.metadata,
         frm_configs,
-        connector_label: connector_label.clone(),
+        connector_label: Some(connector_label),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label,
@@ -911,6 +943,7 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type),
         connector_name: None,
         merchant_connector_id: None,
+        connector_label: req.connector_label,
         connector_account_details: req
             .connector_account_details
             .async_lift(|inner| {
@@ -1483,6 +1516,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Tsys => {
             tsys::transformers::TsysAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Volt => {
+            volt::transformers::VoltAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Wise => {

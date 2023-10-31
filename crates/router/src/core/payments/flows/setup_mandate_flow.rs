@@ -86,7 +86,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         )
         .await?;
 
-        mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await
+        mandate::mandate_procedure(
+            state,
+            resp,
+            maybe_customer,
+            pm_id,
+            connector.merchant_connector_id.clone(),
+        )
+        .await
     }
 
     async fn add_access_token<'a>(
@@ -212,7 +219,14 @@ impl types::SetupMandateRouterData {
                 )
                 .await?;
 
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    pm_id,
+                    connector.merchant_connector_id.clone(),
+                )
+                .await?)
             }
             _ => Ok(self.clone()),
         }

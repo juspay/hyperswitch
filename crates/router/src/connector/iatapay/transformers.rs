@@ -86,7 +86,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
         let payment_method = item.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-            _ => item.get_billing_country()?.to_string(),
+
+            PaymentMethod::Card
+            | PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::Voucher
+            | PaymentMethod::GiftCard => item.get_billing_country()?.to_string(),
         };
         let return_url = item.get_return_url()?;
         let payer_info = match item.request.payment_method_data.clone() {
@@ -99,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_payment_id: Some(item.payment_id.clone()),
+            merchant_payment_id: Some(item.connector_request_reference_id.clone()),
             amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
