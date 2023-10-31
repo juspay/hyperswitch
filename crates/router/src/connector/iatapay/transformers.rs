@@ -259,7 +259,8 @@ pub struct IatapayPaymentsResponse {
     pub failure_code: Option<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
