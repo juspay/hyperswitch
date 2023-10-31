@@ -404,7 +404,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservCaptureRequest::try_from(req)?;
+        let router_obj = fiserv::FiservRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_request = fiserv::FiservCaptureRequest::try_from(&router_obj)?;
         let fiserv_payments_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json,
