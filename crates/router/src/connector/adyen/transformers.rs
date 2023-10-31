@@ -2879,7 +2879,7 @@ impl<F>
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
                 amount: item.response.balance.value,
-                currency: item.response.balance.currency.to_string(),
+                currency: item.response.balance.currency,
             }),
             ..item.data
         })
