@@ -27,13 +27,14 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
+        (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             f64,
             T,
         ),
     ) -> Result<Self, Self::Error> {
+    let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -67,7 +68,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                 connector: "Stax",
             })?
         }
-        let total = item.amount as f64;
+        let total = item.amount;
 
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
@@ -384,7 +385,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCapture
     fn try_from(
         item: &StaxRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let total = item.amount as f64;
+        let total = item.amount;
         Ok(Self { total: Some(total) })
     }
 }
@@ -400,7 +401,7 @@ impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &StaxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            total: item.amount as f64,
+            total: item.amount,
         })
     }
 }
