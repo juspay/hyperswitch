@@ -22,6 +22,7 @@ pub struct PayuPaymentsRequest {
     description: String,
     pay_methods: PayuPaymentMethod,
     continue_url: Option<String>,
+    ext_order_id: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -126,6 +127,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             )?,
             pay_methods: payment_method,
             continue_url: None,
+            ext_order_id: item.connector_request_reference_id.clone(),
         })
     }
 }
