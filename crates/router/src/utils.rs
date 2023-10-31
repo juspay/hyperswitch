@@ -699,6 +699,7 @@ impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
 
 pub async fn trigger_payments_webhook<F, Req, Op>(
     merchant_account: domain::MerchantAccount,
+    business_profile: diesel_models::business_profile::BusinessProfile,
     payment_data: crate::core::payments::PaymentData<F>,
     req: Option<Req>,
     customer: Option<domain::Customer>,
@@ -753,6 +754,7 @@ where
                 webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
                     state.clone(),
                     merchant_account,
+                    business_profile,
                     event_type,
                     diesel_models::enums::EventClass::Payments,
                     None,

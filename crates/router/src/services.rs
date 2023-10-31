@@ -90,6 +90,7 @@ pub async fn get_store(
         store,
         config.drainer.stream_name.clone(),
         config.drainer.num_partitions,
+        config.kv_config.ttl,
     );
 
     Ok(store)
