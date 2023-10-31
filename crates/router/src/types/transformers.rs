@@ -861,3 +861,14 @@ impl From<domain::Address> for payments::AddressDetails {
         }
     }
 }
+
+impl ForeignFrom<api_models::organization::OrganizationNew>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
+        Self {
+            org_id: item.org_id,
+            org_name: item.org_name,
+        }
+    }
+}

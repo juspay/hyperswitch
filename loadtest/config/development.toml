@@ -246,3 +246,6 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
+
+[kv_config]
+ttl = 300 # 5 * 60 seconds

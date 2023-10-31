@@ -327,3 +327,6 @@ host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+
+[kv_config]
+ttl = 900 # 15 * 60 seconds

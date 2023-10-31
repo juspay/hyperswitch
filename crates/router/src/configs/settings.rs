@@ -105,6 +105,13 @@ pub struct Settings {
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
     pub analytics: AnalyticsConfig,
+    #[cfg(feature = "kv_store")]
+    pub kv_config: KvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KvConfig {
+    pub ttl: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
