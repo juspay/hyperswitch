@@ -142,6 +142,7 @@ fn get_card_specific_payment_data(
     let method = PayeezyPaymentMethodType::CreditCard;
     let amount = item.router_data.request.amount;
     let currency_code = item.router_data.request.currency.to_string();
+    let reference = item.router_data.connector_request_reference_id.clone();
     let credit_card = get_payment_method_data(item)?;
     let (transaction_type, stored_credentials) = get_transaction_type_and_stored_creds(item)?;
     Ok(PayeezyPaymentsRequest {
@@ -152,7 +153,7 @@ fn get_card_specific_payment_data(
         currency_code,
         credit_card,
         stored_credentials,
-        reference: item.connector_request_reference_id.clone(),
+        reference,
     })
 }
 fn get_transaction_type_and_stored_creds(
