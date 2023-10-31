@@ -1,7 +1,7 @@
-use api_models::{admin as admin_types, payments::OrderDetailsWithAmount};
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use api_models::admin as admin_types;
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
@@ -44,6 +44,11 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let payment_link_id = payment_intent
+        .payment_link_id
+        .get_required_value("payment_link_id")
+        .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
     helpers::validate_payment_status_against_not_allowed_statuses(
         &payment_intent.status,
         &[
@@ -56,20 +61,10 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let fulfillment_time = payment_intent
-        .payment_link_id
-        .as_ref()
-        .async_and_then(|pli| async move {
-            db.find_payment_link_by_payment_link_id(pli)
-                .await
-                .ok()?
-                .fulfilment_time
-                .ok_or(errors::ApiErrorResponse::PaymentNotFound)
-                .ok()
-        })
+    let payment_link = db
+        .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
-        .get_required_value("fulfillment_time")
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let payment_link_config = merchant_account
         .payment_link_config
@@ -108,10 +103,15 @@ pub async fn intiate_payment_link_flow(
         currency,
         currency_symbol: currency.to_currency_symbol(),
         payment_id: payment_intent.payment_id,
-        merchant_name: merchant_account.merchant_name,
+        merchant_name: payment_link.custom_merchant_name.unwrap_or(
+            merchant_account
+                .merchant_name
+                .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
+                .unwrap_or_default(),
+        ),
         order_details,
         return_url,
-        expiry: fulfillment_time,
+        expiry: payment_link.fulfilment_time,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config
@@ -198,7 +198,10 @@ fn validate_sdk_requirements(
 
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
-) -> Result<Vec<OrderDetailsWithAmount>, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<
+    Vec<api_models::payments::OrderDetailsWithAmount>,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -211,7 +214,7 @@ fn validate_order_details(
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
-                .collect::<Result<Vec<OrderDetailsWithAmount>, _>>()
+                .collect::<Result<Vec<api_models::payments::OrderDetailsWithAmount>, _>>()
         })
         .transpose()?;
 

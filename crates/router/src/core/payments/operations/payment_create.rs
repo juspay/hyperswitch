@@ -813,6 +813,7 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
+        custom_merchant_name: payment_link_object.custom_merchant_name,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
