@@ -40,9 +40,9 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
 
             utils::CardIssuer::Maestro | utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: issuer.to_string(),
-                    connector: "Payeezy",
-                }
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Payeezy",
+            }
                 .into())
             }
         }
