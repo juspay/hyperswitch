@@ -1,7 +1,4 @@
-use std::cmp::Ordering;
-
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
-use diesel_models::errors as storage_errors;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache;
@@ -126,13 +123,6 @@ where
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
-        &self,
-        merchant_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
-
-    async fn list_merchant_connector_accounts_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
         connector_name: &str,
@@ -266,53 +256,6 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
-        &self,
-        merchant_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
-            storage::MerchantConnectorAccount::find_by_merchant_id_connector_name(
-                &conn,
-                merchant_id,
-                connector_name,
-            )
-            .await
-            .map_err(Into::into)
-            .into_report()
-        };
-        let mca_list = find_call().await?;
-        match mca_list.len().cmp(&1) {
-            Ordering::Less => {
-                Err(errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into())
-                    .attach_printable(format!(
-                        "No records found for {} and {}",
-                        merchant_id, connector_name
-                    ))
-            }
-            Ordering::Greater => Err(errors::StorageError::DatabaseError(
-                storage_errors::DatabaseError::Others.into(),
-            ))
-            .into_report()
-            .attach_printable(format!(
-                "Found multiple records for {} and {}",
-                merchant_id, connector_name
-            )),
-            Ordering::Equal => match mca_list.first() {
-                Some(mca) => mca
-                    .to_owned()
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DeserializationFailed),
-                None => Err(
-                    errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into(),
-                ),
-            },
-        }
-    }
-
-    async fn list_merchant_connector_accounts_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
         connector_name: &str,
@@ -546,51 +489,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
-        &self,
-        merchant_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let mca_list = self
-            .merchant_connector_accounts
-            .lock()
-            .await
-            .iter()
-            .filter(|account| {
-                account.merchant_id == merchant_id && account.connector_name == connector_name
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        match mca_list.len().cmp(&1) {
-            Ordering::Less => {
-                Err(errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into())
-                    .attach_printable(format!(
-                        "No records found for {} and {}",
-                        merchant_id, connector_name
-                    ))
-            }
-            Ordering::Greater => Err(errors::StorageError::DatabaseError(
-                storage_errors::DatabaseError::Others.into(),
-            ))
-            .into_report()
-            .attach_printable(format!(
-                "Found multiple records for {} and {}",
-                merchant_id, connector_name
-            )),
-            Ordering::Equal => match mca_list.first() {
-                Some(mca) => mca
-                    .to_owned()
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DeserializationFailed),
-                None => Err(
-                    errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into(),
-                ),
-            },
-        }
-    }
-
-    async fn list_merchant_connector_accounts_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
         connector_name: &str,
