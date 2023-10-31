@@ -153,10 +153,11 @@ impl
             _ => None,
         };
         let payload = Self {
-            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
+            merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
+                .merchant_id,
             merchant_payment_id: Some(item.router_data.connector_request_reference_id.clone()),
-            amount,
-            currency: item.request.currency.to_string(),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
