@@ -326,13 +326,10 @@ impl MerchantConnectorAccountInterface for Store {
         #[cfg(not(feature = "accounts_cache"))]
         {
             find_call()
-                .await
-                .async_and_then(|item| async {
-                    item.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
-                })
                 .await?
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -343,13 +340,10 @@ impl MerchantConnectorAccountInterface for Store {
                 find_call,
                 &cache::ACCOUNTS_CACHE,
             )
+            .await?
+            .convert(key_store.key.get_inner())
             .await
-            .async_and_then(|item| async {
-                item.convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
+            .change_context(errors::StorageError::DecryptionError)
         }
     }
 
