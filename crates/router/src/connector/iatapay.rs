@@ -91,7 +91,7 @@ impl ConnectorCommon for Iatapay {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
