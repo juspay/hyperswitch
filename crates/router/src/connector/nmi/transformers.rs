@@ -378,7 +378,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
+                    connector_response_reference_id: item.response.orderid.or(Some(item.response.transactionid)),
                 }),
                 enums::AttemptStatus::Charged,
             ),
