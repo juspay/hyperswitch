@@ -71,6 +71,10 @@ impl ConnectorCommon for Tsys {
         "tsys"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -227,7 +231,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = tsys::TsysSyncRequest::try_from(req)?;
+
+        let connector_router_data = tsys::TsysRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+
+        let req_obj = tsys::TsysPaymentsRequest::try_from(&connector_router_data)?;
+
         let tsys_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<tsys::TsysSyncRequest>::encode_to_string_of_json,
