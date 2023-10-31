@@ -5580,6 +5580,11 @@
               "type": "string"
             },
             "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
+          },
+          "assurance_details_required": {
+            "type": "boolean",
+            "description": "Whether assurance details are required",
+            "nullable": true
           }
         }
       },
