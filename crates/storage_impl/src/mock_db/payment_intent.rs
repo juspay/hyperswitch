@@ -1,4 +1,3 @@
-use crate::DataModelExt;
 use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
@@ -12,6 +11,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
+use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
