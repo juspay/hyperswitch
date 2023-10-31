@@ -101,6 +101,13 @@ pub struct Settings {
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
+    #[cfg(feature = "kv_store")]
+    pub kv_config: KvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KvConfig {
+    pub ttl: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
