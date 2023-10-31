@@ -41,7 +41,7 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
+        (_currency_unit, _currency, _amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -49,7 +49,7 @@ impl<T>
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount,
+            amount: utils::to_currency_base_unit_asf64(_amount, _currency)?,
             router_data: item,
         })
     }
@@ -152,15 +152,11 @@ impl
             }),
             _ => None,
         };
-        let amount = utils::to_currency_base_unit_asf64(
-            item.router_data.request.amount,
-            item.router_data.request.currency,
-        )?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
                 .merchant_id,
             merchant_payment_id: Some(item.router_data.payment_id.clone()),
-            amount,
+            amount : item.amount,
             currency: item.router_data.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
