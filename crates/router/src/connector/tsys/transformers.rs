@@ -17,7 +17,37 @@ pub enum TsysPaymentsRequest {
     Sale(TsysPaymentAuthSaleRequest),
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
+pub struct TsysRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for TsysRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[serde(rename_all = "camelCase")]
 pub struct TsysPaymentAuthSaleRequest {
     #[serde(rename = "deviceID")]
