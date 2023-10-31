@@ -2933,6 +2933,8 @@ impl AttemptType {
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
             updated_by: storage_scheme.to_string(),
+            authentication_data: None,
+            encoded_data: None,
             merchant_connector_id: None,
         }
     }

@@ -26,12 +26,10 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
-
-const DEFAULT_ORG_ID: &str = "org_abcdefghijklmn";
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
@@ -146,6 +144,24 @@ pub async fn create_merchant_account(
         })
         .transpose()?;
 
+    let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
+        db.find_organization_by_org_id(organization_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "organization with the given id does not exist".to_string(),
+            })?;
+        organization_id.to_string()
+    } else {
+        let new_organization = api_models::organization::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        let organization = db
+            .insert_organization(db_organization)
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error when creating organization")?;
+        organization.org_id
+    };
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -177,7 +193,7 @@ pub async fn create_merchant_account(
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
-            organization_id: req.organization_id.unwrap_or(DEFAULT_ORG_ID.to_string()),
+            organization_id,
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
