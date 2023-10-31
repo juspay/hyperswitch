@@ -154,9 +154,9 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for Payeez
 fn get_card_specific_payment_data(
     item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<PayeezyPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let merchant_ref = item.attempt_id.to_string();
+    let merchant_ref = item.router_data.attempt_id.to_string();
     let method = PayeezyPaymentMethodType::CreditCard;
-    let amount = item.router_data.request.amount;
+    let amount = item.amount;
     let currency_code = item.router_data.request.currency.to_string();
     let reference = item.router_data.connector_request_reference_id.clone();
     let credit_card = get_payment_method_data(item)?;
