@@ -11,8 +11,8 @@ pub struct ApiEvent {
     request_id: String,
     latency: u128,
     status_code: i64,
-    request: String,
-    response: String,
+    request: serde_json::Value,
+    response: Option<serde_json::Value>,
 }
 
 impl ApiEvent {
@@ -21,8 +21,8 @@ impl ApiEvent {
         request_id: &RequestId,
         latency: u128,
         status_code: i64,
-        request: String,
-        response: String,
+        request: serde_json::Value,
+        response: Option<serde_json::Value>,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),

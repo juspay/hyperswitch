@@ -179,6 +179,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
             ForteResponseCode::A01 => match action {
                 ForteAction::Authorize => Self::Authorized,
                 ForteAction::Sale => Self::Pending,
+                ForteAction::Verify => Self::Charged,
             },
             ForteResponseCode::A05 | ForteResponseCode::A06 => Self::Authorizing,
             _ => Self::Failure,
@@ -232,6 +233,7 @@ pub struct ResponseStatus {
 pub enum ForteAction {
     Sale,
     Authorize,
+    Verify,
 }
 
 #[derive(Debug, Deserialize)]

@@ -103,6 +103,13 @@ impl Default for super::settings::DrainerSettings {
     }
 }
 
+#[cfg(feature = "kv_store")]
+impl Default for super::settings::KvConfig {
+    fn default() -> Self {
+        Self { ttl: 900 }
+    }
+}
+
 use super::settings::{
     Mandates, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate,

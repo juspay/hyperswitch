@@ -21,6 +21,7 @@ impl Connector for AirwallexTest {
             connector: Box::new(&Airwallex),
             connector_name: types::Connector::Airwallex,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
