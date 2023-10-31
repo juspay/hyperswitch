@@ -418,7 +418,7 @@ impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::Atte
                 | PayeezyTransactionType::Purchase
                 | PayeezyTransactionType::Recurring => Self::Charged,
                 PayeezyTransactionType::Void => Self::Voided,
-                _ => Self::Pending,
+                PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => Self::Pending,
             },
             PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match method {
                 PayeezyTransactionType::Capture => Self::CaptureFailed,
@@ -426,7 +426,7 @@ impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::Atte
                 | PayeezyTransactionType::Purchase
                 | PayeezyTransactionType::Recurring => Self::AuthorizationFailed,
                 PayeezyTransactionType::Void => Self::VoidFailed,
-                _ => Self::Pending,
+                PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => Self::Pending,
             },
         }
     }
