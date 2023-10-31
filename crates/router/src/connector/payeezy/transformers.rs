@@ -126,12 +126,12 @@ pub enum Initiator {
     CardHolder,
 }
 
-impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for PayeezyPaymentsRequest {
+impl TryFrom<types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.payment_method {
+        match item.router_data.payment_method {
             diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
 
             diesel_models::enums::PaymentMethod::CardRedirect
@@ -173,7 +173,7 @@ fn get_card_specific_payment_data(
     })
 }
 fn get_transaction_type_and_stored_creds(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<
     (PayeezyTransactionType, Option<StoredCredentials>),
     error_stack::Report<errors::ConnectorError>,
@@ -328,7 +328,7 @@ pub struct PayeezyPaymentsResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct PaymentsStoredCredentials {
-    cardbrand_original_transaction_id: String,
+    cardbrand_original_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -476,7 +476,7 @@ pub struct PayeezyRefundRequest {
     currency_code: String,
 }
 
-impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PayeezyRouterData<&types::RefundsRouterData<F>>,
