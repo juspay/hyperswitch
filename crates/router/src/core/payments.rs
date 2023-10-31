@@ -482,7 +482,7 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentsRedirectResponseData {
     pub connector: Option<String>,
     pub param: Option<String>,
@@ -545,10 +545,13 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 field_name: "payment_id",
             })?;
 
+        // This connector data is ephemeral, the call payment flow will get new connector data
+        // with merchant account details, so the connector_id can be safely set to None here
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             &connector,
             api::GetToken::Connector,
+            None,
         )?;
 
         let flow_type = connector_data
@@ -770,19 +773,12 @@ where
 {
     let stime_connector = Instant::now();
 
-    let pm_data = payment_data.clone();
-
-    let connector_name = pm_data
-        .payment_attempt
-        .connector
-        .as_ref()
-        .get_required_value("connector")?;
-
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
         merchant_account,
         payment_data,
-        connector_name,
+        &connector.connector_name.to_string(),
+        connector.merchant_connector_id.as_ref(),
         key_store,
         false,
     )
@@ -994,10 +990,15 @@ where
             merchant_account,
             &mut payment_data,
             &session_connector_data.connector.connector_name.to_string(),
+            session_connector_data
+                .connector
+                .merchant_connector_id
+                .as_ref(),
             key_store,
             false,
         )
         .await?;
+
         payment_data.surcharge_details = session_surcharge_metadata
             .as_ref()
             .and_then(|surcharge_metadata| {
@@ -1102,6 +1103,7 @@ where
                 &state.conf.connectors,
                 &connector_name,
                 api::GetToken::Connector,
+                merchant_connector_account.get_mca_id(),
             )?;
 
             let connector_label = super::utils::get_connector_label(
@@ -1111,7 +1113,9 @@ where
                 &connector_name,
             );
 
-            let connector_label = if let Some(connector_label) = connector_label {
+            let connector_label = if let Some(connector_label) =
+                merchant_connector_account.get_mca_id().or(connector_label)
+            {
                 connector_label
             } else {
                 let profile_id = utils::get_profile_id_from_business_details(
@@ -1257,7 +1261,8 @@ pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
-    connector_id: &str,
+    connector_name: &str,
+    merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
     should_validate: bool,
 ) -> RouterResult<helpers::MerchantConnectorAccountType>
@@ -1282,7 +1287,8 @@ where
         payment_data.creds_identifier.to_owned(),
         key_store,
         &profile_id,
-        connector_id,
+        connector_name,
+        merchant_connector_id,
     )
     .await?;
 
@@ -1612,6 +1618,12 @@ pub struct PaymentAddress {
 }
 
 #[derive(Clone)]
+pub struct MandateConnectorDetails {
+    pub connector: String,
+    pub merchant_connector_id: Option<String>,
+}
+
+#[derive(Clone)]
 pub struct PaymentData<F>
 where
     F: Clone,
@@ -1623,7 +1635,7 @@ where
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
-    pub mandate_connector: Option<String>,
+    pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
     pub address: PaymentAddress,
@@ -1977,7 +1989,7 @@ pub fn update_straight_through_routing<F>(
 where
     F: Send + Clone,
 {
-    let _: api::RoutingAlgorithm = request_straight_through
+    let _: api_models::routing::RoutingAlgorithm = request_straight_through
         .clone()
         .parse_value("RoutingAlgorithm")
         .attach_printable("Invalid straight through routing rules format")?;
@@ -2058,7 +2070,6 @@ where
     } else {
         None
     };
-
     Ok(connector)
 }
 
@@ -2073,9 +2084,20 @@ pub async fn connector_selection<F>(
 where
     F: Send + Clone,
 {
+    let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
+        request_straight_through
+            .map(|val| val.parse_value("RoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid straight through routing rules format")?;
+
     let mut routing_data = storage::RoutingData {
         routed_through: payment_data.payment_attempt.connector.clone(),
+        #[cfg(feature = "connector_choice_mca_id")]
+        merchant_connector_id: payment_data.payment_attempt.merchant_connector_id.clone(),
+        #[cfg(not(feature = "connector_choice_mca_id"))]
         business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
+        algorithm: request_straight_through.clone(),
         routing_info: payment_data
             .payment_attempt
             .straight_through_algorithm
@@ -2089,13 +2111,6 @@ where
                 pre_routing_results: None,
             }),
     };
-
-    let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
-        request_straight_through
-            .map(|val| val.parse_value("RoutingAlgorithm"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid straight through routing rules format")?;
 
     let decided_connector = decide_connector(
         state.clone(),
@@ -2114,7 +2129,14 @@ where
             .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
-    payment_data.payment_attempt.business_sub_label = routing_data.business_sub_label;
+    #[cfg(feature = "connector_choice_mca_id")]
+    {
+        payment_data.payment_attempt.merchant_connector_id = routing_data.merchant_connector_id;
+    }
+    #[cfg(not(feature = "connector_choice_mca_id"))]
+    {
+        payment_data.payment_attempt.business_sub_label = routing_data.business_sub_label;
+    }
     payment_data.payment_attempt.straight_through_algorithm = Some(encoded_info);
 
     Ok(decided_connector)
@@ -2132,29 +2154,44 @@ pub async fn decide_connector<F>(
 where
     F: Send + Clone,
 {
-    if let Some(connector_name) = routing_data.routed_through.as_ref() {
+    // If the connector was already decided previously, use the same connector
+    // This is in case of flows like payments_sync, payments_cancel where the successive operations
+    // with the connector have to be made using the same connector account.
+    if let Some(ref connector_name) = payment_data.payment_attempt.connector {
+        // Connector was already decided previously, use the same connector
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             connector_name,
             api::GetToken::Connector,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in 'routed_through'")?;
-
-        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
-    }
-
-    if let Some(connector_name) = payment_data.mandate_connector.as_ref() {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            connector_name,
-            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
-        return Ok(ConnectorCallType::PreDetermined(connector_data));
+        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
+    }
+
+    if let Some(mandate_connector_details) = payment_data.mandate_connector.as_ref() {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &mandate_connector_details.connector,
+            api::GetToken::Connector,
+            #[cfg(feature = "connector_choice_mca_id")]
+            mandate_connector_details.merchant_connector_id.clone(),
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            None,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received in 'routed_through'")?;
+
+        routing_data.routed_through = Some(mandate_connector_details.connector.clone());
+        #[cfg(feature = "connector_choice_mca_id")]
+        {
+            routing_data.merchant_connector_id =
+                mandate_connector_details.merchant_connector_id.clone();
+        }
+        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 
     if let Some((pre_routing_results, storage_pm_type)) = routing_data
@@ -2168,12 +2205,23 @@ where
                 &state.conf.connectors,
                 &choice.connector.to_string(),
                 api::GetToken::Connector,
+                #[cfg(feature = "connector_choice_mca_id")]
+                choice.merchant_connector_id.clone(),
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                None,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
             routing_data.routed_through = Some(choice.connector.to_string());
-            routing_data.business_sub_label = choice.sub_label.clone();
+            #[cfg(feature = "connector_choice_mca_id")]
+            {
+                routing_data.merchant_connector_id = choice.merchant_connector_id.clone();
+            }
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            {
+                routing_data.business_sub_label = choice.sub_label.clone();
+            }
             return Ok(api::ConnectorCallType::PreDetermined(connector_data));
         }
     }
@@ -2207,9 +2255,6 @@ where
             .attach_printable("Empty connector list returned")?
             .clone();
 
-        let first_connector = first_connector_choice.connector.to_string();
-        let business_sub_label = first_connector_choice.sub_label;
-
         let connector_data = connectors
             .into_iter()
             .map(|conn| {
@@ -2217,70 +2262,60 @@ where
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    conn.merchant_connector_id.clone(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
-        routing_data.routed_through = Some(first_connector);
-        routing_data.business_sub_label = business_sub_label;
-        routing_data.routing_info.algorithm = Some(routing_algorithm);
-        return Ok(api::ConnectorCallType::Retryable(connector_data));
-    }
-
-    if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
-
-        if check_eligibility {
-            connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state.clone(),
-                key_store,
-                merchant_account.modified_at.assume_utc().unix_timestamp(),
-                connectors,
-                payment_data,
-                eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
-                payment_data.payment_intent.profile_id.clone(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+        routing_data.routed_through = Some(first_connector_choice.connector.to_string());
+        #[cfg(feature = "connector_choice_mca_id")]
+        {
+            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
         }
-
-        let first_connector_choice = connectors
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .into_report()
-            .attach_printable("Empty connector list returned")?
-            .clone();
-
-        let first_connector = first_connector_choice.connector.to_string();
-        let business_sub_label = first_connector_choice.sub_label;
-
-        let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                )
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-        routing_data.routed_through = Some(first_connector);
-        routing_data.business_sub_label = business_sub_label;
+        #[cfg(not(feature = "connector_choice_mca_id"))]
+        {
+            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
+        }
+        routing_data.routing_info.algorithm = Some(routing_algorithm);
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
     detect_routing_version_and_route_connector(
         &state,
+        merchant_account,
+        key_store,
+        payment_data,
+        routing_data,
+        eligible_connectors,
+    )
+    .await
+}
+
+pub async fn detect_routing_version_and_route_connector<F>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    routing_data: &mut storage::RoutingData,
+    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+) -> RouterResult<ConnectorCallType>
+where
+    F: Send + Clone,
+{
+    let _value = merchant_account
+        .routing_algorithm
+        .clone()
+        .get_required_value("routing_algorithm")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("routing_algorithm not set in merchant account")?;
+
+    route_connector_v1(
+        state,
         merchant_account,
         key_store,
         payment_data,
@@ -2402,35 +2437,6 @@ where
     Ok(final_list)
 }
 
-pub async fn detect_routing_version_and_route_connector<F>(
-    state: &AppState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    payment_data: &mut PaymentData<F>,
-    routing_data: &mut storage::RoutingData,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-) -> RouterResult<ConnectorCallType>
-where
-    F: Send + Clone,
-{
-    let _value = merchant_account
-        .routing_algorithm
-        .clone()
-        .get_required_value("routing_algorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("routing_algorithm not set in merchant account")?;
-
-    route_connector_v1(
-        state,
-        merchant_account,
-        key_store,
-        payment_data,
-        routing_data,
-        eligible_connectors,
-    )
-    .await
-}
-
 pub async fn route_connector_v1<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -2510,11 +2516,16 @@ where
         .attach_printable("Empty connector list returned")?
         .clone();
 
-    let first_connector = first_connector_choice.connector.to_string();
-    let business_sub_label = first_connector_choice.sub_label;
+    routing_data.routed_through = Some(first_connector_choice.connector.to_string());
 
-    routing_data.routed_through = Some(first_connector);
-    routing_data.business_sub_label = business_sub_label;
+    #[cfg(feature = "connector_choice_mca_id")]
+    {
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+    }
+    #[cfg(not(feature = "connector_choice_mca_id"))]
+    {
+        routing_data.business_sub_label = first_connector_choice.sub_label;
+    }
 
     let connector_data = connectors
         .into_iter()
@@ -2523,6 +2534,10 @@ where
                 &state.conf.connectors,
                 &conn.connector.to_string(),
                 api::GetToken::Connector,
+                #[cfg(feature = "connector_choice_mca_id")]
+                conn.merchant_connector_id,
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                None,
             )
         })
         .collect::<CustomResult<Vec<_>, _>>()

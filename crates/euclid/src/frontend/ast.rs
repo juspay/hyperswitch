@@ -2,9 +2,6 @@ pub mod lowering;
 #[cfg(feature = "ast_parser")]
 pub mod parser;
 
-#[cfg(feature = "connector_choice_bcompat")]
-use std::hash;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -12,116 +9,11 @@ use crate::{
     types::{DataType, Metadata},
 };
 
-#[cfg(feature = "connector_choice_bcompat")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum ConnectorChoiceKind {
-    OnlyConnector,
-    FullStruct,
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ConnectorChoiceSerde {
-    OnlyConnector(Connector),
-    FullStruct {
-        connector: Connector,
-        sub_label: Option<String>,
-    },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "connector_choice_bcompat",
-    serde(from = "ConnectorChoiceSerde"),
-    serde(into = "ConnectorChoiceSerde")
-)]
-#[cfg_attr(not(feature = "connector_choice_bcompat"), derive(PartialEq, Eq, Hash))]
 pub struct ConnectorChoice {
-    #[cfg(feature = "connector_choice_bcompat")]
-    pub choice_kind: ConnectorChoiceKind,
     pub connector: Connector,
+    #[cfg(not(feature = "connector_choice_mca_id"))]
     pub sub_label: Option<String>,
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl PartialEq for ConnectorChoice {
-    fn eq(&self, other: &Self) -> bool {
-        self.connector.eq(&other.connector) && self.sub_label.eq(&other.sub_label)
-    }
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl Eq for ConnectorChoice {}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl hash::Hash for ConnectorChoice {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
-        self.connector.hash(state);
-        self.sub_label.hash(state);
-    }
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl From<ConnectorChoiceSerde> for ConnectorChoice {
-    fn from(value: ConnectorChoiceSerde) -> Self {
-        match value {
-            ConnectorChoiceSerde::OnlyConnector(conn) => Self {
-                choice_kind: ConnectorChoiceKind::OnlyConnector,
-                connector: conn,
-                sub_label: None,
-            },
-
-            ConnectorChoiceSerde::FullStruct {
-                connector,
-                sub_label,
-            } => Self {
-                choice_kind: ConnectorChoiceKind::FullStruct,
-                connector,
-                sub_label,
-            },
-        }
-    }
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl From<ConnectorChoice> for ConnectorChoiceSerde {
-    fn from(value: ConnectorChoice) -> Self {
-        match value.choice_kind {
-            ConnectorChoiceKind::OnlyConnector => Self::OnlyConnector(value.connector),
-            ConnectorChoiceKind::FullStruct => Self::FullStruct {
-                connector: value.connector,
-                sub_label: value.sub_label,
-            },
-        }
-    }
-}
-
-/// Represents a connector volume split. This is basically a connector coupled with a percentage X
-/// which denotes that X% of all requests should go through the given connector.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VolSplit {
-    pub connector: ConnectorChoice,
-    pub split: u8,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum ConnectorSelection {
-    Priority(Vec<ConnectorChoice>),
-    VolumeSplit(Vec<VolSplit>),
-}
-
-impl ConnectorSelection {
-    pub fn get_connector_list(&self) -> Vec<ConnectorChoice> {
-        match self {
-            Self::Priority(list) => list.clone(),
-            Self::VolumeSplit(splits) => {
-                splits.iter().map(|split| split.connector.clone()).collect()
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

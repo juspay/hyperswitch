@@ -9,7 +9,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
-use euclid::{enums as dsl_enums, frontend::ast as dsl_ast};
+use euclid::enums as dsl_enums;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -176,19 +176,19 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector1 => Self::DummyConnector1 ,
+            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector2 => Self::DummyConnector2 ,
+            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector3 => Self::DummyConnector3 ,
+            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector4 => Self::DummyConnector4 ,
+            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector5 => Self::DummyConnector5 ,
+            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector6 => Self::DummyConnector6 ,
+            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector7 => Self::DummyConnector7 ,
+            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
             api_enums::Connector::Aci => Self::Aci,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Airwallex => Self::Airwallex,
@@ -265,7 +265,7 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             #[cfg(feature = "dummy_connector")]
             dsl_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector7=> Self::DummyConnector7, 
+            dsl_enums::Connector::DummyConnector7 => Self::DummyConnector7,
             dsl_enums::Connector::Aci => Self::Aci,
             dsl_enums::Connector::Adyen => Self::Adyen,
             dsl_enums::Connector::Airwallex => Self::Airwallex,
@@ -1008,93 +1008,12 @@ impl From<domain::Address> for payments::AddressDetails {
     }
 }
 
-#[cfg(feature = "backwards_compatibility")]
-impl ForeignFrom<dsl_ast::ConnectorChoiceKind> for routing_types::RoutableChoiceKind {
-    fn foreign_from(from: dsl_ast::ConnectorChoiceKind) -> Self {
-        match from {
-            dsl_ast::ConnectorChoiceKind::OnlyConnector => Self::OnlyConnector,
-            dsl_ast::ConnectorChoiceKind::FullStruct => Self::FullStruct,
-        }
-    }
-}
-
-#[cfg(feature = "backwards_compatibility")]
-impl ForeignFrom<routing_types::RoutableChoiceKind> for dsl_ast::ConnectorChoiceKind {
-    fn foreign_from(from: routing_types::RoutableChoiceKind) -> Self {
-        match from {
-            routing_types::RoutableChoiceKind::OnlyConnector => Self::OnlyConnector,
-            routing_types::RoutableChoiceKind::FullStruct => Self::FullStruct,
-        }
-    }
-}
-
-impl ForeignFrom<dsl_ast::ConnectorChoice> for routing_types::RoutableConnectorChoice {
-    fn foreign_from(from: dsl_ast::ConnectorChoice) -> Self {
-        Self {
-            #[cfg(feature = "backwards_compatibility")]
-            choice_kind: from.choice_kind.foreign_into(),
-            connector: from.connector.foreign_into(),
-            sub_label: from.sub_label,
-        }
-    }
-}
-
 impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
     fn foreign_from(value: ConnectorSelection) -> Self {
         match value {
-            ConnectorSelection::Priority(conns) => {
-                let connectors = conns.into_iter().map(ForeignFrom::foreign_from);
-                Self::Priority(connectors.collect())
-            }
+            ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
 
-            ConnectorSelection::VolumeSplit(splits) => {
-                let splits = splits
-                    .into_iter()
-                    .map(|sp| routing_types::ConnectorVolumeSplit {
-                        connector: sp.connector.foreign_into(),
-                        split: sp.split,
-                    });
-
-                Self::VolumeSplit(splits.collect())
-            }
-        }
-    }
-}
-
-impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithmV0 {
-    fn foreign_from(value: ConnectorSelection) -> Self {
-        match value {
-            ConnectorSelection::Priority(conns) => {
-                let connectors = conns
-                    .into_iter()
-                    .map(routing_types::RoutableConnectorChoice::foreign_from);
-                Self::Priority(connectors.collect())
-            }
-
-            ConnectorSelection::VolumeSplit(splits) => {
-                let splits = splits
-                    .into_iter()
-                    .map(|sp| routing_types::ConnectorVolumeSplitV0 {
-                        connector: sp.connector.foreign_into(),
-                        split: sp.split,
-                    });
-
-                Self::VolumeSplit(splits.collect())
-            }
-        }
-    }
-}
-
-impl ForeignFrom<routing_types::ConnectorVolumeSplitV0> for routing_types::ConnectorVolumeSplit {
-    fn foreign_from(from: routing_types::ConnectorVolumeSplitV0) -> Self {
-        Self {
-            connector: routing_types::RoutableConnectorChoice {
-                #[cfg(feature = "backwards_compatibility")]
-                choice_kind: from.connector.choice_kind,
-                connector: from.connector.connector,
-                sub_label: from.connector.sub_label,
-            },
-            split: from.split,
+            ConnectorSelection::VolumeSplit(splits) => Self::VolumeSplit(splits),
         }
     }
 }

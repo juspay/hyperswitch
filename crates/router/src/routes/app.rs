@@ -130,12 +130,6 @@ impl AppState {
         #[allow(clippy::expect_used)]
         let kms_secrets = settings::ActiveKmsSecrets {
             jwekey: conf.jwekey.clone().into(),
-            redis_temp_locker_encryption_key: conf
-                .locker
-                .redis_temp_locker_encryption_key
-                .clone()
-                .into_bytes()
-                .into(),
         }
         .decrypt_inner(kms_client)
         .await
@@ -143,7 +137,6 @@ impl AppState {
 
         #[cfg(feature = "email")]
         let email_client = Arc::new(AwsSes::new(&conf.email).await);
-
         Self {
             flow_name: String::from("default"),
             store,
@@ -291,11 +284,23 @@ impl Routing {
     pub fn server(state: AppState) -> Scope {
         web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
-            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/active")
+                    .route(web::get().to(cloud_routing::routing_retrieve_linked_config)),
+            )
             .service(
                 web::resource("")
                     .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
                     .route(web::post().to(cloud_routing::routing_create_config)),
+            )
+            .service(
+                web::resource("/default")
+                    .route(web::get().to(cloud_routing::routing_retrieve_default_config))
+                    .route(web::post().to(cloud_routing::routing_update_default_config)),
+            )
+            .service(
+                web::resource("/deactivate")
+                    .route(web::post().to(cloud_routing::routing_unlink_config)),
             )
             .service(
                 web::resource("/{algorithm_id}")

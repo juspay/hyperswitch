@@ -7,9 +7,10 @@ use crate::types::transformers::{ForeignFrom, ForeignInto};
 impl ForeignFrom<routing_types::RoutableConnectorChoice> for dsl_ast::ConnectorChoice {
     fn foreign_from(from: routing_types::RoutableConnectorChoice) -> Self {
         Self {
-            #[cfg(feature = "backwards_compatibility")]
-            choice_kind: from.choice_kind.foreign_into(),
+            // #[cfg(feature = "backwards_compatibility")]
+            // choice_kind: from.choice_kind.foreign_into(),
             connector: from.connector.foreign_into(),
+            #[cfg(not(feature = "connector_choice_mca_id"))]
             sub_label: from.sub_label,
         }
     }
@@ -56,19 +57,19 @@ impl ForeignFrom<api_enums::RoutableConnectors> for dsl_enums::Connector {
     fn foreign_from(from: api_enums::RoutableConnectors) -> Self {
         match from {
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector1 => Self::DummyConnector1 ,
+            api_enums::RoutableConnectors::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector2 => Self::DummyConnector2 ,
+            api_enums::RoutableConnectors::DummyConnector2 => Self::DummyConnector2,
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector3 => Self::DummyConnector3 ,
+            api_enums::RoutableConnectors::DummyConnector3 => Self::DummyConnector3,
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector4 => Self::DummyConnector4 ,
+            api_enums::RoutableConnectors::DummyConnector4 => Self::DummyConnector4,
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector5 => Self::DummyConnector5 ,
+            api_enums::RoutableConnectors::DummyConnector5 => Self::DummyConnector5,
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector6 => Self::DummyConnector6 ,
+            api_enums::RoutableConnectors::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
-            api_enums::RoutableConnectors::DummyConnector7 => Self::DummyConnector7 ,
+            api_enums::RoutableConnectors::DummyConnector7 => Self::DummyConnector7,
             api_enums::RoutableConnectors::Aci => Self::Aci,
             api_enums::RoutableConnectors::Adyen => Self::Adyen,
             api_enums::RoutableConnectors::Airwallex => Self::Airwallex,

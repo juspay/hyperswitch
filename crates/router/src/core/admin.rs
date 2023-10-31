@@ -87,7 +87,7 @@ pub async fn create_merchant_account(
             .transpose()?;
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -390,7 +390,7 @@ pub async fn merchant_account_update(
     }
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1164,7 +1164,7 @@ pub async fn create_business_profile(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1276,7 +1276,7 @@ pub async fn update_business_profile(
         .transpose()?;
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {

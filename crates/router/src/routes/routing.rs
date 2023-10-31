@@ -157,3 +157,155 @@ pub async fn routing_retrieve_dictionary(
         .await
     }
 }
+
+pub async fn routing_unlink_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    #[cfg(feature = "business_profile_routing")] payload: web::Json<
+        routing_types::RoutingConfigRequest,
+    >,
+) -> impl Responder {
+    #[cfg(feature = "business_profile_routing")]
+    {
+        let flow = VasFlow::RoutingUnlinkConfig;
+        Box::pin(oss_api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload.into_inner(),
+            |state, auth: oss_auth::AuthenticationData, payload_req| {
+                routing::unlink_routing_config(state, auth.merchant_account, payload_req)
+            },
+            #[cfg(not(feature = "release"))]
+            auth::auth_type(
+                &oss_auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingWrite),
+                req.headers(),
+            ),
+            #[cfg(feature = "release")]
+            &auth::JWTAuth(Permission::RoutingWrite),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(not(feature = "business_profile_routing"))]
+    {
+        let flow = VasFlow::RoutingUnlinkConfig;
+        Box::pin(oss_api::server_wrap(
+            flow,
+            state,
+            &req,
+            (),
+            |state, auth: oss_auth::AuthenticationData, _| {
+                routing::unlink_routing_config(state, auth.merchant_account, auth.key_store)
+            },
+            #[cfg(not(feature = "release"))]
+            auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            #[cfg(feature = "release")]
+            &auth::JWTAuth,
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn routing_update_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
+) -> impl Responder {
+    oss_api::server_wrap(
+        VasFlow::RoutingUpdateDefaultConfig,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: oss_auth::AuthenticationData, updated_config| {
+            routing::update_default_routing_config(state, auth.merchant_account, updated_config)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn routing_retrieve_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    oss_api::server_wrap(
+        VasFlow::RoutingRetrieveDefaultConfig,
+        state,
+        &req,
+        (),
+        |state, auth: oss_auth::AuthenticationData, _| {
+            routing::retrieve_default_routing_config(state, auth.merchant_account)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn routing_retrieve_linked_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveLinkQuery>,
+) -> impl Responder {
+    #[cfg(feature = "business_profile_routing")]
+    {
+        use hyperswitch_oss::services::authentication::AuthenticationData;
+        let flow = VasFlow::RoutingRetrieveActiveConfig;
+        Box::pin(oss_api::server_wrap(
+            flow,
+            state,
+            &req,
+            query.into_inner(),
+            |state, auth: AuthenticationData, query_params| {
+                routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
+            },
+            #[cfg(not(feature = "release"))]
+            auth::auth_type(
+                &oss_auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingRead),
+                req.headers(),
+            ),
+            #[cfg(feature = "release")]
+            &auth::JWTAuth(Permission::RoutingRead),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(not(feature = "business_profile_routing"))]
+    {
+        let flow = VasFlow::RoutingRetrieveActiveConfig;
+        Box::pin(oss_api::server_wrap(
+            flow,
+            state,
+            &req,
+            (),
+            |state, auth: oss_auth::AuthenticationData, _| {
+                routing::retrieve_linked_routing_config(state, auth.merchant_account)
+            },
+            #[cfg(not(feature = "release"))]
+            auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            #[cfg(feature = "release")]
+            &auth::JWTAuth,
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+}

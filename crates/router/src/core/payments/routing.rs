@@ -37,7 +37,7 @@ use crate::{
     },
     logger,
     types::{
-        api as api_oss, api::routing as routing_types, domain, storage as oss_storage,
+        api, api::routing as routing_types, domain, storage as oss_storage,
         transformers::ForeignInto,
     },
     utils::{OptionExt, StringExt, ValueExt},
@@ -58,7 +58,7 @@ pub struct SessionFlowRoutingInput<'a> {
     pub merchant_account: &'a domain::MerchantAccount,
     pub payment_attempt: &'a oss_storage::PaymentAttempt,
     pub payment_intent: &'a oss_storage::PaymentIntent,
-    pub chosen: Vec<api_oss::SessionConnectorData>,
+    pub chosen: Vec<api::SessionConnectorData>,
 }
 
 pub struct SessionRoutingPmTypeInput<'a> {
@@ -68,7 +68,7 @@ pub struct SessionRoutingPmTypeInput<'a> {
     attempt_id: &'a str,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
-    allowed_connectors: FxHashMap<String, api_oss::GetToken>,
+    allowed_connectors: FxHashMap<String, api::GetToken>,
     #[cfg(feature = "business_profile_routing")]
     profile_id: Option<String>,
 }
@@ -137,7 +137,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api_oss::PaymentMethodData::Card(card) => card.card_network.clone(),
+                api::PaymentMethodData::Card(card) => card.card_network.clone(),
 
                 _ => None,
             }),
@@ -149,7 +149,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api_oss::PaymentMethodData::Card(card) => {
+                api::PaymentMethodData::Card(card) => {
                     Some(card.card_number.peek().chars().take(6).collect())
                 }
                 _ => None,
@@ -688,10 +688,8 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
-    let mut pm_type_map: FxHashMap<
-        api_enums::PaymentMethodType,
-        FxHashMap<String, api_oss::GetToken>,
-    > = FxHashMap::default();
+    let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
+        FxHashMap::default();
     let merchant_last_modified = session_input
         .merchant_account
         .modified_at
@@ -841,7 +839,7 @@ pub async fn perform_session_flow_routing(
 
 async fn perform_session_routing_for_pm_type(
     session_pm_input: SessionRoutingPmTypeInput<'_>,
-) -> RoutingResult<Option<(api_oss::ConnectorData, Option<String>)>> {
+) -> RoutingResult<Option<(api::ConnectorData, Option<String>)>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let chosen_connectors = match session_pm_input.routing_algorithm {
@@ -919,19 +917,27 @@ async fn perform_session_routing_for_pm_type(
         .await?;
     }
 
-    let mut final_choice: Option<(api_oss::ConnectorData, Option<String>)> = None;
+    let mut final_choice: Option<(api::ConnectorData, Option<String>)> = None;
 
     for selection in final_selection {
         let connector_name = selection.connector.to_string();
         if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
-            let connector_data = api_oss::ConnectorData::get_connector_by_name(
+            let connector_data = api::ConnectorData::get_connector_by_name(
                 &session_pm_input.state.clone().conf.connectors,
                 &connector_name,
                 get_token.clone(),
+                #[cfg(feature = "connector_choice_mca_id")]
+                selection.merchant_connector_id,
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                None,
             )
             .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            let sub_label = selection.sub_label;
+            #[cfg(feature = "connector_choice_mca_id")]
+            let sub_label = None;
 
-            final_choice = Some((connector_data, selection.sub_label));
+            final_choice = Some((connector_data, sub_label));
             break;
         }
     }

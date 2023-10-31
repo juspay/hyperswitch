@@ -19,6 +19,7 @@ impl Connector for Globalpay {
             connector: Box::new(&Globalpay),
             connector_name: types::Connector::Globalpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

@@ -7,10 +7,10 @@ use std::{
 };
 
 use api_models::{
-    admin as admin_api, 
+    admin as admin_api,
     // conditional_configs::ConditionalConfigs,
     // enums as api_model_enums,
-    routing::ConnectorSelection, 
+    routing::ConnectorSelection,
     // surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 // use connector_configs::{
@@ -30,7 +30,9 @@ use euclid::{
     enums,
     frontend::{
         ast,
-        dir::{self, enums as dir_enums, 
+        dir::{
+            self,
+            enums as dir_enums,
             // EuclidDirFilter
         },
     },
@@ -92,9 +94,8 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .iter()
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
-                #[cfg(feature = "connector_choice_bcompat")]
-                choice_kind: ast::ConnectorChoiceKind::FullStruct,
                 connector: dir_enums::Connector::from_str(&mca.connector_name)?,
+                #[cfg(not(feature = "connector_choice_mca_id"))]
                 sub_label: mca.business_sub_label.clone(),
             })
         })

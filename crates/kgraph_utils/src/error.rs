@@ -9,4 +9,6 @@ pub enum KgraphError {
     GraphConstructionError(GraphError),
     #[error("There was an error constructing the context")]
     ContextConstructionError(AnalysisErrorType),
+    #[error("there was an unprecedented indexing error")]
+    IndexingError,
 }

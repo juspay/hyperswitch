@@ -102,10 +102,12 @@ fn compile_request_pm_types(
         agg_nodes.push((accepted_currencies_id, relation, graph::Strength::Strong));
     }
 
+    let mut amount_nodes = Vec::with_capacity(2);
+
     if let Some(min_amt) = pm_types.minimum_amount {
         let num_val = NumValue {
             number: min_amt.into(),
-            refinement: Some(NumValueRefinement::GreaterThan),
+            refinement: Some(NumValueRefinement::GreaterThanEqual),
         };
 
         let min_amt_info = "Minimum Amount";
@@ -117,17 +119,14 @@ fn compile_request_pm_types(
                 None::<()>,
             )
             .map_err(KgraphError::GraphConstructionError)?;
-        agg_nodes.push((
-            min_amt_id,
-            graph::Relation::Positive,
-            graph::Strength::Strong,
-        ));
+
+        amount_nodes.push(min_amt_id);
     }
 
     if let Some(max_amt) = pm_types.maximum_amount {
         let num_val = NumValue {
             number: max_amt.into(),
-            refinement: Some(NumValueRefinement::LessThan),
+            refinement: Some(NumValueRefinement::LessThanEqual),
         };
 
         let max_amt_info = "Maximum Amount";
@@ -139,8 +138,61 @@ fn compile_request_pm_types(
                 None::<()>,
             )
             .map_err(KgraphError::GraphConstructionError)?;
+
+        amount_nodes.push(max_amt_id);
+    }
+
+    if !amount_nodes.is_empty() {
+        let zero_num_val = NumValue {
+            number: 0,
+            refinement: None,
+        };
+
+        let zero_amt_id = builder
+            .make_value_node(
+                dir::DirValue::PaymentAmount(zero_num_val).into(),
+                Some("zero_amount"),
+                vec![DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                None::<()>,
+            )
+            .map_err(KgraphError::GraphConstructionError)?;
+
+        let or_node_neighbor_id = if amount_nodes.len() == 1 {
+            amount_nodes
+                .get(0)
+                .copied()
+                .ok_or(KgraphError::IndexingError)?
+        } else {
+            let nodes = amount_nodes
+                .iter()
+                .copied()
+                .map(|node_id| (node_id, graph::Relation::Positive, graph::Strength::Strong))
+                .collect::<Vec<_>>();
+
+            builder
+                .make_all_aggregator(
+                    &nodes,
+                    Some("amount_constraint_aggregator"),
+                    None::<()>,
+                    vec![DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                )
+                .map_err(KgraphError::GraphConstructionError)?
+        };
+
+        let any_aggregator = builder
+            .make_any_aggregator(
+                &[
+                    (zero_amt_id, graph::Relation::Positive),
+                    (or_node_neighbor_id, graph::Relation::Positive),
+                ],
+                Some("zero_plus_limits_amount_aggregator"),
+                None::<()>,
+                vec![DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+            )
+            .map_err(KgraphError::GraphConstructionError)?;
+
         agg_nodes.push((
-            max_amt_id,
+            any_aggregator,
             graph::Relation::Positive,
             graph::Strength::Strong,
         ));
@@ -245,9 +297,8 @@ fn compile_merchant_connector_graph(
         .map_err(KgraphError::GraphConstructionError)?;
 
     let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
-        #[cfg(feature = "backwards_compatibility")]
-        choice_kind: ast::ConnectorChoiceKind::FullStruct,
         connector,
+        #[cfg(not(feature = "connector_choice_mca_id"))]
         sub_label: mca.business_sub_label,
     }));
 
