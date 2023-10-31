@@ -30,11 +30,9 @@ impl ConnectorCommon for Aci {
     fn id(&self) -> &'static str {
         "aci"
     }
-
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
     }
-
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
     }
