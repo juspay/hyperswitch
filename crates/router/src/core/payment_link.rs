@@ -1,5 +1,4 @@
 use api_models::admin as admin_types;
-use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 
@@ -44,6 +43,11 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let payment_link_id = payment_intent
+        .payment_link_id
+        .get_required_value("payment_link_id")
+        .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
     helpers::validate_payment_status_against_not_allowed_statuses(
         &payment_intent.status,
         &[
@@ -56,17 +60,10 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let payment_link = payment_intent
-        .payment_link_id
-        .as_ref()
-        .async_and_then(|pli| async {
-            db.find_payment_link_by_payment_link_id(pli)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)
-                .ok()
-        })
+    let payment_link = db
+        .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
-        .ok_or(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let payment_link_config = merchant_account
         .payment_link_config
