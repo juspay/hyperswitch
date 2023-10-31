@@ -4,8 +4,6 @@ use common_utils::errors::{CustomResult, ErrorSwitch};
 pub type AnalyticsResult<T> = CustomResult<T, AnalyticsError>;
 
 #[derive(Debug, Clone, serde::Serialize, thiserror::Error)]
-// TODO: Add domain based error messages with proper response handling & status code mapping
-// https://github.com/juspay/hyperswitch-cloud/issues/544
 pub enum AnalyticsError {
     #[allow(dead_code)]
     #[error("Not implemented: {0}")]

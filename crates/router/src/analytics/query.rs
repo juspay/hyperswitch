@@ -425,7 +425,7 @@ where
     fn get_group_by_clause(&self) -> String {
         self.group_by.join(", ")
     }
-    // TODO: remove this when updating the ToSql trait to accept a table engine
+
     #[allow(dead_code)]
     pub fn add_having_clause<R>(
         &mut self,

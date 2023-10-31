@@ -19,6 +19,7 @@ use crate::analytics::{
     query::{Aggregate, GroupByClause, ToSql},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct RefundMetricRow {
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,

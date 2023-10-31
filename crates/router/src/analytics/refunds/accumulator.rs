@@ -15,11 +15,13 @@ pub struct SuccessRateAccumulator {
     pub success: i64,
     pub total: i64,
 }
+
 #[derive(Debug, Default)]
 #[repr(transparent)]
 pub struct CountAccumulator {
     pub count: Option<i64>,
 }
+
 #[derive(Debug, Default)]
 #[repr(transparent)]
 pub struct SumAccumulator {

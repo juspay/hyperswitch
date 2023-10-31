@@ -15,6 +15,7 @@ use api_models::analytics::{
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
+use router_env::{instrument, tracing};
 
 use self::{
     payments::metrics::{PaymentMetric, PaymentMetricRow},
@@ -27,7 +28,6 @@ use crate::configs::settings::Database;
 pub enum AnalyticsProvider {
     Sqlx(SqlxClient),
 }
-use router_env::{instrument, tracing};
 
 impl AnalyticsProvider {
     #[instrument(skip_all)]

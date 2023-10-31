@@ -67,6 +67,7 @@ pub struct GetPaymentMetricRequest {
     #[serde(default)]
     pub delta: bool,
 }
+
 #[derive(Clone, Debug, serde::Deserialize, masking::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetRefundMetricRequest {
@@ -123,7 +124,6 @@ pub struct RefundFiltersResponse {
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-
 pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
     pub values: Vec<String>,

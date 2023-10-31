@@ -49,6 +49,7 @@ where
         .change_context(FiltersError::QueryBuildingError)?
         .change_context(FiltersError::QueryExecutionFailure)
 }
+
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 pub struct RefundFilterRow {
     pub currency: Option<DBEnumWrapper<Currency>>,

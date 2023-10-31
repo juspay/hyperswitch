@@ -114,7 +114,6 @@ pub struct RefundMetricsBucketIdentifier {
     pub currency: Option<Currency>,
     pub refund_status: Option<RefundStatus>,
     pub connector: Option<String>,
-
     pub refund_type: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
@@ -160,6 +159,7 @@ impl RefundMetricsBucketIdentifier {
         }
     }
 }
+
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketValue {
     pub refund_success_rate: Option<f64>,
@@ -167,6 +167,7 @@ pub struct RefundMetricsBucketValue {
     pub refund_success_count: Option<u64>,
     pub refund_processed_amount: Option<u64>,
 }
+
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {
     #[serde(flatten)]
