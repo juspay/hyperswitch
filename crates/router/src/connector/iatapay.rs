@@ -461,7 +461,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = iatapay::IatapayRefundRequest::try_from(req)?;
+        let connector_router_data = iatapay::IatapayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.payment_amount,
+            req,
+        ))?;
+        let req_obj = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
         let iatapay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json,
