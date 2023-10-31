@@ -854,7 +854,6 @@ default_imp_for_pre_processing_steps!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payu,
     connector::Powertranz,
     connector::Prophetpay,

@@ -441,6 +441,7 @@ pub struct PaymentsPreProcessingData {
     pub complete_authorize_url: Option<String>,
     pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
