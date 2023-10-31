@@ -228,7 +228,10 @@ fn get_payment_method_data(
         | api::PaymentMethodData::Upi(_)
         | api::PaymentMethodData::Voucher(_)
         | api::PaymentMethodData::GiftCard(_) => {
-            Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Payeezy",
+            }.into())
         }
     }
 }
