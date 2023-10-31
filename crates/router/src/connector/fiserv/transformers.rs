@@ -425,17 +425,22 @@ pub struct SessionObject {
 
 impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &FiservRouterData<&types::PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &FiservRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let metadata = item.router_data
+        let metadata = item
+            .router_data
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let amount =
-            utils::to_currency_base_unit(item.router_data.request.amount_to_capture, item.router_data.request.currency)?;
+        let amount = utils::to_currency_base_unit(
+            item.router_data.request.amount_to_capture,
+            item.router_data.request.currency,
+        )?;
         Ok(Self {
             amount: Amount {
                 total: amount,
@@ -451,7 +456,11 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
                 terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {
-                reference_transaction_id: item.router_data.request.connector_transaction_id.to_string(),
+                reference_transaction_id: item
+                    .router_data
+                    .request
+                    .connector_transaction_id
+                    .to_string(),
             },
         })
     }
