@@ -130,3 +130,22 @@ where
     publish_into_redact_channel(store, key).await?;
     Ok(data)
 }
+
+pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
+    store: &dyn StorageInterface,
+    keys: K,
+    fun: F,
+) -> CustomResult<T, errors::StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
+    K: IntoIterator<Item = CacheKind<'a>>,
+{
+    let data = fun().await?;
+    futures::future::try_join_all(
+        keys.into_iter()
+            .map(|key| publish_into_redact_channel(store, key)),
+    )
+    .await?;
+    Ok(data)
+}
