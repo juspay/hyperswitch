@@ -28,7 +28,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
 }
 #[derive(Debug, Serialize)]
 pub struct IatapayRouterData<T> {
-    amount: i64,
+    amount: f64,
     router_data: T,
 }
 impl<T>
