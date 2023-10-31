@@ -1,3 +1,4 @@
+use crate::DataModelExt;
 use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
@@ -123,7 +124,11 @@ impl PaymentIntentInterface for MockDb {
             .iter_mut()
             .find(|item| item.id == this.id)
             .unwrap();
-        *payment_intent = update.apply_changeset(this);
+        *payment_intent = PaymentIntent::from_storage_model(
+            update
+                .to_storage_model()
+                .apply_changeset(this.to_storage_model()),
+        );
         Ok(payment_intent.clone())
     }
 
