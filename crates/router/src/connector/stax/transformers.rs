@@ -13,7 +13,7 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct StaxRouterData<T> {
-    pub amount: f64,
+    pub amount: i64,
     pub router_data: T,
 }
 
@@ -21,7 +21,7 @@ impl<T>
     TryFrom<(
         &types::api::CurrencyUnit,
         types::storage::enums::Currency,
-        f64,
+        i64,
         T,
     )> for StaxRouterData<T>
 {
