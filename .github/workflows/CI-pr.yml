@@ -518,9 +518,5 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Store PR title for spell check
-        shell: bash
-        run: echo '${{ github.event.pull_request.title }}' > pr_title.txt
-
       - name: Spell check
         uses: crate-ci/typos@master
