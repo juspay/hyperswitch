@@ -122,13 +122,6 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    async fn find_merchant_connector_account_by_merchant_id_connector_name(
-        &self,
-        merchant_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
-
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -253,35 +246,6 @@ impl MerchantConnectorAccountInterface for Store {
             })
             .await
         }
-    }
-
-    async fn find_merchant_connector_account_by_merchant_id_connector_name(
-        &self,
-        merchant_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id_connector_name(
-            &conn,
-            merchant_id,
-            connector_name,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()
-        .async_and_then(|items| async {
-            let mut output = Vec::with_capacity(items.len());
-            for item in items.into_iter() {
-                output.push(
-                    item.convert(key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                )
-            }
-            Ok(output)
-        })
-        .await
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -486,34 +450,6 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .into())
             }
         }
-    }
-
-    async fn find_merchant_connector_account_by_merchant_id_connector_name(
-        &self,
-        merchant_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        let accounts = self
-            .merchant_connector_accounts
-            .lock()
-            .await
-            .iter()
-            .filter(|account| {
-                account.merchant_id == merchant_id && account.connector_name == connector_name
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut output = Vec::with_capacity(accounts.len());
-        for account in accounts.into_iter() {
-            output.push(
-                account
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)?,
-            )
-        }
-        Ok(output)
     }
 
     async fn find_merchant_connector_account_by_profile_id_connector_name(
