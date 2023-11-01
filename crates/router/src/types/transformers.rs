@@ -1008,12 +1008,24 @@ impl From<domain::Address> for payments::AddressDetails {
     }
 }
 
+
 impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
     fn foreign_from(value: ConnectorSelection) -> Self {
         match value {
             ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
 
             ConnectorSelection::VolumeSplit(splits) => Self::VolumeSplit(splits),
+      }
+   }
+}
+
+impl ForeignFrom<api_models::organization::OrganizationNew>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
+        Self {
+            org_id: item.org_id,
+            org_name: item.org_name,
         }
     }
 }
