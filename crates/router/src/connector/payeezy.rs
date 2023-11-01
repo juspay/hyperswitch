@@ -479,9 +479,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyRefundRequest::try_from(req)?;
+        let connector_req = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = payeezy::PayeezyRefundRequest::try_from(&connector_req)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -509,17 +515,24 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+        // Parse the response into a payeezy::RefundResponse
         let response: payeezy::RefundResponse = res
             .response
             .parse_struct("payeezy RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RefundsRouterData::try_from(types::ResponseRouterData {
+    
+        // Create a new instance of types::RefundsRouterData based on the response, input data, and HTTP code
+        let response_data = types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        };
+        let router_data = types::RefundsRouterData::try_from(response_data)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    
+        Ok(router_data)
     }
+
 
     fn get_error_response(
         &self,
