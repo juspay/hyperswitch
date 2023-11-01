@@ -188,7 +188,6 @@ where
                 .await?;
 
                 let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
                 connector_http_status_code = router_data.connector_http_status_code;
                 external_latency = router_data.external_latency;
                 //add connector http status code metrics
@@ -196,7 +195,7 @@ where
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
-                        db,
+                        state,
                         &validate_result.payment_id,
                         payment_data,
                         router_data,
@@ -237,7 +236,7 @@ where
         (_, payment_data) = operation
             .to_update_tracker()?
             .update_trackers(
-                &*state.store,
+                &state,
                 payment_data.clone(),
                 customer.clone(),
                 validate_result.storage_scheme,
@@ -749,7 +748,7 @@ where
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
-            &*state.store,
+            &state,
             payment_data.clone(),
             customer.clone(),
             merchant_account.storage_scheme,

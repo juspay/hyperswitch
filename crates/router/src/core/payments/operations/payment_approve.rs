@@ -347,7 +347,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -367,6 +367,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             updated_by: storage_scheme.to_string(),
         };
         payment_data.payment_intent = db
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 intent_status_update,

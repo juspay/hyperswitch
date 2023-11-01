@@ -767,3 +767,16 @@ where
 
     Ok(())
 }
+
+type Handle<T> = tokio::task::JoinHandle<RouterResult<T>>;
+
+pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
+    match handle.await {
+        Ok(Ok(t)) => Ok(t),
+        Ok(Err(err)) => Err(err),
+        Err(err) => Err(err)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Join Error"),
+    }
+}

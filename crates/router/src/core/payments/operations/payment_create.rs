@@ -16,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils::{self as core_utils},
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
@@ -390,7 +390,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -430,7 +430,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let authorized_amount = payment_data.payment_attempt.amount;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
-        payment_data.payment_attempt = db
+        payment_data.payment_attempt = state
+            .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::UpdateTrackers {
@@ -451,7 +452,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::ReturnUrlUpdate {
