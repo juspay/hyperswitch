@@ -27,7 +27,7 @@ impl<T>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
+        (_currency_unit, _currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -36,7 +36,7 @@ impl<T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
-            router_data,
+            router_data : item,
         })
     }
 }
@@ -131,7 +131,7 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for Payeez
     fn try_from(
         item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method {
+        match item.router_data.request.payment_method_data {
             diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
 
             diesel_models::enums::PaymentMethod::CardRedirect
