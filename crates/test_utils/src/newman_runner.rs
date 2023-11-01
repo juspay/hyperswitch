@@ -204,12 +204,18 @@ pub fn command_generate() -> ReturnArgs {
     if let Some(headers) = &args.custom_headers {
         for header in headers {
             let kv_pair: Vec<&str> = header.splitn(2, ':').collect();
-            let content_to_insert = format!(
-                "pm.request.headers.add({{key: \"{}\", value: \"{}\"}});",
-                kv_pair[0], kv_pair[1]
-            );
-            if insert_content(&collection_path, &content_to_insert).is_ok() {
-                modified = true;
+            if kv_pair.len() == 2 {
+                let key = kv_pair[0];
+                let value = kv_pair[1];
+                let content_to_insert = format!(
+                    "pm.request.headers.add({{key: \"{}\", value: \"{}\"}});",
+                    key, value
+                );
+                if insert_content(&collection_path, &content_to_insert).is_ok() {
+                    modified = true;
+                }
+            } else {
+                eprintln!("Invalid header format: {}", header);
             }
         }
     }
