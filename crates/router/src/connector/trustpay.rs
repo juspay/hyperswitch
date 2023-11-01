@@ -148,7 +148,11 @@ impl ConnectorCommon for Trustpay {
     }
 }
 
-impl ConnectorValidation for Trustpay {}
+impl ConnectorValidation for Trustpay {
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+}
 
 impl api::Payment for Trustpay {}
 

@@ -401,6 +401,7 @@ impl PaymentMethodValidate {
             profile_id: Default::default(),
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
+            surcharge_applicable: Default::default(),
             payment_link_id: Default::default(),
             updated_by: storage_scheme.to_string(),
         }

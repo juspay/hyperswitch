@@ -141,8 +141,10 @@ pub struct PaymentAttempt {
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
-    pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -201,8 +203,10 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
-    pub surcharge_metadata: Option<serde_json::Value>,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -228,6 +232,7 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -250,7 +255,10 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
+        merchant_connector_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -307,11 +315,6 @@ pub enum PaymentAttemptUpdate {
         multiple_capture_count: i16,
         updated_by: String,
     },
-    SurchargeAmountUpdate {
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
-        updated_by: String,
-    },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
@@ -326,8 +329,11 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         updated_by: String,
     },
-    SurchargeMetadataUpdate {
-        surcharge_metadata: Option<serde_json::Value>,
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
         updated_by: String,
     },
 }

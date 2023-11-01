@@ -77,11 +77,20 @@ pub enum QrCodeError {
 }
 
 /// Api Models construction error
-#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
-pub enum ApiModelsError {
+#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+pub enum PercentageError {
     /// Percentage Value provided was invalid
     #[error("Invalid Percentage value")]
     InvalidPercentageValue,
+
+    /// Error occurred while calculating percentage
+    #[error("Failed apply percentage of {percentage} on {amount}")]
+    UnableToApplyPercentage {
+        /// percentage value
+        percentage: f32,
+        /// amount value
+        amount: i64,
+    },
 }
 
 /// Allows [error_stack::Report] to change between error contexts

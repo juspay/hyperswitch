@@ -9,7 +9,6 @@ mod address;
 pub mod config;
 pub mod connection;
 mod connector_response;
-mod consts;
 pub mod database;
 pub mod errors;
 mod lookup;
@@ -138,6 +137,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
     router_store: RouterStore<T>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
+    ttl_for_kv: u32,
 }
 
 #[async_trait::async_trait]
@@ -146,13 +146,14 @@ where
     RouterStore<T>: DatabaseStore,
     T: DatabaseStore,
 {
-    type Config = (RouterStore<T>, String, u8);
+    type Config = (RouterStore<T>, String, u8, u32);
     async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
-        let (router_store, drainer_stream_name, drainer_num_partitions) = config;
+        let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,
             drainer_num_partitions,
+            ttl_for_kv,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -176,11 +177,13 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         store: RouterStore<T>,
         drainer_stream_name: String,
         drainer_num_partitions: u8,
+        ttl_for_kv: u32,
     ) -> Self {
         Self {
             router_store: store,
             drainer_stream_name,
             drainer_num_partitions,
+            ttl_for_kv,
         }
     }
 

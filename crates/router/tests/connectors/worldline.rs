@@ -22,6 +22,7 @@ impl utils::Connector for WorldlineTest {
             connector: Box::new(&Worldline),
             connector_name: types::Connector::Worldline,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

@@ -311,7 +311,9 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]
+#[derive(
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
+)]
 pub struct RequestSurchargeDetails {
     pub surcharge_amount: i64,
     pub tax_amount: Option<i64>,
@@ -2096,14 +2098,20 @@ pub struct PaymentsResponse {
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
+    /// details of surcharge applied on this payment
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+
+    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    pub merchant_connector_id: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for customer
@@ -2179,7 +2187,7 @@ pub struct PaymentListResponseV2 {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
@@ -3092,7 +3100,7 @@ pub struct PaymentLinkObject {
     pub merchant_custom_domain_name: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
@@ -3120,7 +3128,7 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,

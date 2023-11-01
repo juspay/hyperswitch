@@ -17,6 +17,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
@@ -75,6 +76,7 @@ pub trait StorageInterface:
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + business_profile::BusinessProfileInterface
+    + organization::OrganizationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
