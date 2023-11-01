@@ -115,12 +115,6 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    async fn find_merchant_connector_account_by_profile_id_connector_name(
-        &self,
-        profile_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
@@ -209,24 +203,6 @@ impl MerchantConnectorAccountInterface for Store {
             .await
         }
     }
-
-    async fn find_merchant_connector_account_by_profile_id_connector_name(
-        &self,
-        profile_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
-            storage::MerchantConnectorAccount::find_by_profile_id_connector_name(
-                &conn,
-                profile_id,
-                connector_name,
-            )
-            .await
-            .map_err(Into::into)
-            .into_report()
-        };
 
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -516,23 +492,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
-    async fn find_merchant_connector_account_by_profile_id_connector_name(
-        &self,
-        profile_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let maybe_mca = self
-            .merchant_connector_accounts
-            .lock()
-            .await
-            .iter()
-            .find(|account| {
-                account.profile_id.eq(&Some(profile_id.to_owned()))
-                    && account.connector_name == connector_name
-            })
-            .cloned();
-
         match maybe_mca {
             Some(mca) => mca
                 .to_owned()
@@ -815,19 +774,6 @@ mod merchant_connector_account_cache_tests {
             .await
             .unwrap();
 
-        let find_call = || async {
-            Conversion::convert(
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    profile_id,
-                    &mca.connector_name,
-                    &merchant_key,
-                )
-                .await
-                .unwrap(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-        };
         let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
             &db,
             &format!("{}_{}", merchant_id, profile_id),
