@@ -64,7 +64,7 @@ where
         .write(true)
         .append(true)
         .create(true)
-        .open(&file_path)?;
+        .open(file_path)?;
 
     // Convert the content to insert to a byte slice
     let content_bytes = content_to_insert.as_ref().as_bytes();
