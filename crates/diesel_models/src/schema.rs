@@ -580,6 +580,8 @@ diesel::table! {
         updated_by -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        authentication_data -> Nullable<Json>,
+        encoded_data -> Nullable<Text>,
     }
 }
 
