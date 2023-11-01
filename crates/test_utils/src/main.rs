@@ -3,10 +3,10 @@ use std::process::{exit, Command};
 use test_utils::newman_runner;
 
 fn main() {
-    let mut runner: (Command, bool, String) = newman_runner::command_generate();
+    let mut runner = newman_runner::command_generate();
 
     // Execute the newman command
-    let output = runner.0.spawn();
+    let output = runner.newman_command.spawn();
     let mut child = match output {
         Ok(child) => child,
         Err(err) => {
@@ -16,14 +16,14 @@ fn main() {
     };
     let status = child.wait();
 
-    if runner.1 {
+    if runner.file_modified_flag {
         let mut cmd = Command::new("git");
         let output = cmd
             .args([
                 "checkout",
                 "HEAD",
                 "--",
-                format!("{}/event.prerequest.js", runner.2).as_str(),
+                format!("{}/event.prerequest.js", runner.collection_path).as_str(),
             ])
             .output();
 

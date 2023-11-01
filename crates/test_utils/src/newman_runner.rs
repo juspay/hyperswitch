@@ -23,8 +23,8 @@ struct Args {
     #[arg(short, long)]
     connector_name: String,
     /// Custom headers
-    #[arg(long)]
-    custom_headers: Option<String>,
+    #[arg(long = "header")]
+    custom_headers: Option<Vec<String>>,
     /// Minimum delay in milliseconds to be added before sending a request
     /// By default, 7 milliseconds will be the delay
     #[arg(short, long, default_value_t = 7)]
@@ -35,6 +35,12 @@ struct Args {
     /// Optional Verbose logs
     #[arg(short, long)]
     verbose: bool,
+}
+
+pub struct ReturnArgs {
+    pub newman_command: Command,
+    pub file_modified_flag: bool,
+    pub collection_path: String,
 }
 
 // Just by the name of the connector, this function generates the name of the collection dir
@@ -51,23 +57,27 @@ where
     T: AsRef<Path> + std::fmt::Debug,
 {
     let file_name = "event.prerequest.js";
-    let file_path = format!("{:#?}/{}", dir, file_name);
+    let file_path = dir.as_ref().join(file_name);
 
     // Open the file in write mode or create it if it doesn't exist
     let mut file = OpenOptions::new()
         .write(true)
         .append(true)
-        .open(file_path)?;
+        .create(true)
+        .open(&file_path)?;
 
     // Convert the content to insert to a byte slice
     let content_bytes = content_to_insert.as_ref().as_bytes();
 
+    // Write a newline character before the content
+    file.write_all(b"\n")?;
     // Write the content to the file
     file.write_all(content_bytes)?;
+
     Ok(())
 }
 
-pub fn command_generate() -> (Command, bool, String) {
+pub fn command_generate() -> ReturnArgs {
     let args = Args::parse();
 
     let connector_name = args.connector_name;
@@ -190,31 +200,23 @@ pub fn command_generate() -> (Command, bool, String) {
     }
 
     let mut modified = false;
-    if args.custom_headers.is_some() {
-        if let Some(headers) = &args.custom_headers {
-            let individual_headers: Vec<String> =
-                headers.split(',').map(|s| s.trim().to_string()).collect();
 
-            let mut content_to_insert = String::new();
-
-            for (index, header) in individual_headers.iter().enumerate() {
-                let kv_pair: Vec<&str> = header.splitn(2, '=').collect();
-
-                content_to_insert.push_str(&format!(
-                    "pm.request.headers.add({{key: \"{}\", value: \"{}\"}});",
-                    kv_pair[0], kv_pair[1]
-                ));
-
-                if index < individual_headers.len() - 1 {
-                    content_to_insert.push('\n'); // Add a newline between headers
-                }
-            }
-
+    if let Some(headers) = &args.custom_headers {
+        for header in headers {
+            let kv_pair: Vec<&str> = header.splitn(2, ':').collect();
+            let content_to_insert = format!(
+                "pm.request.headers.add({{key: \"{}\", value: \"{}\"}});",
+                kv_pair[0], kv_pair[1]
+            );
             if insert_content(&collection_path, &content_to_insert).is_ok() {
                 modified = true;
             }
         }
     }
 
-    (newman_command, modified, collection_path)
+    ReturnArgs {
+        newman_command,
+        file_modified_flag: modified,
+        collection_path,
+    }
 }
