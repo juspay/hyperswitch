@@ -59,6 +59,8 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -120,6 +122,8 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -242,6 +246,13 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         updated_by: String,
     },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -279,6 +290,8 @@ pub struct PaymentAttemptUpdateInternal {
     amount_capturable: Option<i64>,
     updated_by: String,
     merchant_connector_id: Option<String>,
+    authentication_data: Option<serde_json::Value>,
+    encoded_data: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -331,6 +344,8 @@ impl PaymentAttemptUpdate {
                 .unwrap_or(source.amount_capturable),
             updated_by: pa_update.updated_by,
             merchant_connector_id: pa_update.merchant_connector_id,
+            authentication_data: pa_update.authentication_data.or(source.authentication_data),
+            encoded_data: pa_update.encoded_data.or(source.encoded_data),
             ..source
         }
     }
@@ -578,6 +593,20 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_capturable: Some(amount_capturable),
+                updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => Self {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
                 updated_by,
                 ..Default::default()
             },
