@@ -15,7 +15,7 @@
 # AWS User-specific
 .idea/**/aws.xml
 
-# Generated files
+# Generated files Bhai tujhe nhi pta rhene de
 .idea/**/contentModel.xml
 
 # Sensitive or high-churn files
