@@ -838,7 +838,7 @@ where
 
                 if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
                     if let Ok(external_latency) = value.parse::<u128>() {
-                        overhead_latency.replace(request_duration - external_latency);
+                        overhead_latency.replace(external_latency);
                     }
                 }
             }
