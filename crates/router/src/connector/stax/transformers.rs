@@ -13,7 +13,7 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct StaxRouterData<T> {
-    pub amount: i64,
+    pub amount: f64,
     pub router_data: T,
 }
 
@@ -30,7 +30,7 @@ impl<T>
         (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
-            f64,
+            i64,
             T,
         ),
     ) -> Result<Self, Self::Error> {
