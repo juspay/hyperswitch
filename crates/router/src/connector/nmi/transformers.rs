@@ -42,7 +42,7 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct NmiRouterData<T> {
-    pub amount: i64,
+    pub amount: f64,
     pub router_data: T,
 }
 
@@ -128,7 +128,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
             amount,
             currency: item.router_data.request.currency,
             payment_method,
-            orderid: item.connector_request_reference_id.clone(),
+            orderid: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }

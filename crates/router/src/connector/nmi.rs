@@ -361,7 +361,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = nmi::NmiCaptureRequest::try_from(req)?;
+        let connector_router_data = nmi::NmiRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = nmi::NmiCaptureRequest::try_from(&connector_router_data)?;
         let nmi_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<NmiCaptureRequest>::url_encode,
