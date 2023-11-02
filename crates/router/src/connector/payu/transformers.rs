@@ -145,10 +145,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             api::PaymentMethodData::PayLater(ref pay_later_data) => {
                 PayuPaymentMethod::try_from(pay_later_data)
             }
-            api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("payu"),
-            )),
+            api::PaymentMethodData::Upi(_) | api::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("payu"),
+                ))
+            }
             api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment

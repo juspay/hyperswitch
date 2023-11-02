@@ -182,41 +182,42 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                             },
                         )))
                     }
-                api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
-                    PaymentMethodData::try_from(redirect_data)
+                    api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
+                        PaymentMethodData::try_from(redirect_data)
+                    }
+                    api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+                        get_payment_method_for_wallet(item.router_data, wallet_data)
+                    }
+                    api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
+                        PaymentMethodData::try_from(directdebit_data)
+                    }
+                    api_models::payments::PaymentMethodData::CardRedirect(
+                        ref cardredirect_data,
+                    ) => PaymentMethodData::try_from(cardredirect_data),
+                    api_models::payments::PaymentMethodData::PayLater(ref paylater_data) => {
+                        PaymentMethodData::try_from(paylater_data)
+                    }
+                    api_models::payments::PaymentMethodData::BankTransfer(
+                        ref banktransfer_data,
+                    ) => PaymentMethodData::try_from(banktransfer_data.as_ref()),
+                    api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                        PaymentMethodData::try_from(voucher_data)
+                    }
+                    api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
+                        PaymentMethodData::try_from(giftcard_data.as_ref())
+                    }
+                    api_models::payments::PaymentMethodData::MandatePayment
+                    | api_models::payments::PaymentMethodData::Crypto(_)
+                    | api_models::payments::PaymentMethodData::Reward
+                    | api_models::payments::PaymentMethodData::Upi(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                            connector: "Mollie",
+                        })
+                        .into_report()
+                    }
                 }
-                api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
-                    get_payment_method_for_wallet(item, wallet_data)
-                }
-                api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
-                    PaymentMethodData::try_from(directdebit_data)
-                }
-                api_models::payments::PaymentMethodData::CardRedirect(ref cardredirect_data) => {
-                    PaymentMethodData::try_from(cardredirect_data)
-                }
-                api_models::payments::PaymentMethodData::PayLater(ref paylater_data) => {
-                    PaymentMethodData::try_from(paylater_data)
-                }
-                api_models::payments::PaymentMethodData::BankTransfer(ref banktransfer_data) => {
-                    PaymentMethodData::try_from(banktransfer_data.as_ref())
-                }
-                api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
-                    PaymentMethodData::try_from(voucher_data)
-                }
-                api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
-                    PaymentMethodData::try_from(giftcard_data.as_ref())
-                }
-                api_models::payments::PaymentMethodData::MandatePayment
-                | api_models::payments::PaymentMethodData::Crypto(_)
-                | api_models::payments::PaymentMethodData::Reward
-                | api_models::payments::PaymentMethodData::Upi(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "Mollie",
-                    })
-                    .into_report()
-                }
-            },
+            }
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: format!(
                     "{} capture",

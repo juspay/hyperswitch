@@ -179,7 +179,7 @@ fn get_pm_and_subsequent_auth_detail(
                 | api::PaymentMethodData::Voucher(_)
                 | api::PaymentMethodData::GiftCard(_) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: format!("{:?}", item.request.payment_method_data),
+                        message: format!("{:?}", item.router_data.request.payment_method_data),
                         connector: "AuthorizeDotNet",
                     })?
                 }
@@ -219,7 +219,7 @@ fn get_pm_and_subsequent_auth_detail(
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.request.payment_method_data),
+                message: format!("{:?}", item.router_data.request.payment_method_data),
                 connector: "AuthorizeDotNet",
             })?,
         },
