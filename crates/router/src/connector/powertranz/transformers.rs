@@ -28,7 +28,7 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
-    )> for BitpayRouterData<T>
+    )> for PowertranzRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
