@@ -69,7 +69,7 @@ pub async fn retrieve_merchant_routing_dictionary(
 pub async fn create_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
+    key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     let db = state.store.as_ref();
@@ -113,6 +113,16 @@ pub async fn create_routing_config(
 
         validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
             .await?;
+
+        helpers::validate_connectors_in_routing_config(
+            db,
+            &key_store,
+            &merchant_account.merchant_id,
+            &profile_id,
+            &algorithm,
+        )
+        .await?;
+
         let timestamp = common_utils::date_time::now();
         let algo = RoutingAlgorithm {
             algorithm_id: algorithm_id.clone(),

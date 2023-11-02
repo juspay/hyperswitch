@@ -892,7 +892,7 @@ pub async fn create_payment_connector(
         connector_label: Some(connector_label),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
-        business_sub_label: req.business_sub_label,
+        business_sub_label: req.business_sub_label.clone(),
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         id: None,

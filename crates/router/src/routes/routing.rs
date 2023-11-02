@@ -32,13 +32,7 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: oss_auth::AuthenticationData, payload| {
-            routing::create_routing_config(
-                state,
-                auth.merchant_account,
-                #[cfg(not(feature = "business_profile_routing"))]
-                auth.key_store,
-                payload,
-            )
+            routing::create_routing_config(state, auth.merchant_account, auth.key_store, payload)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),

@@ -9,6 +9,7 @@ use diesel_models::{
     configs,
 };
 use error_stack::ResultExt;
+use rustc_hash::FxHashSet;
 
 use crate::{
     core::errors::{self, RouterResult},
@@ -328,6 +329,128 @@ pub async fn update_merchant_connector_agnostic_mandate_config(
         .attach_printable("error saving pg agnostic mandate config to db")?;
 
     Ok(mandate_config)
+}
+
+pub async fn validate_connectors_in_routing_config(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    merchant_id: &str,
+    profile_id: &str,
+    routing_algorithm: &routing_types::RoutingAlgorithm,
+) -> RouterResult<()> {
+    let all_mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_id.to_string(),
+        })?;
+
+    #[cfg(feature = "connector_choice_mca_id")]
+    let name_mca_id_set = all_mcas
+        .iter()
+        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .map(|mca| (&mca.connector_name, &mca.merchant_connector_id))
+        .collect::<FxHashSet<_>>();
+
+    let name_set = all_mcas
+        .iter()
+        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .map(|mca| &mca.connector_name)
+        .collect::<FxHashSet<_>>();
+
+    #[cfg(feature = "connector_choice_mca_id")]
+    let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
+        if let Some(ref mca_id) = choice.merchant_connector_id {
+            error_stack::ensure!(
+                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id)),
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                        choice.connector,
+                        mca_id,
+                    )
+                }
+            );
+        } else {
+            error_stack::ensure!(
+                name_set.contains(&choice.connector.to_string()),
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "connector with name '{}' not found for the given profile",
+                        choice.connector,
+                    )
+                }
+            );
+        }
+
+        Ok(())
+    };
+
+    #[cfg(not(feature = "connector_choice_mca_id"))]
+    let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
+        error_stack::ensure!(
+            name_set.contains(&choice.connector.to_string()),
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "connector with name '{}' not found for the given profile",
+                    choice.connector,
+                )
+            }
+        );
+
+        Ok(())
+    };
+
+    match routing_algorithm {
+        routing_types::RoutingAlgorithm::Single(choice) => {
+            check_connector_choice(choice)?;
+        }
+
+        routing_types::RoutingAlgorithm::Priority(list) => {
+            for choice in list {
+                check_connector_choice(choice)?;
+            }
+        }
+
+        routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+            for split in splits {
+                check_connector_choice(&split.connector)?;
+            }
+        }
+
+        routing_types::RoutingAlgorithm::Advanced(program) => {
+            let check_connector_selection =
+                |selection: &routing_types::ConnectorSelection| -> RouterResult<()> {
+                    match selection {
+                        routing_types::ConnectorSelection::VolumeSplit(splits) => {
+                            for split in splits {
+                                check_connector_choice(&split.connector)?;
+                            }
+                        }
+
+                        routing_types::ConnectorSelection::Priority(list) => {
+                            for choice in list {
+                                check_connector_choice(choice)?;
+                            }
+                        }
+                    }
+
+                    Ok(())
+                };
+
+            check_connector_selection(&program.default_selection)?;
+
+            for rule in &program.rules {
+                check_connector_selection(&rule.connector_selection)?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Provides the identifier for the specific merchant's routing_dictionary_key
