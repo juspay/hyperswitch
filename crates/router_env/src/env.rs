@@ -4,8 +4,6 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::types::FlowMetric;
-
 /// Environment variables accessed by the application. This module aims to be the source of truth
 /// containing all environment variable that the application accesses.
 pub mod vars {
@@ -170,20 +168,3 @@ macro_rules! profile {
     };
 }
 
-/// API Flow
-#[derive(Debug, strum::Display, Clone, PartialEq, Eq)]
-#[allow(missing_docs)]
-pub enum VasFlow {
-    RoutingCreateConfig,
-    RoutingLinkConfig,
-    RoutingUnlinkConfig,
-    RoutingRetrieveConfig,
-    RoutingRetrieveActiveConfig,
-    RoutingRetrieveDefaultConfig,
-    RoutingRetrieveDictionary,
-    RoutingUpdateConfig,
-    RoutingUpdateDefaultConfig,
-    RoutingDeleteConfig,
-}
-
-impl FlowMetric for VasFlow {}

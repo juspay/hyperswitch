@@ -21,11 +21,11 @@ use crate::{
     consts,
     core::errors::{RouterResponse, StorageErrorExt},
     routes::AppState,
-    types::{domain, storage},
+    types::domain,
     utils::{self, OptionExt, ValueExt},
 };
 #[cfg(not(feature = "business_profile_routing"))]
-use crate::{core::errors, services::api as service_api};
+use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
 

@@ -20,6 +20,10 @@ use euclid::{
     enums as euclid_enums,
     frontend::ast,
 };
+
+#[cfg(not(feature = "business_profile_routing"))]
+use crate::utils::StringExt;
+
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -40,7 +44,7 @@ use crate::{
         api, api::routing as routing_types, domain, storage as oss_storage,
         transformers::ForeignInto,
     },
-    utils::{OptionExt, StringExt, ValueExt},
+    utils::{OptionExt, ValueExt},
     AppState,
 };
 

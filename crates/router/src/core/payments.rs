@@ -241,32 +241,6 @@ where
                 )
                 .await?;
 
-                #[cfg(feature = "retry")]
-                let mut router_data = router_data;
-                #[cfg(feature = "retry")]
-                {
-                    use crate::core::payments::retry::{self, GsmValidation};
-                    let config_bool =
-                        retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id)
-                            .await;
-
-                    if config_bool && router_data.should_call_gsm() {
-                        router_data = retry::do_gsm_actions(
-                            &state_vas,
-                            &mut payment_data,
-                            connectors,
-                            router_data,
-                            &merchant_account,
-                            &key_store,
-                            &operation,
-                            &customer,
-                            &validate_result,
-                            schedule_time,
-                        )
-                        .await?;
-                    };
-                }
-
                 let operation = Box::new(PaymentResponse);
                 let db = &*state.store;
                 connector_http_status_code = router_data.connector_http_status_code;
