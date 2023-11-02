@@ -9,7 +9,7 @@ use api_models::routing as routing_types;
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
 use router_env::{
     tracing::{self, instrument},
-    VasFlow,
+    Flow,
 };
 
 use crate::{
@@ -25,7 +25,7 @@ pub async fn routing_create_config(
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
 ) -> impl Responder {
-    let flow = VasFlow::RoutingCreateConfig;
+    let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -56,7 +56,7 @@ pub async fn routing_link_config(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> impl Responder {
-    let flow = VasFlow::RoutingLinkConfig;
+    let flow = Flow::RoutingLinkConfig;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -88,7 +88,7 @@ pub async fn routing_retrieve_config(
     path: web::Path<String>,
 ) -> impl Responder {
     let algorithm_id = path.into_inner();
-    let flow = VasFlow::RoutingRetrieveConfig;
+    let flow = Flow::RoutingRetrieveConfig;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -115,7 +115,7 @@ pub async fn routing_retrieve_dictionary(
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
-        let flow = VasFlow::RoutingRetrieveDictionary;
+        let flow = Flow::RoutingRetrieveDictionary;
         Box::pin(oss_api::server_wrap(
             flow,
             state,
@@ -139,7 +139,7 @@ pub async fn routing_retrieve_dictionary(
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let flow = VasFlow::RoutingRetrieveDictionary;
+        let flow = Flow::RoutingRetrieveDictionary;
         Box::pin(oss_api::server_wrap(
             flow,
             state,
@@ -167,7 +167,7 @@ pub async fn routing_unlink_config(
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
-        let flow = VasFlow::RoutingUnlinkConfig;
+        let flow = Flow::RoutingUnlinkConfig;
         Box::pin(oss_api::server_wrap(
             flow,
             state,
@@ -187,7 +187,7 @@ pub async fn routing_unlink_config(
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let flow = VasFlow::RoutingUnlinkConfig;
+        let flow = Flow::RoutingUnlinkConfig;
         Box::pin(oss_api::server_wrap(
             flow,
             state,
@@ -214,7 +214,7 @@ pub async fn routing_update_default_config(
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
 ) -> impl Responder {
     oss_api::server_wrap(
-        VasFlow::RoutingUpdateDefaultConfig,
+        Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
         json_payload.into_inner(),
@@ -237,7 +237,7 @@ pub async fn routing_retrieve_default_config(
     req: HttpRequest,
 ) -> impl Responder {
     oss_api::server_wrap(
-        VasFlow::RoutingRetrieveDefaultConfig,
+        Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
         (),
@@ -263,7 +263,7 @@ pub async fn routing_retrieve_linked_config(
     #[cfg(feature = "business_profile_routing")]
     {
         use crate::services::authentication::AuthenticationData;
-        let flow = VasFlow::RoutingRetrieveActiveConfig;
+        let flow = Flow::RoutingRetrieveActiveConfig;
         Box::pin(oss_api::server_wrap(
             flow,
             state,
@@ -283,7 +283,7 @@ pub async fn routing_retrieve_linked_config(
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let flow = VasFlow::RoutingRetrieveActiveConfig;
+        let flow = Flow::RoutingRetrieveActiveConfig;
         Box::pin(oss_api::server_wrap(
             flow,
             state,
