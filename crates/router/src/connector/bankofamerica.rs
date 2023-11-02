@@ -2,12 +2,19 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
+use ring::{digest, hmac};
+use time::OffsetDateTime;
 use transformers as bankofamerica;
+use url::Url;
 
 use crate::{
     configs::settings,
+    connector::{utils as connector_utils, utils::RefundsRequestData},
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -39,6 +46,54 @@ impl api::RefundExecute for Bankofamerica {}
 impl api::RefundSync for Bankofamerica {}
 impl api::PaymentToken for Bankofamerica {}
 
+impl Bankofamerica {
+    pub fn generate_digest(&self, payload: &[u8]) -> String {
+        let payload_digest = digest::digest(&digest::SHA256, payload);
+        consts::BASE64_ENGINE.encode(payload_digest)
+    }
+
+    pub fn generate_signature(
+        &self,
+        auth: bankofamerica::BankofamericaAuthType,
+        host: String,
+        resource: &str,
+        payload: &String,
+        date: OffsetDateTime,
+        http_method: services::Method,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let bankofamerica::BankofamericaAuthType {
+            api_key,
+            merchant_account,
+            api_secret,
+        } = auth;
+        let is_post_method = matches!(http_method, services::Method::Post);
+        let digest_str = if is_post_method { "digest " } else { "" };
+        let headers = format!("host date (request-target) {digest_str}v-c-merchant-id");
+        let request_target = if is_post_method {
+            format!("(request-target): post {resource}\ndigest: SHA-256={payload}\n")
+        } else {
+            format!("(request-target): get {resource}\n")
+        };
+        let signature_string = format!(
+            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
+            merchant_account.peek()
+        );
+        let key_value = consts::BASE64_ENGINE
+            .decode(api_secret.expose())
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
+        let signature_value =
+            consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
+        let signature_header = format!(
+            r#"keyid="{}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#,
+            api_key.peek()
+        );
+
+        Ok(signature_header)
+    }
+}
+
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
@@ -56,15 +111,66 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
+        let date = OffsetDateTime::now_utc();
+        let boa_req = self.get_request_body(req)?;
+        let auth = bankofamerica::BankofamericaAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account = auth.merchant_account.clone();
+        let base_url = connectors.bankofamerica.base_url.as_str();
+        let boa_host = Url::parse(base_url)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let host = boa_host
+            .host_str()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let path: String = self
+            .get_url(req, connectors)?
+            .chars()
+            .skip(base_url.len() - 1)
+            .collect();
+        let sha256 = self.generate_digest(
+            boa_req
+                .map_or("{}".to_string(), |s| {
+                    types::RequestBody::get_inner_value(s).expose()
+                })
+                .as_bytes(),
+        );
+        let http_method = self.get_http_method();
+        let signature = self.generate_signature(
+            auth,
+            host.to_string(),
+            path.as_str(),
+            &sha256,
+            date,
+            http_method,
+        )?;
+
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                "application/hal+json;charset=utf-8".to_string().into(),
+            ),
+            (
+                "v-c-merchant-id".to_string(),
+                merchant_account.into_masked(),
+            ),
+            ("Date".to_string(), date.to_string().into()),
+            ("Host".to_string(), host.to_string().into()),
+            ("Signature".to_string(), signature.into_masked()),
+        ];
+        if matches!(http_method, services::Method::Post | services::Method::Put) {
+            headers.push((
+                "Digest".to_string(),
+                format!("SHA-256={sha256}").into_masked(),
+            ));
+        }
+        Ok(headers)
     }
 }
 
@@ -74,10 +180,7 @@ impl ConnectorCommon for Bankofamerica {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -119,7 +222,18 @@ impl ConnectorCommon for Bankofamerica {
 }
 
 impl ConnectorValidation for Bankofamerica {
-    //TODO: implement functions when support enabled
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>

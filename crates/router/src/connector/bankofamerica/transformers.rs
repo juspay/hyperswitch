@@ -86,16 +86,26 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
 // Auth Struct
 pub struct BankofamericaAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) merchant_account: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BankofamericaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+        if let types::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } = auth_type
+        {
+            Ok(Self {
                 api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+                merchant_account: key1.to_owned(),
+                api_secret: api_secret.to_owned(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
     }
 }
