@@ -12,6 +12,7 @@ pub struct ApiEvent {
     request_id: String,
     latency: u128,
     status_code: i64,
+    #[serde(flatten)]
     auth_type: AuthenticationType,
     request: serde_json::Value,
     response: Option<serde_json::Value>,

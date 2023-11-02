@@ -29,6 +29,7 @@ pub struct AuthenticationData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "api_auth_type")]
 pub enum AuthenticationType {
     ApiKey {
         merchant_id: String,
@@ -37,7 +38,7 @@ pub enum AuthenticationType {
     AdminApiKey,
     MerchantJWT {
         merchant_id: String,
-        user_email: Option<String>,
+        user_id: Option<String>,
     },
     MerchantID {
         merchant_id: String,
@@ -59,7 +60,7 @@ impl AuthenticationType {
             | Self::PublishableKey { merchant_id }
             | Self::MerchantJWT {
                 merchant_id,
-                user_email: _,
+                user_id: _,
             } => Some(merchant_id.as_ref()),
             Self::AdminApiKey | Self::NoAuth => None,
         }
@@ -411,7 +412,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJWT {
                 merchant_id: auth.merchant_account.merchant_id.clone(),
-                user_email: None,
+                user_id: None,
             },
         ))
     }
