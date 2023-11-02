@@ -184,23 +184,11 @@ impl ConnectorCommon for Bankofamerica {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/json;charset=utf-8"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.bankofamerica.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = bankofamerica::BankofamericaAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -209,14 +197,39 @@ impl ConnectorCommon for Bankofamerica {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: bankofamerica::BankofamericaErrorResponse = res
             .response
-            .parse_struct("BankofamericaErrorResponse")
+            .parse_struct("BankOfAmerica ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let details = response.details.unwrap_or_default();
+        let connector_reason = details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", ");
 
+        let error_message = if res.status_code == 401 {
+            consts::CONNECTOR_UNAUTHORIZED_ERROR
+        } else {
+            consts::NO_ERROR_MESSAGE
+        };
+
+        let (code, message) = match response.error_information {
+            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (
+                response
+                    .reason
+                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                        reason.to_string()
+                    }),
+                response
+                    .message
+                    .map_or(error_message.to_string(), |message| message),
+            ),
+        };
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code,
+            message,
+            reason: Some(connector_reason),
         })
     }
 }

@@ -250,11 +250,45 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BankofamericaErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub error_information: Option<ErrorInformation>,
+    pub status: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<Reason>,
+    pub details: Option<Vec<Details>>,
+}
+
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Reason {
+    MissingField,
+    InvalidData,
+    DuplicateRequest,
+    InvalidCard,
+    AuthAlreadyReversed,
+    CardTypeNotAccepted,
+    InvalidMerchantConfiguration,
+    ProcessorUnavailable,
+    InvalidAmount,
+    InvalidCardType,
+    InvalidPaymentId,
+    NotSupported,
+    SystemError,
+    ServerTimeout,
+    ServiceTimeout,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Details {
+    pub field: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct ErrorInformation {
     pub message: String,
-    pub reason: Option<String>,
+    pub reason: String,
 }
