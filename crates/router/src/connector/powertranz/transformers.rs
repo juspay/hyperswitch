@@ -17,7 +17,7 @@ use crate::{
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
 
 #[derive(Debug, Serialize)]
-pub struct BitpayRouterData<T> {
+pub struct PowertranzRouterData<T> {
     pub amount: i64,
     pub router_data: T,
 }
