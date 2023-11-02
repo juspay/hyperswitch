@@ -82,10 +82,16 @@ impl ConnectorCommon for Stancer {
         connectors.stancer.base_url.as_ref()
     }
 
-    fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,request::Maskable<String>)>,errors::ConnectorError> {
-        let auth =  stancer::StancerAuthType::try_from(auth_type)
+    fn get_auth_header(
+        &self,
+        auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let auth = stancer::StancerAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", auth.api_key.expose()).into_masked(),
+        )])
     }
 
     fn build_error_response(
