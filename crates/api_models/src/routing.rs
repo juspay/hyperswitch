@@ -592,4 +592,3 @@ pub enum RoutingKind {
     Config(RoutingDictionary),
     RoutingAlgorithm(Vec<RoutingDictionaryRecord>),
 }
-
