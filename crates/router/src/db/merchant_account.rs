@@ -401,14 +401,16 @@ async fn publish_and_redact_merchant_account_cache(
 ) -> CustomResult<(), errors::StorageError> {
     super::cache::publish_into_redact_channel(
         store,
-        CacheKind::Accounts(merchant_account.merchant_id.as_str().into()),
+        [CacheKind::Accounts(
+            merchant_account.merchant_id.as_str().into(),
+        )],
     )
     .await?;
     merchant_account
         .publishable_key
         .as_ref()
         .async_map(|pub_key| async {
-            super::cache::publish_into_redact_channel(store, CacheKind::Accounts(pub_key.into()))
+            super::cache::publish_into_redact_channel(store, [CacheKind::Accounts(pub_key.into())])
                 .await
         })
         .await
