@@ -146,25 +146,7 @@ where
     )
     .await?;
 
-    let schedule_time = match &connector {
-        Some(api::ConnectorCallType::Single(connector_data)) => {
-            if should_add_task_to_process_tracker(&payment_data) {
-                payment_sync::get_sync_process_schedule_time(
-                    &*state.store,
-                    connector_data.connector.id(),
-                    &merchant_account.merchant_id,
-                    0,
-                )
-                .await
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting process schedule time")?
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
+    let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
     payment_data = tokenize_in_router_when_confirm_false(
         state,
@@ -179,7 +161,7 @@ where
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::PreDetermined(connector) => {
-                let schedule_time = if false {
+                let schedule_time = if should_add_task_to_process_tracker {
                     payment_sync::get_sync_process_schedule_time(
                         &*state.store,
                         connector.connector.id(),
@@ -230,7 +212,7 @@ where
 
                 let connector_data = get_connector_data(&mut connectors)?;
 
-                let schedule_time = if false {
+                let schedule_time = if should_add_task_to_process_tracker {
                     payment_sync::get_sync_process_schedule_time(
                         &*state.store,
                         connector_data.connector.id(),
@@ -316,54 +298,6 @@ where
                 )
                 .await?
             }
-
-            api::ConnectorCallType::Single(connector) => {
-                let router_data = call_connector_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connector,
-                    &operation,
-                    &mut payment_data,
-                    &customer,
-                    call_connector_action,
-                    &validate_result,
-                    schedule_time,
-                    header_payload,
-                )
-                .await?;
-
-                let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
-                connector_http_status_code = router_data.connector_http_status_code;
-                external_latency = router_data.external_latency;
-                //add connector http status code metrics
-                add_connector_http_status_code_metrics(connector_http_status_code);
-                operation
-                    .to_post_update_tracker()?
-                    .update_tracker(
-                        db,
-                        &validate_result.payment_id,
-                        payment_data,
-                        router_data,
-                        merchant_account.storage_scheme,
-                    )
-                    .await?
-            }
-
-            api::ConnectorCallType::Multiple(connectors) => {
-                call_multiple_connectors_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connectors,
-                    &operation,
-                    payment_data,
-                    &customer,
-                    None,
-                )
-                .await?
-            }
         };
         payment_data
             .payment_attempt
@@ -403,6 +337,7 @@ where
         external_latency,
     ))
 }
+
 #[inline]
 pub fn get_connector_data(
     connectors: &mut IntoIter<api::ConnectorData>,
@@ -2306,7 +2241,7 @@ where
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state.clone().down_cast(),
+                &state,
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
@@ -2330,10 +2265,10 @@ where
         let connector_data = connectors
             .into_iter()
             .map(|conn| {
-                api_oss::ConnectorData::get_connector_by_name(
+                api::ConnectorData::get_connector_by_name(
                     &state.conf.connectors,
                     &conn.connector.to_string(),
-                    api_oss::GetToken::Connector,
+                    api::GetToken::Connector,
                     #[cfg(feature = "connector_choice_mca_id")]
                     conn.merchant_connector_id,
                     #[cfg(not(feature = "connector_choice_mca_id"))]
@@ -2353,7 +2288,7 @@ where
         {
             routing_data.business_sub_label = first_connector_choice.sub_label;
         }
-        return Ok(api_cloud::ConnectorCallType::Retryable(connector_data));
+        return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
     route_connector_v1(

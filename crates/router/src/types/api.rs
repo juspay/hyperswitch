@@ -233,12 +233,6 @@ pub enum PayoutConnectorCallType {
     Single(PayoutConnectorData),
 }
 
-impl ConnectorCallType {
-    pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
-}
-
 #[cfg(feature = "payouts")]
 impl PayoutConnectorData {
     pub fn get_connector_by_name(
