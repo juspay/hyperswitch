@@ -296,12 +296,19 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
+        let router_obj = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let req_obj = payeezy::PayeezyCaptureOrVoidRequest::try_from(&router_obj)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(payeezy_req))
     }
 
