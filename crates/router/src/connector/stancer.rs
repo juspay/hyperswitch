@@ -106,9 +106,21 @@ impl ConnectorCommon for Stancer {
     }
 }
 
-impl ConnectorValidation for Stancer 
-{
-    //TODO: implement functions when support enabled
+impl ConnectorValidation for Stancer {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
 }
 
 impl
