@@ -59,6 +59,7 @@ impl
 {
 }
 
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Powertranz
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -85,6 +86,10 @@ impl ConnectorCommon for Powertranz {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+    
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -371,6 +376,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data = bitpay::BitpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
         let req_obj = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
         let powertranz_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
