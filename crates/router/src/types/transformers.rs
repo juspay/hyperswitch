@@ -1017,6 +1017,7 @@ impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
         }
     }
 }
+
 impl ForeignFrom<api_models::organization::OrganizationNew>
     for diesel_models::organization::OrganizationNew
 {
