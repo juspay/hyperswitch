@@ -54,7 +54,9 @@ jobs:
         if: ${{ github.event_name == 'pull_request_target' }}
         shell: bash
         continue-on-error: true
-        run: cog verify '${{ github.event.pull_request.title }}'
+        run: |
+          echo 'pr_title=${{ github.event.pull_request.title }}' >> $GITHUB_ENV
+          cog verify '${env.pr_title}'
 
       - name: Verify commit message follows conventional commit standards
         id: commit_message_check
