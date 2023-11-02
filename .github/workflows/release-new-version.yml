@@ -77,7 +77,7 @@ jobs:
 
           if git diff --quiet && git diff --staged --quiet; then
               echo "No changes detected."
-          elif git add postman/*; then
+          elif git add postman; then
               echo "Changes have been staged."
           elif git commit -am 'test(postman): update postman collection files'; then
               echo "Committed changes."
