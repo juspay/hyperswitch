@@ -100,6 +100,7 @@ pub struct BitpayPaymentResponseData {
     pub expiration_time: Option<i64>,
     pub current_time: Option<i64>,
     pub id: String,
+    pub order_id: Option<String>,
     pub low_fee_detected: Option<bool>,
     pub display_amount_paid: Option<String>,
     pub exception_status: ExceptionStatus,
@@ -138,7 +139,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.data.id),
+                connector_response_reference_id: item.response.data.order_id.or(Some(connector_id)),
             }),
             ..item.data
         })
