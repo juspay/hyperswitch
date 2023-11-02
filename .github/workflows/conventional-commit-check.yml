@@ -56,7 +56,7 @@ jobs:
         continue-on-error: true
         run: |
           echo 'pr_title=${{ github.event.pull_request.title }}' >> $GITHUB_ENV
-          cog verify '${env.pr_title}'
+          cog verify "${env.pr_title}"
 
       - name: Verify commit message follows conventional commit standards
         id: commit_message_check
