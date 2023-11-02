@@ -8,7 +8,7 @@ on:
   # Since we only label pull requests, do not have a checkout step in this
   # workflow, and restrict permissions on the token, this is an acceptable
   # use of this trigger.
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - edited
