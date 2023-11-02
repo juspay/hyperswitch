@@ -136,14 +136,10 @@ impl TryFrom<&ElavonRouterData<&types::PaymentsAuthorizeRouterData>> for ElavonP
                         expiration_year: req_card.get_expiry_year_4_digit(),
                         security_code: req_card.card_cvc.to_owned(),
                     },
-                    do_capture: if item.router_data.request.is_auto_capture()? {
-                        true
-                    } else {
-                        false
-                    },
+                    do_capture: item.router_data.request.is_auto_capture()?,
                 };
 
-                Ok(ElavonPaymentsRequest::CardPaymentRequest(card_data))
+                Ok(Self::CardPaymentRequest(card_data))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
