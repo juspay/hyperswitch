@@ -487,7 +487,7 @@ impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRef
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Refund,
-            amount: item.router_data.request.refund_amount.to_string(),
+            amount: item.amount,
             currency_code: item.router_data.request.currency.to_string(),
             transaction_tag: metadata.transaction_tag,
         })
