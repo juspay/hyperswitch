@@ -44,8 +44,6 @@ pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
 }
 
 #[derive(Clone, Debug)]
@@ -233,12 +231,6 @@ pub enum PayoutConnectorChoice {
 pub enum PayoutConnectorCallType {
     Multiple(Vec<PayoutSessionConnectorData>),
     Single(PayoutConnectorData),
-}
-
-impl ConnectorCallType {
-    pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
 }
 
 #[cfg(feature = "payouts")]

@@ -146,25 +146,7 @@ where
     )
     .await?;
 
-    let schedule_time = match &connector {
-        Some(api::ConnectorCallType::Single(connector_data)) => {
-            if should_add_task_to_process_tracker(&payment_data) {
-                payment_sync::get_sync_process_schedule_time(
-                    &*state.store,
-                    connector_data.connector.id(),
-                    &merchant_account.merchant_id,
-                    0,
-                )
-                .await
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting process schedule time")?
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
+    let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
     payment_data = tokenize_in_router_when_confirm_false(
         state,
@@ -179,7 +161,7 @@ where
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::PreDetermined(connector) => {
-                let schedule_time = if false {
+                let schedule_time = if should_add_task_to_process_tracker {
                     payment_sync::get_sync_process_schedule_time(
                         &*state.store,
                         connector.connector.id(),
@@ -230,7 +212,7 @@ where
 
                 let connector_data = get_connector_data(&mut connectors)?;
 
-                let schedule_time = if false {
+                let schedule_time = if should_add_task_to_process_tracker {
                     payment_sync::get_sync_process_schedule_time(
                         &*state.store,
                         connector_data.connector.id(),
@@ -316,54 +298,6 @@ where
                 )
                 .await?
             }
-
-            api::ConnectorCallType::Single(connector) => {
-                let router_data = call_connector_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connector,
-                    &operation,
-                    &mut payment_data,
-                    &customer,
-                    call_connector_action,
-                    &validate_result,
-                    schedule_time,
-                    header_payload,
-                )
-                .await?;
-
-                let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
-                connector_http_status_code = router_data.connector_http_status_code;
-                external_latency = router_data.external_latency;
-                //add connector http status code metrics
-                add_connector_http_status_code_metrics(connector_http_status_code);
-                operation
-                    .to_post_update_tracker()?
-                    .update_tracker(
-                        db,
-                        &validate_result.payment_id,
-                        payment_data,
-                        router_data,
-                        merchant_account.storage_scheme,
-                    )
-                    .await?
-            }
-
-            api::ConnectorCallType::Multiple(connectors) => {
-                call_multiple_connectors_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connectors,
-                    &operation,
-                    payment_data,
-                    &customer,
-                    None,
-                )
-                .await?
-            }
         };
         payment_data
             .payment_attempt
@@ -403,6 +337,7 @@ where
         external_latency,
     ))
 }
+
 #[inline]
 pub fn get_connector_data(
     connectors: &mut IntoIter<api::ConnectorData>,
@@ -2298,37 +2233,66 @@ where
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
-    detect_routing_version_and_route_connector(
-        &state,
-        merchant_account,
-        key_store,
-        payment_data,
-        routing_data,
-        eligible_connectors,
-    )
-    .await
-}
+    if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
+        let (mut connectors, check_eligibility) =
+            routing::perform_straight_through_routing(routing_algorithm, payment_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed execution of straight through routing")?;
 
-pub async fn detect_routing_version_and_route_connector<F>(
-    state: &AppState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    payment_data: &mut PaymentData<F>,
-    routing_data: &mut storage::RoutingData,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
-) -> RouterResult<ConnectorCallType>
-where
-    F: Send + Clone,
-{
-    let _value = merchant_account
-        .routing_algorithm
-        .clone()
-        .get_required_value("routing_algorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("routing_algorithm not set in merchant account")?;
+        if check_eligibility {
+            connectors = routing::perform_eligibility_analysis_with_fallback(
+                &state,
+                key_store,
+                merchant_account.modified_at.assume_utc().unix_timestamp(),
+                connectors,
+                payment_data,
+                eligible_connectors,
+                #[cfg(feature = "business_profile_routing")]
+                payment_data.payment_intent.profile_id.clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
+        }
+
+        let first_connector_choice = connectors
+            .first()
+            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+            .into_report()
+            .attach_printable("Empty connector list returned")?
+            .clone();
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    conn.merchant_connector_id,
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        routing_data.routed_through = Some(first_connector_choice.connector.to_string());
+        #[cfg(feature = "connector_choice_mca_id")]
+        {
+            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+        }
+        #[cfg(not(feature = "connector_choice_mca_id"))]
+        {
+            routing_data.business_sub_label = first_connector_choice.sub_label;
+        }
+        return Ok(api::ConnectorCallType::Retryable(connector_data));
+    }
 
     route_connector_v1(
-        state,
+        &state,
         merchant_account,
         key_store,
         payment_data,
@@ -2436,12 +2400,24 @@ where
 
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
+    #[cfg(not(feature = "connector_choice_mca_id"))]
     for mut connector_data in connectors {
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
         } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
             if connector_data.connector.connector_name == choice.connector.connector_name {
                 connector_data.business_sub_label = choice.sub_label.clone();
+                final_list.push(connector_data);
+            }
+        }
+    }
+
+    #[cfg(feature = "connector_choice_mca_id")]
+    for connector_data in connectors {
+        if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
+            final_list.push(connector_data);
+        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
+            if connector_data.connector.connector_name == choice.connector.connector_name {
                 final_list.push(connector_data);
             }
         }
