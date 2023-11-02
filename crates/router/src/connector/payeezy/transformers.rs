@@ -33,6 +33,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
+            let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data,
