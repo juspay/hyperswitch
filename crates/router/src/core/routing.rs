@@ -8,25 +8,32 @@ use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
 use common_utils::ext_traits::{Encode, StringExt};
 #[cfg(not(feature = "business_profile_routing"))]
 use diesel_models::configs;
+#[cfg(feature = "business_profile_routing")]
+use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "business_profile_routing")]
-use hyperswitch_oss::core::utils::validate_and_get_business_profile;
 use rustc_hash::FxHashSet;
-#[cfg(feature = "business_profile_routing")]
-use storage_models::routing_algorithm::RoutingAlgorithm;
 
-use crate::types::storage;
+#[cfg(feature = "business_profile_routing")]
+use crate::core::utils::validate_and_get_business_profile;
 #[cfg(feature = "business_profile_routing")]
 use crate::types::transformers::{ForeignInto, ForeignTryInto};
-#[cfg(not(feature = "business_profile_routing"))]
 use crate::{
     consts,
-    core::errors::{self, RouterResponse, StorageErrorExt},
+    core::errors::{RouterResponse, StorageErrorExt},
+    // types::storage,
     routes::AppState,
-    services::api as service_api,
     types::domain,
-    utils::{self, OptionExt, ValueExt},
+    utils::ValueExt,
+    utils::{self, OptionExt},
 };
+#[cfg(not(feature = "business_profile_routing"))]
+use crate::{
+    core::errors,
+    services::api as service_api,
+    // utils::ValueExt,
+};
+#[cfg(feature = "business_profile_routing")]
+use crate::{errors, services::api as service_api};
 
 pub async fn retrieve_merchant_routing_dictionary(
     state: AppState,
@@ -110,12 +117,8 @@ pub async fn create_routing_config(
             })
             .attach_printable("Profile_id not provided")?;
 
-        validate_and_get_business_profile(
-            &*db.down_cast(),
-            Some(&profile_id),
-            &merchant_account.merchant_id,
-        )
-        .await?;
+        validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
+            .await?;
         let timestamp = common_utils::date_time::now();
         let algo = RoutingAlgorithm {
             algorithm_id: algorithm_id.clone(),
@@ -223,7 +226,7 @@ pub async fn link_routing_config(
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
         let business_profile = validate_and_get_business_profile(
-            &*db.down_cast(),
+            db,
             Some(&routing_algorithm.profile_id),
             &merchant_account.merchant_id,
         )
@@ -326,7 +329,7 @@ pub async fn retrieve_routing_config(
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
         validate_and_get_business_profile(
-            &*db.down_cast(),
+            db,
             Some(&routing_algorithm.profile_id),
             &merchant_account.merchant_id,
         )
@@ -382,7 +385,7 @@ pub async fn unlink_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
-    #[cfg(feature = "business_profile_routing")] request: api::routing::RoutingConfigRequest,
+    #[cfg(feature = "business_profile_routing")] request: routing_types::RoutingConfigRequest,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
@@ -394,12 +397,9 @@ pub async fn unlink_routing_config(
                 field_name: "profile_id",
             })
             .attach_printable("Profile_id not provided")?;
-        let business_profile = validate_and_get_business_profile(
-            &*db.down_cast(),
-            Some(&profile_id),
-            &merchant_account.merchant_id,
-        )
-        .await?;
+        let business_profile =
+            validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
+                .await?;
         match business_profile {
             Some(business_profile) => {
                 let routing_algo_ref: routing_types::RoutingAlgorithmRef = business_profile
@@ -618,15 +618,13 @@ pub async fn retrieve_linked_routing_config(
     #[cfg(feature = "business_profile_routing")]
     {
         let business_profiles = if let Some(profile_id) = query_params.profile_id {
-            validate_and_get_business_profile(
-                &*db.down_cast(),
-                Some(&profile_id),
-                &merchant_account.merchant_id,
-            )
-            .await?
-            .map(|profile| vec![profile])
-            .get_required_value("BusinessProfile")
-            .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?
+            validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
+                .await?
+                .map(|profile| vec![profile])
+                .get_required_value("BusinessProfile")
+                .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    id: profile_id,
+                })?
         } else {
             db.list_business_profile_by_merchant_id(&merchant_account.merchant_id)
                 .await

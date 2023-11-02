@@ -2472,7 +2472,7 @@ where
         .unwrap_or_default();
 
     #[cfg(feature = "business_profile_routing")]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = {
+    let algorithm_ref: api::routing::RoutingAlgorithmRef = {
         let profile_id = payment_data
             .payment_intent
             .profile_id

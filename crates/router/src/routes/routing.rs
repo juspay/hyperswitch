@@ -177,13 +177,9 @@ pub async fn routing_unlink_config(
                 routing::unlink_routing_config(state, auth.merchant_account, payload_req)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &oss_auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingWrite),
-                req.headers(),
-            ),
+            auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
             #[cfg(feature = "release")]
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth,
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -266,7 +262,7 @@ pub async fn routing_retrieve_linked_config(
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
-        use hyperswitch_oss::services::authentication::AuthenticationData;
+        use crate::services::authentication::AuthenticationData;
         let flow = VasFlow::RoutingRetrieveActiveConfig;
         Box::pin(oss_api::server_wrap(
             flow,
@@ -277,13 +273,9 @@ pub async fn routing_retrieve_linked_config(
                 routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &oss_auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingRead),
-                req.headers(),
-            ),
+            auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
             #[cfg(feature = "release")]
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth,
             api_locking::LockAction::NotApplicable,
         ))
         .await

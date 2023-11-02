@@ -40,7 +40,7 @@ use crate::{
         api, api::routing as routing_types, domain, storage as oss_storage,
         transformers::ForeignInto,
     },
-    utils::{OptionExt, StringExt, ValueExt},
+    utils::{OptionExt, ValueExt},
     AppState,
 };
 

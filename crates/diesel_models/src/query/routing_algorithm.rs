@@ -1,14 +1,16 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
-use diesel_models_oss::{errors::DatabaseError, query::generics, PgPooledConn, StorageResult};
 use error_stack::{IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
 use time::PrimitiveDateTime;
 
 use crate::{
     enums,
+    errors::DatabaseError,
+    query::generics,
     routing_algorithm::{RoutingAlgorithm, RoutingAlgorithmMetadata, RoutingProfileMetadata},
     schema::routing_algorithm::dsl,
+    PgPooledConn, StorageResult,
 };
 
 impl RoutingAlgorithm {
