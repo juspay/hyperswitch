@@ -156,7 +156,7 @@ fn get_card_specific_payment_data(
 ) -> Result<PayeezyPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let merchant_ref = item.router_data.attempt_id.to_string();
     let method = PayeezyPaymentMethodType::CreditCard;
-    let amount = item.amount;
+    let amount = item.amount.clone();
     let currency_code = item.router_data.request.currency.to_string();
     let credit_card = get_payment_method_data(item)?;
     let (transaction_type, stored_credentials) =
