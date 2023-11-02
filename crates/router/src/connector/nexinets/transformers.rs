@@ -9,7 +9,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
     },
     consts,
     core::errors,

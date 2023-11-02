@@ -159,7 +159,7 @@ impl
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_) => None,
         };
