@@ -531,32 +531,35 @@ impl
                 .card
                 .authentication_result
                 .three_d_secure
-                .enrollment_status,
+                .enrollment_status
+                .as_ref(),
             response
                 .payment_source
                 .card
                 .authentication_result
                 .three_d_secure
-                .authentication_status,
+                .authentication_status
+                .as_ref(),
             response
                 .payment_source
                 .card
                 .authentication_result
-                .liability_shift,
+                .liability_shift
+                .clone(),
         ) {
             (
-                paypal::EnrollementStatus::Ready,
+                Some(paypal::EnrollementStatus::Ready),
                 Some(paypal::AuthenticationStatus::Success),
-                paypal::LiabiilityShift::Possible,
+                paypal::LiabilityShift::Possible,
             )
             | (
-                paypal::EnrollementStatus::Ready,
+                Some(paypal::EnrollementStatus::Ready),
                 Some(paypal::AuthenticationStatus::Attempted),
-                paypal::LiabiilityShift::Possible,
+                paypal::LiabilityShift::Possible,
             )
-            | (paypal::EnrollementStatus::NotReady, None, paypal::LiabiilityShift::No)
-            | (paypal::EnrollementStatus::Unavailable, None, paypal::LiabiilityShift::No)
-            | (paypal::EnrollementStatus::Bypassed, None, paypal::LiabiilityShift::No) => {
+            | (Some(paypal::EnrollementStatus::NotReady), None, paypal::LiabilityShift::No)
+            | (Some(paypal::EnrollementStatus::Unavailable), None, paypal::LiabilityShift::No)
+            | (Some(paypal::EnrollementStatus::Bypassed), None, paypal::LiabilityShift::No) => {
                 Ok(types::PaymentsPreProcessingRouterData {
                     status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -574,7 +577,28 @@ impl
                 response: Err(ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
+                    reason: Some(format!("{} Connector Responsded with LiabilityShift {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+                    consts::CANNOT_CONTINUE_AUTH,
+                    response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .liability_shift,
+                    response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .enrollment_status
+                        .unwrap_or(paypal::EnrollementStatus::Null),
+                    response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .authentication_status
+                        .unwrap_or(paypal::AuthenticationStatus::Null),
+                    )),
                     status_code: res.status_code,
                 }),
                 ..data.clone()

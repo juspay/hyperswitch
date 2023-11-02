@@ -698,19 +698,19 @@ pub struct AuthResult {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalThreeDsParams {
-    pub liability_shift: LiabiilityShift,
+    pub liability_shift: LiabilityShift,
     pub three_d_secure: ThreeDsCheck,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreeDsCheck {
-    pub enrollment_status: EnrollementStatus,
+    pub enrollment_status: Option<EnrollementStatus>,
     pub authentication_status: Option<AuthenticationStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum LiabiilityShift {
+pub enum LiabilityShift {
     Possible,
     No,
     Unknown,
@@ -718,6 +718,7 @@ pub enum LiabiilityShift {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EnrollementStatus {
+    Null,
     #[serde(rename = "Y")]
     Ready,
     #[serde(rename = "N")]
@@ -730,6 +731,7 @@ pub enum EnrollementStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthenticationStatus {
+    Null,
     #[serde(rename = "Y")]
     Success,
     #[serde(rename = "N")]
