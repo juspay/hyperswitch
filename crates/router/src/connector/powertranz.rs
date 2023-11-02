@@ -375,7 +375,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = bitpay::BitpayRouterData::try_from((
+        let connector_router_data = powertranz::PowertranzRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
