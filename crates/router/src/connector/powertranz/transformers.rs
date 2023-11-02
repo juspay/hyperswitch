@@ -414,7 +414,7 @@ impl TryFrom<&types::PaymentsCaptureData> for PowertranzBaseRequest {
     }
 }
 
-impl<F> TryFrom<&PowertranzRouterData<&types::RefundsRouterData<F>>> for PowertranzRefundRequest  {
+impl<F> TryFrom<&PowertranzRouterData<&types::RefundsRouterData<F>>> for PowertranzBaseRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PowertranzRouterData<&types::RefundsRouterData<F>>,
