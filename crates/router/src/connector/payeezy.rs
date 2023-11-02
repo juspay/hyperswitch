@@ -200,7 +200,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = mollie::PayeezyPaymentsRequest::try_from(req)?;
         let router_obj = payeezy::PayeezyRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -400,7 +399,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let req_obj = payeezy::PayeezyPaymentsRequest::try_from(&router_obj)?;
 
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
