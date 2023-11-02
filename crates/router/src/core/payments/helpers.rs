@@ -765,9 +765,7 @@ pub fn validate_customer_id_mandatory_cases(
 ) -> RouterResult<()> {
     match (has_setup_future_usage, customer_id) {
         (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "customer_id is mandatory when shipping or billing \
-                address is given or when setup_future_usage is given"
-                .to_string(),
+            message: "customer_id is mandatory when setup_future_usage is given".to_string(),
         })
         .into_report(),
         _ => Ok(()),
