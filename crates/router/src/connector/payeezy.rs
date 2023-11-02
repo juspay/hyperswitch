@@ -215,7 +215,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
-    
+
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
