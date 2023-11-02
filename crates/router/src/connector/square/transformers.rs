@@ -397,7 +397,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.payment.reference_id,
+                connector_response_reference_id:  Some(
+                    item.data.connector_request_reference_id.clone(),
+                ),
             }),
             amount_captured,
             ..item.data
