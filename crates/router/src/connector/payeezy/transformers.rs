@@ -371,6 +371,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PayeezyCaptureOrVoidRequest {
         })
     }
 }
+
 #[derive(Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyTransactionType {
@@ -475,16 +476,18 @@ pub struct PayeezyRefundRequest {
     currency_code: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
+impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &PayeezyRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
-            utils::to_connector_meta(item.request.connector_metadata.clone())
+            utils::to_connector_meta(item.router_data.request.connector_metadata.clone())
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Refund,
-            amount: item.request.refund_amount.to_string(),
-            currency_code: item.request.currency.to_string(),
+            amount: item.router_data.request.refund_amount.to_string(),
+            currency_code: item.router_data.request.currency.to_string(),
             transaction_tag: metadata.transaction_tag,
         })
     }
