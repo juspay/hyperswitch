@@ -97,7 +97,7 @@ pub struct PayeezyPaymentsRequest {
     pub merchant_ref: String,
     pub transaction_type: PayeezyTransactionType,
     pub method: PayeezyPaymentMethodType,
-    pub amount: i64,
+    pub amount: String,
     pub currency_code: String,
     pub credit_card: PayeezyPaymentMethod,
     pub stored_credentials: Option<StoredCredentials>,
