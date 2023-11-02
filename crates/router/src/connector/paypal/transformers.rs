@@ -26,12 +26,12 @@ pub struct PaypalRouterData<T> {
 }
 
 impl<T>
-TryFrom<(
-    &types::api::CurrencyUnit,
-    types::storage::enums::Currency,
-    i64,
-    T,
-)> for PaypalRouterData<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for PaypalRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -308,7 +308,7 @@ fn get_payment_source(
         | BankRedirectData::Przelewy24 { .. } => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
         )
-            .into()),
+        .into()),
         BankRedirectData::Bizum {}
         | BankRedirectData::Interac { .. }
         | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -323,7 +323,7 @@ fn get_payment_source(
                 message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Paypal",
             }
-                .into())
+            .into())
         }
     }
 }
