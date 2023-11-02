@@ -20,10 +20,6 @@ use euclid::{
     enums as euclid_enums,
     frontend::ast,
 };
-
-#[cfg(not(feature = "business_profile_routing"))]
-use crate::utils::StringExt;
-
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -35,6 +31,8 @@ use rand::{
 };
 use rustc_hash::FxHashMap;
 
+#[cfg(not(feature = "business_profile_routing"))]
+use crate::utils::StringExt;
 use crate::{
     core::{
         errors as oss_errors, errors, payments as payments_oss, routing::helpers as routing_helpers,

@@ -167,4 +167,3 @@ macro_rules! profile {
         env!("CARGO_PROFILE")
     };
 }
-

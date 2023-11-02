@@ -6,11 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use api_models::{
-    admin as admin_api,
-    routing::ConnectorSelection,
-};
-
+use api_models::{admin as admin_api, routing::ConnectorSelection};
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{
@@ -21,10 +17,7 @@ use euclid::{
     enums,
     frontend::{
         ast,
-        dir::{
-            self,
-            enums as dir_enums,
-        },
+        dir::{self, enums as dir_enums},
     },
 };
 use once_cell::sync::OnceCell;
