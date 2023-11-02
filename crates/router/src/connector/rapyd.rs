@@ -64,6 +64,10 @@ impl ConnectorCommon for Rapyd {
         "rapyd"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -180,7 +184,13 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = rapyd::RapydPaymentsRequest::try_from(req)?;
+        let connector_router_data = rapyd::RapydRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = rapyd::RapydPaymentsRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::RapydPaymentsRequest>::encode_to_string_of_json,
@@ -487,7 +497,13 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = rapyd::CaptureRequest::try_from(req)?;
+        let connector_router_data = rapyd::RapydRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let req_obj = rapyd::CaptureRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json,
@@ -622,7 +638,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = rapyd::RapydRefundRequest::try_from(req)?;
+        let connector_router_data = rapyd::RapydRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::RapydRefundRequest>::encode_to_string_of_json,
