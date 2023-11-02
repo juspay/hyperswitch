@@ -50,6 +50,7 @@ mod stax;
 mod stripe;
 mod trustpay;
 mod tsys;
+mod stancer;
 mod utils;
 mod volt;
 mod wise;

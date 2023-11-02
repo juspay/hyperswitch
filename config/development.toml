@@ -104,6 +104,7 @@ cards = [
     "prophetpay",
     "shift4",
     "square",
+    "stancer",
     "stax",
     "stripe",
     "trustpay",
@@ -176,6 +177,7 @@ prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
+stancer.base_url = "https://api.stancer.com"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"

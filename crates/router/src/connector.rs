@@ -40,6 +40,7 @@ pub mod prophetpay;
 pub mod rapyd;
 pub mod shift4;
 pub mod square;
+pub mod stancer;
 pub mod stax;
 pub mod stripe;
 pub mod trustpay;
@@ -64,4 +65,5 @@ pub use self::{
     payu::Payu, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, shift4::Shift4,
     square::Square, stax::Stax, stripe::Stripe, trustpay::Trustpay, tsys::Tsys, volt::Volt,
     wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen,
+stancer::Stancer,
 };
