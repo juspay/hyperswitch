@@ -486,16 +486,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyRouterData::try_from((
+        let router_obj = payeezy::PayeezyRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = payeezy::PayeezyRefundRequest::try_from(&connector_req)?;
+        let req_obj = payeezy::PayeezyRefundRequest::try_from(&router_obj)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
+            utils::Encode::<payeezy::PayeezyRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
