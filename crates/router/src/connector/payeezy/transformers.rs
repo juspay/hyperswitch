@@ -37,11 +37,14 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             utils::CardIssuer::Master => Ok(Self::Mastercard),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: issuer.to_string(),
-                connector: "Payeezy",
+
+            utils::CardIssuer::Maestro | utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Payeezy",
+                }
+                .into())
             }
-            .into()),
         }
     }
 }
@@ -67,6 +70,7 @@ pub struct PayeezyPaymentsRequest {
     pub currency_code: String,
     pub credit_card: PayeezyPaymentMethod,
     pub stored_credentials: Option<StoredCredentials>,
+    pub reference: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -96,7 +100,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+
+            diesel_models::enums::PaymentMethod::CardRedirect
+            | diesel_models::enums::PaymentMethod::PayLater
+            | diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect
+            | diesel_models::enums::PaymentMethod::BankTransfer
+            | diesel_models::enums::PaymentMethod::Crypto
+            | diesel_models::enums::PaymentMethod::BankDebit
+            | diesel_models::enums::PaymentMethod::Reward
+            | diesel_models::enums::PaymentMethod::Upi
+            | diesel_models::enums::PaymentMethod::Voucher
+            | diesel_models::enums::PaymentMethod::GiftCard => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
         }
     }
 }
@@ -118,6 +135,7 @@ fn get_card_specific_payment_data(
         currency_code,
         credit_card,
         stored_credentials,
+        reference: item.connector_request_reference_id.clone(),
     })
 }
 fn get_transaction_type_and_stored_creds(
@@ -163,7 +181,10 @@ fn get_transaction_type_and_stored_creds(
                 Some(diesel_models::enums::CaptureMethod::Automatic) => {
                     Ok((PayeezyTransactionType::Purchase, None))
                 }
-                _ => Err(errors::ConnectorError::FlowNotSupported {
+
+                Some(diesel_models::enums::CaptureMethod::ManualMultiple)
+                | Some(diesel_models::enums::CaptureMethod::Scheduled)
+                | None => Err(errors::ConnectorError::FlowNotSupported {
                     flow: item.request.capture_method.unwrap_or_default().to_string(),
                     connector: "Payeezy".to_string(),
                 }),
@@ -194,7 +215,23 @@ fn get_payment_method_data(
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+
+        api::PaymentMethodData::CardRedirect(_)
+        | api::PaymentMethodData::Wallet(_)
+        | api::PaymentMethodData::PayLater(_)
+        | api::PaymentMethodData::BankRedirect(_)
+        | api::PaymentMethodData::BankDebit(_)
+        | api::PaymentMethodData::BankTransfer(_)
+        | api::PaymentMethodData::Crypto(_)
+        | api::PaymentMethodData::MandatePayment
+        | api::PaymentMethodData::Reward
+        | api::PaymentMethodData::Upi(_)
+        | api::PaymentMethodData::Voucher(_)
+        | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+            message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "Payeezy",
+        }
+        .into()),
     }
 }
 
@@ -252,6 +289,7 @@ pub struct PayeezyPaymentsResponse {
     pub gateway_resp_code: String,
     pub gateway_message: String,
     pub stored_credentials: Option<PaymentsStoredCredentials>,
+    pub reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -354,13 +392,17 @@ impl<F, T>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
+                    item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference,
                 connector_metadata: metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response
+                        .reference
+                        .unwrap_or(item.response.transaction_id),
+                ),
             }),
             ..item.data
         })
@@ -376,7 +418,7 @@ impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::Atte
                 | PayeezyTransactionType::Purchase
                 | PayeezyTransactionType::Recurring => Self::Charged,
                 PayeezyTransactionType::Void => Self::Voided,
-                _ => Self::Pending,
+                PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => Self::Pending,
             },
             PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match method {
                 PayeezyTransactionType::Capture => Self::CaptureFailed,
@@ -384,7 +426,7 @@ impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::Atte
                 | PayeezyTransactionType::Purchase
                 | PayeezyTransactionType::Recurring => Self::AuthorizationFailed,
                 PayeezyTransactionType::Void => Self::VoidFailed,
-                _ => Self::Pending,
+                PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => Self::Pending,
             },
         }
     }

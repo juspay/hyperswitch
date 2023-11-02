@@ -33,7 +33,7 @@ impl api::Payment for Bitpay {}
 impl api::PaymentToken for Bitpay {}
 impl api::PaymentSession for Bitpay {}
 impl api::ConnectorAccessToken for Bitpay {}
-impl api::PreVerify for Bitpay {}
+impl api::MandateSetup for Bitpay {}
 impl api::PaymentAuthorize for Bitpay {}
 impl api::PaymentSync for Bitpay {}
 impl api::PaymentCapture for Bitpay {}
@@ -80,6 +80,10 @@ where
 impl ConnectorCommon for Bitpay {
     fn id(&self) -> &'static str {
         "bitpay"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -133,8 +137,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bitpay
 {
 }
 
@@ -165,7 +173,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = bitpay::BitpayPaymentsRequest::try_from(req)?;
+        let connector_router_data = bitpay::BitpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
         let bitpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
@@ -180,7 +194,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

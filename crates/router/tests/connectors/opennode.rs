@@ -17,6 +17,7 @@ impl utils::Connector for OpennodeTest {
             connector: Box::new(&Opennode),
             connector_name: types::Connector::Opennode,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -91,6 +92,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         complete_authorize_url: None,
         capture_method: None,
         customer_id: None,
+        surcharge_details: None,
     })
 }
 

@@ -1,0 +1,97 @@
+name: PR Title Checks
+
+on:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since we only label pull requests, do not have a checkout step in this
+  # workflow, and restrict permissions on the token, this is an acceptable
+  # use of this trigger.
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - ready_for_review
+      - synchronize
+
+  merge_group:
+    types:
+      - checks_requested
+
+permissions:
+  # Reference: https://github.com/cli/cli/issues/6274
+  repository-projects: read
+  pull-requests: write
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  typos:
+    name: Spell check PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Store PR title in a file
+        shell: bash
+        run: echo '${{ github.event.pull_request.title }}' > pr_title.txt
+
+      - name: Spell check
+        uses: crate-ci/typos@master
+        with:
+          files: ./pr_title.txt
+
+  pr_title_check:
+    name: Verify PR title follows conventional commit standards
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
+      - uses: baptiste0928/cargo-install@v2.1.0
+        with:
+          crate: cocogitto
+
+      - name: Verify PR title follows conventional commit standards
+        id: pr_title_check
+        if: ${{ github.event_name == 'pull_request_target' }}
+        shell: bash
+        continue-on-error: true
+        run: cog verify '${{ github.event.pull_request.title }}'
+
+      - name: Verify commit message follows conventional commit standards
+        id: commit_message_check
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        # Fail on error, we don't have context about PR information to update labels
+        continue-on-error: false
+        run: cog verify '${{ github.event.merge_group.head_commit.message }}'
+
+        # GitHub CLI returns a successful error code even if the PR has the label already attached
+      - name: Attach 'S-conventions-not-followed' label if PR title check failed
+        if: ${{ github.event_name == 'pull_request_target' && steps.pr_title_check.outcome == 'failure' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'S-conventions-not-followed' ${{ github.event.pull_request.number }}
+          echo "::error::PR title does not follow conventional commit standards"
+          exit 1
+
+        # GitHub CLI returns a successful error code even if the PR does not have the label attached
+      - name: Remove 'S-conventions-not-followed' label if PR title check succeeded
+        if: ${{ github.event_name == 'pull_request_target' && steps.pr_title_check.outcome == 'success' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh --repo ${{ github.event.repository.full_name }} pr edit --remove-label 'S-conventions-not-followed' ${{ github.event.pull_request.number }}

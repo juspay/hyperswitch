@@ -33,7 +33,7 @@ impl api::PaymentSession for Opennode {}
 impl api::PaymentToken for Opennode {}
 impl api::ConnectorAccessToken for Opennode {}
 
-impl api::PreVerify for Opennode {}
+impl api::MandateSetup for Opennode {}
 impl api::PaymentAuthorize for Opennode {}
 impl api::PaymentSync for Opennode {}
 impl api::PaymentCapture for Opennode {}
@@ -70,6 +70,10 @@ where
 impl ConnectorCommon for Opennode {
     fn id(&self) -> &'static str {
         "opennode"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -133,8 +137,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Opennode
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Opennode
 {
 }
 
@@ -165,7 +173,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = opennode::OpennodePaymentsRequest::try_from(req)?;
+        let connector_router_data = opennode::OpennodeRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
         let opennode_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<opennode::OpennodePaymentsRequest>::encode_to_string_of_json,
@@ -179,7 +193,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -342,6 +355,7 @@ impl api::IncomingWebhook for Opennode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .into_report()
@@ -356,7 +370,7 @@ impl api::IncomingWebhook for Opennode {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

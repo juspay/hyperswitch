@@ -1,5 +1,7 @@
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 use storage_impl::redis::{
     cache::{CacheKind, CONFIG_CACHE},
     kv_store::RedisConnInterface,
@@ -25,6 +27,13 @@ pub trait ConfigInterface {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
+    async fn find_config_by_key_unwrap_or(
+        &self,
+        key: &str,
+        // If the config is not found it will be created with the default value.
+        default_config: Option<String>,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
@@ -47,6 +56,7 @@ pub trait ConfigInterface {
 
 #[async_trait::async_trait]
 impl ConfigInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -95,13 +105,53 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_in_memory(
-            self,
-            key,
-            || self.find_config_by_key_from_db(key),
-            &CONFIG_CACHE,
-        )
-        .await
+        let find_config_by_key_from_db = || async {
+            let conn = connection::pg_connection_write(self).await?;
+            storage::Config::find_by_key(&conn, key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+        cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
+    }
+
+    async fn find_config_by_key_unwrap_or(
+        &self,
+        key: &str,
+        // If the config is not found it will be created with the default value.
+        default_config: Option<String>,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let find_else_unwrap_or = || async {
+            let conn = connection::pg_connection_write(self).await?;
+            match storage::Config::find_by_key(&conn, key)
+                .await
+                .map_err(Into::<errors::StorageError>::into)
+                .into_report()
+            {
+                Ok(a) => Ok(a),
+                Err(err) => {
+                    if err.current_context().is_db_not_found() {
+                        default_config
+                            .ok_or(err)
+                            .async_and_then(|c| async {
+                                storage::ConfigNew {
+                                    key: key.to_string(),
+                                    config: c,
+                                }
+                                .insert(&conn)
+                                .await
+                                .map_err(Into::into)
+                                .into_report()
+                            })
+                            .await
+                    } else {
+                        Err(err)
+                    }
+                }
+            }
+        };
+
+        cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
@@ -123,6 +173,7 @@ impl ConfigInterface for Store {
 
 #[async_trait::async_trait]
 impl ConfigInterface for MockDb {
+    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -202,6 +253,14 @@ impl ConfigInterface for MockDb {
         config.ok_or_else(|| {
             errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
         })
+    }
+
+    async fn find_config_by_key_unwrap_or(
+        &self,
+        key: &str,
+        _default_config: Option<String>,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        self.find_config_by_key(key).await
     }
 
     async fn find_config_by_key_from_db(

@@ -1,6 +1,7 @@
 use api_models::payments::Card;
 use common_utils::pii::Email;
 use diesel_models::enums::RefundStatus;
+use error_stack::IntoReport;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -101,9 +102,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            )),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "powertranz",
+            })
+            .into_report(),
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
@@ -123,7 +137,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 .to_string(),
             three_d_secure,
             source,
-            order_identifier: item.payment_id.clone(),
+            order_identifier: item.connector_request_reference_id.clone(),
             // billing_address,
             // shipping_address,
             extended_data,
@@ -239,6 +253,7 @@ pub struct PowertranzBaseResponse {
     iso_response_code: String,
     redirect_data: Option<String>,
     response_message: String,
+    order_identifier: String,
 }
 
 impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
@@ -297,7 +312,7 @@ impl<F, T>
         let connector_transaction_id = item
             .response
             .original_trxn_identifier
-            .unwrap_or(item.response.transaction_identifier);
+            .unwrap_or(item.response.transaction_identifier.clone());
         let redirection_data =
             item.response
                 .redirect_data
@@ -311,7 +326,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_identifier),
             }),
             Err,
         );

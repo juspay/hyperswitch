@@ -1,5 +1,7 @@
 #![allow(unused_variables)]
-use crate::core::errors;
+use common_utils::errors::ErrorSwitch;
+
+use crate::core::errors::{self, CustomersErrorResponse};
 
 #[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
@@ -67,6 +69,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_redacted", message = "Customer has redacted")]
     CustomerRedacted,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_already_exists", message = "Customer with the given customer_id already exists")]
+    DuplicateCustomer,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such refund")]
     RefundNotFound,
 
@@ -100,7 +105,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
     ResourceIdNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "invalid_request", message = "The merchant connector account is disabled")]
@@ -191,7 +196,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
     DuplicatePayment { payment_id: String },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
@@ -230,6 +235,12 @@ pub enum StripeErrorCode {
     HyperswitchUnprocessableEntity { message: String },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
     CurrencyNotSupported { message: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Payment Link does not exist in our records")]
+    PaymentLinkNotFound,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Resource Busy. Please try again later")]
+    LockTimeout,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant connector account is configured with invalid {config}")]
+    InvalidConnectorConfiguration { config: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -486,6 +497,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::ClientSecretNotGiven
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
+            errors::ApiErrorResponse::PaymentLinkNotFound => Self::PaymentLinkNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {
                 Self::MerchantConnectorAccountNotFound { id }
@@ -572,9 +584,16 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
             | errors::ApiErrorResponse::WebhookAuthenticationFailed
-            | errors::ApiErrorResponse::WebhookUnprocessableEntity => Self::WebhookProcessingError,
+            | errors::ApiErrorResponse::WebhookUnprocessableEntity
+            | errors::ApiErrorResponse::WebhookInvalidMerchantSecret => {
+                Self::WebhookProcessingError
+            }
             errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration => {
                 Self::PaymentMethodUnactivated
+            }
+            errors::ApiErrorResponse::ResourceBusy => Self::PaymentMethodUnactivated,
+            errors::ApiErrorResponse::InvalidConnectorConfiguration { config } => {
+                Self::InvalidConnectorConfiguration { config }
             }
         }
     }
@@ -641,9 +660,12 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileNotAvailable
             | Self::FileProviderNotSupported
             | Self::CurrencyNotSupported { .. }
-            | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
+            | Self::DuplicateCustomer
+            | Self::PaymentMethodUnactivated
+            | Self::InvalidConnectorConfiguration { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
+            | Self::PaymentLinkNotFound
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
@@ -652,6 +674,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::LockTimeout => StatusCode::LOCKED,
         }
     }
 
@@ -701,10 +724,23 @@ impl From<serde_qs::Error> for StripeErrorCode {
     }
 }
 
-impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         self.clone().into()
     }
 }
 
 impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
+
+impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        use StripeErrorCode as SC;
+        match self {
+            Self::CustomerRedacted => SC::CustomerRedacted,
+            Self::InternalServerError => SC::InternalServerError,
+            Self::MandateActive => SC::MandateActive,
+            Self::CustomerNotFound => SC::CustomerNotFound,
+            Self::CustomerAlreadyExists => SC::DuplicateCustomer,
+        }
+    }
+}

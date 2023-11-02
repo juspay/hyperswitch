@@ -34,7 +34,7 @@ pub struct Stax;
 impl api::Payment for Stax {}
 impl api::PaymentSession for Stax {}
 impl api::ConnectorAccessToken for Stax {}
-impl api::PreVerify for Stax {}
+impl api::MandateSetup for Stax {}
 impl api::PaymentAuthorize for Stax {}
 impl api::PaymentSync for Stax {}
 impl api::PaymentCapture for Stax {}
@@ -311,8 +311,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Stax
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Stax
 {
 }
 
@@ -358,7 +362,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

@@ -2,6 +2,8 @@ use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
 use router_env::{instrument, tracing, Flow};
+
+use crate::core::api_locking;
 pub mod utils;
 
 use super::app::AppState;
@@ -38,15 +40,15 @@ pub async fn retrieve_dispute(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         dispute_id,
         |state, auth, req| disputes::retrieve_dispute(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Disputes - List Disputes
 #[utoipa::path(
     get,
@@ -81,15 +83,15 @@ pub async fn retrieve_disputes_list(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| disputes::retrieve_disputes_list(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Disputes - Accept Dispute
 #[utoipa::path(
     get,
@@ -117,17 +119,17 @@ pub async fn accept_dispute(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         dispute_id,
         |state, auth, req| {
             disputes::accept_dispute(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Disputes - Submit Dispute Evidence
 #[utoipa::path(
     post,
@@ -150,17 +152,17 @@ pub async fn submit_dispute_evidence(
     let flow = Flow::DisputesEvidenceSubmit;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
             disputes::submit_evidence(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Disputes - Attach Evidence to Dispute
 ///
 /// To attach an evidence file to dispute
@@ -191,17 +193,17 @@ pub async fn attach_dispute_evidence(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         attach_evidence_request,
         |state, auth, req| {
             disputes::attach_evidence(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Diputes - Retrieve Dispute
 #[utoipa::path(
     get,
@@ -229,11 +231,12 @@ pub async fn retrieve_dispute_evidence(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         dispute_id,
         |state, auth, req| disputes::retrieve_dispute_evidence(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

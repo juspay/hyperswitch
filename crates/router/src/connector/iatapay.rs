@@ -34,7 +34,7 @@ pub struct Iatapay;
 impl api::Payment for Iatapay {}
 impl api::PaymentSession for Iatapay {}
 impl api::ConnectorAccessToken for Iatapay {}
-impl api::PreVerify for Iatapay {}
+impl api::MandateSetup for Iatapay {}
 impl api::PaymentAuthorize for Iatapay {}
 impl api::PaymentSync for Iatapay {}
 impl api::PaymentCapture for Iatapay {}
@@ -88,6 +88,10 @@ impl ConnectorCommon for Iatapay {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -235,8 +239,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Iatapay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Iatapay
 {
 }
 
@@ -267,7 +275,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = iatapay::IatapayPaymentsRequest::try_from(req)?;
+        let connector_router_data = iatapay::IatapayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = iatapay::IatapayPaymentsRequest::try_from(&connector_router_data)?;
         let iatapay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<iatapay::IatapayPaymentsRequest>::encode_to_string_of_json,
@@ -281,7 +295,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -448,7 +461,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = iatapay::IatapayRefundRequest::try_from(req)?;
+        let connector_router_data = iatapay::IatapayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.payment_amount,
+            req,
+        ))?;
+        let req_obj = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
         let iatapay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json,
@@ -581,6 +600,7 @@ impl api::IncomingWebhook for Iatapay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
@@ -591,7 +611,7 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

@@ -13,10 +13,11 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 1
   CARGO_NET_RETRY: 10
-  RUSTUP_MAX_RETRIES: 10
-  RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   CONNECTORS: stripe
+  RUST_BACKTRACE: short
+  RUSTUP_MAX_RETRIES: 10
+  RUST_MIN_STACK: 8388608
 
 jobs:
   runner:
@@ -25,7 +26,7 @@ jobs:
 
     services:
       redis:
-        image: 'redis'
+        image: "redis"
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -34,7 +35,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: 'postgres:14.5'
+        image: "postgres:14.5"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -98,26 +99,32 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
+      - name: Install newman from fork
+        run: npm ci
+
+      - name: Build project
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        run: cargo build --package router --bin router
+
       - name: Setup Local Server
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         run: |
-          cargo run &
-          COUNT=0
-          # Wait for the server to start in port 8080
-          while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-              # Wait for 15 mins to start otherwise kill the task
-              if [ $COUNT -gt 90 ];
-              then
-                  exit 1
-              else 
-                  COUNT=$((COUNT+1))
-                  sleep 10
-              fi
-          done
+          # Start the server in the background
+          target/debug/router &
+          SERVER_PID=$!
 
-      - name: Install newman from fork
-        run: |
-          npm ci
+          # Wait for the server to start in port 8080
+          COUNT=0
+          while ! nc -z localhost 8080; do
+            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+              echo "Server did not start within a reasonable time. Exiting."
+              kill $SERVER_PID
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
+            fi
+          done
 
       - name: Run Tests
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -133,14 +140,14 @@ jobs:
           NEWMAN_PATH=$(pwd)/node_modules/.bin
           export PATH=${NEWMAN_PATH}:${PATH}
           failed_connectors=()
-      
+
           for i in $(echo "$CONNECTORS" | tr "," "\n"); do
             echo $i
             if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
               failed_connectors+=("$i")
             fi
           done
-      
+
           if [ ${#failed_connectors[@]} -gt 0 ]; then
             echo -e "${RED}One or more connectors failed to run:${RESET}"
             printf '%s\n' "${failed_connectors[@]}"

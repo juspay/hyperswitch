@@ -13,6 +13,7 @@ use crate::{
         api::{self, enums as api_enums},
         storage::enums,
         transformers::ForeignFrom,
+        PaymentsAuthorizeData, PaymentsResponseData,
     },
 };
 
@@ -42,9 +43,16 @@ pub struct AmountOfMoney {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct References {
+    pub merchant_reference: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Order {
     pub amount_of_money: AmountOfMoney,
     pub customer: Customer,
+    pub references: References,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -176,35 +184,99 @@ pub struct PaymentsRequest {
     pub shipping: Option<Shipping>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
+#[derive(Debug, Serialize)]
+pub struct WorldlineRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for WorldlineRouterData<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_data = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref card) => {
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        &WorldlineRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for PaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &WorldlineRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_data = match &item.router_data.request.payment_method_data {
+            api::PaymentMethodData::Card(card) => {
                 WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
-                    &item.request,
+                    &item.router_data.request,
                     card,
                 )?))
             }
-            api::PaymentMethodData::BankRedirect(ref bank_redirect) => {
+            api::PaymentMethodData::BankRedirect(bank_redirect) => {
                 WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
-                    make_bank_redirect_request(&item.request, bank_redirect)?,
+                    make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
                 ))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
             ))?,
         };
-        let customer = build_customer_info(&item.address, &item.request.email)?;
+
+        let customer =
+            build_customer_info(&item.router_data.address, &item.router_data.request.email)?;
         let order = Order {
             amount_of_money: AmountOfMoney {
-                amount: item.request.amount,
-                currency_code: item.request.currency.to_string().to_uppercase(),
+                amount: item.amount,
+                currency_code: item.router_data.request.currency.to_string().to_uppercase(),
             },
             customer,
+            references: References {
+                merchant_reference: item.router_data.connector_request_reference_id.clone(),
+            },
         };
 
         let shipping = item
+            .router_data
             .address
             .shipping
             .as_ref()
@@ -217,6 +289,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
         })
     }
 }
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum Gateway {
     Amex = 2,
@@ -266,7 +339,7 @@ impl TryFrom<&api_models::enums::BankNames> for WorldlineBic {
 }
 
 fn make_card_request(
-    req: &types::PaymentsAuthorizeData,
+    req: &PaymentsAuthorizeData,
     ccard: &payments::Card,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let expiry_year = ccard.card_exp_year.peek().clone();
@@ -293,7 +366,7 @@ fn make_card_request(
 }
 
 fn make_bank_redirect_request(
-    req: &types::PaymentsAuthorizeData,
+    req: &PaymentsAuthorizeData,
     bank_redirect: &payments::BankRedirectData,
 ) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let return_url = req.router_return_url.clone();
@@ -328,10 +401,25 @@ fn make_bank_redirect_request(
             },
             809,
         ),
-        _ => {
-            return Err(
-                errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+        payments::BankRedirectData::BancontactCard { .. }
+        | payments::BankRedirectData::Bizum {}
+        | payments::BankRedirectData::Blik { .. }
+        | payments::BankRedirectData::Eps { .. }
+        | payments::BankRedirectData::Interac { .. }
+        | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | payments::BankRedirectData::OnlineBankingFinland { .. }
+        | payments::BankRedirectData::OnlineBankingPoland { .. }
+        | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+        | payments::BankRedirectData::OpenBankingUk { .. }
+        | payments::BankRedirectData::Przelewy24 { .. }
+        | payments::BankRedirectData::Sofort { .. }
+        | payments::BankRedirectData::Trustly { .. }
+        | payments::BankRedirectData::OnlineBankingFpx { .. }
+        | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
             )
+            .into())
         }
     };
     Ok(RedirectPaymentMethod {
@@ -487,12 +575,12 @@ pub struct Payment {
     pub capture_method: enums::CaptureMethod,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData>>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, Payment, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
@@ -500,12 +588,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 item.response.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -531,12 +619,12 @@ pub struct RedirectData {
     pub redirect_url: Url,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResponseData>>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, PaymentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
@@ -551,12 +639,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 item.response.payment.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.payment.id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.payment.id),
             }),
             ..item.data
         })

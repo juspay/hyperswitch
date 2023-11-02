@@ -138,7 +138,7 @@ impl Cache {
 
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
-    key: &str,
+    key: impl AsRef<str>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
@@ -147,6 +147,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
+    let key = key.as_ref();
     let redis = &store
         .get_redis_conn()
         .map_err(|er| {

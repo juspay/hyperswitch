@@ -16,6 +16,7 @@ impl utils::Connector for CashtocodeTest {
             connector: Box::new(&Cashtocode),
             connector_name: types::Connector::Cashtocode,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -65,6 +66,7 @@ impl CashtocodeTest {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: Some("John Doe".to_owned()),
+            surcharge_details: None,
         })
     }
 

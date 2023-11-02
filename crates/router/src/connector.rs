@@ -19,6 +19,7 @@ pub mod fiserv;
 pub mod forte;
 pub mod globalpay;
 pub mod globepay;
+pub mod gocardless;
 pub mod helcim;
 pub mod iatapay;
 pub mod klarna;
@@ -35,6 +36,7 @@ pub mod payme;
 pub mod paypal;
 pub mod payu;
 pub mod powertranz;
+pub mod prophetpay;
 pub mod rapyd;
 pub mod shift4;
 pub mod square;
@@ -43,6 +45,7 @@ pub mod stripe;
 pub mod trustpay;
 pub mod tsys;
 pub mod utils;
+pub mod volt;
 pub mod wise;
 pub mod worldline;
 pub mod worldpay;
@@ -55,10 +58,10 @@ pub use self::{
     bambora::Bambora, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
     cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
-    globepay::Globepay, helcim::Helcim, iatapay::Iatapay, klarna::Klarna, mollie::Mollie,
-    multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei,
-    opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, paypal::Paypal, payu::Payu,
-    powertranz::Powertranz, rapyd::Rapyd, shift4::Shift4, square::Square, stax::Stax,
-    stripe::Stripe, trustpay::Trustpay, tsys::Tsys, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, zen::Zen,
+    globepay::Globepay, gocardless::Gocardless, helcim::Helcim, iatapay::Iatapay, klarna::Klarna,
+    mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi, noon::Noon,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, paypal::Paypal,
+    payu::Payu, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, shift4::Shift4,
+    square::Square, stax::Stax, stripe::Stripe, trustpay::Trustpay, tsys::Tsys, volt::Volt,
+    wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen,
 };

@@ -23,7 +23,10 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
                 "Payment Method".to_string(),
             ))
             .into_report(),
-            _ => Err(errors::ConnectorError::NotSupported {
+
+            BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -85,7 +88,14 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
                 errors::ConnectorError::NotImplemented("Payment Method".to_string()),
             )
             .into_report(),
-            _ => Err(errors::ConnectorError::NotSupported {
+
+            PayLaterData::KlarnaRedirect { .. }
+            | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::AffirmRedirect { .. }
+            | PayLaterData::PayBrightRedirect { .. }
+            | PayLaterData::WalleyRedirect { .. }
+            | PayLaterData::AlmaRedirect { .. }
+            | PayLaterData::AtomeRedirect { .. } => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -106,7 +116,31 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
                 "Payment Method".to_string(),
             ))
             .into_report(),
-            _ => Err(errors::ConnectorError::NotSupported {
+
+            WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect {}
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect {}
+            | WalletData::VippsRedirect {}
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -295,7 +329,14 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+
+            types::ConnectorAuthType::HeaderKey { .. }
+            | types::ConnectorAuthType::SignatureKey { .. }
+            | types::ConnectorAuthType::MultiAuthKey { .. }
+            | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::NoKey { .. } => {
+                Err(errors::ConnectorError::FailedToObtainAuthType.into())
+            }
         }
     }
 }
@@ -327,6 +368,7 @@ pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
     amount_money: SquarePaymentsAmountData,
+    reference_id: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct SquarePaymentsResponse {
@@ -341,17 +383,23 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        //Since this try_from is being used in Authorize, Sync, Capture & Void flow. Field amount_captured should only be updated in case of Charged status.
+        let status = enums::AttemptStatus::from(item.response.payment.status);
+        let mut amount_captured = None;
+        if status == enums::AttemptStatus::Charged {
+            amount_captured = Some(item.response.payment.amount_money.amount)
+        };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payment.status),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.payment.reference_id,
             }),
-            amount_captured: Some(item.response.payment.amount_money.amount),
+            amount_captured,
             ..item.data
         })
     }

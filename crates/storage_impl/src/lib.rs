@@ -5,8 +5,10 @@ use diesel_models::{self as store};
 use error_stack::ResultExt;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
+mod address;
 pub mod config;
 pub mod connection;
+mod connector_response;
 pub mod database;
 pub mod errors;
 mod lookup;
@@ -15,6 +17,7 @@ pub mod mock_db;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod reverse_lookup;
 mod utils;
 
 use database::store::PgPool;
@@ -134,6 +137,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
     router_store: RouterStore<T>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
+    ttl_for_kv: u32,
 }
 
 #[async_trait::async_trait]
@@ -142,13 +146,14 @@ where
     RouterStore<T>: DatabaseStore,
     T: DatabaseStore,
 {
-    type Config = (RouterStore<T>, String, u8);
+    type Config = (RouterStore<T>, String, u8, u32);
     async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
-        let (router_store, drainer_stream_name, drainer_num_partitions) = config;
+        let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
         Ok(Self::from_store(
             router_store,
             drainer_stream_name,
             drainer_num_partitions,
+            ttl_for_kv,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -172,11 +177,13 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         store: RouterStore<T>,
         drainer_stream_name: String,
         drainer_num_partitions: u8,
+        ttl_for_kv: u32,
     ) -> Self {
         Self {
             router_store: store,
             drainer_stream_name,
             drainer_num_partitions,
+            ttl_for_kv,
         }
     }
 
@@ -219,24 +226,6 @@ pub trait DataModelExt {
     type StorageModel;
     fn to_storage_model(self) -> Self::StorageModel;
     fn from_storage_model(storage_model: Self::StorageModel) -> Self;
-}
-
-impl DataModelExt for data_models::MerchantStorageScheme {
-    type StorageModel = diesel_models::enums::MerchantStorageScheme;
-
-    fn to_storage_model(self) -> Self::StorageModel {
-        match self {
-            Self::PostgresOnly => diesel_models::enums::MerchantStorageScheme::PostgresOnly,
-            Self::RedisKv => diesel_models::enums::MerchantStorageScheme::RedisKv,
-        }
-    }
-
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        match storage_model {
-            diesel_models::enums::MerchantStorageScheme::PostgresOnly => Self::PostgresOnly,
-            diesel_models::enums::MerchantStorageScheme::RedisKv => Self::RedisKv,
-        }
-    }
 }
 
 pub(crate) fn diesel_error_to_data_error(
