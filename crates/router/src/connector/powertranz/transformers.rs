@@ -128,11 +128,13 @@ pub struct RedirectResponsePayload {
     pub spi_token: String,
 }
 
-impl TryFrom<&PowertranzRouterData<&types::PaymentsAuthorizeRouterData>> for PowertranzPaymentsRequest {
+impl TryFrom<&PowertranzRouterData<&types::PaymentsAuthorizeRouterData>>
+    for PowertranzPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PowertranzRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error>{
+    ) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
             api::PaymentMethodData::Wallet(_)
@@ -414,11 +416,11 @@ impl TryFrom<&types::PaymentsCaptureData> for PowertranzBaseRequest {
     }
 }
 
-impl<F> TryFrom<&PowertranzRouterData<&types::RefundsRouterData<F>>> for PowertranzBaseRequest  {
+impl<F> TryFrom<&PowertranzRouterData<&types::RefundsRouterData<F>>> for PowertranzBaseRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PowertranzRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error>{
+    ) -> Result<Self, Self::Error> {
         let total_amount = Some(utils::to_currency_base_unit_asf64(
             item.request.router_data.refund_amount,
             item.request.currency,

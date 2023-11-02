@@ -59,7 +59,6 @@ impl
 {
 }
 
-
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Powertranz
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -87,7 +86,7 @@ impl ConnectorCommon for Powertranz {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    
+
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
     }
