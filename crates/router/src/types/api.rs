@@ -44,8 +44,6 @@ pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
 }
 
 #[derive(Clone, Debug)]

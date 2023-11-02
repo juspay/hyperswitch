@@ -822,12 +822,14 @@ pub async fn perform_session_flow_routing(
         };
         let maybe_choice = perform_session_routing_for_pm_type(session_pm_input).await?;
 
-        if let Some((connector, sub_label)) = maybe_choice {
+        // (connector, sub_label)
+        if let Some(data) = maybe_choice {
             result.insert(
                 pm_type,
                 routing_types::SessionRoutingChoice {
-                    connector,
-                    sub_label,
+                    connector: data.0,
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    sub_label: data.1,
                     payment_method_type: pm_type,
                 },
             );
