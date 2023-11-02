@@ -114,10 +114,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             reversal_reason_code: None,
         };
         let metadata = item.get_connector_meta()?;
-        let session: FiservSessionObject =
-            metadata.parse_value("FiservSessionObject").change_context(
-                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
-            )?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
 
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
@@ -195,10 +196,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
         let metadata = item.get_connector_meta()?;
-        let session: FiservSessionObject =
-            metadata.parse_value("FiservSessionObject").change_context(
-                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
-            )?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -406,10 +408,11 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: FiservSessionObject =
-            metadata.parse_value("FiservSessionObject").change_context(
-                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
-            )?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         let amount =
             utils::to_currency_base_unit(item.request.amount_to_capture, item.request.currency)?;
         Ok(Self {
@@ -494,10 +497,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: FiservSessionObject =
-            metadata.parse_value("FiservSessionObject").change_context(
-                errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
-            )?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             amount: Amount {
                 total: utils::to_currency_base_unit(
