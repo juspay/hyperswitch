@@ -173,6 +173,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = volt::VoltAuthUpdateRequest::try_from(req)?;
         let volt_req = types::RequestBody::log_and_get_request_body(
@@ -195,7 +196,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(req)
@@ -589,4 +592,3 @@ impl api::IncomingWebhook for Volt {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
