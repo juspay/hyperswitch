@@ -361,6 +361,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
                     updated_by: storage_scheme.to_string(),
+                    authentication_data: payment_attempt.authentication_data.clone(),
+                    encoded_data: payment_attempt.encoded_data.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 };
 
@@ -956,8 +958,9 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
             amount_capturable: self.amount_capturable,
-
             updated_by: self.updated_by,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
             merchant_connector_id: self.merchant_connector_id,
         }
     }
@@ -1007,8 +1010,9 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             amount_capturable: storage_model.amount_capturable,
-
             updated_by: storage_model.updated_by,
+            authentication_data: storage_model.authentication_data,
+            encoded_data: storage_model.encoded_data,
             merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
@@ -1060,6 +1064,8 @@ impl DataModelExt for PaymentAttemptNew {
             amount_capturable: self.amount_capturable,
 
             updated_by: self.updated_by,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
             merchant_connector_id: self.merchant_connector_id,
         }
     }
@@ -1107,8 +1113,9 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
             amount_capturable: storage_model.amount_capturable,
-
             updated_by: storage_model.updated_by,
+            authentication_data: storage_model.authentication_data,
+            encoded_data: storage_model.encoded_data,
             merchant_connector_id: storage_model.merchant_connector_id,
         }
     }
@@ -1338,6 +1345,19 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
                 updated_by,
             },
+            Self::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            },
         }
     }
 
@@ -1560,6 +1580,19 @@ impl DataModelExt for PaymentAttemptUpdate {
             } => Self::AmountToCaptureUpdate {
                 status,
                 amount_capturable,
+                updated_by,
+            },
+            DieselPaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => Self::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
                 updated_by,
             },
         }
