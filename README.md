@@ -74,7 +74,7 @@ Ways to get started with Hyperswitch:
 
 1. Try it in our Sandbox Environment: Fast and easy to
    start.
-   No code or setup is required in your system, [learn more](/docs/try_sandbox.md)
+   No code or setup is required in your system. [learn more](/docs/try_sandbox.md)
 
 
 <a href="https://app.hyperswitch.io/register"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
@@ -124,7 +124,7 @@ analytics, and operations end-to-end:
 
 - **System Performance & Reliability**
 
-  - Scalable to support 50000 tps
+  - Scalable to support 50,000 tps
   - System uptime of up to 99.99%
   - Deployment with very low latency
   - Hosting option with AWS or GCP
