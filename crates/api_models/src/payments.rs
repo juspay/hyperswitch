@@ -810,6 +810,29 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
+impl PaymentMethodData {
+    pub fn is_session_token_payment_method_type(&self) -> bool {
+        match self {
+            Self::Wallet(wallet) => matches!(
+                wallet,
+                WalletData::ApplePay(_) | WalletData::GooglePay(_) | WalletData::PaypalSdk(_)
+            ),
+            Self::PayLater(pay_later) => matches!(pay_later, PayLaterData::KlarnaSdk { .. }),
+            Self::Card(_)
+            | Self::CardRedirect(_)
+            | Self::BankRedirect(_)
+            | Self::BankDebit(_)
+            | Self::BankTransfer(_)
+            | Self::Crypto(_)
+            | Self::MandatePayment
+            | Self::Reward
+            | Self::Upi(_)
+            | Self::Voucher(_)
+            | Self::GiftCard(_) => false,
+        }
+    }
+}
+
 pub trait GetPaymentMethodType {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType;
 }

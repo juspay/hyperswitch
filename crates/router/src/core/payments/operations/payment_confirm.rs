@@ -1,14 +1,13 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::{FrmSuggestion, PaymentMethodType},
-    payment_methods::{self, SurchargeDetailsResponse, SurchargeMetadata},
+    enums::FrmSuggestion,
+    payment_methods::{self, SurchargeDetailsResponse},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use futures::FutureExt;
-use redis_interface::errors::RedisError;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -338,7 +337,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm
         });
-        Self::validate_request_surcharge_details(state, &payment_attempt, request).await?;
+        Self::validate_request_surcharge_details_with_session_surcharge_details(
+            &payment_attempt,
+            request,
+        )?;
 
         // populate payment_data.surcharge_details from request
         let surcharge_details = request
@@ -719,8 +721,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 }
 
 impl PaymentConfirm {
-    pub async fn validate_request_surcharge_details(
-        state: &AppState,
+    pub fn validate_request_surcharge_details_with_session_surcharge_details(
         payment_attempt: &storage::PaymentAttempt,
         request: &api::PaymentsRequest,
     ) -> RouterResult<()> {
@@ -734,82 +735,16 @@ impl PaymentConfirm {
                         .into(),
                 })?;
 
-            // if payment method is wallet, verify if session call surcharge details are same as the one sent in confirm request
-            if let Some(payment_method_type) =
-                Self::get_payment_method_type_if_sdk_payment(payment_method_data)
+            if payment_method_data.is_session_token_payment_method_type()
+                && (request_surcharge_details.surcharge_amount
+                    != payment_attempt.surcharge_amount.unwrap_or(0)
+                    || request_surcharge_details.tax_amount != payment_attempt.tax_amount)
             {
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
-                let key = SurchargeMetadata::get_consolidated_key(
-                    &payment_method_type.into(),
-                    &payment_method_type,
-                    None,
-                    &payment_attempt.attempt_id,
-                );
-                match redis_conn
-                    .get_and_deserialize_key::<SurchargeDetailsResponse>(
-                        &key,
-                        "SurchargeDetailsResponse",
-                    )
-                    .await
-                {
-                    Ok(surcharge_details) => {
-                        if surcharge_details
-                            .is_request_surcharge_matching(request_surcharge_details)
-                        {
-                            Ok(())
-                        } else {
-                            Err(errors::ApiErrorResponse::InvalidRequestData { message: "surcharge details sent during session token call doesn't match surcharge details in confirm request".into() }.into())
-                        }
-                    }
-                    Err(err) => {
-                        if err.current_context() == &RedisError::NotFound {
-                            Ok(())
-                        } else {
-                            Err(errors::ApiErrorResponse::InternalServerError.into())
-                                .attach_printable("Failed to get key from redis")
-                        }
-                    }
-                }
-            } else {
-                Ok(())
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "surcharge_details sent in session token flow doesn't match with the one sent in confirm request".into(),
+                    }.into());
             }
-        } else {
-            Ok(())
         }
-    }
-    fn get_payment_method_type_if_sdk_payment(
-        payment_method_data: &api::payments::PaymentMethodData,
-    ) -> Option<PaymentMethodType> {
-        match payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
-                api_models::payments::WalletData::ApplePay(_) => Some(PaymentMethodType::ApplePay),
-                api_models::payments::WalletData::GooglePay(_) => {
-                    Some(PaymentMethodType::GooglePay)
-                }
-                api_models::payments::WalletData::PaypalSdk(_) => Some(PaymentMethodType::Paypal),
-                _ => None,
-            },
-            api_models::payments::PaymentMethodData::PayLater(pay_later) => match pay_later {
-                api_models::payments::PayLaterData::KlarnaSdk { .. } => {
-                    Some(PaymentMethodType::Klarna)
-                }
-                _ => None,
-            },
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => None,
-        }
+        Ok(())
     }
 }

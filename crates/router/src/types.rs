@@ -551,7 +551,11 @@ pub trait Capturable {
 
 impl Capturable for PaymentsAuthorizeData {
     fn get_capture_amount(&self) -> Option<i64> {
-        Some(self.amount)
+        let final_amount = self
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount);
+        final_amount.or(Some(self.amount))
     }
 }
 
