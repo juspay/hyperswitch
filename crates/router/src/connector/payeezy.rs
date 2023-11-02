@@ -198,35 +198,24 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        // Check if req.request.currency is Some, and if not, handle the case where it's None
-        let currency = req
-            .request
-            .currency
-            .unwrap_or(api_models::enums::Currency::default());
-
-        // Check if req.request.amount is Some, and if not, handle the case where it's None
-        let amount = req.request.amount.unwrap_or(0); // You can choose a default value
-
-        let connector_router_data = payeezy::PayeezyRouterData::try_from((
+        let req_obj = mollie::PayeezyPaymentsRequest::try_from(req)?;
+        let router_obj = payeezy::PayeezyRouterData::try_from((
             &self.get_currency_unit(),
-            currency,
-            amount,
+            req.request.currency,
+            req.request.amount,
             req,
         ))?;
-
-        let connector_req = payeezy::PayeezyPaymentsRequest::try_from(&connector_router_data)?;
-
+        let req_obj = payeezy::PayeezyPaymentsRequest::try_from(&router_obj)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
+            &req_obj,
+            utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
         Ok(Some(payeezy_req))
     }
-
+    
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -402,7 +391,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyPaymentsRequest::try_from(req)?;
+        let router_obj = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = payeezy::PayeezyPaymentsRequest::try_from(&router_obj)?;
+
         let payeezy_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json,
