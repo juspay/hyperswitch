@@ -75,9 +75,9 @@ pub enum Connector {
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bambora,
     // Bankofamerica, Added as template code for future usage
     Bitpay,
-    Bambora,
     Bluesnap,
     Boku,
     Braintree,
