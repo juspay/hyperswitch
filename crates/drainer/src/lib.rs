@@ -12,6 +12,8 @@ use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
 use tokio::sync::{mpsc, oneshot};
 
+use router_env::{instrument, tracing};
+
 use crate::{connection::pg_connection, services::Store};
 
 pub async fn start_drainer(
@@ -113,6 +115,7 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
     }
 }
 
+#[instrument(skip_all, fields(drainer_id))]
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
@@ -122,6 +125,9 @@ async fn drainer_handler(
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
+
+    router_env::tracing::Span::current().record("drainer_id", &stream_name);
+
     let drainer_result =
         Box::pin(drainer(store.clone(), max_read_count, stream_name.as_str())).await;
 
@@ -130,6 +136,7 @@ async fn drainer_handler(
     }
 
     let flag_stream_name = utils::get_stream_key_flag(store.clone(), stream_index);
+
     //TODO: USE THE RESULT FOR LOGGING
     let output =
         utils::make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await;
@@ -137,6 +144,7 @@ async fn drainer_handler(
     output
 }
 
+#[instrument(skip_all, fields(global_id, request_id))]
 async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,
@@ -174,9 +182,21 @@ async fn drainer(
         }],
     );
 
+    let session_id = common_utils::generate_id_with_default_len("drainer_session");
+
     // TODO: Handle errors when deserialization fails and when DB error occurs
     for entry in entries {
         let typed_sql = entry.1.get("typed_sql").map_or(String::new(), Clone::clone);
+        let request_id = entry
+            .1
+            .get("request_id")
+            .map_or(String::new(), Clone::clone);
+        let global_id = entry.1.get("global_id").map_or(String::new(), Clone::clone);
+
+        tracing::Span::current().record("request_id", request_id);
+        tracing::Span::current().record("global_id", global_id);
+        tracing::Span::current().record("session_id", &session_id);
+
         let result = serde_json::from_str::<kv::DBOperation>(&typed_sql);
         let db_op = match result {
             Ok(f) => f,
