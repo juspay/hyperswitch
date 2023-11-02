@@ -136,7 +136,7 @@ impl
         types::PaymentsResponseData,
     > for Stancer
 {
-    //TODO: implement sessions flow
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>

@@ -2,9 +2,8 @@ use serde::{Deserialize, Serialize};
 use masking::Secret;
 use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self,api, storage::enums}};
 
-//TODO: Fill the struct with respective fields
 pub struct StancerRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: i32,
     pub router_data: T,
 }
 
@@ -12,7 +11,7 @@ impl<T>
     TryFrom<(
         &types::api::CurrencyUnit,
         types::storage::enums::Currency,
-        i64,
+        i32,
         T,
     )> for StancerRouterData<T>
 {
@@ -21,11 +20,10 @@ impl<T>
         (_currency_unit, _currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
-            i64,
+            i32,
             T,
         ),
     ) -> Result<Self, Self::Error> {
-         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
             amount,
             router_data: item,
@@ -33,21 +31,57 @@ impl<T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct StancerPaymentsRequest {
-    amount: i64,
-    card: StancerCard
+    amount: i32,
+    currency: String,
+    auth: Option<StancerAuth>,
+    card: Option<StancerCard>,
+    sepa: Option>StancerSepa>,
+    customer: Option<StancerCustomer>,
+    capture: Option<bool>,
+    description: Option<String>,
+    order_id: Option<String>,
+    unique_id: Option<String>,
+    return_url: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct StancerAuth {
+    return_url: Option<String>,
+    device: Option<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct StancerCard {
     name: Secret<String>,
     number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
+    exp_month: Secret<i32>,
+    exp_year: Secret<i32>,
     cvc: Secret<String>,
-    complete: bool,
+    external_id: Option<String>,
+    zip_code: Option<String>,
+    customer: Option<StancerCustomer>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct StancerSepa {
+    name: Secret<String>,
+    bic: Option<String>,
+    iban: cards::CardNumber,
+    mandate: String,
+    date_mandate: String,
+    customer: Option<StancerCustomer>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct StancerCustomer {
+    email: Option<String>,
+    name: Option<String>,
+    mobile: Option<String>,
+    date_birth: Option<i32>,
+    legal_id: Option<String>,
+    external_id: Option<String>,
 }
 
 impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for StancerPaymentsRequest  {
@@ -73,10 +107,10 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Stance
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct StancerAuthType {
     pub(super) api_key: Secret<String>
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StancerAuthType  {
@@ -90,32 +124,58 @@ impl TryFrom<&types::ConnectorAuthType> for StancerAuthType  {
         }
     }
 }
+
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum StancerPaymentStatus {
-    Succeeded,
+    Refused,
+    Canceled,
+    Authorized,
+    Capture_Sent,
+    Captured,
+    Disputed,
     Failed,
+    Expired,
     #[default]
-    Processing,
+    To_Capture,
 }
 
 impl From<StancerPaymentStatus> for enums::AttemptStatus {
     fn from(item: StancerPaymentStatus) -> Self {
         match item {
-            StancerPaymentStatus::Succeeded => Self::Charged,
             StancerPaymentStatus::Failed => Self::Failure,
-            StancerPaymentStatus::Processing => Self::Authorizing,
+            StancerPaymentStatus::Refused => Self::Failure,
+            StancerPaymentStatus::Expired => Self::Failure,
+            StancerPaymentStatus::Canceled => Self::Failure,
+            StancerPaymentStatus::Disputed => Self::Failure,
+            StancerPaymentStatus::Authorized => Self::Authorizing,
+            StancerPaymentStatus::To_Capture => Self::Authorizing,
+            StancerPaymentStatus::Capture_Sent => Self::Charged,
+            StancerPaymentStatus::Captured => Self::Charged,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StancerPaymentsResponse {
-    status: StancerPaymentStatus,
     id: String,
+    status: StancerPaymentStatus,
+    response: String,
+    amount: i32,
+    currency: String,
+    auth: Option<StancerAuth>,
+    card: Option<StancerCard>,
+    sepa: Option>StancerSepa>,
+    customer: Option<StancerCustomer>,
+    capture: Option<bool>,
+    description: Option<String>,
+    order_id: Option<String>,
+    unique_id: Option<String>,
+    date_trans: i32,
+    date_bank: Option<i32>,
+    return_url: Option<String>,
+    created: i32,
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, StancerPaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
@@ -136,12 +196,12 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, StancerPaymentsResponse, T, types
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct StancerRefundRequest {
-    pub amount: i64
+    pub amount: <Option>i32,
+    pub payment: String,
 }
 
 impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for StancerRefundRequest {
@@ -154,32 +214,39 @@ impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for StancerRef
 }
 
 // Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
-    Succeeded,
     Failed,
+    Not_Honored,
+    Refund_Sent,
+    Refunded,
     #[default]
-    Processing,
+    To_Refund,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Not_Honored => Self::Failure,
+            RefundStatus::To_Refund => Self::Pending,
+            RefundStatus::Refund_Sent => Self::Pending,
+            RefundStatus::Succeeded => Self::Success,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus
+    amount: i32,
+    currency: String,
+    date_bank: i32,
+    date_refund: i32,
+    payment: String,
+    created: i32,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -213,11 +280,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
      }
  }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StancerErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,
-    pub reason: Option<String>,
 }
