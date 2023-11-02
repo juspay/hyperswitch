@@ -337,10 +337,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm
         });
-        Self::validate_request_surcharge_details_with_session_surcharge_details(
-            &payment_attempt,
-            request,
-        )?;
+        Ctx::validate_request_surcharge_details(&payment_attempt, request)?;
 
         // populate payment_data.surcharge_details from request
         let surcharge_details = request

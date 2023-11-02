@@ -846,7 +846,7 @@ where
                     ))
                     .cloned()
             })
-            // if none,
+            // if none, get from payment_attempt
             .or_else(|| {
                 payment_data
                     .payment_attempt
