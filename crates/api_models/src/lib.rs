@@ -11,6 +11,7 @@ pub mod ephemeral_key;
 pub mod errors;
 pub mod files;
 pub mod mandates;
+pub mod organization;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
