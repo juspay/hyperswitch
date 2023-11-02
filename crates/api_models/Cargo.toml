@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 default = ["payouts"]
+business_profile_routing = []
 connector_choice_bcompat = []
 errors = ["dep:actix-web", "dep:reqwest"]
 backwards_compatibility = ["connector_choice_bcompat"]

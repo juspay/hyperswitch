@@ -111,6 +111,7 @@ impl ForeignFrom<api_enums::RoutableConnectors> for dsl_enums::Connector {
             api_enums::RoutableConnectors::Stripe => Self::Stripe,
             api_enums::RoutableConnectors::Trustpay => Self::Trustpay,
             api_enums::RoutableConnectors::Tsys => Self::Tsys,
+            api_enums::RoutableConnectors::Volt => Self::Volt,
             api_enums::RoutableConnectors::Wise => Self::Wise,
             api_enums::RoutableConnectors::Worldline => Self::Worldline,
             api_enums::RoutableConnectors::Worldpay => Self::Worldpay,

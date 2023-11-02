@@ -123,6 +123,7 @@ pub enum Connector {
     Stripe,
     Trustpay,
     Tsys,
+    Volt,
     Wise,
     Worldline,
     Worldpay,
