@@ -20,17 +20,12 @@ use crate::types::transformers::{ForeignInto, ForeignTryInto};
 use crate::{
     consts,
     core::errors::{RouterResponse, StorageErrorExt},
-    types::storage,
     routes::AppState,
-    types::domain,
-    utils::ValueExt,
-    utils::{self, OptionExt},
+    types::{domain, storage},
+    utils::{self, OptionExt, ValueExt},
 };
 #[cfg(not(feature = "business_profile_routing"))]
-use crate::{
-    core::errors,
-    services::api as service_api,
-};
+use crate::{core::errors, services::api as service_api};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
 
