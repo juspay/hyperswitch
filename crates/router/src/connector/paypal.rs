@@ -136,6 +136,10 @@ where
                     auth_headers::PAYPAL_REQUEST_ID.to_string(),
                     key.to_string().into_masked(),
                 ),
+                (
+                    auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
+                    "HyperSwitchlegacy_Ecom".to_string().into(),
+                ),
             ];
             result
         } else {
@@ -175,7 +179,7 @@ where
                 ),
                 (
                     auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
-                    "HyperSwitchlegacy_Ecom".to_string().into(),
+                    "HyperSwitchPPCP_SP".to_string().into(),
                 ),
             ]
         };
