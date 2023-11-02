@@ -32,6 +32,8 @@ pub struct ConnectorAuthentication {
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
+    pub gocardless: Option<HeaderKey>,
+    pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
@@ -46,15 +48,17 @@ pub struct ConnectorAuthentication {
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub powertranz: Option<BodyKey>,
+    pub prophetpay: Option<HeaderKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
-    pub square: Option<HeaderKey>,
+    pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
+    pub volt: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
@@ -70,6 +74,9 @@ impl Default for ConnectorAuthentication {
 
 #[allow(dead_code)]
 impl ConnectorAuthentication {
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
@@ -99,6 +106,9 @@ impl ConnectorAuthenticationMap {
         &self.0
     }
 
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`

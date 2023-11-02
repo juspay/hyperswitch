@@ -203,7 +203,9 @@ impl
                     bank_account_iban: None,
                     billing_country: Some(country.to_owned()),
                     merchant_customer_id: Some(Secret::new(item.get_customer_id()?)),
-                    merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
+                    merchant_transaction_id: Some(Secret::new(
+                        item.connector_request_reference_id.clone(),
+                    )),
                     customer_email: None,
                 }))
             }
@@ -369,14 +371,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.payment_method),
                 connector: "Aci",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -598,6 +599,15 @@ pub struct AciPaymentsResponse {
     pub(super) redirect: Option<AciRedirectionData>,
 }
 
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AciErrorResponse {
+    ndc: String,
+    timestamp: String,
+    build_number: String,
+    pub(super) result: ResultCode,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRedirectionData {
@@ -672,12 +682,12 @@ impl<F, T>
                 }
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })

@@ -2,16 +2,17 @@
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
-        DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
+        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPayoutStatus as PayoutStatus,
-        DbPayoutType as PayoutType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
+        DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
+        DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
@@ -38,6 +39,7 @@ pub enum EventClass {
     Payments,
     Refunds,
     Disputes,
+    Mandates,
 }
 
 #[derive(
@@ -58,27 +60,7 @@ pub enum EventObjectType {
     PaymentDetails,
     RefundDetails,
     DisputeDetails,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MerchantStorageScheme {
-    #[default]
-    PostgresOnly,
-    RedisKv,
+    MandateDetails,
 }
 
 #[derive(
@@ -312,6 +294,24 @@ pub enum BankNames {
     KrungThaiBank,
     TheSiamCommercialBank,
     KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
 }
 
 #[derive(
@@ -355,4 +355,27 @@ pub enum FraudCheckStatus {
     Pending,
     Legit,
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckLastStep {
+    #[default]
+    Processing,
+    CheckoutOrSale,
+    TransactionOrRecordRefund,
+    Fulfillment,
 }

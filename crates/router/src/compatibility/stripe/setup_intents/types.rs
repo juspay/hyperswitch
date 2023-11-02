@@ -184,7 +184,11 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             });
 
         let routing = routable_connector
-            .map(api_types::RoutingAlgorithm::Single)
+            .map(|connector| {
+                crate::types::api::RoutingAlgorithm::Single(
+                    api_models::admin::RoutableConnectorChoice::ConnectorName(connector),
+                )
+            })
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()
@@ -308,7 +312,8 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
-            api_enums::IntentStatus::RequiresCapture => {
+            api_enums::IntentStatus::RequiresCapture
+            | api_enums::IntentStatus::PartiallyCaptured => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }
@@ -437,6 +442,7 @@ pub struct StripeSetupIntentResponse {
     pub next_action: Option<StripeNextAction>,
     pub last_payment_error: Option<LastPaymentError>,
     pub charges: payment_intent::Charges,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
@@ -500,6 +506,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
                     error_type: code,
                 }
             }),
+            connector_transaction_id: resp.connector_transaction_id,
         }
     }
 }
@@ -510,7 +517,7 @@ pub struct StripePaymentListConstraints {
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
     pub created: Option<i64>,
     #[serde(rename = "created[lt]")]
     pub created_lt: Option<i64>,
@@ -522,7 +529,7 @@ pub struct StripePaymentListConstraints {
     pub created_gte: Option<i64>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 

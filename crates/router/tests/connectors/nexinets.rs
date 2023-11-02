@@ -20,6 +20,7 @@ impl utils::Connector for NexinetsTest {
             connector: Box::new(&Nexinets),
             connector_name: types::Connector::Nexinets,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -120,6 +121,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
                 mandate_id: None,
             }),

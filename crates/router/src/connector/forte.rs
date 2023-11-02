@@ -3,20 +3,24 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as forte;
 
 use crate::{
     configs::settings,
-    connector::utils::{PaymentsSyncRequestData, RefundsRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentsSyncRequestData, RefundsRequestData},
+    },
     consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -32,7 +36,7 @@ pub struct Forte;
 impl api::Payment for Forte {}
 impl api::PaymentSession for Forte {}
 impl api::ConnectorAccessToken for Forte {}
-impl api::PreVerify for Forte {}
+impl api::MandateSetup for Forte {}
 impl api::PaymentAuthorize for Forte {}
 impl api::PaymentSync for Forte {}
 impl api::PaymentCapture for Forte {}
@@ -130,6 +134,21 @@ impl ConnectorCommon for Forte {
     }
 }
 
+impl ConnectorValidation for Forte {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Forte
 {
@@ -140,8 +159,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Forte
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Forte
 {
 }
 

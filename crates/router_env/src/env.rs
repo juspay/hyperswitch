@@ -147,13 +147,14 @@ macro_rules! commit {
 //     };
 // }
 
-/// Service name deduced from name of the crate.
+/// Service name deduced from name of the binary.
+/// This macro must be called within binaries only.
 ///
 /// Example: `router`.
 #[macro_export]
 macro_rules! service_name {
     () => {
-        env!("CARGO_CRATE_NAME")
+        env!("CARGO_BIN_NAME")
     };
 }
 

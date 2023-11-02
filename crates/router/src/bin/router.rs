@@ -34,7 +34,11 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
-    let _guard = logger::setup(&conf.log, [router_env::service_name!(), "actix_server"]);
+    let _guard = router_env::setup(
+        &conf.log,
+        router_env::service_name!(),
+        [router_env::service_name!(), "actix_server"],
+    );
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 

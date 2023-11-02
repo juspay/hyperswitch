@@ -1,0 +1,28 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id?force_sync=true",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id"],
+    "query": [
+      {
+        "key": "force_sync",
+        "value": "true"
+      }
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}",
+        "description": "(Required) unique payment id"
+      }
+    ]
+  },
+  "description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
+}

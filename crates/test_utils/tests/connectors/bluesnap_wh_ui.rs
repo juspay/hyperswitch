@@ -20,7 +20,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
-        5,
+        10,
         "succeeded",
     )
     .await?;

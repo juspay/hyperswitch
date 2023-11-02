@@ -26,6 +26,12 @@ pub trait FraudCheckInterface {
         payment_id: String,
         merchant_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
+
+    async fn find_fraud_check_by_payment_id_if_present(
+        &self,
+        payment_id: String,
+        merchant_id: String,
+    ) -> CustomResult<Option<FraudCheck>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -59,6 +65,18 @@ impl FraudCheckInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    async fn find_fraud_check_by_payment_id_if_present(
+        &self,
+        payment_id: String,
+        merchant_id: String,
+    ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        FraudCheck::get_with_payment_id_if_present(&conn, payment_id, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -81,6 +99,14 @@ impl FraudCheckInterface for MockDb {
         _payment_id: String,
         _merchant_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_fraud_check_by_payment_id_if_present(
+        &self,
+        _payment_id: String,
+        _merchant_id: String,
+    ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }

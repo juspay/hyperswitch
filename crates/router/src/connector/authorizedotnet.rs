@@ -3,18 +3,20 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as authorizedotnet;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         errors::{self, CustomResult},
         payments,
     },
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
@@ -47,12 +49,31 @@ impl ConnectorCommon for Authorizedotnet {
         "authorizedotnet"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.authorizedotnet.base_url.as_ref()
+    }
+}
+
+impl ConnectorValidation for Authorizedotnet {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -87,10 +108,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Authorizedotnet {}
+impl api::MandateSetup for Authorizedotnet {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Authorizedotnet
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
 {
     // Issue: #173
 }
@@ -121,7 +146,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req =
+            authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -294,7 +326,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = authorizedotnet::CreateTransactionRequest::try_from(req)?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req =
+            authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -475,7 +514,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = authorizedotnet::CreateRefundRequest::try_from(req)?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = authorizedotnet::CreateRefundRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -562,7 +607,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundsRouterData<api::RSync>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req =
+            authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(&connector_router_data)?;
+
         let sync_request = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json,
@@ -649,7 +702,15 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = authorizedotnet::PaypalConfirmRequest::try_from(req)?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req =
+            authorizedotnet::PaypalConfirmRequest::try_from(&connector_router_data)?;
+
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<authorizedotnet::PaypalConfirmRequest>::encode_to_string_of_json,
@@ -724,6 +785,7 @@ impl api::IncomingWebhook for Authorizedotnet {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers
@@ -751,7 +813,7 @@ impl api::IncomingWebhook for Authorizedotnet {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())
     }
@@ -821,30 +883,31 @@ fn get_error_response(
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     match response.transaction_response {
-        Some(transaction_response) => Ok({
-            transaction_response
-                .errors
-                .and_then(|errors| {
-                    errors.into_iter().next().map(|error| types::ErrorResponse {
-                        code: error.error_code,
-                        message: error.error_text,
-                        reason: None,
-                        status_code,
-                    })
-                })
-                .unwrap_or_else(|| types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: None,
+        Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponse(
+            payment_response,
+        )) => Ok(payment_response
+            .errors
+            .and_then(|errors| {
+                errors.into_iter().next().map(|error| types::ErrorResponse {
+                    code: error.error_code,
+                    message: error.error_text.to_owned(),
+                    reason: Some(error.error_text),
                     status_code,
                 })
-        }),
-        None => {
+            })
+            .unwrap_or_else(|| types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(), // authorizedotnet sends 200 in case of bad request so this are hard coded to NO_ERROR_CODE and NO_ERROR_MESSAGE
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                status_code,
+            })),
+        Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
+        | None => {
             let message = &response.messages.message[0].text;
             Ok(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: message.to_string(),
-                reason: None,
+                reason: Some(message.to_string()),
                 status_code,
             })
         }
@@ -856,8 +919,12 @@ impl services::ConnectorRedirectResponse for Authorizedotnet {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

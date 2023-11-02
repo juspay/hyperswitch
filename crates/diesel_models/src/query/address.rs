@@ -18,6 +18,15 @@ impl AddressNew {
 
 impl Address {
     #[instrument(skip(conn))]
+    pub async fn find_by_address_id<'a>(
+        conn: &PgPooledConn,
+        address_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
+            .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn update_by_address_id(
         conn: &PgPooledConn,
         address_id: String,
@@ -41,6 +50,32 @@ impl Address {
                     )
                     .await
                 }
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn update(
+        self,
+        conn: &PgPooledConn,
+        address_update_internal: AddressUpdateInternal,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::address_id.eq(self.address_id.clone()),
+            address_update_internal,
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
@@ -76,12 +111,33 @@ impl Address {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_address_id<'a>(
+    pub async fn find_by_merchant_id_payment_id_address_id<'a>(
         conn: &PgPooledConn,
+        merchant_id: &str,
+        payment_id: &str,
         address_id: &str,
     ) -> StorageResult<Self> {
-        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
-            .await
+        match generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_id
+                .eq(payment_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::address_id.eq(address_id.to_owned())),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NotFound => {
+                    generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
+                        conn,
+                        address_id.to_owned(),
+                    )
+                    .await
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 
     #[instrument(skip(conn))]

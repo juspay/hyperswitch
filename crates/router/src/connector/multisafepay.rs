@@ -13,11 +13,12 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -42,6 +43,10 @@ where
 impl ConnectorCommon for Multisafepay {
     fn id(&self) -> &'static str {
         "multisafepay"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -82,6 +87,24 @@ impl ConnectorCommon for Multisafepay {
     }
 }
 
+impl ConnectorValidation for Multisafepay {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic => Ok(()),
+            enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::Scheduled => Err(errors::ConnectorError::NotImplemented(
+                format!("{} for {}", capture_method, self.id()),
+            )
+            .into()),
+        }
+    }
+}
+
 impl api::Payment for Multisafepay {}
 
 impl api::PaymentToken for Multisafepay {}
@@ -96,9 +119,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Multisafepay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Multisafepay
+impl api::MandateSetup for Multisafepay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Multisafepay
 {
 }
 
@@ -142,7 +169,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key
             .expose();
-        let ord_id = req.payment_id.clone();
+        let ord_id = req.connector_request_reference_id.clone();
         Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
     }
 
@@ -173,10 +200,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res
+        let response: multisafepay::MultisafepayAuthResponse = res
             .response
             .parse_struct("multisafepay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -234,7 +262,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(req)?;
+        let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
@@ -268,10 +302,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res
+        let response: multisafepay::MultisafepayAuthResponse = res
             .response
             .parse_struct("MultisafepayPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -318,7 +353,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key
             .expose();
-        let ord_id = req.payment_id.clone();
+        let ord_id = req.connector_request_reference_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))
@@ -328,9 +363,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(req)?;
+        let connector_req = multisafepay::MultisafepayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
+
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -359,17 +401,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: multisafepay::RefundResponse = res
+        let response: multisafepay::MultisafepayRefundResponse = res
             .response
             .parse_struct("multisafepay RefundResponse")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         }
         .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
@@ -405,7 +447,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key
             .expose();
-        let ord_id = req.payment_id.clone();
+        let ord_id = req.connector_request_reference_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))
@@ -432,7 +474,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: multisafepay::RefundResponse = res
+        let response: multisafepay::MultisafepayRefundResponse = res
             .response
             .parse_struct("multisafepay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -442,7 +484,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             http_code: res.status_code,
         }
         .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(

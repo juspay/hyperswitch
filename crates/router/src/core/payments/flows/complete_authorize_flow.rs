@@ -3,12 +3,13 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, transformers, PaymentData},
+        errors::{self, ConnectorErrorExt, RouterResult},
+        payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::AppState,
     services,
     types::{self, api, domain},
+    utils::OptionExt,
 };
 
 #[async_trait]
@@ -26,6 +27,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -43,6 +45,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -64,6 +67,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -94,6 +98,28 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+    async fn add_payment_method_token<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        _tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>> {
+        // TODO: remove this and handle it in core
+        if matches!(connector.connector_name, types::Connector::Payme) {
+            let request = self.request.clone();
+            payments::tokenization::add_payment_method_token(
+                state,
+                connector,
+                &payments::TokenizationAction::TokenizeInConnector,
+                self,
+                types::PaymentMethodTokenizationData::try_from(request)?,
+            )
+            .await
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,
@@ -117,5 +143,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         };
 
         Ok((request, true))
+    }
+}
+
+impl TryFrom<types::CompleteAuthorizeData> for types::PaymentMethodTokenizationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data
+                .payment_method_data
+                .get_required_value("payment_method_data")?,
+            browser_info: data.browser_info,
+            currency: data.currency,
+            amount: Some(data.amount),
+        })
     }
 }

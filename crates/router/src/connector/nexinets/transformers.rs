@@ -9,7 +9,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData
     },
     consts,
     core::errors,
@@ -27,6 +27,7 @@ pub struct NexinetsPaymentsRequest {
     payment: Option<NexinetsPaymentDetails>,
     #[serde(rename = "async")]
     nexinets_async: NexinetsAsyncDetails,
+    merchant_order_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -172,6 +173,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             failure_url: return_url,
         };
         let (payment, product) = get_payment_details_and_product(item)?;
+        let merchant_order_id = match item.payment_method {
+            // Merchant order id is sent only in case of card payment
+            enums::PaymentMethod::Card => Some(item.connector_request_reference_id.clone()),
+            _ => None,
+        };
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -179,6 +185,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             product,
             payment,
             nexinets_async,
+            merchant_order_id,
         })
     }
 }
@@ -364,7 +371,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_id),
             }),
             ..item.data
         })
@@ -425,7 +432,7 @@ impl<F, T>
         let transaction_id = Some(item.response.transaction_id.clone());
         let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id,
-            order_id: Some(item.response.order.order_id),
+            order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
         .into_report()
@@ -447,7 +454,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order.order_id),
             }),
             ..item.data
         })
@@ -591,13 +598,14 @@ fn get_payment_details_and_product(
                 Ok((None, NexinetsProduct::Sofort))
             }
             api_models::payments::BankRedirectData::BancontactCard { .. }
-            | api_models::payments::BankRedirectData::Bizum {}
             | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::Bizum { .. }
             | api_models::payments::BankRedirectData::Interac { .. }
             | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
             | api_models::payments::BankRedirectData::Przelewy24 { .. }
             | api_models::payments::BankRedirectData::Trustly { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
@@ -613,7 +621,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::MandatePayment
-        | PaymentMethodData::Reward(_)
+        | PaymentMethodData::Reward
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
@@ -701,7 +709,7 @@ fn get_wallet_details(
         | api_models::payments::WalletData::GcashRedirect(_)
         | api_models::payments::WalletData::ApplePayRedirect(_)
         | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::DanaRedirect {}
+        | api_models::payments::WalletData::DanaRedirect { .. }
         | api_models::payments::WalletData::GooglePay(_)
         | api_models::payments::WalletData::GooglePayRedirect(_)
         | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
@@ -709,8 +717,8 @@ fn get_wallet_details(
         | api_models::payments::WalletData::MobilePayRedirect(_)
         | api_models::payments::WalletData::PaypalSdk(_)
         | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect {}
-        | api_models::payments::WalletData::VippsRedirect {}
+        | api_models::payments::WalletData::TwintRedirect { .. }
+        | api_models::payments::WalletData::VippsRedirect { .. }
         | api_models::payments::WalletData::TouchNGoRedirect(_)
         | api_models::payments::WalletData::WeChatPayRedirect(_)
         | api_models::payments::WalletData::WeChatPayQr(_)

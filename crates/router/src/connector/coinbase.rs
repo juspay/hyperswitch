@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as coinbase;
 
@@ -10,12 +11,13 @@ use self::coinbase::CoinbaseWebhookDetails;
 use super::utils;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -32,7 +34,7 @@ impl api::Payment for Coinbase {}
 impl api::PaymentToken for Coinbase {}
 impl api::PaymentSession for Coinbase {}
 impl api::ConnectorAccessToken for Coinbase {}
-impl api::PreVerify for Coinbase {}
+impl api::MandateSetup for Coinbase {}
 impl api::PaymentAuthorize for Coinbase {}
 impl api::PaymentSync for Coinbase {}
 impl api::PaymentCapture for Coinbase {}
@@ -110,6 +112,21 @@ impl ConnectorCommon for Coinbase {
     }
 }
 
+impl ConnectorValidation for Coinbase {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
@@ -131,8 +148,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Coinbase
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Coinbase
 {
 }
 
@@ -340,6 +361,7 @@ impl api::IncomingWebhook for Coinbase {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
             utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
@@ -352,7 +374,7 @@ impl api::IncomingWebhook for Coinbase {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

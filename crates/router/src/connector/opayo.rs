@@ -2,18 +2,20 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as opayo;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -29,7 +31,7 @@ pub struct Opayo;
 impl api::Payment for Opayo {}
 impl api::PaymentSession for Opayo {}
 impl api::ConnectorAccessToken for Opayo {}
-impl api::PreVerify for Opayo {}
+impl api::MandateSetup for Opayo {}
 impl api::PaymentAuthorize for Opayo {}
 impl api::PaymentSync for Opayo {}
 impl api::PaymentCapture for Opayo {}
@@ -109,6 +111,21 @@ impl ConnectorCommon for Opayo {
     }
 }
 
+impl ConnectorValidation for Opayo {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Opayo
 {
@@ -120,8 +137,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Opayo
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Opayo
 {
 }
 

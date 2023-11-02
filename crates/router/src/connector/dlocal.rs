@@ -6,6 +6,7 @@ use common_utils::{
     crypto::{self, SignMessage},
     date_time,
 };
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
 use masking::PeekInterface;
@@ -13,12 +14,13 @@ use transformers as dlocal;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -35,7 +37,7 @@ impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
 impl api::PaymentSession for Dlocal {}
 impl api::ConnectorAccessToken for Dlocal {}
-impl api::PreVerify for Dlocal {}
+impl api::MandateSetup for Dlocal {}
 impl api::PaymentAuthorize for Dlocal {}
 impl api::PaymentSync for Dlocal {}
 impl api::PaymentCapture for Dlocal {}
@@ -107,6 +109,10 @@ impl ConnectorCommon for Dlocal {
         "dlocal"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -133,6 +139,21 @@ impl ConnectorCommon for Dlocal {
     }
 }
 
+impl ConnectorValidation for Dlocal {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
@@ -154,8 +175,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Dlocal
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Dlocal
 {
 }
 
@@ -186,7 +211,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dlocal::DlocalPaymentsRequest::try_from(req)?;
+        let connector_router_data = dlocal::DlocalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         let dlocal_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<dlocal::DlocalPaymentsRequest>::encode_to_string_of_json,
@@ -487,10 +518,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dlocal::RefundRequest::try_from(req)?;
+        let connector_router_data = dlocal::DlocalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_request = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         let dlocal_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<dlocal::RefundRequest>::encode_to_string_of_json,
+            utils::Encode::<dlocal::DlocalRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dlocal_refund_request))

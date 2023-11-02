@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{admin, enums};
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -54,7 +54,7 @@ pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
     #[schema(
@@ -72,7 +72,7 @@ pub struct RefundsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundUpdateRequest {
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
@@ -124,12 +124,17 @@ pub struct RefundResponse {
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe")]
     pub connector: String,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListRequest {
     /// The identifier for the payment
     pub payment_id: Option<String>,
+    /// The identifier for the refund
+    pub refund_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects
@@ -160,7 +165,9 @@ pub struct TimeRange {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
-    pub size: usize,
+    pub count: usize,
+    /// The total number of refunds in the list
+    pub total_count: i64,
     /// The List of refund response object
     pub data: Vec<RefundResponse>,
 }

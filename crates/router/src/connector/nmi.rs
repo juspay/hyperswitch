@@ -3,14 +3,16 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::ByteSliceExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nmi;
 
 use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -25,7 +27,7 @@ pub struct Nmi;
 impl api::Payment for Nmi {}
 impl api::PaymentSession for Nmi {}
 impl api::ConnectorAccessToken for Nmi {}
-impl api::PreVerify for Nmi {}
+impl api::MandateSetup for Nmi {}
 impl api::PaymentAuthorize for Nmi {}
 impl api::PaymentSync for Nmi {}
 impl api::PaymentCapture for Nmi {}
@@ -77,6 +79,21 @@ impl ConnectorCommon for Nmi {
     }
 }
 
+impl ConnectorValidation for Nmi {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
@@ -96,12 +113,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Nmi
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Nmi
 {
     fn get_headers(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -109,7 +130,7 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
     fn get_url(
         &self,
-        _req: &types::VerifyRouterData,
+        _req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}api/transact.php", self.base_url(connectors)))
@@ -117,7 +138,7 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
     fn get_request_body(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
         let nmi_req = types::RequestBody::log_and_get_request_body(
@@ -130,26 +151,24 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
     fn build_request(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsVerifyType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::VerifyRouterData,
+        data: &types::SetupMandateRouterData,
         res: types::Response,
-    ) -> CustomResult<types::VerifyRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

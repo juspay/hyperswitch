@@ -2,7 +2,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
-use diesel_models::{errors, schema::dispute::dsl};
+use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{connection::PgPooledConn, logger};
@@ -28,6 +28,9 @@ impl DisputeDbExt for Dispute {
             .order(dsl::modified_at.desc())
             .into_boxed();
 
+        if let Some(profile_id) = dispute_list_constraints.profile_id {
+            filter = filter.filter(dsl::profile_id.eq(profile_id));
+        }
         if let Some(received_time) = dispute_list_constraints.received_time {
             filter = filter.filter(dsl::created_at.eq(received_time));
         }
@@ -61,11 +64,13 @@ impl DisputeDbExt for Dispute {
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering records by predicate")
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 }

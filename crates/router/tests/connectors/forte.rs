@@ -19,6 +19,7 @@ impl utils::Connector for ForteTest {
             connector: Box::new(&Forte),
             connector_name: types::Connector::Forte,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -150,6 +151,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: None,
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
             }),
@@ -637,7 +639,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         router::core::errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "Forte",
-            payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
         }
     )
 }

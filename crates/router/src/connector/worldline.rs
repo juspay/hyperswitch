@@ -14,14 +14,14 @@ use transformers as worldline;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
-    connector::utils as conn_utils,
+    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -112,6 +112,10 @@ impl ConnectorCommon for Worldline {
         "worldline"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.worldline.base_url.as_ref()
     }
@@ -138,6 +142,21 @@ impl ConnectorCommon for Worldline {
     }
 }
 
+impl ConnectorValidation for Worldline {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl api::ConnectorAccessToken for Worldline {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -147,9 +166,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl api::Payment for Worldline {}
 
-impl api::PreVerify for Worldline {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Worldline
+impl api::MandateSetup for Worldline {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Worldline
 {
 }
 
@@ -467,7 +490,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = worldline::PaymentsRequest::try_from(req)?;
+        let connector_router_data = worldline::WorldlineRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = worldline::PaymentsRequest::try_from(&connector_router_data)?;
         let worldline_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json,
@@ -707,6 +736,7 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header_value = conn_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
@@ -720,7 +750,7 @@ impl api::IncomingWebhook for Worldline {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())
     }

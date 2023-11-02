@@ -7,13 +7,16 @@ use transformers as nexinets;
 
 use crate::{
     configs::settings,
-    connector::utils::{to_connector_meta, PaymentsSyncRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{to_connector_meta, PaymentsSyncRequestData},
+    },
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -30,7 +33,7 @@ pub struct Nexinets;
 impl api::Payment for Nexinets {}
 impl api::PaymentSession for Nexinets {}
 impl api::ConnectorAccessToken for Nexinets {}
-impl api::PreVerify for Nexinets {}
+impl api::MandateSetup for Nexinets {}
 impl api::PaymentAuthorize for Nexinets {}
 impl api::PaymentSync for Nexinets {}
 impl api::PaymentCapture for Nexinets {}
@@ -131,6 +134,21 @@ impl ConnectorCommon for Nexinets {
     }
 }
 
+impl ConnectorValidation for Nexinets {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Nexinets
 {
@@ -141,8 +159,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Nexinets
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Nexinets
 {
 }
 

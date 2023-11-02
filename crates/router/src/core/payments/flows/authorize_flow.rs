@@ -6,7 +6,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
     },
     logger,
     routes::{metrics, AppState},
@@ -29,6 +31,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -43,6 +46,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -57,6 +61,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -64,6 +69,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
+        connector
+            .connector
+            .validate_capture_method(self.request.capture_method)
+            .to_payment_failed_response()?;
+        if self.request.surcharge_details.is_some() {
+            connector
+                .connector
+                .validate_if_surcharge_implemented()
+                .to_payment_failed_response()?;
+        }
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -80,17 +95,37 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            let pm_id = tokenization::save_payment_method(
+            let save_payment_result = tokenization::save_payment_method(
                 state,
                 connector,
                 resp.to_owned(),
                 maybe_customer,
                 merchant_account,
                 self.request.payment_method_type,
+                key_store,
             )
-            .await?;
+            .await;
 
-            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+            let pm_id = match save_payment_result {
+                Ok(payment_method_id) => Ok(payment_method_id),
+                Err(error) => {
+                    if resp.request.setup_mandate_details.clone().is_some() {
+                        Err(error)
+                    } else {
+                        logger::error!(save_payment_method_error=?error);
+                        Ok(None)
+                    }
+                }
+            }?;
+
+            Ok(mandate::mandate_procedure(
+                state,
+                resp,
+                maybe_customer,
+                pm_id,
+                connector.merchant_connector_id.clone(),
+            )
+            .await?)
         } else {
             Ok(self.clone())
         }
@@ -106,17 +141,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 
     async fn add_payment_method_token<'a>(
-        &self,
+        &mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
+        let request = self.request.clone();
         tokenization::add_payment_method_token(
             state,
             connector,
             tokenization_action,
             self,
-            types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
+            types::PaymentMethodTokenizationData::try_from(request)?,
         )
         .await
     }
@@ -229,7 +265,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
@@ -319,6 +355,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
+            payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
             name: None,
@@ -334,6 +371,8 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
         Ok(Self {
             payment_method_data: data.payment_method_data,
             browser_info: data.browser_info,
+            currency: data.currency,
+            amount: Some(data.amount),
         })
     }
 }
@@ -348,6 +387,14 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
         })
     }
 }

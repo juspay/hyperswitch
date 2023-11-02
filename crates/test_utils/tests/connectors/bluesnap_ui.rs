@@ -63,7 +63,6 @@ fn should_make_3ds_payment_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }

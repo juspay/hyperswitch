@@ -66,6 +66,8 @@ pub enum Flow {
     MerchantConnectorsCreate,
     /// Merchant Connectors retrieve flow.
     MerchantConnectorsRetrieve,
+    /// Merchant account list
+    MerchantAccountList,
     /// Merchant Connectors update flow.
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
@@ -104,6 +106,8 @@ pub enum Flow {
     PaymentMethodsList,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
+    /// List Customers for a merchant
+    CustomersList,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
@@ -122,6 +126,10 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments approve flow.
+    PaymentsApprove,
+    /// Payments reject flow.
+    PaymentsReject,
     /// Payments Session Token flow
     PaymentsSessionToken,
     /// Payments start flow.
@@ -191,6 +199,22 @@ pub enum Flow {
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
     CacheInvalidate,
+    /// Payment Link Retrieve flow
+    PaymentLinkRetrieve,
+    /// payment Link Initiate flow
+    PaymentLinkInitiate,
+    /// Create a business profile
+    BusinessProfileCreate,
+    /// Update a business profile
+    BusinessProfileUpdate,
+    /// Retrieve a business profile
+    BusinessProfileRetrieve,
+    /// Delete a business profile
+    BusinessProfileDelete,
+    /// List all the business profiles for a merchant
+    BusinessProfileList,
+    /// Different verification flows
+    Verification,
 }
 
 ///

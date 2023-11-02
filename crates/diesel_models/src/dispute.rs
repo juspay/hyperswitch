@@ -27,6 +27,8 @@ pub struct DisputeNew {
     pub connector_updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
     pub evidence: Option<Secret<serde_json::Value>>,
+    pub profile_id: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable)]
@@ -55,6 +57,8 @@ pub struct Dispute {
     pub modified_at: PrimitiveDateTime,
     pub connector: String,
     pub evidence: Secret<serde_json::Value>,
+    pub profile_id: Option<String>,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug)]

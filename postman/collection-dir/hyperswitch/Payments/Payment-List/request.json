@@ -1,0 +1,61 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "api-key",
+      "value": "snd_0b8e1deb82f241eca47617afb1398858"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/payments/list",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", "list"],
+    "query": [
+      {
+        "key": "customer_id",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "starting_after",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "ending_before",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "limit",
+        "value": "100",
+        "disabled": true
+      },
+      {
+        "key": "created",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "created.lt",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "created.gt",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "created.lte",
+        "value": "",
+        "disabled": true
+      },
+      {
+        "key": "created_gte",
+        "value": "",
+        "disabled": true
+      }
+    ]
+  }
+}

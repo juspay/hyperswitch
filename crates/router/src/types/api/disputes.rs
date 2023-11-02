@@ -36,13 +36,13 @@ pub struct DisputeEvidence {
     pub uncategorized_file: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AttachEvidenceRequest {
     pub create_file_request: types::api::CreateFileRequest,
     pub evidence_type: EvidenceType,
 }
 
-#[derive(Debug, serde::Deserialize, strum::Display, strum::EnumString, Clone)]
+#[derive(Debug, serde::Deserialize, strum::Display, strum::EnumString, Clone, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EvidenceType {

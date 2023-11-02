@@ -90,6 +90,8 @@ pub enum Connector {
     Forte,
     Globalpay,
     Globepay,
+    Gocardless,
+    Helcim,
     Iatapay,
     Klarna,
     Mollie,
@@ -105,19 +107,22 @@ pub enum Connector {
     Paypal,
     Payu,
     Powertranz,
+    // Prophetpay, added as a template code for future usage
     Rapyd,
     Shift4,
-    // Square, added as template code for future usage,
+    Square,
     Stax,
     Stripe,
     Trustpay,
     // Tsys,
     Tsys,
+    Volt,
     Wise,
     Worldline,
     Worldpay,
     Zen,
     Signifyd,
+    Plaid,
 }
 
 impl Connector {
@@ -130,6 +135,7 @@ impl Connector {
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
+                | (Self::Volt, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -204,6 +210,8 @@ pub enum RoutableConnectors {
     Forte,
     Globalpay,
     Globepay,
+    Gocardless,
+    Helcim,
     Iatapay,
     Klarna,
     Mollie,
@@ -219,14 +227,16 @@ pub enum RoutableConnectors {
     Paypal,
     Payu,
     Powertranz,
+    // Prophetpay, added as a template code for future usage
     Rapyd,
     Shift4,
-    //Square, added as template code for future usage
+    Square,
     Stax,
     Stripe,
     Trustpay,
     // Tsys,
     Tsys,
+    Volt,
     Wise,
     Worldline,
     Worldpay,
@@ -262,6 +272,46 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Wise => Self::Wise,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankType {
+    Checking,
+    Savings,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankHolderType {
+    Personal,
+    Business,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -405,6 +455,24 @@ pub enum BankNames {
     KrungThaiBank,
     TheSiamCommercialBank,
     KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
 }
 
 #[derive(
@@ -450,19 +518,24 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    UserCardNumber,
+    UserCardExpiryMonth,
+    UserCardExpiryYear,
+    UserCardCvc,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountry { options: Vec<String> },
+    UserCountryCode,                      //phone number's country code
+    UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
+    UserCurrency { options: Vec<String> },
+    UserBillingName,
     UserAddressline1,
     UserAddressline2,
     UserAddressCity,
     UserAddressPincode,
     UserAddressState,
-    UserAddressCountry,
+    UserAddressCountry { options: Vec<String> },
     UserBlikCode,
-    FieldsComplete,
-    UserBillingName,
     UserBank,
     Text,
     DropDown { options: Vec<String> },

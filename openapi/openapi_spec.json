@@ -169,6 +169,39 @@
         ]
       }
     },
+    "/customers/list": {
+      "post": {
+        "tags": [
+          "Customers List"
+        ],
+        "summary": "List customers for a merchant",
+        "description": "List customers for a merchant\n\nTo filter and list the customers for a particular merchant id",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/payment_methods": {
       "get": {
         "tags": [
@@ -790,6 +823,60 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/{payment_link_id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments Link - Retrieve",
+        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment Link",
+        "parameters": [
+          {
+            "name": "payment_link_id",
+            "in": "path",
+            "description": "The identifier for payment link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets details regarding payment link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -2193,9 +2280,7 @@
         "required": [
           "country_code",
           "currency_code",
-          "total",
-          "merchant_capabilities",
-          "supported_networks"
+          "total"
         ],
         "properties": {
           "country_code": {
@@ -2212,14 +2297,16 @@
             "items": {
               "type": "string"
             },
-            "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)"
+            "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)",
+            "nullable": true
           },
           "supported_networks": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "The list of supported networks"
+            "description": "The list of supported networks",
+            "nullable": true
           },
           "merchant_identifier": {
             "type": "string",
@@ -2334,6 +2421,21 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "The connector transaction id",
+            "nullable": true
+          },
+          "connector_sdk_public_key": {
+            "type": "string",
+            "description": "The public key id is to invoke third party sdk",
+            "nullable": true
+          },
+          "connector_merchant_id": {
+            "type": "string",
+            "description": "The connector merchant id",
+            "nullable": true
           }
         }
       },
@@ -2485,7 +2587,10 @@
                   "account_number",
                   "routing_number",
                   "card_holder_name",
-                  "bank_account_holder_name"
+                  "bank_account_holder_name",
+                  "bank_name",
+                  "bank_type",
+                  "bank_holder_type"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2508,6 +2613,18 @@
                   "bank_account_holder_name": {
                     "type": "string",
                     "example": "John Doe"
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "example": "ACH"
+                  },
+                  "bank_type": {
+                    "type": "string",
+                    "example": "Checking"
+                  },
+                  "bank_holder_type": {
+                    "type": "string",
+                    "example": "Personal"
                   }
                 }
               }
@@ -2570,6 +2687,12 @@
                     "type": "string",
                     "description": "Bank-State-Branch (bsb) number",
                     "example": "000000"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider",
+                    "nullable": true
                   }
                 }
               }
@@ -2741,7 +2864,25 @@
           "krungsri_bank",
           "krung_thai_bank",
           "the_siam_commercial_bank",
-          "kasikorn_bank"
+          "kasikorn_bank",
+          "open_bank_success",
+          "open_bank_failure",
+          "open_bank_cancelled",
+          "aib",
+          "bank_of_scotland",
+          "danske_bank",
+          "first_direct",
+          "first_trust",
+          "halifax",
+          "lloyds",
+          "monzo",
+          "nat_west",
+          "nationwide_bank",
+          "royal_bank_of_scotland",
+          "starling",
+          "tsb_bank",
+          "tesco_bank",
+          "ulster_bank"
         ]
       },
       "BankRedirectBilling": {
@@ -2831,12 +2972,10 @@
             "properties": {
               "blik": {
                 "type": "object",
-                "required": [
-                  "blik_code"
-                ],
                 "properties": {
                   "blik_code": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -3022,6 +3161,29 @@
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "type": "object",
+                "required": [
+                  "issuer",
+                  "country"
+                ],
+                "properties": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -3479,6 +3641,86 @@
           "scheduled"
         ]
       },
+      "CaptureResponse": {
+        "type": "object",
+        "required": [
+          "capture_id",
+          "status",
+          "amount",
+          "connector",
+          "authorized_attempt_id",
+          "capture_sequence"
+        ],
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "description": "unique identifier for the capture"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaptureStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the payment"
+          },
+          "authorized_attempt_id": {
+            "type": "string",
+            "description": "unique identifier for the parent attempt on which this capture is made"
+          },
+          "connector_capture_id": {
+            "type": "string",
+            "description": "A unique identifier for a capture provided by the connector",
+            "nullable": true
+          },
+          "capture_sequence": {
+            "type": "integer",
+            "format": "int32",
+            "description": "sequence number of this capture"
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the reason is received here",
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the capture at connector side",
+            "nullable": true
+          }
+        }
+      },
+      "CaptureStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "charged",
+          "pending",
+          "failed"
+        ]
+      },
       "Card": {
         "type": "object",
         "required": [
@@ -3625,6 +3867,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "momo_atm"
+            ],
+            "properties": {
+              "momo_atm": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -3660,6 +3913,8 @@
           "forte",
           "globalpay",
           "globepay",
+          "gocardless",
+          "helcim",
           "iatapay",
           "klarna",
           "mollie",
@@ -3675,15 +3930,18 @@
           "powertranz",
           "rapyd",
           "shift4",
+          "square",
           "stax",
           "stripe",
           "trustpay",
           "tsys",
+          "volt",
           "wise",
           "worldline",
           "worldpay",
           "zen",
-          "signifyd"
+          "signifyd",
+          "plaid"
         ]
       },
       "ConnectorMetadata": {
@@ -3724,7 +3982,9 @@
           "fiz_operations",
           "networks",
           "banking_entities",
-          "non_banking_finance"
+          "non_banking_finance",
+          "payout_processor",
+          "payment_method_auth"
         ]
       },
       "CountryAlpha2": {
@@ -4786,6 +5046,27 @@
           }
         }
       },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "payment_succeeded",
+          "payment_failed",
+          "payment_processing",
+          "payment_cancelled",
+          "action_required",
+          "refund_succeeded",
+          "refund_failed",
+          "dispute_opened",
+          "dispute_expired",
+          "dispute_accepted",
+          "dispute_cancelled",
+          "dispute_challenged",
+          "dispute_won",
+          "dispute_lost",
+          "mandate_active",
+          "mandate_revoked"
+        ]
+      },
       "FeatureMetadata": {
         "type": "object",
         "properties": {
@@ -4804,6 +5085,30 @@
           {
             "type": "string",
             "enum": [
+              "user_card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_expiry_month"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_expiry_year"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -4817,6 +5122,12 @@
             "type": "string",
             "enum": [
               "user_phone_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_country_code"
             ]
           },
           {
@@ -4840,6 +5151,34 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
           },
           {
             "type": "string",
@@ -4872,27 +5211,31 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
+            "type": "object",
+            "required": [
               "user_address_country"
-            ]
+            ],
+            "properties": {
+              "user_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
             "enum": [
               "user_blik_code"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "fields_complete"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_billing_name"
             ]
           },
           {
@@ -5266,9 +5609,14 @@
           "merchant_name"
         ],
         "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant Identifier that needs to be passed while invoking Gpay SDK",
+            "nullable": true
+          },
           "merchant_name": {
             "type": "string",
-            "description": "The name of the merchant"
+            "description": "The name of the merchant that needs to be displayed on Gpay PopUp"
           }
         }
       },
@@ -5401,8 +5749,40 @@
           "requires_merchant_action",
           "requires_payment_method",
           "requires_confirmation",
-          "requires_capture"
+          "requires_capture",
+          "partially_captured"
         ]
+      },
+      "JCSVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "phone_number"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Japanese convenience stores",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name Japanese convenience stores",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Japanese convenience stores",
+            "example": "example@me.com"
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The telephone number for Japanese convenience stores",
+            "example": "9999999999"
+          }
+        }
       },
       "KakaoPayRedirection": {
         "type": "object"
@@ -5715,7 +6095,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for payment response",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response\nIf the value is not provided, a default value is used",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -5761,11 +6141,19 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
+            "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfig"
+              }
+            ],
             "nullable": true
           }
         }
@@ -5797,7 +6185,9 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
-          "is_recon_enabled"
+          "organization_id",
+          "is_recon_enabled",
+          "recon_status"
         ],
         "properties": {
           "merchant_id": {
@@ -5924,12 +6314,23 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with",
-            "nullable": true
+            "description": "The organization id merchant is associated with"
           },
           "is_recon_enabled": {
             "type": "boolean",
             "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "recon_status": {
+            "$ref": "#/components/schemas/ReconStatus"
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6055,7 +6456,16 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6064,10 +6474,7 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name",
-          "connector_label",
-          "business_country",
-          "business_label"
+          "connector_name"
         ],
         "properties": {
           "connector_type": {
@@ -6078,7 +6485,9 @@
           },
           "connector_label": {
             "type": "string",
-            "example": "stripe_US_travel"
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "example": "stripe_US_travel",
+            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6164,10 +6573,16 @@
             "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "business_sub_label": {
             "type": "string",
@@ -6181,6 +6596,14 @@
                 "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
               }
             ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "nullable": true
+          },
+          "pm_auth_config": {
             "nullable": true
           }
         }
@@ -6267,10 +6690,7 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label",
-          "merchant_connector_id",
-          "business_country",
-          "business_label"
+          "merchant_connector_id"
         ],
         "properties": {
           "connector_type": {
@@ -6283,7 +6703,9 @@
           },
           "connector_label": {
             "type": "string",
-            "example": "stripe_US_travel"
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "example": "stripe_US_travel",
+            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6359,12 +6781,18 @@
             "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
             "type": "string",
             "description": "Business Type of the merchant",
-            "example": "travel"
+            "example": "travel",
+            "nullable": true
           },
           "business_sub_label": {
             "type": "string",
@@ -6388,6 +6816,23 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile this connector must be created in\ndefault value from merchant account is taken if not passed",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "identifier for the verified domains of a particular connector account",
+            "nullable": true
+          },
+          "pm_auth_config": {
+            "nullable": true
           }
         }
       },
@@ -6400,6 +6845,11 @@
         "properties": {
           "connector_type": {
             "$ref": "#/components/schemas/ConnectorType"
+          },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "nullable": true
           },
           "connector_account_details": {
             "type": "object",
@@ -6485,16 +6935,24 @@
               }
             ],
             "nullable": true
+          },
+          "pm_auth_config": {
+            "nullable": true
           }
         }
       },
       "MerchantConnectorWebhookDetails": {
         "type": "object",
         "required": [
-          "merchant_secret"
+          "merchant_secret",
+          "additional_secret"
         ],
         "properties": {
           "merchant_secret": {
+            "type": "string",
+            "example": "12345678900987654321"
+          },
+          "additional_secret": {
             "type": "string",
             "example": "12345678900987654321"
           }
@@ -6776,13 +7234,13 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session is requested",
-            "minimum": 0.0
+            "minimum": 0
           },
           "expires_at": {
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session expires",
-            "minimum": 0.0
+            "minimum": 0
           },
           "merchant_session_identifier": {
             "type": "string",
@@ -6816,7 +7274,7 @@
             "type": "integer",
             "format": "int32",
             "description": "The number of retries to get the session response",
-            "minimum": 0.0
+            "minimum": 0
           },
           "psp_id": {
             "type": "string",
@@ -6870,7 +7328,12 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -6893,13 +7356,127 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
           },
           "amount": {
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
+        }
+      },
+      "OutgoingWebhook": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "event_id",
+          "event_type",
+          "content"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant"
+          },
+          "event_id": {
+            "type": "string",
+            "description": "The unique event id for each webhook"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "content": {
+            "$ref": "#/components/schemas/OutgoingWebhookContent"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which webhook was sent"
+          }
+        }
+      },
+      "OutgoingWebhookContent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PaymentsResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "refund_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RefundResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "dispute_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/DisputeResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/MandateResponse"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PayLaterData": {
@@ -7114,6 +7691,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "cancellation_reason": {
@@ -7228,6 +7806,84 @@
           }
         ]
       },
+      "PaymentLinkColorSchema": {
+        "type": "object",
+        "properties": {
+          "primary_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "primary_accent_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondary_color": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkConfig": {
+        "type": "object",
+        "properties": {
+          "merchant_logo": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_scheme": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkColorSchema"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentLinkObject": {
+        "type": "object",
+        "properties": {
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "merchant_custom_domain_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "link",
+          "payment_link_id"
+        ],
+        "properties": {
+          "link": {
+            "type": "string"
+          },
+          "payment_link_id": {
+            "type": "string"
+          }
+        }
+      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -7251,9 +7907,11 @@
           },
           "limit": {
             "type": "integer",
-            "format": "int64",
+            "format": "int32",
             "description": "limit on the number of objects to return",
-            "default": 10
+            "default": 10,
+            "maximum": 100,
+            "minimum": 0
           },
           "created": {
             "type": "string",
@@ -7302,7 +7960,7 @@
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "data": {
             "type": "array",
@@ -7484,15 +8142,10 @@
             ]
           },
           {
-            "type": "object",
-            "required": [
+            "type": "string",
+            "enum": [
               "reward"
-            ],
-            "properties": {
-              "reward": {
-                "$ref": "#/components/schemas/RewardData"
-              }
-            }
+            ]
           },
           {
             "type": "object",
@@ -7589,7 +8242,8 @@
         "type": "object",
         "required": [
           "payment_methods",
-          "mandate_payment"
+          "mandate_payment",
+          "show_surcharge_breakup_screen"
         ],
         "properties": {
           "redirect_url": {
@@ -7620,6 +8274,18 @@
           },
           "merchant_name": {
             "type": "string",
+            "nullable": true
+          },
+          "show_surcharge_breakup_screen": {
+            "type": "boolean",
+            "description": "flag to indicate if surcharge and tax breakup screen should be shown or not"
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -7752,6 +8418,7 @@
           "mb_way",
           "mobile_pay",
           "momo",
+          "momo_atm",
           "multibanco",
           "online_banking_thailand",
           "online_banking_czech_republic",
@@ -7762,6 +8429,7 @@
           "oxxo",
           "pago_efectivo",
           "permata_bank_transfer",
+          "open_banking_uk",
           "pay_bright",
           "paypal",
           "pix",
@@ -7780,7 +8448,13 @@
           "upi_collect",
           "vipps",
           "walley",
-          "we_chat_pay"
+          "we_chat_pay",
+          "seven_eleven",
+          "lawson",
+          "mini_stop",
+          "family_mart",
+          "seicomart",
+          "pay_easy"
         ]
       },
       "PaymentMethodUpdate": {
@@ -7850,12 +8524,26 @@
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
             "nullable": true
           },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
+            "nullable": true
+          },
           "expand_attempts": {
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
           }
         }
+      },
+      "PaymentType": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "new_mandate",
+          "setup_mandate",
+          "recurring_mandate"
+        ]
       },
       "PaymentsCancelRequest": {
         "type": "object",
@@ -7876,11 +8564,6 @@
       "PaymentsCaptureRequest": {
         "type": "object",
         "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The unique identifier for the payment",
-            "nullable": true
-          },
           "merchant_id": {
             "type": "string",
             "description": "The unique identifier for the merchant",
@@ -7945,7 +8628,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8079,6 +8762,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8144,7 +8828,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -8249,6 +8933,35 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
               }
             ],
             "nullable": true
@@ -8279,7 +8992,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8413,6 +9126,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8478,7 +9192,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -8586,6 +9300,35 @@
               }
             ],
             "nullable": true
+          },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8596,8 +9339,7 @@
           "amount",
           "currency",
           "payment_method",
-          "business_country",
-          "business_label"
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -8616,7 +9358,12 @@
             "maxLength": 255
           },
           "status": {
-            "$ref": "#/components/schemas/IntentStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           },
           "amount": {
             "type": "integer",
@@ -8630,7 +9377,7 @@
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "amount_received": {
             "type": "integer",
@@ -8638,7 +9385,7 @@
             "description": "The amount which is already captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "connector": {
             "type": "string",
@@ -8697,6 +9444,14 @@
               "$ref": "#/components/schemas/PaymentAttemptResponse"
             },
             "description": "List of attempts that happened on this intent",
+            "nullable": true
+          },
+          "captures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureResponse"
+            },
+            "description": "List of captures done on latest attempt",
             "nullable": true
           },
           "mandate_id": {
@@ -8818,6 +9573,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "statement_descriptor_name": {
@@ -8882,11 +9638,17 @@
             "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
             "type": "string",
-            "description": "The business label of merchant for this payment"
+            "description": "The business label of merchant for this payment",
+            "nullable": true
           },
           "business_sub_label": {
             "type": "string",
@@ -8954,6 +9716,42 @@
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
+          },
+          "payment_link": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "total number of attempts associated with this payment"
+          },
+          "merchant_decision": {
+            "type": "string",
+            "description": "Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "nullable": true
           }
         }
       },
@@ -8997,6 +9795,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
@@ -9272,6 +10075,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -9421,6 +10229,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },
@@ -9622,6 +10435,15 @@
           }
         }
       },
+      "ReconStatus": {
+        "type": "string",
+        "enum": [
+          "not_requested",
+          "requested",
+          "active",
+          "disabled"
+        ]
+      },
       "RedirectResponse": {
         "type": "object",
         "properties": {
@@ -9651,6 +10473,16 @@
               "payment_id": {
                 "type": "string",
                 "description": "The identifier for the payment",
+                "nullable": true
+              },
+              "refund_id": {
+                "type": "string",
+                "description": "The identifier for the refund",
+                "nullable": true
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The identifier for business profile",
                 "nullable": true
               },
               "limit": {
@@ -9696,14 +10528,20 @@
       "RefundListResponse": {
         "type": "object",
         "required": [
-          "size",
+          "count",
+          "total_count",
           "data"
         ],
         "properties": {
-          "size": {
+          "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
-            "minimum": 0.0
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of refunds in the list"
           },
           "data": {
             "type": "array",
@@ -9748,7 +10586,7 @@
             "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "reason": {
             "type": "string",
@@ -9763,6 +10601,7 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
+            "default": "Instant",
             "nullable": true
           },
           "metadata": {
@@ -9847,6 +10686,10 @@
             "type": "string",
             "description": "The connector used for the refund and the corresponding payment",
             "example": "stripe"
+          },
+          "profile_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -9880,6 +10723,23 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          }
+        }
+      },
+      "RequestSurchargeDetails": {
+        "type": "object",
+        "required": [
+          "surcharge_amount"
+        ],
+        "properties": {
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tax_amount": {
+            "type": "integer",
+            "format": "int64",
             "nullable": true
           }
         }
@@ -9960,6 +10820,66 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "RetrievePaymentLinkRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RetrievePaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "payment_link_id",
+          "payment_id",
+          "merchant_id",
+          "link_to_pay",
+          "amount",
+          "created_at",
+          "last_modified_at"
+        ],
+        "properties": {
+          "payment_link_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "link_to_pay": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -10413,6 +11333,72 @@
             "enum": [
               "oxxo"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "seven_eleven"
+            ],
+            "properties": {
+              "seven_eleven": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "lawson"
+            ],
+            "properties": {
+              "lawson": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mini_stop"
+            ],
+            "properties": {
+              "mini_stop": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "family_mart"
+            ],
+            "properties": {
+              "family_mart": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "seicomart"
+            ],
+            "properties": {
+              "seicomart": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_easy"
+            ],
+            "properties": {
+              "pay_easy": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
           }
         ]
       },
@@ -10832,6 +11818,10 @@
     {
       "name": "Payouts",
       "description": "Create and manage payouts"
+    },
+    {
+      "name": "payment link",
+      "description": "Create payment link"
     }
   ]
 }

@@ -2,13 +2,17 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bambora;
 
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    connector::utils::{to_connector_meta, PaymentsAuthorizeRequestData, PaymentsSyncRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{to_connector_meta, PaymentsAuthorizeRequestData, PaymentsSyncRequestData},
+    },
     core::{
         errors::{self, CustomResult},
         payments,
@@ -17,7 +21,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -95,6 +99,21 @@ impl ConnectorCommon for Bambora {
     }
 }
 
+impl ConnectorValidation for Bambora {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl api::Payment for Bambora {}
 
 impl api::PaymentToken for Bambora {}
@@ -109,9 +128,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Bambora {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bambora
+impl api::MandateSetup for Bambora {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bambora
 {
 }
 
@@ -669,9 +692,13 @@ impl services::ConnectorRedirectResponse for Bambora {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

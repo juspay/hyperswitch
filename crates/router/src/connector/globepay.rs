@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::crypto::{self, GenerateDigest};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
 use masking::ExposeInterface;
@@ -15,11 +16,10 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -31,7 +31,7 @@ pub struct Globepay;
 impl api::Payment for Globepay {}
 impl api::PaymentSession for Globepay {}
 impl api::ConnectorAccessToken for Globepay {}
-impl api::PreVerify for Globepay {}
+impl api::MandateSetup for Globepay {}
 impl api::PaymentAuthorize for Globepay {}
 impl api::PaymentSync for Globepay {}
 impl api::PaymentCapture for Globepay {}
@@ -126,6 +126,8 @@ impl ConnectorCommon for Globepay {
     }
 }
 
+impl ConnectorValidation for Globepay {}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Globepay
 {
@@ -136,8 +138,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Globepay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Globepay
 {
 }
 

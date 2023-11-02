@@ -3,10 +3,11 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::ByteSliceExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as shift4;
 
-use super::utils::RefundsRequestData;
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -18,7 +19,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -102,6 +103,21 @@ impl ConnectorCommon for Shift4 {
     }
 }
 
+impl ConnectorValidation for Shift4 {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl api::Payment for Shift4 {}
 impl api::PaymentVoid for Shift4 {}
 impl api::PaymentSync for Shift4 {}
@@ -132,9 +148,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Shift4 {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Shift4
+impl api::MandateSetup for Shift4 {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Shift4
 {
 }
 

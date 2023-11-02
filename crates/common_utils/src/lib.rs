@@ -9,8 +9,11 @@ pub mod errors;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod pii;
+#[allow(missing_docs)] // Todo: add docs
+pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
+pub mod types;
 pub mod validation;
 
 /// Date-time utilities.

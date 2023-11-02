@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 use api_models::enums::{DisputeStage, DisputeStatus};
-use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -16,7 +16,8 @@ use crate::core::payments;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, RouterResult},
+    core::errors::{self, RouterResult, StorageErrorExt},
+    db::StorageInterface,
     routes::AppState,
     types::{
         self, domain,
@@ -39,29 +40,33 @@ pub async fn get_mca_for_payout<'a>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
-) -> RouterResult<helpers::MerchantConnectorAccountType> {
+) -> RouterResult<(helpers::MerchantConnectorAccountType, String)> {
     let payout_attempt = &payout_data.payout_attempt;
+    let profile_id = get_profile_id_from_business_details(
+        payout_attempt.business_country,
+        payout_attempt.business_label.as_ref(),
+        merchant_account,
+        payout_attempt.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payout_attempt")?;
     match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok(mca),
+        Some(mca) => Ok((mca, profile_id)),
         None => {
-            let (business_country, business_label) = helpers::get_business_details(
-                payout_attempt.business_country,
-                payout_attempt.business_label.as_ref(),
-                merchant_account,
-            )?;
-
-            let connector_label =
-                helpers::get_connector_label(business_country, &business_label, None, connector_id);
-
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
                 merchant_account.merchant_id.as_str(),
-                &connector_label,
                 None,
                 key_store,
+                &profile_id,
+                connector_id,
+                payout_attempt.merchant_connector_id.as_ref(),
             )
             .await?;
-            Ok(merchant_connector_account)
+            Ok((merchant_connector_account, profile_id))
         }
     }
 }
@@ -76,12 +81,7 @@ pub async fn construct_payout_router_data<'a, F>(
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (business_country, _) = helpers::get_business_details(
-        payout_data.payout_attempt.business_country,
-        payout_data.payout_attempt.business_label.as_ref(),
-        merchant_account,
-    )?;
-    let merchant_connector_account = get_mca_for_payout(
+    let (merchant_connector_account, profile_id) = get_mca_for_payout(
         state,
         connector_id,
         merchant_account,
@@ -127,10 +127,11 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
+    let connector_label = format!("{profile_id}_{}", payout_attempt.connector);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get("id"))
+        .and_then(|cc| cc.get(connector_label))
         .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -158,7 +159,6 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
-            country_code: business_country,
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
@@ -182,6 +182,10 @@ pub async fn construct_payout_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
 
     Ok(router_data)
@@ -200,19 +204,26 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let connector_label = helpers::get_connector_label(
+    let profile_id = get_profile_id_from_business_details(
         payment_intent.business_country,
-        &payment_intent.business_label,
-        None,
-        connector_id,
-    );
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         creds_identifier,
         key_store,
+        &profile_id,
+        connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -236,6 +247,38 @@ pub async fn construct_refund_router_data<'a, F>(
         &connector_id.to_string(),
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+
+    let supported_connector = &state
+        .conf
+        .multiple_api_version_supported_connectors
+        .supported_connectors;
+    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+        .into_report()
+        .change_context(errors::ConnectorError::InvalidConnectorName)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
+
+    let connector_api_version = if supported_connector.contains(&connector_enum) {
+        state
+            .store
+            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
+            .await
+            .map(|value| value.config)
+            .ok()
+    } else {
+        None
+    };
+
+    let browser_info: Option<types::BrowserInformation> = payment_attempt
+        .browser_info
+        .clone()
+        .map(|b| b.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -265,6 +308,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: refund.connector_refund_id.clone(),
+            browser_info,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -289,6 +333,10 @@ pub async fn construct_refund_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_api_version,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
 
     Ok(router_data)
@@ -443,21 +491,29 @@ pub async fn construct_accept_dispute_router_data<'a>(
     key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
-    let connector_id = &dispute.connector;
-    let connector_label = helpers::get_connector_label(
+    let profile_id = get_profile_id_from_business_details(
         payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
+        &profile_id,
+        &dispute.connector,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -469,7 +525,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: connector_id.to_string(),
+        connector: dispute.connector.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
@@ -506,6 +562,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -521,20 +581,29 @@ pub async fn construct_submit_evidence_router_data<'a>(
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
     let connector_id = &dispute.connector;
-    let connector_label = helpers::get_connector_label(
+    let profile_id = get_profile_id_from_business_details(
         payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
+        &profile_id,
+        connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -580,6 +649,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -595,16 +668,30 @@ pub async fn construct_upload_file_router_data<'a>(
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
-    connector_label: String,
 ) -> RouterResult<types::UploadFileRouterData> {
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
+        &profile_id,
+        connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -655,6 +742,10 @@ pub async fn construct_upload_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -670,20 +761,29 @@ pub async fn construct_defend_dispute_router_data<'a>(
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
     let connector_id = &dispute.connector;
-    let connector_label = helpers::get_connector_label(
+    let profile_id = get_profile_id_from_business_details(
         payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
+        &profile_id,
+        connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -732,6 +832,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -744,20 +848,27 @@ pub async fn construct_retrieve_file_router_data<'a>(
     file_metadata: &diesel_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
-    let connector_label = file_metadata
-        .connector_label
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+    let profile_id = file_metadata
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
         .into_report()
-        .attach_printable("Missing connector label")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in file_metadata")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
+        profile_id,
+        connector_id,
+        file_metadata.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -804,6 +915,10 @@ pub async fn construct_retrieve_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
     };
     Ok(router_data)
 }
@@ -821,7 +936,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 pub fn get_connector_request_reference_id(
     conf: &settings::Settings,
     merchant_id: &str,
-    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {
     let is_config_enabled_for_merchant =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
@@ -831,4 +946,130 @@ pub fn get_connector_request_reference_id(
     } else {
         payment_attempt.attempt_id.clone()
     }
+}
+
+/// Validate whether the profile_id exists and is associated with the merchant_id
+pub async fn validate_and_get_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: Option<&String>,
+    merchant_id: &str,
+) -> RouterResult<Option<storage::business_profile::BusinessProfile>> {
+    profile_id
+        .async_map(|profile_id| async {
+            db.find_business_profile_by_profile_id(profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    id: profile_id.to_owned(),
+                })
+        })
+        .await
+        .transpose()?
+        .map(|business_profile| {
+            // Check if the merchant_id of business profile is same as the current merchant_id
+            if business_profile.merchant_id.ne(merchant_id) {
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: business_profile.profile_id,
+                })
+            } else {
+                Ok(business_profile)
+            }
+        })
+        .transpose()
+        .into_report()
+}
+
+fn connector_needs_business_sub_label(connector_name: &str) -> bool {
+    let connectors_list = [api_models::enums::Connector::Cybersource];
+    connectors_list
+        .map(|connector| connector.to_string())
+        .contains(&connector_name.to_string())
+}
+
+/// Create the connector label
+/// {connector_name}_{country}_{business_label}
+pub fn get_connector_label(
+    business_country: Option<api_models::enums::CountryAlpha2>,
+    business_label: Option<&String>,
+    business_sub_label: Option<&String>,
+    connector_name: &str,
+) -> Option<String> {
+    business_country
+        .zip(business_label)
+        .map(|(business_country, business_label)| {
+            let mut connector_label =
+                format!("{connector_name}_{business_country}_{business_label}");
+
+            // Business sub label is currently being used only for cybersource
+            // To ensure backwards compatibality, cybersource mca's created before this change
+            // will have the business_sub_label value as default.
+            //
+            // Even when creating the connector account, if no sub label is provided, default will be used
+            if connector_needs_business_sub_label(connector_name) {
+                if let Some(sub_label) = business_sub_label {
+                    connector_label.push_str(&format!("_{sub_label}"));
+                } else {
+                    connector_label.push_str("_default"); // For backwards compatibality
+                }
+            }
+
+            connector_label
+        })
+}
+
+/// If profile_id is not passed, use default profile if available, or
+/// If business_details (business_country and business_label) are passed, get the business_profile
+/// or return a `MissingRequiredField` error
+pub async fn get_profile_id_from_business_details(
+    business_country: Option<api_models::enums::CountryAlpha2>,
+    business_label: Option<&String>,
+    merchant_account: &domain::MerchantAccount,
+    request_profile_id: Option<&String>,
+    db: &dyn StorageInterface,
+    should_validate: bool,
+) -> RouterResult<String> {
+    match request_profile_id.or(merchant_account.default_profile.as_ref()) {
+        Some(profile_id) => {
+            // Check whether this business profile belongs to the merchant
+            if should_validate {
+                let _ = validate_and_get_business_profile(
+                    db,
+                    Some(profile_id),
+                    &merchant_account.merchant_id,
+                )
+                .await?;
+            }
+            Ok(profile_id.clone())
+        }
+        None => match business_country.zip(business_label) {
+            Some((business_country, business_label)) => {
+                let profile_name = format!("{business_country}_{business_label}");
+                let business_profile = db
+                    .find_business_profile_by_profile_name_merchant_id(
+                        &profile_name,
+                        &merchant_account.merchant_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                        id: profile_name,
+                    })?;
+
+                Ok(business_profile.profile_id)
+            }
+            _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "profile_id or business_country, business_label"
+            })),
+        },
+    }
+}
+
+#[inline]
+pub fn get_flow_name<F>() -> RouterResult<String> {
+    Ok(std::any::type_name::<F>()
+        .to_string()
+        .rsplit("::")
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Flow stringify failed")?
+        .to_string())
 }

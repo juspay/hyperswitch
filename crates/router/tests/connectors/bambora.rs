@@ -19,6 +19,7 @@ impl utils::Connector for BamboraTest {
             connector: Box::new(&Bambora),
             connector_name: types::Connector::Bambora,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -106,6 +107,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
             }),
             None,
@@ -219,6 +221,7 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
             }),
             None,

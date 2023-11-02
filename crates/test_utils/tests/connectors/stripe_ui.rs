@@ -54,7 +54,7 @@ async fn should_fail_recurring_payment_due_to_authentication(
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Assert(Assert::IsPresent("authentication_required: authentication_required")),
+            Event::Assert(Assert::IsPresent("Your card was declined. This transaction requires authentication.")),
     ]).await?;
     Ok(())
 }
@@ -418,7 +418,6 @@ fn should_make_3ds_mandate_with_zero_dollar_payment_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }

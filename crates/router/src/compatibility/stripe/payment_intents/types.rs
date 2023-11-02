@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
-    pub address: Option<payments::AddressDetails>,
+    pub address: Option<AddressDetails>,
     pub email: Option<Email>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
@@ -39,8 +39,17 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
-
-            address: details.address,
+            address: details.address.map(|address| payments::AddressDetails {
+                city: address.city,
+                country: address.country,
+                line1: address.line1,
+                line2: address.line2,
+                zip: address.postal_code,
+                state: address.state,
+                first_name: None,
+                line3: None,
+                last_name: None,
+            }),
         }
     }
 }
@@ -272,7 +281,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             });
 
         let routing = routable_connector
-            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(|connector| {
+                crate::types::api::RoutingAlgorithm::Single(
+                    api_models::admin::RoutableConnectorChoice::ConnectorName(connector),
+                )
+            })
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()
@@ -387,11 +400,12 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::Succeeded => Self::Succeeded,
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
-            api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
-            api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            api_enums::IntentStatus::RequiresCustomerAction
+            | api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
-            api_enums::IntentStatus::RequiresCapture => Self::RequiresCapture,
+            api_enums::IntentStatus::RequiresCapture
+            | api_enums::IntentStatus::PartiallyCaptured => Self::RequiresCapture,
             api_enums::IntentStatus::Cancelled => Self::Canceled,
         }
     }
@@ -469,6 +483,7 @@ pub struct StripePaymentIntentResponse {
     pub capture_method: Option<api_models::enums::CaptureMethod>,
     pub name: Option<masking::Secret<String>>,
     pub last_payment_error: Option<LastPaymentError>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
@@ -541,6 +556,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
                 },
                 error_type: code,
             }),
+            connector_transaction_id: resp.connector_transaction_id,
         }
     }
 }
@@ -585,7 +601,7 @@ pub struct StripePaymentListConstraints {
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
     pub created: Option<i64>,
     #[serde(rename = "created[lt]")]
     pub created_lt: Option<i64>,
@@ -597,7 +613,7 @@ pub struct StripePaymentListConstraints {
     pub created_gte: Option<i64>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 
