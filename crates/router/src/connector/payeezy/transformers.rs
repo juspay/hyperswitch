@@ -11,7 +11,7 @@ use crate::{
 };
 #[derive(Debug, Serialize)]
 pub struct PayeezyRouterData<T> {
-    pub amount: i64,
+    pub amount: String,
     pub router_data: T,
 }
 
