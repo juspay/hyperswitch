@@ -1,16 +1,19 @@
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::OffsetDateTime;
 
 use super::{EventType, RawEvent};
+use crate::services::authentication::AuthenticationType;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ApiEvent {
     api_flow: String,
     created_at_timestamp: i128,
     request_id: String,
     latency: u128,
     status_code: i64,
+    #[serde(flatten)]
+    auth_type: AuthenticationType,
     request: serde_json::Value,
     response: Option<serde_json::Value>,
     hs_latency: Option<u128>,
@@ -25,6 +28,7 @@ impl ApiEvent {
         request: serde_json::Value,
         response: Option<serde_json::Value>,
         hs_latency: Option<u128>,
+        auth_type: AuthenticationType,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
@@ -35,6 +39,7 @@ impl ApiEvent {
             request,
             response,
             hs_latency,
+            auth_type,
         }
     }
 }
