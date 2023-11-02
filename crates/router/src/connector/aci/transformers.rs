@@ -554,7 +554,7 @@ fn get_transaction_details(
     let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
     Ok(TransactionDetails {
         entity_id: auth.entity_id,
-        amount: item.amount.to_string(),
+        amount: item.amount.to_owned(),
         currency: item.router_data.request.currency.to_string(),
         payment_type: AciPaymentType::Debit,
     })
@@ -750,7 +750,7 @@ pub struct AciRefundRequest {
 impl<F> TryFrom<&AciRouterData<&types::RefundsRouterData<F>>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &AciRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let amount = item.amount.to_string();
+        let amount = item.amount.to_owned();
         let currency = item.router_data.request.currency;
         let payment_type = AciPaymentType::Refund;
         let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
