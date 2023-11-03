@@ -211,10 +211,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         R: crate::redis::kv_store::KvStorePartition,
     {
         let global_id = format!("{}", partition_key);
-        let request_id = self
-            .request_id
-            .clone()
-            .ok_or(error_stack::report!(RedisError::UnknownResult))?;
+        let request_id = self.request_id.clone().unwrap_or_default();
+
         let shard_key = R::shard_key(partition_key, self.drainer_num_partitions);
         let stream_name = self.get_drainer_stream_name(&shard_key);
         self.router_store

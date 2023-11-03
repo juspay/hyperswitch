@@ -10,9 +10,8 @@ use std::sync::{atomic, Arc};
 use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
-use tokio::sync::{mpsc, oneshot};
-
 use router_env::{instrument, tracing};
+use tokio::sync::{mpsc, oneshot};
 
 use crate::{connection::pg_connection, services::Store};
 
@@ -115,7 +114,6 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
     }
 }
 
-#[instrument(skip_all, fields(drainer_id))]
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
@@ -125,8 +123,6 @@ async fn drainer_handler(
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
-
-    router_env::tracing::Span::current().record("drainer_id", &stream_name);
 
     let drainer_result =
         Box::pin(drainer(store.clone(), max_read_count, stream_name.as_str())).await;
