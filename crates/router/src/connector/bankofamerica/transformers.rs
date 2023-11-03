@@ -73,6 +73,7 @@ impl<T>
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct BankofamericaPaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
@@ -230,7 +231,7 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaPaymentStatus {
     Authorized,
     Succeeded,
