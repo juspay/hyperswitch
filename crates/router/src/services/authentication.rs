@@ -7,6 +7,7 @@ use error_stack::{report, IntoReport, ResultExt};
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
+use serde::Serialize;
 
 use crate::{
     configs::settings,
@@ -21,9 +22,49 @@ use crate::{
     utils::OptionExt,
 };
 
+#[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "api_auth_type")]
+pub enum AuthenticationType {
+    ApiKey {
+        merchant_id: String,
+        key_id: String,
+    },
+    AdminApiKey,
+    MerchantJWT {
+        merchant_id: String,
+        user_id: Option<String>,
+    },
+    MerchantID {
+        merchant_id: String,
+    },
+    PublishableKey {
+        merchant_id: String,
+    },
+    NoAuth,
+}
+
+impl AuthenticationType {
+    pub fn get_merchant_id(&self) -> Option<&str> {
+        match self {
+            Self::ApiKey {
+                merchant_id,
+                key_id: _,
+            }
+            | Self::MerchantID { merchant_id }
+            | Self::PublishableKey { merchant_id }
+            | Self::MerchantJWT {
+                merchant_id,
+                user_id: _,
+            } => Some(merchant_id.as_ref()),
+            Self::AdminApiKey | Self::NoAuth => None,
+        }
+    }
 }
 
 pub trait AuthInfo {
@@ -46,13 +87,12 @@ impl AuthInfo for AuthenticationData {
 pub trait AuthenticateAndFetch<T, A>
 where
     A: AppStateInfo,
-    T: AuthInfo,
 {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<T>;
+    ) -> RouterResult<(T, AuthenticationType)>;
 }
 
 #[derive(Debug)]
@@ -69,8 +109,8 @@ where
         &self,
         _request_headers: &HeaderMap,
         _state: &A,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<((), AuthenticationType)> {
+        Ok(((), AuthenticationType::NoAuth))
     }
 }
 
@@ -83,7 +123,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -139,10 +179,17 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        Ok(AuthenticationData {
+        let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-        })
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -183,7 +230,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<((), AuthenticationType)> {
         let request_admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
@@ -200,7 +247,7 @@ where
                 .attach_printable("Admin Authentication Failure"))?;
         }
 
-        Ok(())
+        Ok(((), AuthenticationType::AdminApiKey))
     }
 }
 
@@ -216,7 +263,7 @@ where
         &self,
         _request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
@@ -245,10 +292,16 @@ where
                 }
             })?;
 
-        Ok(AuthenticationData {
+        let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-        })
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantID {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+            },
+        ))
     }
 }
 
@@ -264,7 +317,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -278,6 +331,14 @@ where
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
+            })
+            .map(|auth| {
+                (
+                    auth.clone(),
+                    AuthenticationType::PublishableKey {
+                        merchant_id: auth.merchant_account.merchant_id.clone(),
+                    },
+                )
             })
     }
 }
@@ -300,12 +361,12 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<((), AuthenticationType)> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
         decode_jwt::<JwtAuthPayloadFetchUnit>(token, state)
             .await
-            .map(|_| ())
+            .map(|_| ((), AuthenticationType::NoAuth))
     }
 }
 
@@ -323,7 +384,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
         let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state).await?;
@@ -343,10 +404,17 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
-        Ok(AuthenticationData {
+        let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-        })
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJWT {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                user_id: None,
+            },
+        ))
     }
 }
 

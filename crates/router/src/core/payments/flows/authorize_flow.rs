@@ -106,10 +106,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     key_store,
                 )
                 .await?;
-                Ok(
-                    mandate::mandate_procedure(state, resp, maybe_customer, payment_method_id,connector.merchant_connector_id.clone(),)
-                        .await?,
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    payment_method_id,
+                    connector.merchant_connector_id.clone(),
                 )
+                .await?)
             } else {
                 let arbiter = actix::Arbiter::try_current()
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
