@@ -752,7 +752,7 @@ where
             payments_response
         {
             let m_state = state.clone();
-            // This spawns this futures in a background thread, the execption inside this future won't affect
+            // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
             tokio::spawn(

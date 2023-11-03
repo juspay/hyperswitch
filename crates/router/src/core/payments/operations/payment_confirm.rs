@@ -555,7 +555,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         requeue: bool,
         schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        // This spawns this futures in a background thread, the execption inside this future won't affect
+        // This spawns this futures in a background thread, the exception inside this future won't affect
         // the current thread and the lifecycle of spawn thread is not handled by runtime.
         // So when server shutdown won't wait for this thread's completion.
         let m_payment_attempt = payment_attempt.clone();
