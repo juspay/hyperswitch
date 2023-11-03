@@ -345,7 +345,7 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
     fn generate_response(
         &self,
         payments_response: api_models::payments::PaymentsResponse,
-        merchant_account: router_types::domain::MerchantAccount,
+        business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
     ) -> RouterResult<api::RedirectionResponse>;
@@ -418,8 +418,21 @@ pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
                 .attach_printable("Failed to get the response in json"),
         }?;
 
+        let profile_id = payments_response
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")?;
+
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })?;
+
         let result =
-            self.generate_response(payments_response, merchant_account, resource_id, connector)?;
+            self.generate_response(payments_response, business_profile, resource_id, connector)?;
 
         Ok(services::ApplicationResponse::JsonForRedirection(result))
     }
@@ -469,7 +482,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
     fn generate_response(
         &self,
         payments_response: api_models::payments::PaymentsResponse,
-        merchant_account: router_types::domain::MerchantAccount,
+        business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
     ) -> RouterResult<api::RedirectionResponse> {
@@ -506,7 +519,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             | api_models::enums::IntentStatus::Failed
             | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture| api_models::enums::IntentStatus::Processing=> helpers::get_handle_response_url(
                 payment_id,
-                &merchant_account,
+                &business_profile,
                 payments_response,
                 connector,
             ),
@@ -560,13 +573,13 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
     fn generate_response(
         &self,
         payments_response: api_models::payments::PaymentsResponse,
-        merchant_account: router_types::domain::MerchantAccount,
+        business_profile: diesel_models::business_profile::BusinessProfile,
         payment_id: String,
         connector: String,
     ) -> RouterResult<api::RedirectionResponse> {
         helpers::get_handle_response_url(
             payment_id,
-            &merchant_account,
+            &business_profile,
             payments_response,
             connector,
         )
