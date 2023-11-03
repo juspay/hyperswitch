@@ -411,28 +411,32 @@ impl<F, T>
     }
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for BankofamericaPaymentsRequest {
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderInformation {
+    amount_details: Amount,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BankofamericaCaptureRequest {
+    order_information: OrderInformation,
+    client_reference_information: ClientReferenceInformation,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for BankofamericaCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            processing_information: ProcessingInformation {
-                capture_options: Some(CaptureOptions {
-                    capture_sequence_number: 1,
-                    total_capture_count: 1,
-                }),
-                ..Default::default()
-            },
-            order_information: OrderInformationWithBill {
+            order_information: OrderInformation {
                 amount_details: Amount {
                     total_amount: value.request.amount_to_capture.to_string(),
-                    ..Default::default()
+                    currency: value.request.currency.to_string(),
                 },
-                ..Default::default()
             },
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.connector_request_reference_id.clone()),
             },
-            ..Default::default()
         })
     }
 }
