@@ -15,6 +15,7 @@ pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
+use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
@@ -203,6 +204,14 @@ pub struct SessionConnectorData {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub connector: ConnectorData,
     pub business_sub_label: Option<String>,
+}
+
+/// Session Surcharge type
+pub enum SessionSurchargeDetails {
+    /// Surcharge is calculated by us
+    Calculated(SurchargeMetadata),
+    /// Surcharge is sent by merchant
+    PreDetermined(SurchargeDetailsResponse),
 }
 
 pub enum ConnectorChoice {

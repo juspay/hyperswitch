@@ -206,6 +206,8 @@ where
             }
 
             api::ConnectorCallType::Multiple(connectors) => {
+                let session_surcharge_data =
+                    get_session_surcharge_data(&payment_data.payment_attempt);
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -214,7 +216,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                    None,
+                    session_surcharge_data,
                 )
                 .await?
             }
@@ -256,6 +258,22 @@ where
         connector_http_status_code,
         external_latency,
     ))
+}
+
+pub fn get_session_surcharge_data(
+    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+) -> Option<api::SessionSurchargeDetails> {
+    payment_attempt.surcharge_amount.map(|surcharge_amount| {
+        let tax_on_surcharge_amount = payment_attempt.tax_amount.unwrap_or(0);
+        let final_amount = payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+        api::SessionSurchargeDetails::PreDetermined(SurchargeDetailsResponse {
+            surcharge: Surcharge::Fixed(surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+            final_amount,
+        })
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -797,7 +815,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
-    session_surcharge_metadata: Option<SurchargeMetadata>,
+    session_surcharge_details: Option<api::SessionSurchargeDetails>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -834,38 +852,26 @@ where
         )
         .await?;
 
-        payment_data.surcharge_details = session_surcharge_metadata
-            .as_ref()
-            .and_then(|surcharge_metadata| {
-                surcharge_metadata
-                    .surcharge_results
-                    .get(&SurchargeMetadata::get_key_for_surcharge_details_hash_map(
-                        &session_connector_data.payment_method_type.into(),
-                        &session_connector_data.payment_method_type,
-                        None,
-                    ))
-                    .cloned()
-            })
-            // if none, get from payment_attempt
-            .or_else(|| {
-                payment_data
-                    .payment_attempt
-                    .surcharge_amount
-                    .map(|surcharge_amount| {
-                        let tax_on_surcharge_amount =
-                            payment_data.payment_attempt.tax_amount.unwrap_or(0);
-                        let final_amount = payment_data.payment_attempt.amount
-                            + surcharge_amount
-                            + tax_on_surcharge_amount;
-                        SurchargeDetailsResponse {
-                            surcharge: Surcharge::Fixed(surcharge_amount),
-                            tax_on_surcharge: None,
-                            surcharge_amount,
-                            tax_on_surcharge_amount,
-                            final_amount,
+        payment_data.surcharge_details =
+            session_surcharge_details
+                .as_ref()
+                .and_then(
+                    |session_surcharge_details| match session_surcharge_details {
+                        api::SessionSurchargeDetails::Calculated(surcharge_metadata) => {
+                            surcharge_metadata
+                                .surcharge_results
+                                .get(&SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+                                    &session_connector_data.payment_method_type.into(),
+                                    &session_connector_data.payment_method_type,
+                                    None,
+                                ))
+                                .cloned()
                         }
-                    })
-            });
+                        api::SessionSurchargeDetails::PreDetermined(surcharge_details_response) => {
+                            Some(surcharge_details_response.to_owned())
+                        }
+                    },
+                );
 
         let router_data = payment_data
             .construct_router_data(
