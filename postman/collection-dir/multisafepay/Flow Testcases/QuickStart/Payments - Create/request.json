@@ -55,6 +55,10 @@
           "last_name": "happy"
         }
       },
+      "routing": {
+        "type": "single",
+        "data": "multisafepay"
+      },
       "shipping": {
         "address": {
           "line1": "1467",
