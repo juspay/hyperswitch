@@ -60,13 +60,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
 
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -86,8 +86,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
-            .await
+        Box::pin(payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        ))
+        .await
     }
 }
 
@@ -106,13 +112,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     where
         F: 'b + Send,
     {
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -134,13 +140,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     where
         F: 'b + Send,
     {
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -161,13 +167,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     where
         F: 'b + Send,
     {
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -190,13 +196,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     where
         F: 'b + Send,
     {
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -217,13 +223,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     where
         F: 'b + Send,
     {
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -255,13 +261,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             // .map(api_models::payments::MandateIds::new)
         });
 
-        payment_data = payment_response_update_tracker(
+        payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
             payment_data,
             router_data,
             storage_scheme,
-        )
+        ))
         .await?;
 
         Ok(payment_data)
@@ -283,8 +289,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
-            .await
+        Box::pin(payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            response,
+            storage_scheme,
+        ))
+        .await
     }
 }
 

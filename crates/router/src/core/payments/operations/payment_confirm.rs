@@ -681,48 +681,39 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .unwrap_or(payment_data.payment_attempt.amount);
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
-        let m_payment_data_amount = payment_data.amount.clone();
-        let m_payment_data_currency = payment_data.currency.clone();
-        let m_payment_method = payment_method.clone();
-        let m_authentication_type = authentication_type.clone();
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = additional_pm_data.clone();
-        let m_payment_method_type = payment_method_type.clone();
-        let m_payment_experience = payment_experience.clone();
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_db = state.clone().store;
-        let m_authorized_amount = authorized_amount.clone();
-        let m_tax_amount = tax_amount.clone();
-        let m_surcharge_amount = surcharge_amount.clone();
 
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
-                        amount: m_payment_data_amount.into(),
-                        currency: m_payment_data_currency,
+                        amount: payment_data.amount.into(),
+                        currency: payment_data.currency,
                         status: attempt_status,
-                        payment_method: m_payment_method,
-                        authentication_type: m_authentication_type,
+                        payment_method,
+                        authentication_type,
                         browser_info: m_browser_info,
                         connector: m_connector,
                         payment_token: m_payment_token,
                         payment_method_data: m_additional_pm_data,
-                        payment_method_type: m_payment_method_type,
-                        payment_experience: m_payment_experience,
+                        payment_method_type,
+                        payment_experience,
                         business_sub_label: m_business_sub_label,
                         straight_through_algorithm: m_straight_through_algorithm,
                         error_code: m_error_code,
                         error_message: m_error_message,
-                        amount_capturable: Some(m_authorized_amount),
-                        surcharge_amount: m_surcharge_amount,
-                        tax_amount: m_tax_amount,
+                        amount_capturable: Some(authorized_amount),
+                        surcharge_amount,
+                        tax_amount,
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                     },
@@ -735,19 +726,16 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         );
 
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
-        let m_setup_future_usage = setup_future_usage.clone();
         let m_customer_id = customer_id.clone();
         let m_shipping_address_id = shipping_address.clone();
         let m_billing_address_id = billing_address.clone();
         let m_return_url = return_url.clone();
-        let m_business_country = business_country.clone();
         let m_business_label = business_label.clone();
         let m_description = description.clone();
         let m_statement_descriptor_name = statement_descriptor_name.clone();
         let m_statement_descriptor_suffix = statement_descriptor_suffix.clone();
         let m_order_details = order_details.clone();
         let m_metadata = metadata.clone();
-        let m_header_payload_payment_confirm_source = header_payload.payment_confirm_source.clone();
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
 
@@ -758,20 +746,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     storage::PaymentIntentUpdate::Update {
                         amount: payment_data.amount.into(),
                         currency: payment_data.currency,
-                        setup_future_usage: m_setup_future_usage,
+                        setup_future_usage,
                         status: intent_status,
                         customer_id: m_customer_id,
                         shipping_address_id: m_shipping_address_id,
                         billing_address_id: m_billing_address_id,
                         return_url: m_return_url,
-                        business_country: m_business_country,
+                        business_country,
                         business_label: m_business_label,
                         description: m_description,
                         statement_descriptor_name: m_statement_descriptor_name,
                         statement_descriptor_suffix: m_statement_descriptor_suffix,
                         order_details: m_order_details,
                         metadata: m_metadata,
-                        payment_confirm_source: m_header_payload_payment_confirm_source,
+                        payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
                     },
                     storage_scheme,

@@ -30,7 +30,7 @@ pub async fn merchant_account_create(
     json_payload: web::Json<admin::MerchantAccountCreate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -38,7 +38,7 @@ pub async fn merchant_account_create(
         |state, _, req| create_merchant_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Account - Retrieve
@@ -124,7 +124,7 @@ pub async fn update_merchant_account(
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountUpdate;
     let merchant_id = mid.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -132,7 +132,7 @@ pub async fn update_merchant_account(
         |state, _, req| merchant_account_update(state, &merchant_id, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -197,7 +197,7 @@ pub async fn payment_connector_create(
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsCreate;
     let merchant_id = path.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -205,7 +205,7 @@ pub async fn payment_connector_create(
         |state, _, req| create_payment_connector(state, req, &merchant_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Connector - Retrieve
@@ -413,7 +413,7 @@ pub async fn business_profile_create(
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -421,7 +421,7 @@ pub async fn business_profile_create(
         |state, _, req| create_business_profile(state, req, &merchant_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]

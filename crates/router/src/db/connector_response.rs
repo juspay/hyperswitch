@@ -206,7 +206,7 @@ mod storage {
                     let key = format!("mid_{merchant_id}_pid_{payment_id}");
                     let field = format!("connector_resp_{merchant_id}_{payment_id}_{attempt_id}");
 
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -217,7 +217,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }

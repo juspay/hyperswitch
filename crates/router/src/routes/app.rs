@@ -165,7 +165,13 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
+        Box::pin(Self::with_storage(
+            conf,
+            StorageImpl::Postgresql,
+            shut_down_signal,
+            api_client,
+        ))
+        .await
     }
 }
 
