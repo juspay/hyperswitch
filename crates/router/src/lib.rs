@@ -1,8 +1,6 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
-#[cfg(feature = "olap")]
-mod analytics;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
@@ -143,7 +141,6 @@ pub fn mk_app(
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))
             .service(routes::Disputes::server(state.clone()))
-            .service(routes::Analytics::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]
