@@ -52,7 +52,7 @@ fn get_path(name: impl AsRef<str>) -> String {
 
 // This function currently allows you to add only custom headers.
 // In future, as we scale, this can be modified based on the need
-fn insert_content<T>(dir: T, content_to_insert: impl AsRef<str>) -> io::Result<()>
+fn insert_content<T>(dir: T, content_to_insert: T) -> io::Result<()>
 where
     T: AsRef<Path> + std::fmt::Debug,
 {
@@ -66,13 +66,7 @@ where
         .create(true)
         .open(file_path)?;
 
-    // Convert the content to insert to a byte slice
-    let content_bytes = content_to_insert.as_ref().as_bytes();
-
-    // Write a newline character before the content
-    file.write_all(b"\n")?;
-    // Write the content to the file
-    file.write_all(content_bytes)?;
+    write!(file, "\n{:#?}", content_to_insert)?;
 
     Ok(())
 }
@@ -200,15 +194,16 @@ pub fn command_generate() -> ReturnArgs {
     }
 
     let mut modified = false;
-
     if let Some(headers) = &args.custom_headers {
         for header in headers {
-            let kv_pair: Vec<&str> = header.splitn(2, ':').collect();
-            if kv_pair.len() == 2 {
-                let key = kv_pair[0];
-                let value = kv_pair[1];
+            if let Some((key, value)) = header
+                .splitn(2, ':')
+                .collect::<Vec<_>>()
+                .as_slice()
+                .split_first()
+            {
                 let content_to_insert = format!(
-                    "pm.request.headers.add({{key: \"{}\", value: \"{}\"}});",
+                    "pm.request.headers.add({{key: \"{}\", value: \"{:#?}\"}});",
                     key, value
                 );
                 if insert_content(&collection_path, &content_to_insert).is_ok() {

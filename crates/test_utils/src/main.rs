@@ -17,8 +17,7 @@ fn main() {
     let status = child.wait();
 
     if runner.file_modified_flag {
-        let mut cmd = Command::new("git");
-        let output = cmd
+        let git_status = Command::new("git")
             .args([
                 "checkout",
                 "HEAD",
@@ -27,16 +26,18 @@ fn main() {
             ])
             .output();
 
-        match output {
+        match git_status {
             Ok(output) => {
                 if output.status.success() {
-                    let _ = String::from_utf8_lossy(&output.stdout);
+                    let stdout_str = String::from_utf8_lossy(&output.stdout);
+                    println!("Git command executed successfully: {}", stdout_str);
                 } else {
-                    let _ = String::from_utf8_lossy(&output.stderr);
+                    let stderr_str = String::from_utf8_lossy(&output.stderr);
+                    eprintln!("Git command failed with error: {}", stderr_str);
                 }
             }
             Err(e) => {
-                println!("Error: {}", e);
+                eprintln!("Error running Git: {}", e);
             }
         }
     }
@@ -52,7 +53,7 @@ fn main() {
             }
         }
         Err(err) => {
-            eprintln!("Failed to wait for command execution: {err}");
+            eprintln!("Failed to wait for command execution: {}", err);
             exit(1);
         }
     };
