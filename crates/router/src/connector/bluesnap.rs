@@ -138,7 +138,10 @@ impl ConnectorCommon for Bluesnap {
                 let error_res = if res.status_code == 403
                     && error_response.contains(BLUESNAP_TRANSACTION_NOT_FOUND)
                 {
-                    format!("{} in bluesnap dashboard", consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND)
+                    format!(
+                        "{} in bluesnap dashboard",
+                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                    )
                 } else {
                     error_response.clone()
                 };
