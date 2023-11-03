@@ -50,13 +50,7 @@ impl ApiEvent {
             user_agent: http_req
                 .headers()
                 .get("user-agent")
-                .and_then(|user_agent_value| {
-                    user_agent_value
-                        .to_str()
-                        .ok()
-                        .map(ToOwned::to_owned)
-
-                }),
+                .and_then(|user_agent_value| user_agent_value.to_str().ok().map(ToOwned::to_owned)),
             url_path: http_req.path().to_string(),
         }
     }
