@@ -16,7 +16,7 @@ use crate::{
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PowertranzRouterData<T> {
     pub amount: i64,
     pub router_data: T,
@@ -47,7 +47,7 @@ impl<T>
     }
 }
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
     transaction_identifier: String,
@@ -63,7 +63,7 @@ pub struct PowertranzPaymentsRequest {
     extended_data: Option<ExtendedData>,
 }
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ExtendedData {
     three_d_secure: ThreeDSecure,
@@ -71,7 +71,7 @@ pub struct ExtendedData {
     browser_info: BrowserInfo,
 }
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct BrowserInfo {
     java_enabled: Option<bool>,
@@ -98,7 +98,7 @@ pub enum Source {
     Card(PowertranzCard),
 }
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzCard {
     cardholder_name: Secret<String>,
@@ -107,7 +107,7 @@ pub struct PowertranzCard {
     card_cvv: Secret<String>,
 }
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzAddressDetails {
     first_name: Option<Secret<String>>,
@@ -382,7 +382,7 @@ fn is_3ds_payment(response_code: String) -> bool {
 }
 
 // Type definition for Capture, Void, Refund Request
-#[derive(Default, Debug, Serialize,Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseRequest {
     transaction_identifier: String,
