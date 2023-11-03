@@ -57,52 +57,20 @@ if [ "$OS" == "Darwin" ]; then
                     'brew install curl' \
                     '' \
                     'curl --version'
-
-elif [ "$OS" == "Linux" ]; then
-    echo "Operating System identified as Linux"
-
-    # Detect Linux Distribution and Package Manager
-    if [ -f /etc/debian_version ]; then
-        PKG_MANAGER='apt-get'
-    elif [ -f /etc/redhat-release ]; then
-        PKG_MANAGER='yum'
-    fi
-
-    # Define Linux install commands for packages
-    LINUX_AWS_CLI_INSTALL='sudo apt-get install awscli -y || sudo yum install awscli -y'
-    LINUX_POSTGRESQL_INSTALL='sudo apt-get install postgresql postgresql-contrib -y || sudo yum install postgresql-server postgresql-contrib -y'
-    LINUX_JQ_INSTALL='sudo apt-get install jq -y || sudo yum install jq -y'
-    LINUX_CURL_INSTALL='sudo apt-get install curl -y || sudo yum install curl -y'
-
-    # Install AWS CLI if not present
-    install_package "aws" \
-                    '' \
-                    "$LINUX_AWS_CLI_INSTALL" \
-                    'aws --version'
-
-    # Install PostgreSQL if not present
-    install_package "psql" \
-                    '' \
-                    "$LINUX_POSTGRESQL_INSTALL" \
-                    'psql --version'
-
-    # Install jq if not present
-    install_package "jq" \
-                    '' \
-                    "$LINUX_JQ_INSTALL" \
-                    'jq --version'
-
-    # Install curl if not present
-    install_package "curl" \
-                    '' \
-                    "$LINUX_CURL_INSTALL" \
-                    'curl --version'
-
 else
-    echo "This script supports MacOS and Linux only."
+    echo "Please make sure you install the pre-requisites manually before running the script"
 fi
 
+command_discovery() {
+  type $1 > /dev/null 2> /dev/null
+  if [[ $? != 0 ]]; then
+    echo "\`$1\` command not found"
+    exit 1
+  fi
 
+command_discovery curl
+command_discovery aws
+command_discovery psql
 
 echo "Please enter the AWS region (us-east-2): "
 read REGION < /dev/tty
