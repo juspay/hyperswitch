@@ -82,6 +82,10 @@ impl ConnectorCommon for Bitpay {
         "bitpay"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -169,7 +173,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = bitpay::BitpayPaymentsRequest::try_from(req)?;
+        let connector_router_data = bitpay::BitpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
         let bitpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,

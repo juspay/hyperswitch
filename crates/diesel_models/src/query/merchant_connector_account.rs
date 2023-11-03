@@ -130,17 +130,12 @@ impl MerchantConnectorAccount {
         get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
         if get_disabled {
-            generics::generic_filter::<
-                <Self as HasTable>::Table,
-                _,
-                <<Self as HasTable>::Table as Table>::PrimaryKey,
-                _,
-            >(
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
                 conn,
                 dsl::merchant_id.eq(merchant_id.to_owned()),
                 None,
                 None,
-                None,
+                Some(dsl::created_at.asc()),
             )
             .await
         } else {

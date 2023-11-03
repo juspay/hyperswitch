@@ -1,4 +1,7 @@
-use api_models::{admin as admin_types, enums as api_enums};
+use api_models::{
+    admin::{self as admin_types},
+    enums as api_enums,
+};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
@@ -6,6 +9,7 @@ use common_utils::{
     pii,
 };
 use error_stack::{report, FutureExt, ResultExt};
+use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
 
@@ -379,6 +383,66 @@ pub async fn create_business_profile_from_business_labels(
 
     Ok(())
 }
+
+/// For backwards compatibility
+/// If any of the fields of merchant account are updated, then update these fields in business profiles
+pub async fn update_business_profile_cascade(
+    state: AppState,
+    merchant_account_update: api::MerchantAccountUpdate,
+    merchant_id: String,
+) -> RouterResult<()> {
+    if merchant_account_update.return_url.is_some()
+        || merchant_account_update.webhook_details.is_some()
+        || merchant_account_update
+            .enable_payment_response_hash
+            .is_some()
+        || merchant_account_update
+            .redirect_to_merchant_with_http_post
+            .is_some()
+    {
+        // Update these fields in all the business profiles
+        let business_profiles = state
+            .store
+            .list_business_profile_by_merchant_id(&merchant_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: merchant_id.to_string(),
+            })?;
+
+        let business_profile_update = admin_types::BusinessProfileUpdate {
+            profile_name: None,
+            return_url: merchant_account_update.return_url,
+            enable_payment_response_hash: merchant_account_update.enable_payment_response_hash,
+            payment_response_hash_key: merchant_account_update.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: merchant_account_update
+                .redirect_to_merchant_with_http_post,
+            webhook_details: merchant_account_update.webhook_details,
+            metadata: None,
+            routing_algorithm: None,
+            intent_fulfillment_time: None,
+            frm_routing_algorithm: None,
+            payout_routing_algorithm: None,
+            applepay_verified_domains: None,
+        };
+
+        let update_futures = business_profiles.iter().map(|business_profile| async {
+            let profile_id = &business_profile.profile_id;
+
+            update_business_profile(
+                state.clone(),
+                profile_id,
+                &merchant_id,
+                business_profile_update.clone(),
+            )
+            .await
+        });
+
+        try_join_all(update_futures).await?;
+    }
+
+    Ok(())
+}
+
 pub async fn merchant_account_update(
     state: AppState,
     merchant_id: &String,
@@ -431,6 +495,7 @@ pub async fn merchant_account_update(
     // In order to support backwards compatibility, if a business_labels are passed in the update
     // call, then create new business_profiles with the profile_name as business_label
     req.primary_business_details
+        .clone()
         .async_map(|primary_business_details| async {
             let _ = create_business_profile_from_business_labels(
                 db,
@@ -444,10 +509,10 @@ pub async fn merchant_account_update(
 
     let key = key_store.key.get_inner().peek();
 
-    let business_profile_id_update = if let Some(profile_id) = req.default_profile {
+    let business_profile_id_update = if let Some(ref profile_id) = req.default_profile {
         if !profile_id.is_empty_after_trim() {
             // Validate whether profile_id passed in request is valid and is linked to the merchant
-            core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
+            core_utils::validate_and_get_business_profile(db, Some(profile_id), merchant_id)
                 .await?
                 .map(|business_profile| Some(business_profile.profile_id))
         } else {
@@ -457,6 +522,9 @@ pub async fn merchant_account_update(
     } else {
         None
     };
+
+    // Update the business profile, This is for backwards compatibility
+    update_business_profile_cascade(state.clone(), req.clone(), merchant_id.to_string()).await?;
 
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
