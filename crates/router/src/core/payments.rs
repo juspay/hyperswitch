@@ -11,7 +11,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::{
     enums,
-    payment_methods::{Surcharge, SurchargeDetailsResponse, SurchargeMetadata},
+    payment_methods::{Surcharge, SurchargeDetailsResponse},
     payments::HeaderPayload,
 };
 use common_utils::{ext_traits::AsyncExt, pii};
@@ -859,12 +859,11 @@ where
                     |session_surcharge_details| match session_surcharge_details {
                         api::SessionSurchargeDetails::Calculated(surcharge_metadata) => {
                             surcharge_metadata
-                                .surcharge_results
-                                .get(&SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+                                .get_surcharge_details(
                                     &session_connector_data.payment_method_type.into(),
                                     &session_connector_data.payment_method_type,
                                     None,
-                                ))
+                                )
                                 .cloned()
                         }
                         api::SessionSurchargeDetails::PreDetermined(surcharge_details_response) => {

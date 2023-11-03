@@ -762,7 +762,7 @@ impl PaymentConfirm {
                         .get_redis_conn()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to get redis connection")?;
-                    let redis_key = SurchargeMetadata::get_consolidated_key(
+                    let redis_key = SurchargeMetadata::get_individual_surcharge_details_redis_key(
                         &payment_method_type.into(),
                         &payment_method_type,
                         None,

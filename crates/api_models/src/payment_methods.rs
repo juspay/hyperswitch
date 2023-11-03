@@ -352,11 +352,28 @@ impl SurchargeDetailsResponse {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SurchargeMetadata {
     #[serde_as(as = "HashMap<_, _>")]
-    pub surcharge_results: HashMap<String, SurchargeDetailsResponse>,
+    surcharge_results: HashMap<
+        (
+            common_enums::PaymentMethod,
+            common_enums::PaymentMethodType,
+            Option<common_enums::CardNetwork>,
+        ),
+        SurchargeDetailsResponse,
+    >,
+    pub payment_attempt_id: String,
 }
 
 impl SurchargeMetadata {
-    pub fn get_key_for_surcharge_details_hash_map(
+    pub fn new(payment_attempt_id: String) -> Self {
+        Self {
+            surcharge_results: HashMap::new(),
+            payment_attempt_id,
+        }
+    }
+    pub fn is_empty_result(&self) -> bool {
+        self.surcharge_results.is_empty()
+    }
+    fn get_key_for_surcharge_details_hash_map(
         payment_method: &common_enums::PaymentMethod,
         payment_method_type: &common_enums::PaymentMethodType,
         card_network: Option<&common_enums::CardNetwork>,
@@ -370,10 +387,53 @@ impl SurchargeMetadata {
             format!("{}_{}", payment_method, payment_method_type)
         }
     }
+    pub fn insert_surcharge_details(
+        &mut self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+        card_network: Option<&common_enums::CardNetwork>,
+        surcharge_details: SurchargeDetailsResponse,
+    ) {
+        let key = (
+            payment_method.to_owned(),
+            payment_method_type.to_owned(),
+            card_network.cloned(),
+        );
+        self.surcharge_results.insert(key, surcharge_details);
+    }
+    pub fn get_surcharge_details(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+        card_network: Option<&common_enums::CardNetwork>,
+    ) -> Option<&SurchargeDetailsResponse> {
+        let key = &(
+            payment_method.to_owned(),
+            payment_method_type.to_owned(),
+            card_network.cloned(),
+        );
+        self.surcharge_results.get(key)
+    }
     pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
         format!("surcharge_metadata_{}", payment_attempt_id)
     }
-    pub fn get_consolidated_key(
+    pub fn get_individual_surcharge_key_value_pairs(
+        &self,
+    ) -> Vec<(String, SurchargeDetailsResponse)> {
+        self.surcharge_results
+            .iter()
+            .map(|((pm, pmt, card_network), surcharge_details)| {
+                let key = Self::get_individual_surcharge_details_redis_key(
+                    pm,
+                    pmt,
+                    card_network.as_ref(),
+                    &self.payment_attempt_id,
+                );
+                (key, surcharge_details.to_owned())
+            })
+            .collect()
+    }
+    pub fn get_individual_surcharge_details_redis_key(
         payment_method: &common_enums::PaymentMethod,
         payment_method_type: &common_enums::PaymentMethodType,
         card_network: Option<&common_enums::CardNetwork>,
