@@ -194,7 +194,6 @@ pub async fn update_customer_payment_method(
             .card_network
             .as_ref()
             .map(|card_network| card_network.to_string()),
-        email: None,
     };
     add_payment_method(state, new_pm, &merchant_account, &key_store).await
 }

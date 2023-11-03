@@ -54,10 +54,6 @@ pub struct PaymentMethodCreate {
     /// The card network
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
-
-    /// The email correspond to wallet
-    #[schema(example = "john.doe00@example.com")]
-    pub email: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

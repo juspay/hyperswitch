@@ -68,11 +68,11 @@ where
             let pm_id = if resp.request.get_setup_future_usage().is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
+                    connector,
                     resp.request.get_payment_method_data().as_ref(),
                     Some(resp.payment_method),
                     payment_method_type,
                     &customer,
-                    connector_email,
                 )
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;
@@ -107,6 +107,7 @@ where
                             let pm_metadata = create_payment_method_metadata(
                                 pm.metadata.as_ref(),
                                 connector_token,
+                                connector_email,
                             )?;
                             if let Some(metadata) = pm_metadata {
                                 payment_methods::cards::update_payment_method(db, pm, metadata)
@@ -117,38 +118,42 @@ where
                         }
                         Err(error) => {
                             match error.current_context() {
-                                errors::StorageError::DatabaseError(err) => match err
-                                    .current_context()
-                                {
-                                    diesel_models::errors::DatabaseError::NotFound => {
-                                        let pm_metadata =
-                                            create_payment_method_metadata(None, connector_token)?;
-                                        payment_methods::cards::create_payment_method(
-                                            db,
-                                            &payment_method_create_request,
-                                            &customer.customer_id,
-                                            &locker_response.0.payment_method_id,
-                                            merchant_id,
-                                            pm_metadata,
-                                            pm_data_encrypted,
-                                            key_store,
+                                errors::StorageError::DatabaseError(err) => {
+                                    match err.current_context() {
+                                        diesel_models::errors::DatabaseError::NotFound => {
+                                            let pm_metadata = create_payment_method_metadata(
+                                                None,
+                                                connector_token,
+                                                connector_email,
+                                            )?;
+                                            payment_methods::cards::create_payment_method(
+                                                db,
+                                                &payment_method_create_request,
+                                                &customer.customer_id,
+                                                &locker_response.0.payment_method_id,
+                                                merchant_id,
+                                                pm_metadata,
+                                                pm_data_encrypted,
+                                                key_store,
+                                            )
+                                            .await
+                                        }
+                                        _ => Err(report!(
+                                            errors::ApiErrorResponse::InternalServerError
                                         )
-                                        .await
+                                        .attach_printable(
+                                            "Database Error while finding payment method",
+                                        )),
                                     }
-                                    _ => {
-                                        Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                            .attach_printable(
-                                                "Database Error while finding payment method",
-                                            ))
-                                    }
-                                },
+                                }
                                 _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable("Error while finding payment method")),
                             }?;
                         }
                     };
                 } else {
-                    let pm_metadata = create_payment_method_metadata(None, connector_token)?;
+                    let pm_metadata =
+                        create_payment_method_metadata(None, connector_token, connector_email)?;
                     payment_methods::cards::create_payment_method(
                         db,
                         &payment_method_create_request,
@@ -216,6 +221,7 @@ pub async fn save_in_locker(
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
     connector_token: Option<(&api::ConnectorData, String)>,
+    connector_email: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mut meta = match metadata {
         None => serde_json::Map::new(),
@@ -228,12 +234,19 @@ pub fn create_payment_method_metadata(
             existing_metadata
         }
     };
-    Ok(connector_token.and_then(|connector_and_token| {
+
+    connector_token.map(|connector_and_token| {
         meta.insert(
             connector_and_token.0.connector_name.to_string(),
             serde_json::Value::String(connector_and_token.1),
-        )
-    }))
+        );
+    });
+
+    connector_email.map(|email| {
+        meta.insert(String::from("email"), serde_json::Value::String(email));
+    });
+
+    Ok(Some(serde_json::Value::Object(meta)))
 }
 
 pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(

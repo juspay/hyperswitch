@@ -803,7 +803,7 @@ pub struct PaypalVaultSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttributeResponse {
-    email: String,
+    email_address: String,
     attributes: VaultData,
 }
 
@@ -938,8 +938,6 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let vault_id = item.response.payment_source.paypal.attributes.vault.id;
 
-        println!("got_the_vault {:?}", vault_id);
-
         //payment collection will always have only one element as we only make one transaction per order.
         let payment_collection = &item
             .response
@@ -965,7 +963,7 @@ impl<F, T>
             payment_method_token: Some(types::PaymentMethodToken::TokenWithParameters(
                 types::TokenWithParameters {
                     token: vault_id,
-                    email: Some(item.response.payment_source.paypal.email),
+                    email: Some(item.response.payment_source.paypal.email_address),
                     metadata: None,
                 },
             )),
