@@ -122,8 +122,6 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    
-
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -250,7 +248,6 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -454,8 +451,6 @@ impl MerchantConnectorAccountInterface for MockDb {
             }
         }
     }
-
-   
 
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
