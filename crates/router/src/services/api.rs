@@ -410,7 +410,7 @@ where
                                                 && error_res.status_code == 403
                                                 && error_res.reason
                                                     == Some(format!(
-                                                        "{} in bluesnap",
+                                                        "{} in bluesnap dashboard",
                                                         consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
                                                     ))
                                             {
