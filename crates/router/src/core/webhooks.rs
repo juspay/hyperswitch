@@ -963,7 +963,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     };
     logger::info!(event_type=?event_type);
 
-    let is_webhook_event_not_event_not_supported = !matches!(
+    let is_webhook_event_supported = !matches!(
         event_type,
         api_models::webhooks::IncomingWebhookEvent::EventNotSupported
     );
@@ -976,8 +976,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     .await;
 
     //process webhook further only if webhook event is enabled and is not event_not_supported
-    let process_webhook_further =
-        is_webhook_event_enabled && is_webhook_event_not_event_not_supported;
+    let process_webhook_further = is_webhook_event_enabled && is_webhook_event_supported;
 
     logger::info!(process_webhook=?process_webhook_further);
 
