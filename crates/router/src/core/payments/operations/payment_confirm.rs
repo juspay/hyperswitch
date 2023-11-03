@@ -771,7 +771,7 @@ impl PaymentConfirm {
                     match redis_conn
                         .get_and_deserialize_key::<SurchargeDetailsResponse>(
                             &redis_key,
-                            "SurchargeMetada",
+                            "SurchargeDetailsResponse",
                         )
                         .await
                     {
