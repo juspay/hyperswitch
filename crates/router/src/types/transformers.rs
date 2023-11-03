@@ -254,6 +254,7 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
 impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
     fn foreign_from(from: dsl_enums::Connector) -> Self {
         match from {
+            #[cfg(feature = "dummy_connector")]
             dsl_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
             dsl_enums::Connector::DummyConnector2 => Self::DummyConnector2,
