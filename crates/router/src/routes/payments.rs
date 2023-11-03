@@ -178,6 +178,7 @@ pub async fn payments_start(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -244,6 +245,7 @@ pub async fn payments_retrieve(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -305,6 +307,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -509,6 +512,7 @@ pub async fn payments_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -564,6 +568,7 @@ pub async fn payments_connector_session(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -774,6 +779,7 @@ pub async fn payments_cancel(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -897,6 +903,7 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
+    let eligible_connectors = req.connector.clone();
     match req.payment_type.unwrap_or_default() {
         api_models::enums::PaymentType::Normal
         | api_models::enums::PaymentType::RecurringMandate
@@ -916,6 +923,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 header_payload,
             )
             .await
@@ -936,6 +944,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 header_payload,
             )
             .await

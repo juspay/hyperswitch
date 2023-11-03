@@ -8,6 +8,7 @@ use api_models::{
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, IntoReport, ResultExt};
+use euclid::enums as euclid_enums;
 use futures::future::try_join_all;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -1112,9 +1113,9 @@ pub async fn persist_individual_surcharge_details_in_redis(
 
 pub async fn get_individual_surcharge_detail_from_redis(
     state: &AppState,
-    payment_method: &common_enums::PaymentMethod,
-    payment_method_type: &common_enums::PaymentMethodType,
-    card_network: Option<common_enums::CardNetwork>,
+    payment_method: &euclid_enums::PaymentMethod,
+    payment_method_type: &euclid_enums::PaymentMethodType,
+    card_network: Option<euclid_enums::CardNetwork>,
     payment_attempt_id: &str,
 ) -> CustomResult<SurchargeDetailsResponse, RedisError> {
     let redis_conn = state
