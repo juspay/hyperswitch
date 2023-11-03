@@ -99,7 +99,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_with_expiry<V>(
         &self,
-        key: &str,
+        key: String,
         value: V,
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError>
@@ -111,7 +111,7 @@ impl super::RedisConnectionPool {
 
         self.pool
             .set(
-                key,
+                &key,
                 serialized.as_slice(),
                 Some(Expiration::EX(seconds)),
                 None,

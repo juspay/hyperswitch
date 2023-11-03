@@ -1,10 +1,15 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payment_methods::SurchargeDetailsResponse,
+};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, IntoReport, ResultExt};
+use futures::future::try_join_all;
+use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -15,7 +20,7 @@ use super::payouts::PayoutData;
 use crate::core::payments;
 use crate::{
     configs::settings,
-    consts,
+    consts::{self, DEFAULT_FULFILLMENT_TIME},
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
     routes::AppState,
@@ -1072,4 +1077,58 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
+}
+
+pub async fn persist_individual_surcharge_details_in_redis(
+    state: &AppState,
+    merchant_account: domain::MerchantAccount,
+    surcharge_metadata: api_models::payment_methods::SurchargeMetadata,
+) -> RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let redis_store_futures_iter = surcharge_metadata
+        .get_individual_surcharge_key_value_pairs()
+        .into_iter()
+        .map(|(redis_key, surcharge_details)| {
+            redis_conn.serialize_and_set_key_with_expiry(
+                redis_key,
+                surcharge_details,
+                merchant_account
+                    .intent_fulfillment_time
+                    .unwrap_or(DEFAULT_FULFILLMENT_TIME),
+            )
+        });
+
+    let _ = try_join_all(redis_store_futures_iter)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach("Error while inserting key value in redis")?;
+    Ok(())
+}
+
+pub async fn get_individual_surcharge_detail_from_redis(
+    state: &AppState,
+    payment_method: &common_enums::PaymentMethod,
+    payment_method_type: &common_enums::PaymentMethodType,
+    card_network: Option<common_enums::CardNetwork>,
+    payment_attempt_id: &str,
+) -> CustomResult<SurchargeDetailsResponse, RedisError> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .attach_printable("Failed to get redis connection")?;
+    let redis_key =
+        api_models::payment_methods::SurchargeMetadata::get_individual_surcharge_details_redis_key(
+            payment_method,
+            payment_method_type,
+            card_network.as_ref(),
+            payment_attempt_id,
+        );
+    redis_conn
+        .get_and_deserialize_key::<SurchargeDetailsResponse>(&redis_key, "SurchargeDetailsResponse")
+        .await
 }

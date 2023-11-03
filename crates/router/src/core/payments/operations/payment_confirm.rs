@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion,
-    payment_methods::{self, SurchargeDetailsResponse, SurchargeMetadata},
+    payment_methods::{self, SurchargeDetailsResponse},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
@@ -18,6 +18,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        utils::get_individual_surcharge_detail_from_redis,
     },
     db::StorageInterface,
     routes::AppState,
@@ -755,23 +756,14 @@ impl PaymentConfirm {
                 } else {
                     // is not sent in payment create
                     // verify that any generated surcharge sent in session flow is same as the one sent in confirm
-                    let redis_conn = state
-                        .store
-                        .get_redis_conn()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get redis connection")?;
-                    let redis_key = SurchargeMetadata::get_individual_surcharge_details_redis_key(
+                    match get_individual_surcharge_detail_from_redis(
+                        state,
                         &payment_method_type.into(),
                         &payment_method_type,
                         None,
                         &payment_attempt.attempt_id,
-                    );
-                    match redis_conn
-                        .get_and_deserialize_key::<SurchargeDetailsResponse>(
-                            &redis_key,
-                            "SurchargeDetailsResponse",
-                        )
-                        .await
+                    )
+                    .await
                     {
                         Ok(surcharge_details) => {
                             if surcharge_details

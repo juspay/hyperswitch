@@ -38,7 +38,7 @@ pub async fn store_data_in_redis(
         .attach_printable("Failed to get redis connection")?;
 
     redis_conn
-        .serialize_and_set_key_with_expiry(&key, data, ttl)
+        .serialize_and_set_key_with_expiry(key, data, ttl)
         .await
         .change_context(errors::DummyConnectorErrors::PaymentStoringError)
         .attach_printable("Failed to add data in redis")?;
