@@ -286,7 +286,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCaptureRouterData>> for NmiCaptureRe
             transaction_type: TransactionType::Capture,
             security_key: auth.api_key,
             transactionid: item.router_data.request.connector_transaction_id.clone(),
-            amount: item.amount?,
+            amount: Some(item.amount),
         })
     }
 }
