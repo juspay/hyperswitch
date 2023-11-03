@@ -437,13 +437,9 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let amount = utils::to_currency_base_unit(
-            item.router_data.request.amount_to_capture,
-            item.router_data.request.currency,
-        )?;
         Ok(Self {
             amount: Amount {
-                total: amount,
+                total: item.amount.clone(),
                 currency: item.router_data.request.currency.to_string(),
             },
             transaction_details: TransactionDetails {
