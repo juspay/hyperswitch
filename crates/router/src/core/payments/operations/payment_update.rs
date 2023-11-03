@@ -146,8 +146,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
-                request.shipping.is_some(),
-                request.billing.is_some(),
                 request.setup_future_usage.is_some(),
                 &payment_intent
                     .customer_id
