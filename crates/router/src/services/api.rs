@@ -841,6 +841,7 @@ where
         serialized_request,
         serialized_response,
         auth_type,
+        request,
     );
     match api_event.clone().try_into() {
         Ok(event) => {
