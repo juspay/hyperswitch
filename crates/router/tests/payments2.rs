@@ -135,6 +135,7 @@ async fn payments_create_core() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         api::HeaderPayload::default(),
     )
     .await
@@ -313,6 +314,7 @@ async fn payments_create_core_adyen_no_redirect() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         api::HeaderPayload::default(),
     )
     .await
