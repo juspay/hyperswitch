@@ -325,3 +325,49 @@ pub mod error_stack_parsing {
 }
 #[cfg(feature = "detailed_errors")]
 pub use error_stack_parsing::*;
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RoutingError {
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Final connector selection failed")]
+    ConnectorSelectionFailed,
+    #[error("[DSL] Missing required field in payment data: '{field_name}'")]
+    DslMissingRequiredField { field_name: String },
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error updating merchant with latest dsl cache contents")]
+    DslMerchantUpdateError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Final connector selection failed")]
+    DslFinalConnectorSelectionFailed,
+    #[error("[DSL] Received incorrect selection algorithm as DSL output")]
+    DslIncorrectSelectionAlgorithm,
+    #[error("there was an error saving/retrieving values from the kgraph cache")]
+    KgraphCacheFailure,
+    #[error("failed to refresh the kgraph cache")]
+    KgraphCacheRefreshFailed,
+    #[error("there was an error during the kgraph analysis phase")]
+    KgraphAnalysisError,
+    #[error("'profile_id' was not provided")]
+    ProfileIdMissing,
+    #[error("the profile was not found in the database")]
+    ProfileNotFound,
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("Invalid connector name received: '{0}'")]
+    InvalidConnectorName(String),
+    #[error("The routing algorithm in merchant account had invalid structure")]
+    InvalidRoutingAlgorithmStructure,
+    #[error("Volume split failed")]
+    VolumeSplitFailed,
+    #[error("Unable to parse metadata")]
+    MetadataParsingError,
+}

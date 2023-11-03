@@ -1,0 +1,27 @@
+[package]
+name = "kgraph_utils"
+description = "Utilities for constructing and working with Knowledge Graphs"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector"]
+backwards_compatibility = ["euclid/backwards_compatibility", "euclid/backwards_compatibility"]
+connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id"]
+
+[dependencies]
+api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+euclid = { version = "0.1.0", path = "../euclid" }
+masking = { version = "0.1.0", path = "../masking/"}
+
+serde = "1.0.163"
+serde_json = "1.0.96"
+thiserror = "1.0.43"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "evaluation"
+harness = false

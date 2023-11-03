@@ -52,9 +52,10 @@ fn get_path(name: impl AsRef<str>) -> String {
 
 // This function currently allows you to add only custom headers.
 // In future, as we scale, this can be modified based on the need
-fn insert_content<T>(dir: T, content_to_insert: T) -> io::Result<()>
+fn insert_content<T, U>(dir: T, content_to_insert: U) -> io::Result<()>
 where
     T: AsRef<Path> + std::fmt::Debug,
+    U: AsRef<str> + std::fmt::Debug,
 {
     let file_name = "event.prerequest.js";
     let file_path = dir.as_ref().join(file_name);
