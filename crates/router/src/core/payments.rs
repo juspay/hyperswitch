@@ -632,6 +632,11 @@ where
     )
     .await?;
 
+    if payment_data.payment_attempt.merchant_connector_id.is_none() {
+        payment_data.payment_attempt.merchant_connector_id =
+            merchant_connector_account.get_mca_id();
+    }
+
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
         operation,
