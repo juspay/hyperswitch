@@ -408,7 +408,11 @@ where
                                                 connector_integration.get_error_response(body)?;
                                             if router_data.connector == "bluesnap"
                                                 && error_res.status_code == 403
-                                                && error_res.message.contains("is not authorized to view merchant-transaction:")
+                                                && error_res.reason
+                                                    == Some(format!(
+                                                        "{} in bluesnap",
+                                                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                                                    ))
                                             {
                                                 router_data.status = AttemptStatus::Failure;
                                             };
