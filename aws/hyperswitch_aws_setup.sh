@@ -1,16 +1,108 @@
 #!/bin/bash
+#!/bin/bash
 
-command_discovery() {
-  type $1 > /dev/null 2> /dev/null
-  if [[ $? != 0 ]]; then
-    echo "\`$1\` command not found"
-    exit 1
-  fi
+# Function to check and install packages
+install_package() {
+    local package=$1
+    local mac_install_cmd=$2
+    local linux_install_cmd=$3
+    local post_install_cmd=$4
+
+    if ! command -v "$package" &>/dev/null; then
+        echo "Installing $package..."
+        if [ "$OS" == "Darwin" ]; then
+            eval "$mac_install_cmd"
+        elif [ "$OS" == "Linux" ]; then
+            eval "$linux_install_cmd"
+        fi
+        echo "$package installed."
+    else
+        echo "$package already installed."
+    fi
+    eval "$post_install_cmd"
 }
 
-command_discovery curl
-command_discovery aws
-command_discovery psql
+# Main script
+OS=$(uname -s)
+
+if [ "$OS" == "Darwin" ]; then
+    echo "Operating System identified as MacOS"
+
+    # Install Homebrew if not present
+    install_package "brew" \
+                    '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' \
+                    '' \
+                    'brew --version'
+
+    # Install AWS CLI if not present
+    install_package "aws" \
+                    'curl "https://awscli.amazonaws.com/awscli-exe-macos-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install' \
+                    '' \
+                    'aws --version'
+
+    # Install PostgreSQL if not present
+    install_package "psql" \
+                    'brew install postgresql' \
+                    '' \
+                    'psql --version'
+
+    # Install jq if not present
+    install_package "jq" \
+                    'brew install jq' \
+                    '' \
+                    'jq --version'
+
+    # Install curl if not present
+    install_package "curl" \
+                    'brew install curl' \
+                    '' \
+                    'curl --version'
+
+elif [ "$OS" == "Linux" ]; then
+    echo "Operating System identified as Linux"
+
+    # Detect Linux Distribution and Package Manager
+    if [ -f /etc/debian_version ]; then
+        PKG_MANAGER='apt-get'
+    elif [ -f /etc/redhat-release ]; then
+        PKG_MANAGER='yum'
+    fi
+
+    # Define Linux install commands for packages
+    LINUX_AWS_CLI_INSTALL='sudo apt-get install awscli -y || sudo yum install awscli -y'
+    LINUX_POSTGRESQL_INSTALL='sudo apt-get install postgresql postgresql-contrib -y || sudo yum install postgresql-server postgresql-contrib -y'
+    LINUX_JQ_INSTALL='sudo apt-get install jq -y || sudo yum install jq -y'
+    LINUX_CURL_INSTALL='sudo apt-get install curl -y || sudo yum install curl -y'
+
+    # Install AWS CLI if not present
+    install_package "aws" \
+                    '' \
+                    "$LINUX_AWS_CLI_INSTALL" \
+                    'aws --version'
+
+    # Install PostgreSQL if not present
+    install_package "psql" \
+                    '' \
+                    "$LINUX_POSTGRESQL_INSTALL" \
+                    'psql --version'
+
+    # Install jq if not present
+    install_package "jq" \
+                    '' \
+                    "$LINUX_JQ_INSTALL" \
+                    'jq --version'
+
+    # Install curl if not present
+    install_package "curl" \
+                    '' \
+                    "$LINUX_CURL_INSTALL" \
+                    'curl --version'
+
+else
+    echo "This script supports MacOS and Linux only."
+fi
+
+
 
 echo "Please enter the AWS region (us-east-2): "
 read REGION < /dev/tty
