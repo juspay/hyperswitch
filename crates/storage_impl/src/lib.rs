@@ -31,7 +31,7 @@ pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
     cache_store: RedisStore,
     master_encryption_key: StrongSecret<Vec<u8>>,
-    request_id: Option<String>,
+    pub request_id: Option<String>,
 }
 
 #[async_trait::async_trait]
