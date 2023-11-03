@@ -16,38 +16,7 @@ use crate::{
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PowertranzRouterData<T> {
-    pub amount: i64,
-    pub router_data: T,
-}
-
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for PowertranzRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount,
-            router_data,
-        })
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
     transaction_identifier: String,
@@ -63,7 +32,7 @@ pub struct PowertranzPaymentsRequest {
     extended_data: Option<ExtendedData>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ExtendedData {
     three_d_secure: ThreeDSecure,
@@ -71,7 +40,7 @@ pub struct ExtendedData {
     browser_info: BrowserInfo,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct BrowserInfo {
     java_enabled: Option<bool>,
@@ -98,7 +67,7 @@ pub enum Source {
     Card(PowertranzCard),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzCard {
     cardholder_name: Secret<String>,
@@ -107,7 +76,7 @@ pub struct PowertranzCard {
     card_cvv: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzAddressDetails {
     first_name: Option<Secret<String>>,
@@ -128,14 +97,10 @@ pub struct RedirectResponsePayload {
     pub spi_token: String,
 }
 
-impl TryFrom<&PowertranzRouterData<&types::PaymentsAuthorizeRouterData>>
-    for PowertranzPaymentsRequest
-{
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PowertranzRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let source = match item.router_data.request.payment_method_data.clone() {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
             api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::CardRedirect(_)
@@ -156,7 +121,7 @@ impl TryFrom<&PowertranzRouterData<&types::PaymentsAuthorizeRouterData>>
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
-        let (three_d_secure, extended_data) = match item.router_data.auth_type {
+        let (three_d_secure, extended_data) = match item.auth_type {
             diesel_models::enums::AuthenticationType::ThreeDs => {
                 (true, Some(ExtendedData::try_from(item)?))
             }
@@ -382,7 +347,7 @@ fn is_3ds_payment(response_code: String) -> bool {
 }
 
 // Type definition for Capture, Void, Refund Request
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseRequest {
     transaction_identifier: String,
@@ -416,11 +381,9 @@ impl TryFrom<&types::PaymentsCaptureData> for PowertranzBaseRequest {
     }
 }
 
-impl<F> TryFrom<&PowertranzRouterData<&types::RefundsRouterData<F>>> for PowertranzBaseRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for PowertranzBaseRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PowertranzRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let total_amount = Some(utils::to_currency_base_unit_asf64(
             item.request.refund_amount,
             item.request.currency,
