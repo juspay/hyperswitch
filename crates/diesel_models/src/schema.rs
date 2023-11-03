@@ -24,7 +24,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
