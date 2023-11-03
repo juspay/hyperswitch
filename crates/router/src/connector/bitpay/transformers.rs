@@ -139,7 +139,11 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.data.order_id.or(Some(item.response.data.id)),
+                connector_response_reference_id: item
+                    .response
+                    .data
+                    .order_id
+                    .or(Some(item.response.data.id)),
             }),
             ..item.data
         })
