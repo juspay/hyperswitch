@@ -140,7 +140,7 @@ async fn drainer_handler(
     output
 }
 
-#[instrument(skip_all, fields(global_id, request_id))]
+#[instrument(skip_all, fields(global_id, request_id, session_id))]
 async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,
