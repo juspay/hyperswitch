@@ -811,13 +811,20 @@ pub enum PaymentMethodData {
 }
 
 impl PaymentMethodData {
-    pub fn is_session_token_payment_method_type(&self) -> bool {
+    pub fn get_payment_method_type_if_session_token_type(
+        &self,
+    ) -> Option<api_enums::PaymentMethodType> {
         match self {
-            Self::Wallet(wallet) => matches!(
-                wallet,
-                WalletData::ApplePay(_) | WalletData::GooglePay(_) | WalletData::PaypalSdk(_)
-            ),
-            Self::PayLater(pay_later) => matches!(pay_later, PayLaterData::KlarnaSdk { .. }),
+            Self::Wallet(wallet) => match wallet {
+                WalletData::ApplePay(_) => Some(api_enums::PaymentMethodType::ApplePay),
+                WalletData::GooglePay(_) => Some(api_enums::PaymentMethodType::GooglePay),
+                WalletData::PaypalSdk(_) => Some(api_enums::PaymentMethodType::Paypal),
+                _ => None,
+            },
+            Self::PayLater(pay_later) => match pay_later {
+                PayLaterData::KlarnaSdk { .. } => Some(api_enums::PaymentMethodType::Klarna),
+                _ => None,
+            },
             Self::Card(_)
             | Self::CardRedirect(_)
             | Self::BankRedirect(_)
@@ -828,7 +835,7 @@ impl PaymentMethodData {
             | Self::Reward
             | Self::Upi(_)
             | Self::Voucher(_)
-            | Self::GiftCard(_) => false,
+            | Self::GiftCard(_) => None,
         }
     }
 }

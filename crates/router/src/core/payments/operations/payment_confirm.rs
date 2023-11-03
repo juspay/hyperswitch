@@ -2,12 +2,13 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion,
-    payment_methods::{self, SurchargeDetailsResponse},
+    payment_methods::{self, SurchargeDetailsResponse, SurchargeMetadata},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use futures::FutureExt;
+use redis_interface::errors::RedisError;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -337,7 +338,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm
         });
-        Ctx::validate_request_surcharge_details(&payment_attempt, request)?;
+        Self::validate_request_surcharge_details_with_session_surcharge_details(
+            state,
+            &payment_attempt,
+            request,
+        )
+        .await?;
 
         // populate payment_data.surcharge_details from request
         let surcharge_details = request
@@ -718,7 +724,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 }
 
 impl PaymentConfirm {
-    pub fn validate_request_surcharge_details_with_session_surcharge_details(
+    pub async fn validate_request_surcharge_details_with_session_surcharge_details(
+        state: &AppState,
         payment_attempt: &storage::PaymentAttempt,
         request: &api::PaymentsRequest,
     ) -> RouterResult<()> {
@@ -732,14 +739,66 @@ impl PaymentConfirm {
                         .into(),
                 })?;
 
-            if payment_method_data.is_session_token_payment_method_type()
-                && (request_surcharge_details.surcharge_amount
-                    != payment_attempt.surcharge_amount.unwrap_or(0)
-                    || request_surcharge_details.tax_amount != payment_attempt.tax_amount)
+            if let Some(payment_method_type) =
+                payment_method_data.get_payment_method_type_if_session_token_type()
             {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "surcharge_details sent in session token flow doesn't match with the one sent in confirm request".into(),
-                    }.into());
+                let invalid_surcharge_details_error = Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "surcharge_details sent in session token flow doesn't match with the one sent in confirm request".into(),
+                }.into());
+                if let Some(attempt_surcharge_amount) = payment_attempt.surcharge_amount {
+                    // payment_attempt.surcharge_amount will be Some if some surcharge was sent in payment create
+                    // if surcharge was sent in payment create call, the same would have been sent to the connector during session call
+                    // So verify the same
+                    if request_surcharge_details.surcharge_amount != attempt_surcharge_amount
+                        || request_surcharge_details.tax_amount != payment_attempt.tax_amount
+                    {
+                        return invalid_surcharge_details_error;
+                    }
+                } else {
+                    // is not sent in payment create
+                    // verify that any generated surcharge sent in session flow is same as the one sent in confirm
+                    let redis_conn = state
+                        .store
+                        .get_redis_conn()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get redis connection")?;
+                    let redis_key = SurchargeMetadata::get_consolidated_key(
+                        &payment_method_type.into(),
+                        &payment_method_type,
+                        None,
+                        &payment_attempt.attempt_id,
+                    );
+                    match redis_conn
+                        .get_and_deserialize_key::<SurchargeDetailsResponse>(
+                            &redis_key,
+                            "SurchargeMetada",
+                        )
+                        .await
+                    {
+                        Ok(surcharge_details) => {
+                            if surcharge_details
+                                .is_request_surcharge_matching(request_surcharge_details)
+                            {
+                                return Ok(());
+                            } else {
+                                return invalid_surcharge_details_error;
+                            }
+                        }
+                        Err(err) if err.current_context() == &RedisError::NotFound => {
+                            if request_surcharge_details.surcharge_amount == 0
+                                && request_surcharge_details.tax_amount.unwrap_or(0) == 0
+                            {
+                                return Ok(());
+                            } else {
+                                return invalid_surcharge_details_error;
+                            }
+                        }
+                        Err(_) => {
+                            return Err(errors::ApiErrorResponse::InternalServerError.into())
+                                .attach_printable("Failed to fetch redis value");
+                        }
+                    }
+                }
             }
         }
         Ok(())

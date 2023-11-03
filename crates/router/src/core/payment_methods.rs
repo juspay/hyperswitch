@@ -11,10 +11,7 @@ use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
 
 use crate::{
-    core::{
-        errors::RouterResult,
-        payments::{helpers, PaymentConfirm},
-    },
+    core::{errors::RouterResult, payments::helpers},
     routes::AppState,
     types::api::{self, payments},
 };
@@ -29,13 +26,6 @@ pub trait PaymentMethodRetrieve {
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)>;
-
-    fn validate_request_surcharge_details(
-        _payment_attempt: &PaymentAttempt,
-        _payment_request: &payments::PaymentsRequest,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
 }
 
 #[async_trait::async_trait]
@@ -105,14 +95,5 @@ impl PaymentMethodRetrieve for Oss {
             }
             _ => Ok((None, None)),
         }
-    }
-    fn validate_request_surcharge_details(
-        payment_attempt: &PaymentAttempt,
-        payment_request: &payments::PaymentsRequest,
-    ) -> RouterResult<()> {
-        PaymentConfirm::validate_request_surcharge_details_with_session_surcharge_details(
-            payment_attempt,
-            payment_request,
-        )
     }
 }
