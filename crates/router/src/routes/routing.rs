@@ -2,11 +2,10 @@
 //!
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
+use actix_web::{web, HttpRequest, Responder};
 use api_models::routing as routing_types;
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
-
-use actix_web::{web, HttpRequest, Responder};
 use router_env::{
     tracing::{self, instrument},
     Flow,
