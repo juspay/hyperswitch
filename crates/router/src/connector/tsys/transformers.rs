@@ -67,9 +67,11 @@ pub struct TsysPaymentAuthSaleRequest {
     order_number: String,
 }
 
-impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
+impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData>> for TsysPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &TsysRouterData<&types::PaymentsAuthorizeRouterData>>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &TsysRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let connector_auth: TsysAuthType =
@@ -491,7 +493,7 @@ pub struct TsysRefundRequest {
 
 impl<F> TryFrom<&TsysRouterData::RefundsRouterData<F>> for TsysRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item:&TsysRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &TsysRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let return_request = TsysReturnRequest {
             device_id: connector_auth.device_id,
