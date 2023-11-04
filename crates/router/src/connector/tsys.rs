@@ -474,6 +474,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data = tsys::TsysRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
         let req_obj = tsys::TsysRefundRequest::try_from(req)?;
         let tsys_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
