@@ -23,7 +23,7 @@ struct Args {
     #[arg(short, long)]
     connector_name: String,
     /// Custom headers
-    #[arg(long = "header")]
+    #[arg(short = 'H', long = "header")]
     custom_headers: Option<Vec<String>>,
     /// Minimum delay in milliseconds to be added before sending a request
     /// By default, 7 milliseconds will be the delay
@@ -72,7 +72,7 @@ where
     Ok(())
 }
 
-pub fn command_generate() -> ReturnArgs {
+pub fn generate_newman_command() -> ReturnArgs {
     let args = Args::parse();
 
     let connector_name = args.connector_name;
@@ -197,14 +197,9 @@ pub fn command_generate() -> ReturnArgs {
     let mut modified = false;
     if let Some(headers) = &args.custom_headers {
         for header in headers {
-            if let Some((key, value)) = header
-                .splitn(2, ':')
-                .collect::<Vec<_>>()
-                .as_slice()
-                .split_first()
-            {
+            if let Some((key, value)) = header.split_once(':') {
                 let content_to_insert = format!(
-                    "pm.request.headers.add({{key: \"{}\", value: \"{:#?}\"}});",
+                    r#"pm.request.headers.add({{key: "{}", value: "{:#?}"}});"#,
                     key, value
                 );
                 if insert_content(&collection_path, &content_to_insert).is_ok() {

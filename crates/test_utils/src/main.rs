@@ -3,7 +3,7 @@ use std::process::{exit, Command};
 use test_utils::newman_runner;
 
 fn main() {
-    let mut runner = newman_runner::command_generate();
+    let mut runner = newman_runner::generate_newman_command();
 
     // Execute the newman command
     let output = runner.newman_command.spawn();
@@ -19,9 +19,7 @@ fn main() {
     if runner.file_modified_flag {
         let git_status = Command::new("git")
             .args([
-                "checkout",
-                "HEAD",
-                "--",
+                "restore",
                 format!("{}/event.prerequest.js", runner.collection_path).as_str(),
             ])
             .output();
