@@ -621,8 +621,10 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &routes::AppState,
         lookup_key: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
-        let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
+        let de_tokenize =
+            get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payment_method, customer_id) =
             api::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -670,8 +672,10 @@ impl Vault {
     pub async fn get_payout_method_data_from_temporary_locker(
         state: &routes::AppState,
         lookup_key: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
-        let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
+        let de_tokenize =
+            get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payout_method, supp_data) =
             api::PayoutMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -731,30 +735,6 @@ impl Vault {
 
 //------------------------------------------------TokenizeService------------------------------------------------
 
-fn get_redis_temp_locker_encryption_key(_state: &routes::AppState) -> RouterResult<Vec<u8>> {
-    #[cfg(feature = "kms")]
-    let secret = state
-        .kms_secrets
-        .redis_temp_locker_encryption_key
-        .peek()
-        .to_owned();
-
-    #[cfg(not(feature = "kms"))]
-    let secret = Vec::new();
-    // let secret = hex::decode(
-    //     state
-    //         .conf
-    //         .locker
-    //         .redis_temp_locker_encryption_key
-    //         .to_owned(),
-    // )
-    // .into_report()
-    // .change_context(errors::ApiErrorResponse::InternalServerError)
-    // .attach_printable("Failed to decode redis temp locker data")?;
-
-    Ok(secret)
-}
-
 #[instrument(skip(state, value1, value2))]
 pub async fn create_tokenize(
     state: &routes::AppState,
@@ -779,10 +759,8 @@ pub async fn create_tokenize(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let secret = get_redis_temp_locker_encryption_key(state)?;
-
     let encrypted_payload = GcmAes256
-        .encode_message(secret.as_ref(), payload.as_bytes())
+        .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encode redis temp locker data")?;
 
@@ -813,6 +791,7 @@ pub async fn get_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
     _should_get_value2: bool,
+    encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<api::TokenizePayloadRequest> {
     metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
 
@@ -828,10 +807,11 @@ pub async fn get_tokenized_data(
 
     match response {
         Ok(resp) => {
-            let secret = get_redis_temp_locker_encryption_key(state)?;
-
             let decrypted_payload = GcmAes256
-                .decode_message(secret.as_ref(), masking::Secret::new(resp.into()))
+                .decode_message(
+                    encryption_key.peek().as_ref(),
+                    masking::Secret::new(resp.into()),
+                )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to decode redis temp locker data")?;
 

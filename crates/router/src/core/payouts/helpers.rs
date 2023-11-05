@@ -68,14 +68,16 @@ pub async fn make_payout_method_data<'a>(
     match (payout_method_data.to_owned(), hyperswitch_token) {
         // Get operation
         (None, Some(payout_token)) => {
-            let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
-                state,
-                &payout_token,
-            )
-            .await
-            .attach_printable(
-                "Payout method for given token not found or there was a problem fetching it",
-            )?;
+            let (pm, supplementary_data) =
+                vault::Vault::get_payout_method_data_from_temporary_locker(
+                    state,
+                    &payout_token,
+                    merchant_key_store,
+                )
+                .await
+                .attach_printable(
+                    "Payout method for given token not found or there was a problem fetching it",
+                )?;
             utils::when(
                 supplementary_data
                     .customer_id
