@@ -220,8 +220,14 @@ pub struct NoonPaymentsRequest {
 
 impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &NoonRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        let (payment_data, currency, category) = match item.router_data.request.connector_mandate_id() {
+    fn try_from(
+        item: &NoonRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let (payment_data, currency, category) = match item
+            .router_data
+            .request
+            .connector_mandate_id()
+        {
             Some(subscription_identifier) => (
                 NoonPaymentData::Subscription(NoonSubscription {
                     subscription_identifier,
@@ -358,19 +364,26 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
                 },
             });
 
-        let (subscription, tokenize_c_c) =
-            match item.router_data.request.setup_future_usage.is_some().then_some((
+        let (subscription, tokenize_c_c) = match item
+            .router_data
+            .request
+            .setup_future_usage
+            .is_some()
+            .then_some((
                 NoonSubscriptionData {
                     subscription_type: NoonSubscriptionType::Unscheduled,
                     name: name.clone(),
                 },
                 true,
             )) {
-                Some((a, b)) => (Some(a), Some(b)),
-                None => (None, None),
-            };
+            Some((a, b)) => (Some(a), Some(b)),
+            None => (None, None),
+        };
         let order = NoonOrder {
-            amount: conn_utils::to_currency_base_unit(item.router_data.request.amount, item.router_data.request.currency)?,
+            amount: conn_utils::to_currency_base_unit(
+                item.router_data.request.amount,
+                item.router_data.request.currency,
+            )?,
             currency,
             channel,
             category,
