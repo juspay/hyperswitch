@@ -178,7 +178,7 @@ pub enum NoonApiOperations {
 
 #[derive(Debug, Serialize)]
 pub struct NoonRouterData<T> {
-    pub amount: i64,
+    pub amount: String,
     pub router_data: T,
 }
 
@@ -200,6 +200,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
+        let amount = conn_utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data,
