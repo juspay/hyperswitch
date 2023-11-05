@@ -14,7 +14,7 @@ pm.test("[POST]::/accounts - Content-Type is application/json", function () {
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) {}
+} catch (e) { }
 
 // pm.collectionVariables - Set merchant_id as variable for jsonData.merchant_id
 if (jsonData?.merchant_id) {
@@ -54,3 +54,24 @@ if (jsonData?.publishable_key) {
     "INFO - Unable to assign variable {{publishable_key}}, as jsonData.publishable_key is undefined.",
   );
 }
+
+// pm.collectionVariables - Set merchant_id as variable for jsonData.merchant_id
+if (jsonData?.merchant_id) {
+  pm.collectionVariables.set("organization_id", jsonData.organization_id);
+  console.log(
+    "- use {{organization_id}} as collection variable for value",
+    jsonData.organization_id,
+  );
+} else {
+  console.log(
+    "INFO - Unable to assign variable {{organization_id}}, as jsonData.organization_id is undefined.",
+  );
+}
+
+// Response body should have "mandate_id"
+pm.test(
+  "[POST]::/accounts - Organization id is generated",
+  function () {
+    pm.expect(typeof jsonData.organization_id !== "undefined").to.be.true;
+  },
+);

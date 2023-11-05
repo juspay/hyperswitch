@@ -31,7 +31,10 @@ use crate::{
             transformers::{self as payment_methods},
             vault,
         },
-        payments::helpers,
+        payments::{
+            helpers,
+            routing::{self, SessionFlowRoutingInput},
+        },
     },
     db, logger,
     pii::prelude::*,
@@ -42,7 +45,7 @@ use crate::{
     },
     services,
     types::{
-        api::{self, PaymentMethodCreateExt},
+        api::{self, routing as routing_types, PaymentMethodCreateExt},
         domain::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
@@ -54,6 +57,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::PaymentMethodCreate,
@@ -62,7 +66,12 @@ pub async fn create_payment_method(
     merchant_id: &str,
     pm_metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
-) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
+    key_store: &domain::MerchantKeyStore,
+) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
+    db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id: customer_id.to_string(),
@@ -76,7 +85,9 @@ pub async fn create_payment_method(
             payment_method_data,
             ..storage::PaymentMethodNew::default()
         })
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
 
     Ok(response)
 }
@@ -141,10 +152,9 @@ pub async fn add_payment_method(
             &resp.merchant_id,
             pm_metadata.cloned(),
             pm_data_encrypted,
+            key_store,
         )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to save Payment Method")?;
+        .await?;
     }
 
     Ok(resp).map(services::ApplicationResponse::Json)
@@ -852,7 +862,7 @@ pub async fn list_payment_methods(
             db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &pi.payment_id,
                 &pi.merchant_id,
-                &pi.active_attempt_id,
+                &pi.active_attempt.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -860,6 +870,19 @@ pub async fn list_payment_methods(
         })
         .await
         .transpose()?;
+
+    let payment_type = payment_attempt.as_ref().map(|pa| {
+        let amount = api::Amount::from(pa.amount);
+        let mandate_type = if pa.mandate_id.is_some() {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if pa.mandate_details.is_some() {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        helpers::infer_payment_type(&amount, mandate_type.as_ref())
+    });
 
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -913,6 +936,135 @@ pub async fn list_payment_methods(
         .await?;
     }
 
+    if let Some((payment_attempt, payment_intent)) =
+        payment_attempt.as_ref().zip(payment_intent.as_ref())
+    {
+        let routing_enabled_pms = HashSet::from([
+            api_enums::PaymentMethod::BankTransfer,
+            api_enums::PaymentMethod::BankDebit,
+            api_enums::PaymentMethod::BankRedirect,
+        ]);
+
+        let routing_enabled_pm_types = HashSet::from([
+            api_enums::PaymentMethodType::GooglePay,
+            api_enums::PaymentMethodType::ApplePay,
+            api_enums::PaymentMethodType::Klarna,
+            api_enums::PaymentMethodType::Paypal,
+        ]);
+
+        let mut chosen = Vec::<api::SessionConnectorData>::new();
+        for intermediate in &response {
+            if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
+                || routing_enabled_pms.contains(&intermediate.payment_method)
+            {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.clone().conf.connectors,
+                    &intermediate.connector,
+                    api::GetToken::from(intermediate.payment_method_type),
+                    None,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("invalid connector name received")?;
+
+                chosen.push(api::SessionConnectorData {
+                    payment_method_type: intermediate.payment_method_type,
+                    connector: connector_data,
+                    business_sub_label: None,
+                });
+            }
+        }
+        let sfr = SessionFlowRoutingInput {
+            state: &state,
+            country: shipping_address.clone().and_then(|ad| ad.country),
+            key_store: &key_store,
+            merchant_account: &merchant_account,
+            payment_attempt,
+            payment_intent,
+            chosen,
+        };
+        let result = routing::perform_session_flow_routing(sfr)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing session flow routing")?;
+
+        response.retain(|intermediate| {
+            if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
+                && !routing_enabled_pms.contains(&intermediate.payment_method)
+            {
+                return true;
+            }
+
+            if let Some(choice) = result.get(&intermediate.payment_method_type) {
+                intermediate.connector == choice.connector.connector_name.to_string()
+            } else {
+                false
+            }
+        });
+
+        let mut routing_info: storage::PaymentRoutingInfo = payment_attempt
+            .straight_through_algorithm
+            .clone()
+            .map(|val| val.parse_value("PaymentRoutingInfo"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid PaymentRoutingInfo format found in payment attempt")?
+            .unwrap_or_else(|| storage::PaymentRoutingInfo {
+                algorithm: None,
+                pre_routing_results: None,
+            });
+
+        let mut pre_routing_results: HashMap<
+            api_enums::PaymentMethodType,
+            routing_types::RoutableConnectorChoice,
+        > = HashMap::new();
+
+        for (pm_type, choice) in result {
+            let routable_choice = routing_types::RoutableConnectorChoice {
+                #[cfg(feature = "backwards_compatibility")]
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: choice
+                    .connector
+                    .connector_name
+                    .to_string()
+                    .parse()
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("")?,
+                #[cfg(feature = "connector_choice_mca_id")]
+                merchant_connector_id: choice.connector.merchant_connector_id,
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                sub_label: choice.sub_label,
+            };
+
+            pre_routing_results.insert(pm_type, routable_choice);
+        }
+
+        routing_info.pre_routing_results = Some(pre_routing_results);
+
+        let encoded = utils::Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_info)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to serialize payment routing info to value")?;
+
+        let attempt_update = storage::PaymentAttemptUpdate::UpdateTrackers {
+            payment_token: None,
+            connector: None,
+            straight_through_algorithm: Some(encoded),
+            amount_capturable: None,
+            updated_by: merchant_account.storage_scheme.to_string(),
+            merchant_connector_id: None,
+        };
+
+        state
+            .store
+            .update_payment_attempt_with_attempt_id(
+                payment_attempt.clone(),
+                attempt_update,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    }
+
     let req = api_models::payments::PaymentsRequest::foreign_from((
         payment_attempt.as_ref(),
         shipping_address.as_ref(),
@@ -964,9 +1116,7 @@ pub async fn list_payment_methods(
                     .0
                     .get(&payment_method_type)
                     .map(|required_fields_hm_for_each_connector| {
-                        required_fields_hm
-                            .entry(payment_method)
-                            .or_insert(HashMap::new());
+                        required_fields_hm.entry(payment_method).or_default();
                         required_fields_hm_for_each_connector
                             .fields
                             .get(&connector_variant)
@@ -1143,6 +1293,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1160,6 +1311,7 @@ pub async fn list_payment_methods(
                 card_network_types.push(CardNetworkTypes {
                     card_network: card_network_type.0.clone(),
                     eligible_connectors: card_network_type.1.clone(),
+                    surcharge_details: None,
                 })
             }
 
@@ -1175,6 +1327,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1203,6 +1356,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankRedirect)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1234,6 +1388,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankDebit)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1265,6 +1420,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankTransfer)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1280,6 +1436,7 @@ pub async fn list_payment_methods(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
+            payment_type,
             payment_methods: payment_method_responses,
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
@@ -1306,6 +1463,7 @@ pub async fn list_payment_methods(
                     }
                 },
             ),
+            show_surcharge_breakup_screen: false,
         },
     ))
 }
@@ -1332,9 +1490,11 @@ pub async fn filter_payment_methods(
                     payment_intent
                         .allowed_payment_method_types
                         .clone()
-                        .parse_value("Vec<PaymentMethodType>")
-                        .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"))
-                        .ok()
+                        .map(|val| val.parse_value("Vec<PaymentMethodType>"))
+                        .transpose()
+                        .unwrap_or_else(|error| {
+                            logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"); None
+                        })
                 });
 
             for payment_method_type_info in payment_methods_enabled
@@ -1954,8 +2114,9 @@ async fn get_card_details(
             .flatten()
             .map(|x| x.into_inner().expose())
             .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-            .map(|pmd| match pmd {
-                PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
             });
 
     Ok(Some(

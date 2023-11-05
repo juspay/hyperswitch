@@ -6,10 +6,10 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{api_locking::GetLockingInput, payments},
+    core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
     routes,
     services::{api, authentication as auth},
-    types::api::{self as api_types},
+    types::api as api_types,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -50,7 +50,8 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            let eligible_connectors = req.connector.clone();
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -58,6 +59,7 @@ pub async fn payment_intents_create(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -109,7 +111,7 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -117,6 +119,7 @@ pub async fn payment_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -172,7 +175,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -180,6 +183,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                    None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -236,7 +240,8 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            let eligible_connectors = req.connector.clone();
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -244,6 +249,7 @@ pub async fn payment_intents_update(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -302,7 +308,8 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            let eligible_connectors = req.connector.clone();
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -310,6 +317,7 @@ pub async fn payment_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -358,7 +366,7 @@ pub async fn payment_intents_capture(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _,Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -366,6 +374,7 @@ pub async fn payment_intents_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                    None,
                 api_types::HeaderPayload::default(),
             )
         },
@@ -418,7 +427,7 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -426,6 +435,7 @@ pub async fn payment_intents_cancel(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 api_types::HeaderPayload::default(),
             )
         },

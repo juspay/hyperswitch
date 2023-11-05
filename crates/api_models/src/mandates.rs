@@ -19,7 +19,7 @@ pub struct MandateRevokedResponse {
     pub status: api_enums::MandateStatus,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone)]
 pub struct MandateResponse {
     /// The identifier for mandate
     pub mandate_id: String,
@@ -37,7 +37,7 @@ pub struct MandateResponse {
     pub customer_acceptance: Option<payments::CustomerAcceptance>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone)]
 pub struct MandateCardDetails {
     /// The last 4 digits of card
     pub last4_digits: Option<String>,
@@ -62,7 +62,7 @@ pub struct MandateCardDetails {
     pub card_fingerprint: Option<Secret<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MandateListConstraints {
     /// limit on the number of objects to return

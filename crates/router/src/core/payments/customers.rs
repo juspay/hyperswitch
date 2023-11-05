@@ -121,7 +121,7 @@ pub async fn update_connector_customer_in_customers(
         .and_then(|customer| customer.connector_customer.as_ref())
         .and_then(|connector_customer| connector_customer.as_object())
         .map(ToOwned::to_owned)
-        .unwrap_or(serde_json::Map::new());
+        .unwrap_or_default();
 
     let updated_connector_customer_map =
         connector_customer_id.as_ref().map(|connector_customer_id| {

@@ -11,6 +11,7 @@ pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
@@ -36,6 +37,13 @@ pub struct AccessTokenAuth;
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
+}
+
+#[derive(Clone)]
+pub enum ConnectorCallType {
+    PreDetermined(ConnectorData),
+    Retryable(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
 }
 
 #[derive(Clone, Debug)]
@@ -171,11 +179,15 @@ pub enum GetToken {
     Connector,
 }
 
+/// Routing algorithm will output merchant connector identifier instead of connector name
+/// In order to support backwards compatibility for older routing algorithms and merchant accounts
+/// the support for connector name is retained
 #[derive(Clone)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
     pub get_token: GetToken,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -214,23 +226,11 @@ pub enum PayoutConnectorChoice {
     Decide,
 }
 
-#[derive(Clone)]
-pub enum ConnectorCallType {
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
-}
-
 #[cfg(feature = "payouts")]
 #[derive(Clone)]
 pub enum PayoutConnectorCallType {
     Multiple(Vec<PayoutSessionConnectorData>),
     Single(PayoutConnectorData),
-}
-
-impl ConnectorCallType {
-    pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
 }
 
 #[cfg(feature = "payouts")]
@@ -276,6 +276,7 @@ impl ConnectorData {
         connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
+        connector_id: Option<String>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
@@ -287,6 +288,7 @@ impl ConnectorData {
             connector,
             connector_name,
             get_token: connector_type,
+            merchant_connector_id: connector_id,
         })
     }
 
@@ -330,7 +332,7 @@ impl ConnectorData {
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
                 enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
-                //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
+                enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
@@ -342,6 +344,7 @@ impl ConnectorData {
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
+                // enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),
@@ -355,6 +358,7 @@ impl ConnectorData {
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
+                enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)

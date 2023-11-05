@@ -184,7 +184,19 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             });
 
         let routing = routable_connector
-            .map(api_types::RoutingAlgorithm::Single)
+            .map(|connector| {
+                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                    api_models::routing::RoutableConnectorChoice {
+                        #[cfg(feature = "backwards_compatibility")]
+                        choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                        connector,
+                        #[cfg(feature = "connector_choice_mca_id")]
+                        merchant_connector_id: None,
+                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                        sub_label: None,
+                    },
+                ))
+            })
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()
@@ -438,6 +450,7 @@ pub struct StripeSetupIntentResponse {
     pub next_action: Option<StripeNextAction>,
     pub last_payment_error: Option<LastPaymentError>,
     pub charges: payment_intent::Charges,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
@@ -501,6 +514,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
                     error_type: code,
                 }
             }),
+            connector_transaction_id: resp.connector_transaction_id,
         }
     }
 }

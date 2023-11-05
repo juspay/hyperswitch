@@ -91,7 +91,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
-    //Helcim, added as template code for future usage,
+    Helcim,
     Iatapay,
     Klarna,
     Mollie,
@@ -107,6 +107,7 @@ pub enum Connector {
     Paypal,
     Payu,
     Powertranz,
+    // Prophetpay, added as a template code for future usage
     Rapyd,
     Shift4,
     Square,
@@ -115,6 +116,7 @@ pub enum Connector {
     Trustpay,
     // Tsys,
     Tsys,
+    Volt,
     Wise,
     Worldline,
     Worldpay,
@@ -133,6 +135,7 @@ impl Connector {
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
+                | (Self::Volt, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -208,7 +211,7 @@ pub enum RoutableConnectors {
     Globalpay,
     Globepay,
     Gocardless,
-    //Helcim, added as template code for future usage,
+    Helcim,
     Iatapay,
     Klarna,
     Mollie,
@@ -224,6 +227,7 @@ pub enum RoutableConnectors {
     Paypal,
     Payu,
     Powertranz,
+    // Prophetpay, added as a template code for future usage
     Rapyd,
     Shift4,
     Square,
@@ -232,6 +236,7 @@ pub enum RoutableConnectors {
     Trustpay,
     // Tsys,
     Tsys,
+    Volt,
     Wise,
     Worldline,
     Worldpay,

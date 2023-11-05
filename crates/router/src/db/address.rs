@@ -1,5 +1,4 @@
-use data_models::MerchantStorageScheme;
-use diesel_models::address::AddressUpdateInternal;
+use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -26,6 +25,15 @@ where
         address_id: String,
         address: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Address, errors::StorageError>;
+
+    async fn update_address_for_payments(
+        &self,
+        this: domain::Address,
+        address: domain::AddressUpdate,
+        payment_id: String,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn find_address_by_address_id(
@@ -69,7 +77,6 @@ where
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use data_models::MerchantStorageScheme;
     use error_stack::{IntoReport, ResultExt};
     use router_env::{instrument, tracing};
 
@@ -83,7 +90,7 @@ mod storage {
                 self,
                 behaviour::{Conversion, ReverseConversion},
             },
-            storage::{self as storage_types},
+            storage::{self as storage_types, enums::MerchantStorageScheme},
         },
     };
     #[async_trait::async_trait]
@@ -143,6 +150,32 @@ mod storage {
         ) -> CustomResult<domain::Address, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
+                .await
+                .map_err(Into::into)
+                .into_report()
+                .async_and_then(|address| async {
+                    address
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+                .await
+        }
+
+        async fn update_address_for_payments(
+            &self,
+            this: domain::Address,
+            address_update: domain::AddressUpdate,
+            _payment_id: String,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Address, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            let address = Conversion::convert(this)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
+            address
+                .update(&conn, address_update.into())
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -240,11 +273,11 @@ mod storage {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use data_models::MerchantStorageScheme;
+    use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{PartitionKey, RedisConnInterface};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::AddressInterface;
     use crate::{
@@ -304,12 +337,18 @@ mod storage {
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", address_id);
                     db_utils::try_redis_get_else_try_database_get(
-                        self.get_redis_conn()
-                            .change_context(errors::StorageError::DatabaseConnectionError)?
-                            .get_hash_field_and_deserialize(&key, &field, "Address"),
+                        async {
+                            kv_wrapper(
+                                self,
+                                KvOperation::<diesel_models::Address>::HGet(&field),
+                                key,
+                            )
+                            .await?
+                            .try_into_hget()
+                        },
                         database_call,
                     )
                     .await
@@ -342,6 +381,74 @@ mod storage {
                 .await
         }
 
+        async fn update_address_for_payments(
+            &self,
+            this: domain::Address,
+            address_update: domain::AddressUpdate,
+            payment_id: String,
+            key_store: &domain::MerchantKeyStore,
+            storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Address, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            let address = Conversion::convert(this)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
+            match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => {
+                    address
+                        .update(&conn, address_update.into())
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                        .async_and_then(|address| async {
+                            address
+                                .convert(key_store.key.get_inner())
+                                .await
+                                .change_context(errors::StorageError::DecryptionError)
+                        })
+                        .await
+                }
+                MerchantStorageScheme::RedisKv => {
+                    let key = format!("mid_{}_pid_{}", address.merchant_id.clone(), payment_id);
+                    let field = format!("add_{}", address.address_id);
+                    let updated_address = AddressUpdateInternal::from(address_update.clone())
+                        .create_address(address.clone());
+                    let redis_value = serde_json::to_string(&updated_address)
+                        .into_report()
+                        .change_context(errors::StorageError::KVError)?;
+
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Update {
+                            updatable: kv::Updateable::AddressUpdate(Box::new(
+                                kv::AddressUpdateMems {
+                                    orig: address,
+                                    update_data: address_update.into(),
+                                },
+                            )),
+                        },
+                    };
+
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_types::Address>(
+                            (&field, redis_value),
+                            redis_entry,
+                        ),
+                        &key,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
+                    .change_context(errors::StorageError::KVError)?;
+
+                    updated_address
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }
+            }
+        }
+
         async fn insert_address_for_payments(
             &self,
             payment_id: &str,
@@ -372,7 +479,7 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
                         id: Some(0i32),
@@ -393,39 +500,37 @@ mod storage {
                         customer_id: address_new.customer_id.clone(),
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
+                        updated_by: storage_scheme.to_string(),
                     };
-                    match self
-                        .get_redis_conn()
-                        .map_err(Into::<errors::StorageError>::into)?
-                        .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_address)
-                        .await
+
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::Address(Box::new(address_new)),
+                        },
+                    };
+
+                    match kv_wrapper::<diesel_models::Address, _, _>(
+                        self,
+                        KvOperation::HSetNx::<diesel_models::Address>(
+                            &field,
+                            &created_address,
+                            redis_entry,
+                        ),
+                        &key,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
-                            key: Some(address_new.address_id),
+                            key: Some(created_address.address_id),
                         })
                         .into_report(),
-                        Ok(HsetnxReply::KeySet) => {
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::Address(Box::new(address_new)),
-                                },
-                            };
-                            self.push_to_drainer_stream::<diesel_models::Address>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentId {
-                                    merchant_id: &merchant_id,
-                                    payment_id,
-                                },
-                            )
+                        Ok(HsetnxReply::KeySet) => Ok(created_address
+                            .convert(key_store.key.get_inner())
                             .await
-                            .change_context(errors::StorageError::KVError)?;
-
-                            Ok(created_address
-                                .convert(key_store.key.get_inner())
-                                .await
-                                .change_context(errors::StorageError::DecryptionError)?)
-                        }
+                            .change_context(errors::StorageError::DecryptionError)?),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -574,6 +679,37 @@ impl AddressInterface for MockDb {
         }
     }
 
+    async fn update_address_for_payments(
+        &self,
+        this: domain::Address,
+        address_update: domain::AddressUpdate,
+        _payment_id: String,
+        key_store: &domain::MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Address, errors::StorageError> {
+        match self
+            .addresses
+            .lock()
+            .await
+            .iter_mut()
+            .find(|address| address.address_id == this.address_id)
+            .map(|a| {
+                let address_updated =
+                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                *a = address_updated.clone();
+                address_updated
+            }) {
+            Some(address_updated) => address_updated
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find address to update".to_string(),
+            )
+            .into()),
+        }
+    }
+
     async fn insert_address_for_payments(
         &self,
         _payment_id: &str,
@@ -627,7 +763,8 @@ impl AddressInterface for MockDb {
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == customer_id && address.merchant_id == merchant_id
+                address.customer_id == Some(customer_id.to_string())
+                    && address.merchant_id == merchant_id
             })
             .map(|a| {
                 let address_updated =

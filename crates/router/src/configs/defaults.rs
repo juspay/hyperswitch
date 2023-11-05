@@ -29,6 +29,7 @@ impl Default for super::settings::Database {
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
+            queue_strategy: Default::default(),
         }
     }
 }
@@ -99,6 +100,13 @@ impl Default for super::settings::DrainerSettings {
             shutdown_interval: 1000,
             loop_interval: 500,
         }
+    }
+}
+
+#[cfg(feature = "kv_store")]
+impl Default for super::settings::KvConfig {
+    fn default() -> Self {
+        Self { ttl: 900 }
     }
 }
 

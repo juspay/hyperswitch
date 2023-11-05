@@ -122,12 +122,12 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Aci {}
+impl api::MandateSetup for Aci {}
 
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Aci
 {

@@ -27,7 +27,7 @@
         "card_exp_year": "25",
         "card_holder_name": "John Doe"
       },
-      "customer_id": "cus_mnewerunwiuwiwqw",
+      "customer_id": "{{customer_id}}",
       "metadata": {
         "city": "NY",
         "unit": "245"
