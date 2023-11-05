@@ -30,7 +30,9 @@ impl ConnectorCommon for Aci {
     fn id(&self) -> &'static str {
         "aci"
     }
-
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
     }
@@ -279,7 +281,13 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         // encode only for for urlencoded things.
-        let connector_req = aci::AciPaymentsRequest::try_from(req)?;
+        let connector_router_data = aci::AciRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
         let aci_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<aci::AciPaymentsRequest>::url_encode,
@@ -471,7 +479,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = aci::AciRefundRequest::try_from(req)?;
+        let connector_router_data = aci::AciRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = aci::AciRefundRequest::try_from(&connector_router_data)?;
         let body = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<aci::AciRefundRequest>::url_encode,
