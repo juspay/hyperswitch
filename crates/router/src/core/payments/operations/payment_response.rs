@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::ResultExt;
 use futures::FutureExt;
 use router_derive;
 use router_env::{instrument, tracing};
+use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
 use super::{Operation, PostUpdateTracker};
@@ -29,8 +31,6 @@ use crate::{
     },
     utils,
 };
-use storage_impl::DataModelExt;
-use data_models::payments::payment_attempt::PaymentAttempt;
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
@@ -592,8 +592,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_payment_attempt_update = payment_attempt_update.clone();
     let m_payment_attempt = payment_attempt.clone();
 
-    let payment_attempt = match payment_attempt_update{
-        Some(payment_attempt_update) => PaymentAttempt::from_storage_model(payment_attempt_update.to_storage_model().apply_changeset(payment_attempt.clone().to_storage_model())),
+    let payment_attempt = match payment_attempt_update {
+        Some(payment_attempt_update) => PaymentAttempt::from_storage_model(
+            payment_attempt_update
+                .to_storage_model()
+                .apply_changeset(payment_attempt.clone().to_storage_model()),
+        ),
         None => payment_attempt,
     };
 
@@ -623,11 +627,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_connector_response_update = connector_response_update.clone();
     let m_connector_response = connector_response.clone();
 
-    let connector_response = match connector_response_update{
-        Some(connector_response_update) => connector_response_update.apply_changeset(connector_response.clone()),
+    let connector_response = match connector_response_update {
+        Some(connector_response_update) => {
+            connector_response_update.apply_changeset(connector_response.clone())
+        }
         None => connector_response,
     };
-    
+
     let connector_response_fut = tokio::spawn(
         async move {
             Box::pin(async move {
