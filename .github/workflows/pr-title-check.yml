@@ -41,8 +41,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.AUTO_RELEASE_PAT }}
 
       - name: Store PR title in a file
         shell: bash
