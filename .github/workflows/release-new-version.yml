@@ -76,7 +76,7 @@ jobs:
           done
 
           if git add postman && ! git diff --staged --quiet postman; then
-            git commit -am 'test(postman): update postman collection files'
+            git commit --message 'test(postman): update postman collection files'
             echo "Changes detected and commited."
           fi
 
