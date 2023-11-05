@@ -628,19 +628,19 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
+impl<F> TryFrom<&NoonRouterData<&types::RefundsRouterData<F>>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &NoonRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
-            id: item.request.connector_transaction_id.clone(),
+            id: item.router_data.request.connector_transaction_id.clone(),
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
+                item.router_data.request.refund_amount,
+                item.router_data.request.currency,
             )?,
-            currency: item.request.currency,
-            transaction_reference: Some(item.request.refund_id.clone()),
+            currency: item.router_data.request.currency,
+            transaction_reference: Some(item.router_data.request.refund_id.clone()),
         };
         Ok(Self {
             api_operation: NoonApiOperations::Refund,
