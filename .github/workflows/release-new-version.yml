@@ -76,14 +76,11 @@ jobs:
           done
 
           if git diff --quiet && git diff --staged --quiet; then
-              echo "No changes detected."
-          elif git add postman; then
-              echo "Changes have been staged."
-          elif git commit -am 'test(postman): update postman collection files'; then
-              echo "Committed changes."
-          else
-              echo "Unable to commit the following changes:"
-              git diff
+            echo "No changes detected."
+          else 
+            if git add postman && ! git diff --staged --quiet postman; then
+              git commit -am 'test(postman): update postman collection files'
+              echo "Changes detected and commited."
           fi
 
       - name: Obtain previous and new tag information
