@@ -451,7 +451,7 @@ where
             payment_confirm_source.to_string(),
         ))
     }
-    
+
     headers.extend(
         external_latency
             .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
