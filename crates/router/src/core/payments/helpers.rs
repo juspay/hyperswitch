@@ -1398,6 +1398,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(
                 state,
                 &hyperswitch_token,
+                merchant_key_store,
             )
             .await
             .attach_printable(
