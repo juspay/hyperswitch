@@ -53,25 +53,7 @@ impl super::settings::Locker {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "locker host must not be empty when mock locker is disabled".into(),
             ))
-        })?;
-
-        when(
-            self.redis_temp_locker_encryption_key.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "redis_temp_locker_encryption_key must not be empty".into(),
-                ))
-            },
-        )?;
-
-        when(
-            self.redis_temp_locker_encryption_key.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "redis_temp_locker_encryption_key must not be empty".into(),
-                ))
-            },
-        )
+        })
     }
 }
 

@@ -15,7 +15,7 @@ use crate::{
     db, logger, routes,
     routes::metrics,
     types::{
-        api,
+        api, domain,
         storage::{self, enums, ProcessTrackerExt},
     },
     utils::{self, StringExt},
@@ -638,6 +638,7 @@ impl Vault {
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
         pm: enums::PaymentMethod,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -651,7 +652,14 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        let lookup_key = create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            lookup_key,
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
@@ -679,6 +687,7 @@ impl Vault {
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
         customer_id: Option<String>,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
@@ -692,7 +701,14 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        let lookup_key = create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            lookup_key,
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         // scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
@@ -715,7 +731,7 @@ impl Vault {
 
 //------------------------------------------------TokenizeService------------------------------------------------
 
-fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResult<Vec<u8>> {
+fn get_redis_temp_locker_encryption_key(_state: &routes::AppState) -> RouterResult<Vec<u8>> {
     #[cfg(feature = "kms")]
     let secret = state
         .kms_secrets
@@ -724,16 +740,17 @@ fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResul
         .to_owned();
 
     #[cfg(not(feature = "kms"))]
-    let secret = hex::decode(
-        state
-            .conf
-            .locker
-            .redis_temp_locker_encryption_key
-            .to_owned(),
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to decode redis temp locker data")?;
+    let secret = Vec::new();
+    // let secret = hex::decode(
+    //     state
+    //         .conf
+    //         .locker
+    //         .redis_temp_locker_encryption_key
+    //         .to_owned(),
+    // )
+    // .into_report()
+    // .change_context(errors::ApiErrorResponse::InternalServerError)
+    // .attach_printable("Failed to decode redis temp locker data")?;
 
     Ok(secret)
 }
@@ -744,6 +761,7 @@ pub async fn create_tokenize(
     value1: String,
     value2: Option<String>,
     lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<String> {
     metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
 

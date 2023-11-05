@@ -51,7 +51,6 @@ impl Default for super::settings::Locker {
             mock_locker: true,
 
             locker_signing_key_id: "1".into(),
-            redis_temp_locker_encryption_key: "".into(),
         }
     }
 }
