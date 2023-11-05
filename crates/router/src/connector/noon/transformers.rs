@@ -193,7 +193,7 @@ impl<T>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
+        (currency_unit, currency, amount, router_data): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -337,6 +337,7 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
 
         // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
         let name: String = item
+            .router_data
             .get_description()?
             .trim()
             .replace("  ", " ")
@@ -349,6 +350,7 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
         let channel = NoonChannels::Web;
 
         let billing = item
+            .router_data
             .address
             .billing
             .clone()
