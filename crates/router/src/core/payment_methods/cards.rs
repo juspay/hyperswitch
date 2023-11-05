@@ -1877,7 +1877,7 @@ pub async fn list_customer_payment_method(
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
         let card = if pm.payment_method == enums::PaymentMethod::Card {
-            get_card_details(&pm, key, state, &hyperswitch_token).await?
+            get_card_details(&pm, key, state, &hyperswitch_token, &key_store).await?
         } else {
             None
         };
@@ -1972,6 +1972,7 @@ async fn get_card_details(
     key: &[u8],
     state: &routes::AppState,
     hyperswitch_token: &str,
+    key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let mut _card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
@@ -1988,7 +1989,7 @@ async fn get_card_details(
             });
 
     Ok(Some(
-        get_lookup_key_from_locker(state, hyperswitch_token, pm).await?,
+        get_lookup_key_from_locker(state, hyperswitch_token, pm, key_store).await?,
     ))
 }
 
@@ -1996,6 +1997,7 @@ pub async fn get_lookup_key_from_locker(
     state: &routes::AppState,
     payment_token: &str,
     pm: &storage::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card = get_card_from_locker(
         state,
@@ -2016,6 +2018,7 @@ pub async fn get_lookup_key_from_locker(
         payment_token,
         card,
         pm,
+        merchant_key_store,
     )
     .await?;
     Ok(resp)
@@ -2050,6 +2053,7 @@ pub async fn get_lookup_key_for_payout_method(
                 Some(payout_token.to_string()),
                 &pm_parsed,
                 Some(pm.customer_id.to_owned()),
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2072,6 +2076,7 @@ impl TempLockerCardSupport {
         payment_token: &str,
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
@@ -2121,8 +2126,14 @@ impl TempLockerCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        let lookup_key =
-            vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        let lookup_key = vault::create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            payment_token.to_string(),
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         vault::add_delete_tokenized_data_task(
             &*state.store,
             &lookup_key,

@@ -52,7 +52,6 @@ pub enum Subcommand {
 #[derive(Clone)]
 pub struct ActiveKmsSecrets {
     pub jwekey: masking::Secret<Jwekey>,
-    pub redis_temp_locker_encryption_key: masking::Secret<Vec<u8>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -419,7 +418,6 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub locker_signing_key_id: String,
-    pub redis_temp_locker_encryption_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -36,6 +36,7 @@ pub async fn make_payout_method_data<'a>(
     merchant_id: &str,
     payout_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
@@ -93,6 +94,7 @@ pub async fn make_payout_method_data<'a>(
                 payout_token.to_owned(),
                 payout_method,
                 Some(customer_id.to_owned()),
+                merchant_key_store,
             )
             .await?;
 
