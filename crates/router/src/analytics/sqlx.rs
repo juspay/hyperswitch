@@ -31,6 +31,19 @@ pub struct SqlxClient {
     pool: Pool<Postgres>,
 }
 
+impl Default for SqlxClient {
+    fn default() -> Self {
+        let database_url = format!(
+            "postgres://{}:{}@{}:{}/{}",
+            "db_user", "db_pass", "localhost", 5432, "hyperswitch_db"
+        );
+        Self{pool: PgPoolOptions::new()
+            .connect_lazy(&database_url)
+            .expect("SQLX Pool Creation failed")
+        }
+    }
+}
+
 impl SqlxClient {
     pub async fn from_conf(
         conf: &Database,

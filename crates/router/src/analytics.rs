@@ -29,6 +29,12 @@ pub enum AnalyticsProvider {
     Sqlx(SqlxClient),
 }
 
+impl Default for AnalyticsProvider {
+    fn default() -> Self {
+        Self::Sqlx(SqlxClient::default())
+    }
+}
+
 impl AnalyticsProvider {
     #[instrument(skip_all)]
     pub async fn get_payment_metrics(
