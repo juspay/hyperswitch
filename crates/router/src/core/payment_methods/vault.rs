@@ -4,6 +4,8 @@ use common_utils::{
     generate_id_with_default_len,
 };
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "basilisk")]
+use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
@@ -20,12 +22,16 @@ use crate::{
     },
     utils::{self, StringExt},
 };
-
+#[cfg(feature = "basilisk")]
+use crate::{core::payment_methods::transformers as payment_methods, services, settings};
 const VAULT_SERVICE_NAME: &str = "CARD";
 
 const LOCKER_REDIS_PREFIX: &str = "LOCKER_TOKEN";
 
 const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
+
+#[cfg(feature = "basilisk")]
+const VAULT_VERSION: &str = "0";
 
 pub struct SupplementaryVaultData {
     pub customer_id: Option<String>,
@@ -749,9 +755,9 @@ pub async fn create_tokenize(
         let redis_key = format!("{}_{}", LOCKER_REDIS_PREFIX, lookup_key);
 
         let payload_to_be_encrypted = api::TokenizePayloadRequest {
-            value1,
-            value2: value2.unwrap_or_default(),
-            lookup_key: lookup_key.to_owned(),
+            value1: value1.clone(),
+            value2: value2.clone().unwrap_or_default(),
+            lookup_key: lookup_key.clone(),
             service_name: VAULT_SERVICE_NAME.to_string(),
         };
 
@@ -778,7 +784,7 @@ pub async fn create_tokenize(
                 Some(i64::from(LOCKER_REDIS_EXPIRY_SECONDS)),
             )
             .await
-            .map(|_| lookup_key)
+            .map(|_| lookup_key.clone())
             .map_err(|err| {
                 metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 err
@@ -856,7 +862,7 @@ pub async fn get_tokenized_data(
             logger::error!("Redis Temp locker Failed: {:?}", err);
 
             #[cfg(feature = "basilisk")]
-            return old_get_tokenized_data(state, value1, value2, lookup_key).await;
+            return old_get_tokenized_data(state, lookup_key, _should_get_value2).await;
 
             #[cfg(not(feature = "basilisk"))]
             Err(err)
@@ -902,7 +908,7 @@ pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -
             logger::error!("Redis Temp locker Failed: {:?}", err);
 
             #[cfg(feature = "basilisk")]
-            return old_delete_tokenized_data(state, value1, value2, lookup_key).await;
+            return old_delete_tokenized_data(state, lookup_key).await;
 
             #[cfg(not(feature = "basilisk"))]
             Err(err)
@@ -1213,7 +1219,7 @@ pub async fn old_get_tokenized_data(
 pub async fn old_delete_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
-) -> RouterResult<String> {
+) -> RouterResult<()> {
     metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
@@ -1250,11 +1256,11 @@ pub async fn old_delete_tokenized_data(
         .attach_printable("Error while making /tokenize/delete/token call to the locker")?;
     match response {
         Ok(r) => {
-            let delete_response = std::str::from_utf8(&r.response)
+            let _delete_response = std::str::from_utf8(&r.response)
                 .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for basilisk delete response")?;
-            Ok(delete_response.to_string())
+            Ok(())
         }
         Err(err) => {
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
@@ -1262,5 +1268,15 @@ pub async fn old_delete_tokenized_data(
                 .into_report()
                 .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
         }
+    }
+}
+
+#[cfg(feature = "basilisk")]
+pub fn get_key_id(keys: &settings::Jwekey) -> &str {
+    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
+    if key_identifier == "1" {
+        &keys.locker_key_identifier1
+    } else {
+        &keys.locker_key_identifier2
     }
 }

@@ -417,6 +417,7 @@ pub struct Secrets {
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
+    pub basilisk_host: String,
     pub locker_signing_key_id: String,
 }
 
