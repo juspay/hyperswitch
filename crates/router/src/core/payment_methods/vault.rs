@@ -13,6 +13,7 @@ use scheduler::{types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;
 use crate::{
+    consts,
     core::errors::{self, CustomResult, RouterResult},
     db, logger, routes,
     routes::metrics,
@@ -25,11 +26,6 @@ use crate::{
 #[cfg(feature = "basilisk")]
 use crate::{core::payment_methods::transformers as payment_methods, services, settings};
 const VAULT_SERVICE_NAME: &str = "CARD";
-
-const LOCKER_REDIS_PREFIX: &str = "LOCKER_TOKEN";
-
-const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
-
 #[cfg(feature = "basilisk")]
 const VAULT_VERSION: &str = "0";
 
@@ -741,6 +737,10 @@ impl Vault {
 
 //------------------------------------------------TokenizeService------------------------------------------------
 
+fn get_redis_locker_key(lookup_key: &str) -> String {
+    format!("{}_{}", consts::LOCKER_REDIS_PREFIX, lookup_key)
+}
+
 #[instrument(skip(state, value1, value2))]
 pub async fn create_tokenize(
     state: &routes::AppState,
@@ -749,10 +749,9 @@ pub async fn create_tokenize(
     lookup_key: String,
     encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<String> {
+    let redis_key = get_redis_locker_key(lookup_key.as_str());
     let func = || async {
         metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-
-        let redis_key = format!("{}_{}", LOCKER_REDIS_PREFIX, lookup_key);
 
         let payload_to_be_encrypted = api::TokenizePayloadRequest {
             value1: value1.clone(),
@@ -781,7 +780,7 @@ pub async fn create_tokenize(
             .set_key_if_not_exists_with_expiry(
                 redis_key.as_str(),
                 bytes::Bytes::from(encrypted_payload),
-                Some(i64::from(LOCKER_REDIS_EXPIRY_SECONDS)),
+                Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
             )
             .await
             .map(|_| lookup_key.clone())
@@ -794,7 +793,13 @@ pub async fn create_tokenize(
     };
 
     match func().await {
-        Ok(s) => Ok(s),
+        Ok(s) => {
+            logger::info!(
+                "Insert payload in redis locker successfull with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
         Err(err) => {
             logger::error!("Redis Temp locker Failed: {:?}", err);
 
@@ -814,10 +819,9 @@ pub async fn get_tokenized_data(
     _should_get_value2: bool,
     encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<api::TokenizePayloadRequest> {
+    let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
         metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-
-        let redis_key = format!("{}_{}", LOCKER_REDIS_PREFIX, lookup_key);
 
         let redis_conn = state
             .store
@@ -857,7 +861,13 @@ pub async fn get_tokenized_data(
     };
 
     match func().await {
-        Ok(s) => Ok(s),
+        Ok(s) => {
+            logger::info!(
+                "Fetch payload in redis locker successfull with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
         Err(err) => {
             logger::error!("Redis Temp locker Failed: {:?}", err);
 
@@ -872,10 +882,9 @@ pub async fn get_tokenized_data(
 
 #[instrument(skip(state))]
 pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -> RouterResult<()> {
+    let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
         metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-
-        let redis_key = format!("{}_{}", LOCKER_REDIS_PREFIX, lookup_key);
 
         let redis_conn = state
             .store
@@ -903,7 +912,13 @@ pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -
         }
     };
     match func().await {
-        Ok(s) => Ok(s),
+        Ok(s) => {
+            logger::info!(
+                "Delete payload in redis locker successfull with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
         Err(err) => {
             logger::error!("Redis Temp locker Failed: {:?}", err);
 
