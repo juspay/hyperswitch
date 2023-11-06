@@ -26,3 +26,4 @@ pub mod payouts;
 pub mod process_tracker;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod routing_algorithm;
