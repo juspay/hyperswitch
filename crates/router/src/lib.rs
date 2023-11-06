@@ -2,7 +2,7 @@
 #![recursion_limit = "256"]
 
 #[cfg(feature = "olap")]
-mod analytics;
+pub mod analytics;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
