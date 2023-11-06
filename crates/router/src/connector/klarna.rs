@@ -75,6 +75,7 @@ impl ConnectorCommon for Klarna {
             code: response.error_code,
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason,
+            attempt_status: None,
         })
     }
 }

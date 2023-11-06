@@ -95,6 +95,7 @@ impl ConnectorCommon for Bambora {
             code: response.code.to_string(),
             message: response.message,
             reason: Some(serde_json::to_string(&response.details).unwrap_or_default()),
+            attempt_status: None,
         })
     }
 }

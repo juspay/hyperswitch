@@ -104,6 +104,7 @@ impl ConnectorCommon for Globalpay {
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -313,6 +314,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
+            attempt_status: None,
         })
     }
 }

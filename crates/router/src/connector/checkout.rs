@@ -131,6 +131,7 @@ impl ConnectorCommon for Checkout {
                 .error_codes
                 .map(|errors| errors.join(" & "))
                 .or(response.error_type),
+            attempt_status: None,
         })
     }
 }

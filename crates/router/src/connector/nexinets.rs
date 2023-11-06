@@ -130,6 +130,7 @@ impl ConnectorCommon for Nexinets {
             code: response.code.to_string(),
             message: static_message,
             reason: Some(connector_reason),
+            attempt_status: None,
         })
     }
 }

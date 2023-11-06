@@ -123,6 +123,7 @@ impl ConnectorCommon for Square {
                 .and_then(|error| error.category.clone())
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(reason),
+            attempt_status: None,
         })
     }
 }

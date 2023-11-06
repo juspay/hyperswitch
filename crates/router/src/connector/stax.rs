@@ -109,6 +109,7 @@ impl ConnectorCommon for Stax {
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                     .to_owned(),
             ),
+            attempt_status: None,
         })
     }
 }

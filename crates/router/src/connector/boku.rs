@@ -130,6 +130,7 @@ impl ConnectorCommon for Boku {
                 code: response.code,
                 message: response.message,
                 reason: response.reason,
+                attempt_status: None,
             }),
             Err(_) => get_xml_deserialized(res),
         }
@@ -651,6 +652,7 @@ fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::Co
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
+                attempt_status: None,
             })
         }
     }

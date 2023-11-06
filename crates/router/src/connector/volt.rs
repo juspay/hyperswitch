@@ -129,6 +129,7 @@ impl ConnectorCommon for Volt {
             code: response.exception.message.to_string(),
             message: response.exception.message.clone(),
             reason: Some(reason),
+            attempt_status: None,
         })
     }
 }

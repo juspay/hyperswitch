@@ -130,6 +130,7 @@ impl ConnectorCommon for Forte {
             code,
             message,
             reason: None,
+            attempt_status: None,
         })
     }
 }

@@ -132,6 +132,7 @@ impl ConnectorCommon for Braintree {
                     code,
                     message,
                     reason: Some(response.api_error_response.message),
+                    attempt_status: None,
                 })
             }
             Ok(braintree::ErrorResponse::BraintreeErrorResponse(response)) => Ok(ErrorResponse {
@@ -139,6 +140,7 @@ impl ConnectorCommon for Braintree {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: Some(response.errors),
+                attempt_status: None,
             }),
             Err(error_msg) => {
                 logger::error!(deserialization_error =? error_msg);

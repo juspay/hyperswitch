@@ -137,6 +137,7 @@ impl ConnectorCommon for Helcim {
             code: NO_ERROR_CODE.to_owned(),
             message: error_string.clone(),
             reason: Some(error_string),
+            attempt_status: None,
         })
     }
 }

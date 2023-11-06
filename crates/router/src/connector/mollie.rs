@@ -98,6 +98,7 @@ impl ConnectorCommon for Mollie {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.detail,
             reason: response.field,
+            attempt_status: None,
         })
     }
 }
