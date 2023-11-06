@@ -266,18 +266,6 @@ impl From<BankofamericaPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-impl From<BankofamericaPaymentStatus> for enums::RefundStatus {
-    fn from(item: BankofamericaPaymentStatus) -> Self {
-        match item {
-            BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
-                Self::Success
-            }
-            BankofamericaPaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
-        }
-    }
-}
-
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct BankofamericaPaymentsResponse {
@@ -459,7 +447,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BankofamericaVoidRequest {
 
 #[derive(Default, Debug, Serialize)]
 pub struct BankofamericaRefundRequest {
-    pub amount: String,
+    order_information: OrderInformation,
 }
 
 impl<F> TryFrom<&BankofamericaRouterData<&types::RefundsRouterData<F>>>
@@ -470,50 +458,38 @@ impl<F> TryFrom<&BankofamericaRouterData<&types::RefundsRouterData<F>>>
         item: &BankofamericaRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            order_information: OrderInformation {
+                amount_details: Amount {
+                    total_amount: item.router_data.request.refund_amount.to_string(),
+                    currency: item.router_data.request.currency.to_string(),
+                },
+            },
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<BankofamericaPaymentStatus> for enums::RefundStatus {
+    fn from(item: BankofamericaPaymentStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
+                Self::Success
+            }
+            BankofamericaPaymentStatus::Failed => Self::Failure,
+            _ => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankofamericaPaymentsResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, BankofamericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
@@ -521,17 +497,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankofamericaTransactionResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, BankofamericaTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.id,
+                refund_status: enums::RefundStatus::from(
+                    item.response.application_information.status,
+                ),
             }),
             ..item.data
         })

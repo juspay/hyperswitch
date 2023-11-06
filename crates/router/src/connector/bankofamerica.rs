@@ -116,7 +116,7 @@ where
     {
         let date = OffsetDateTime::now_utc();
         let boa_req = self.get_request_body(req)?;
-        let http_method = match boa_req{
+        let http_method = match boa_req {
             Some(_) => common_utils::request::Method::Post,
             None => common_utils::request::Method::Get,
         };
@@ -634,10 +634,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}pts/v2/payments/{}/refunds",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
@@ -681,7 +686,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: bankofamerica::RefundResponse = res
+        let response: bankofamerica::BankofamericaPaymentsResponse = res
             .response
             .parse_struct("bankofamerica RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -717,10 +722,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let refund_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}tss/v2/transactions/{}",
+            self.base_url(connectors),
+            refund_id
+        ))
     }
 
     fn build_request(
@@ -744,7 +754,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: bankofamerica::RefundResponse = res
+        let response: bankofamerica::BankofamericaTransactionResponse = res
             .response
             .parse_struct("bankofamerica RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
