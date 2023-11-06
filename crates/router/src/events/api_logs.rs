@@ -77,6 +77,7 @@ pub struct ApiEvent {
 }
 
 impl ApiEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         api_flow: &impl FlowMetric,
         request_id: &RequestId,
@@ -160,8 +161,8 @@ pub enum ApiEventsType {
 impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         match self {
-            ApplicationResponse::Json(r) => r.get_api_event_type(),
-            ApplicationResponse::JsonWithHeaders((r, _)) => r.get_api_event_type(),
+            Self::Json(r) => r.get_api_event_type(),
+            Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
             _ => None,
         }
     }
