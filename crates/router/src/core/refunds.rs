@@ -698,7 +698,7 @@ pub async fn refund_list(
 pub async fn refund_filter_list(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    req: api_models::refunds::TimeRange,
+    req: api_models::payments::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
     let db = state.store;
     let filter_list = db
