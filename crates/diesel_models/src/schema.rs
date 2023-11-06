@@ -24,7 +24,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -509,6 +509,17 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    organization (org_id) {
+        #[max_length = 32]
+        org_id -> Varchar,
+        org_name -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     payment_attempt (id) {
         id -> Int4,
         #[max_length = 64]
@@ -569,6 +580,8 @@ diesel::table! {
         updated_by -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        authentication_data -> Nullable<Json>,
+        encoded_data -> Nullable<Text>,
     }
 }
 
@@ -863,6 +876,28 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    routing_algorithm (algorithm_id) {
+        #[max_length = 64]
+        algorithm_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        name -> Varchar,
+        #[max_length = 256]
+        description -> Nullable<Varchar>,
+        kind -> RoutingAlgorithmKind,
+        algorithm_data -> Jsonb,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -881,6 +916,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    organization,
     payment_attempt,
     payment_intent,
     payment_link,
@@ -890,4 +926,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
+    routing_algorithm,
 );

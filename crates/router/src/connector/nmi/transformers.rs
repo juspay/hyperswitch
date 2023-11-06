@@ -41,6 +41,37 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
 }
 
 #[derive(Debug, Serialize)]
+pub struct NmiRouterData<T> {
+    pub amount: f64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for NmiRouterData<T>
+{
+    type Error = Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: utils::to_currency_base_unit_asf64(amount, currency)?,
+            router_data,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
@@ -49,6 +80,7 @@ pub struct NmiPaymentsRequest {
     currency: enums::Currency,
     #[serde(flatten)]
     payment_method: PaymentMethod,
+    orderid: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,24 +108,27 @@ pub struct ApplePayData {
     applepay_payment_data: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
+impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPaymentsRequest {
     type Error = Error;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let transaction_type = match item.request.is_auto_capture()? {
+    fn try_from(
+        item: &NmiRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let transaction_type = match item.router_data.request.is_auto_capture()? {
             true => TransactionType::Sale,
             false => TransactionType::Auth,
         };
-        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let amount =
-            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
-        let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
+        let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+        let amount = item.amount;
+        let payment_method =
+            PaymentMethod::try_from(&item.router_data.request.payment_method_data)?;
 
         Ok(Self {
             transaction_type,
             security_key: auth_type.api_key,
             amount,
-            currency: item.request.currency,
+            currency: item.router_data.request.currency,
             payment_method,
+            orderid: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
@@ -206,6 +241,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
             amount: 0.0,
             currency: item.request.currency,
             payment_method,
+            orderid: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -240,18 +276,17 @@ pub struct NmiCaptureRequest {
     pub amount: Option<f64>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
+impl TryFrom<&NmiRouterData<&types::PaymentsCaptureRouterData>> for NmiCaptureRequest {
     type Error = Error;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(
+        item: &NmiRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = NmiAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             transaction_type: TransactionType::Capture,
             security_key: auth.api_key,
-            transactionid: item.request.connector_transaction_id.clone(),
-            amount: Some(utils::to_currency_base_unit_asf64(
-                item.request.amount_to_capture,
-                item.request.currency,
-            )?),
+            transactionid: item.router_data.request.connector_transaction_id.clone(),
+            amount: Some(item.amount),
         })
     }
 }
@@ -574,18 +609,15 @@ pub struct NmiRefundRequest {
     amount: f64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
+impl<F> TryFrom<&NmiRouterData<&types::RefundsRouterData<F>>> for NmiRefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+    fn try_from(item: &NmiRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
         Ok(Self {
             transaction_type: TransactionType::Refund,
             security_key: auth_type.api_key,
-            transactionid: item.request.connector_transaction_id.clone(),
-            amount: utils::to_currency_base_unit_asf64(
-                item.request.refund_amount,
-                item.request.currency,
-            )?,
+            transactionid: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount,
         })
     }
 }
