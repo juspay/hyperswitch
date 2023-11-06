@@ -181,7 +181,6 @@ impl<Q: ApiEventMetric, E> ApiEventMetric for Result<Q, E> {
     }
 }
 
-/// Implement `ToSql` on arrays of types that impl `ToString`.
 macro_rules! impl_misc_api_event_type {
     ($($type:ty),+) => {
         $(

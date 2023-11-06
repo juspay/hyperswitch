@@ -215,7 +215,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();
-                    logger::debug!(auth_type=?self.auth_type, "Proceeding with authorization");
+                    logger::debug!(auth_type=?self.auth_type);
 
                     Ok((
                         connector_integration
