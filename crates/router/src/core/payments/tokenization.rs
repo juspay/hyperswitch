@@ -116,33 +116,31 @@ where
                         }
                         Err(error) => {
                             match error.current_context() {
-                                errors::StorageError::DatabaseError(err) => {
-                                    match err.current_context() {
-                                        diesel_models::errors::DatabaseError::NotFound => {
-                                            let pm_metadata = create_payment_method_metadata(
-                                                None,
-                                                connector_email,
-                                            )?;
-                                            payment_methods::cards::create_payment_method(
-                                                db,
-                                                &payment_method_create_request,
-                                                &customer.customer_id,
-                                                &locker_response.0.payment_method_id,
-                                                merchant_id,
-                                                pm_metadata,
-                                                pm_data_encrypted,
-                                                key_store,
-                                            )
-                                            .await
-                                        }
-                                        _ => Err(report!(
-                                            errors::ApiErrorResponse::InternalServerError
+                                errors::StorageError::DatabaseError(err) => match err
+                                    .current_context()
+                                {
+                                    diesel_models::errors::DatabaseError::NotFound => {
+                                        let pm_metadata =
+                                            create_payment_method_metadata(None, connector_email)?;
+                                        payment_methods::cards::create_payment_method(
+                                            db,
+                                            &payment_method_create_request,
+                                            &customer.customer_id,
+                                            &locker_response.0.payment_method_id,
+                                            merchant_id,
+                                            pm_metadata,
+                                            pm_data_encrypted,
+                                            key_store,
                                         )
-                                        .attach_printable(
-                                            "Database Error while finding payment method",
-                                        )),
+                                        .await
                                     }
-                                }
+                                    _ => {
+                                        Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                            .attach_printable(
+                                                "Database Error while finding payment method",
+                                            ))
+                                    }
+                                },
                                 _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable("Error while finding payment method")),
                             }?;
