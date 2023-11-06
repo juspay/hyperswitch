@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.72.0 (2023-11-05)
+
+### Features
+
+- **connector:**
+  - [ACI] Currency Unit Conversion ([#2750](https://github.com/juspay/hyperswitch/pull/2750)) ([`cdead78`](https://github.com/juspay/hyperswitch/commit/cdead78ea6a1f2dce92187f499f54498ba4bb173))
+  - [Fiserv] Currency Unit Conversion ([#2715](https://github.com/juspay/hyperswitch/pull/2715)) ([`b6b9e4f`](https://github.com/juspay/hyperswitch/commit/b6b9e4f912e1c61cd31ab91be587ffb08c9f3a5b))
+  - [Bitpay] Use `connector_request_reference_id` as reference to the connector ([#2697](https://github.com/juspay/hyperswitch/pull/2697)) ([`7141b89`](https://github.com/juspay/hyperswitch/commit/7141b89d231bae0c3b1c10095b88df16129b1665))
+  - [NMI] Currency Unit Conversion ([#2707](https://github.com/juspay/hyperswitch/pull/2707)) ([`1b45a30`](https://github.com/juspay/hyperswitch/commit/1b45a302630ed8affc5abff0de1325fb5c6f870e))
+  - [Payeezy] Currency Unit Conversion ([#2710](https://github.com/juspay/hyperswitch/pull/2710)) ([`25245b9`](https://github.com/juspay/hyperswitch/commit/25245b965371d93449f4584667adeb38ab7e0e59))
+
+### Refactors
+
+- **connector:** [Stax] Currency Unit Conversion ([#2711](https://github.com/juspay/hyperswitch/pull/2711)) ([`2782923`](https://github.com/juspay/hyperswitch/commit/278292322c7c06f4239dd73861469e436bd941fa))
+
+### Testing
+
+- **postman:** Update postman collection files ([`d11e7fd`](https://github.com/juspay/hyperswitch/commit/d11e7fd5642efe7da4b5021d87cf40f16d9eeded))
+
+**Full Changelog:** [`v1.71.0...v1.72.0`](https://github.com/juspay/hyperswitch/compare/v1.71.0...v1.72.0)
+
+- - -
+
+
 ## 1.71.0 (2023-11-03)
 
 ### Features
