@@ -6,7 +6,6 @@ use common_utils::{
     types::Percentage,
 };
 use serde::de;
-use serde_with::serde_as;
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
@@ -348,10 +347,8 @@ impl SurchargeDetailsResponse {
     }
 }
 
-#[serde_as]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug)]
 pub struct SurchargeMetadata {
-    #[serde_as(as = "HashMap<_, _>")]
     surcharge_results: HashMap<
         (
             common_enums::PaymentMethod,
