@@ -199,7 +199,7 @@ pub fn generate_newman_command() -> ReturnArgs {
         for header in headers {
             if let Some((key, value)) = header.split_once(':') {
                 let content_to_insert = format!(
-                    r#"pm.request.headers.add({{key: "{}", value: "{:#?}"}});"#,
+                    r#"pm.request.headers.add({{key: "{}", value: "{}"}});"#,
                     key, value
                 );
                 if insert_content(&collection_path, &content_to_insert).is_ok() {
