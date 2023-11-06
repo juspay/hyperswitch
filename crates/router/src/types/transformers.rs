@@ -116,8 +116,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
     ) -> errors::RouterResult<Self> {
         match attempt_status {
             storage_enums::AttemptStatus::Charged
-            | storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Charged),
+            | storage_enums::AttemptStatus::PartialCharged => Ok(Self::Charged),
             storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
             storage_enums::AttemptStatus::Failure
@@ -139,7 +138,8 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Unresolved
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable=> {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())

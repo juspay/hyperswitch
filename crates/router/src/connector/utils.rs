@@ -19,7 +19,10 @@ use serde::Serializer;
 
 use crate::{
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::PaymentData,
+    },
     pii::PeekInterface,
     types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{OptionExt, ValueExt},
@@ -73,6 +76,12 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone;
 }
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
@@ -187,6 +196,23 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
+    }
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone,
+    {
+        if self.status == enums::AttemptStatus::Voided {
+            if payment_data.payment_intent.amount_captured > Some(0) {
+                enums::AttemptStatus::PartialCharged
+            } else {
+                self.status
+            }
+        } else {
+            self.status
+        }
     }
 }
 

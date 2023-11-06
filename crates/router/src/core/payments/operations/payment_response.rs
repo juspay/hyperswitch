@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 
 use super::{Operation, PostUpdateTracker};
 use crate::{
+    connector::utils::RouterData,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
@@ -385,7 +386,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     types::PreprocessingResponseId::ConnectorTransactionId(_) => None,
                 };
                 let payment_attempt_update = storage::PaymentAttemptUpdate::PreprocessingUpdate {
-                    status: router_data.status,
+                    status: router_data.get_attempt_status_for_db_update(&payment_data),
                     payment_method_id: Some(router_data.payment_method_id),
                     connector_metadata,
                     preprocessing_step_id,
@@ -431,7 +432,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                 utils::add_apple_pay_payment_status_metrics(
                     router_data.status,
-                    router_data.apple_pay_flow,
+                    router_data.apple_pay_flow.clone(),
                     payment_data.payment_attempt.connector.clone(),
                     payment_data.payment_attempt.merchant_id.clone(),
                 );
@@ -453,7 +454,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None => (
                             None,
                             Some(storage::PaymentAttemptUpdate::ResponseUpdate {
-                                status: router_data.status,
+                                status: router_data.get_attempt_status_for_db_update(&payment_data),
                                 connector: None,
                                 connector_transaction_id: connector_transaction_id.clone(),
                                 authentication_type: None,
@@ -509,7 +510,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 (
                     None,
                     Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
-                        status: router_data.status,
+                        status: router_data.get_attempt_status_for_db_update(&payment_data),
                         connector: None,
                         connector_transaction_id,
                         payment_method_id: Some(router_data.payment_method_id),
