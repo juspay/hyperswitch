@@ -67,6 +67,7 @@ command_discovery() {
     echo "\`$1\` command not found"
     exit 1
   fi
+}
 
 command_discovery curl
 command_discovery aws
