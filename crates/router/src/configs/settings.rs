@@ -535,6 +535,7 @@ pub struct Connectors {
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
+    pub bankofamerica: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
