@@ -80,3 +80,29 @@ pub async fn initiate_payment_link(
     )
     .await
 }
+
+
+pub async fn payments_link_list(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<api_models::payments::PaymentLinkListConstraints>
+) -> impl Responder {
+    let flow = Flow::PaymentLinkList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| {
+            list_payment_link(
+                state,
+                auth.merchant_account,
+                req,
+            )
+        },
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}

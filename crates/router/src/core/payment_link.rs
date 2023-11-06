@@ -1,6 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+use futures::future;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     errors::RouterResponse,
     routes::AppState,
     services,
-    types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{domain, transformers::ForeignFrom, api::payment_link::PaymentLinkResponseExt, storage::{enums as storage_enums}},
     utils::OptionExt,
 };
 
@@ -202,4 +203,20 @@ fn validate_sdk_requirements(
         field_name: "client_secret",
     })?;
     Ok((pub_key, currency, client_secret))
+}
+
+pub async fn list_payment_link(
+    state: AppState,
+    merchant: domain::MerchantAccount,
+    constraints: api_models::payments::PaymentLinkListConstraints,
+) -> RouterResponse<Vec<api_models::payments::PaymentLinkResponse>> {
+    // helpers::validate_payment_link_list_request(&constraints)?;
+    let db = state.store.as_ref();
+    let payment_link = db.find_payment_link_by_merchant_id(&merchant.merchant_id, constraints)
+    .await.change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to retrieve payment link")?;
+
+    let payment_link_list = future::try_join_all(payment_link.into_iter().map(|payment_link| api_models::payments::PaymentLinkResponse::from_db_payment_link(payment_link))).await?;
+    Ok(services::ApplicationResponse::Json(payment_link_list))
+
 }

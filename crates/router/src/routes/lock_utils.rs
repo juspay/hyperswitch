@@ -114,9 +114,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileDelete
             | Flow::BusinessProfileList => Self::Business,
 
-            Flow::Verification => Self::Verification,
+            Flow::PaymentLinkRetrieve
+            | Flow::PaymentLinkInitiate
+            | Flow::PaymentLinkList => Self::PaymentLink,
 
-            Flow::PaymentLinkInitiate | Flow::PaymentLinkRetrieve => Self::PaymentLink,
+            Flow::Verification => Self::Verification,
         }
     }
 }

@@ -3476,3 +3476,24 @@ pub fn validate_payment_link_request(
     }
     Ok(())
 }
+
+
+// #[cfg(feature = "olap")]
+// pub fn validate_payment_link_list_request(
+//     req: &api_models::payments::PaymentLinkListConstraints,
+// ) -> CustomResult<(), errors::ApiErrorResponse> {
+//     use common_utils::consts::PAYMENTS_LINK_LIST_LIMIT;
+
+//     utils::when(
+//         req.limit > PAYMENTS_LINK_LIST_LIMIT || req.limit < 1,
+//         || {
+//             Err(errors::ApiErrorResponse::InvalidRequestData {
+//                 message: format!(
+//                     "limit should be in between 1 and {}",
+//                     PAYMENTS_LINK_LIST_LIMIT
+//                 ),
+//             })
+//         },
+//     )?;
+//     Ok(())
+// }

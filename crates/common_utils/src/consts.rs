@@ -24,6 +24,9 @@ pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
 pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
 
+/// Maximum limit for payment link list get api
+pub const PAYMENTS_LINK_LIST_LIMIT: u32 = 100;
+
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 

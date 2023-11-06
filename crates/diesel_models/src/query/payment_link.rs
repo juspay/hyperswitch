@@ -1,6 +1,5 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{instrument, tracing};
-
 use super::generics;
 use crate::{
     payment_link::{PaymentLink, PaymentLinkNew},
@@ -26,4 +25,5 @@ impl PaymentLink {
         )
         .await
     }
+
 }

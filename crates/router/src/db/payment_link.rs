@@ -1,10 +1,11 @@
 use error_stack::IntoReport;
+#[cfg(feature = "olap")]
 
 use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::storage,
+    types::storage::{self, PaymentLinkDbExt},
 };
 
 #[async_trait::async_trait]
@@ -18,6 +19,13 @@ pub trait PaymentLinkInterface {
         &self,
         _payment_link: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn find_payment_link_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        payment_link_contraints: api_models::payments::PaymentLinkListConstraints
+    ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -44,6 +52,18 @@ impl PaymentLinkInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    #[cfg(feature = "olap")]
+    async fn find_payment_link_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        payment_link_contraints: api_models::payments::PaymentLinkListConstraints,
+    ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PaymentLink::filter_by_constraints(&conn, merchant_id, payment_link_contraints)
+        .await.map_err(Into::into)
+        .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -60,6 +80,15 @@ impl PaymentLinkInterface for MockDb {
         &self,
         _payment_link_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
+        // TODO: Implement function for `MockDb`x
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_payment_link_by_merchant_id(
+        &self,
+        _merchant_id: &str,
+        _payment_link_contraints: api_models::payments::PaymentLinkListConstraints,
+    ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>{
         // TODO: Implement function for `MockDb`x
         Err(errors::StorageError::MockDbError)?
     }
