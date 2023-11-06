@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 use crate::{
     admin, disputes,
-    enums::{self as api_enums},
+    enums::{self as api_enums, enums as storage_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
     refunds,
 };
@@ -3098,6 +3098,7 @@ pub struct PaymentLinkObject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
+    pub payment_link_config: Option<admin::PaymentLinkConfig>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
@@ -3111,7 +3112,6 @@ pub struct PaymentLinkResponse {
     pub payment_link_id: String,
 }
 
-
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
@@ -3123,7 +3123,8 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
-    pub status: String
+    pub status: String,
+    pub currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3136,16 +3137,18 @@ pub struct PaymentLinkInitiateRequest {
 pub struct PaymentLinkDetails {
     pub amount: i64,
     pub currency: api_enums::Currency,
+    pub currency_symbol: api_enums::CurrencySymbol,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: crypto::OptionalEncryptableName,
-    pub order_details: Vec<pii::SecretSerdeValue>,
+    pub order_details: Vec<OrderDetailsWithAmount>,
     pub max_items_visible_after_collapse: i8,
+    pub sdk_theme: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

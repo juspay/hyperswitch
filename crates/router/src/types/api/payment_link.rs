@@ -1,9 +1,8 @@
 pub use api_models::payments::RetrievePaymentLinkResponse;
 
 use crate::{
-    core::errors::RouterResult,
+    core::{errors::RouterResult, payment_link},
     types::storage::{self},
-    core::payment_link
 };
 
 #[async_trait::async_trait]
@@ -23,7 +22,8 @@ impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
             created_at: payment_link.created_at,
             merchant_id: payment_link.merchant_id,
             link_expiry: payment_link.fulfilment_time,
-            status
+            currency: payment_link.currency,
+            status,
         })
     }
 }

@@ -781,6 +781,7 @@ pub fn payments_create_request_validation(
     Ok((amount, currency))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_object: api_models::payments::PaymentLinkObject,
@@ -789,7 +790,7 @@ async fn create_payment_link(
     db: &dyn StorageInterface,
     state: &AppState,
     amount: api::Amount,
-    description: Option<String>
+    description: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
@@ -805,6 +806,11 @@ async fn create_payment_link(
         merchant_id.clone(),
         payment_id.clone()
     );
+
+    let payment_link_config = payment_link_object.payment_link_config.map(|pl_config|{
+        common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&pl_config)
+    }).transpose().change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
+
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
@@ -816,6 +822,7 @@ async fn create_payment_link(
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
         description,
+        payment_link_config,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

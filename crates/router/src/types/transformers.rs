@@ -830,7 +830,9 @@ impl
     }
 }
 
-impl ForeignFrom<(storage::PaymentLink, String)> for api_models::payments::RetrievePaymentLinkResponse {
+impl ForeignFrom<(storage::PaymentLink, String)>
+    for api_models::payments::RetrievePaymentLinkResponse
+{
     fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
         Self {
             payment_link_id: payment_link_object.payment_link_id,
@@ -840,11 +842,11 @@ impl ForeignFrom<(storage::PaymentLink, String)> for api_models::payments::Retri
             created_at: payment_link_object.created_at,
             link_expiry: payment_link_object.fulfilment_time,
             description: payment_link_object.description,
+            currency: payment_link_object.currency,
             status,
         }
     }
 }
-
 
 impl From<domain::Address> for payments::AddressDetails {
     fn from(addr: domain::Address) -> Self {

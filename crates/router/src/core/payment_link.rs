@@ -1,7 +1,8 @@
-use api_models::admin as admin_types;
-use common_utils::ext_traits::AsyncExt;
+use api_models::{admin as admin_types, payments::OrderDetailsWithAmount};
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use futures::future;
+use masking::Secret;
 use time::PrimitiveDateTime;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
@@ -14,14 +15,13 @@ use crate::{
         api::payment_link::PaymentLinkResponseExt, domain, storage::enums as storage_enums,
         transformers::ForeignFrom,
     },
-    utils::OptionExt,
 };
 
 pub async fn retrieve_payment_link(
     state: AppState,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
-    let db =  &*state.store;
+    let db = &*state.store;
     let payment_link_object = db
         .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
@@ -29,8 +29,10 @@ pub async fn retrieve_payment_link(
 
     let status = check_payment_link_status(payment_link_object.fulfilment_time);
 
-    let response =
-        api_models::payments::RetrievePaymentLinkResponse::foreign_from((payment_link_object, status));
+    let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
+        payment_link_object,
+        status,
+    ));
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -62,38 +64,41 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let fulfillment_time = payment_intent
+    let payment_link = payment_intent
         .payment_link_id
         .as_ref()
-        .async_and_then(|pli| async move {
+        .async_and_then(|pli| async {
             db.find_payment_link_by_payment_link_id(pli)
                 .await
-                .ok()?
-                .fulfilment_time
-                .ok_or(errors::ApiErrorResponse::PaymentNotFound)
+                .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)
                 .ok()
         })
         .await
-        .get_required_value("fulfillment_time")
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        .ok_or(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let payment_link_config = merchant_account
-        .payment_link_config
-        .map(|pl_config| {
+    let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
+        Some(
             serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
                 .into_report()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
-                })
-        })
-        .transpose()?;
+                }),
+        )
+        .transpose()?
+    } else {
+        merchant_account
+            .payment_link_config
+            .map(|pl_config| {
+                serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_link_config",
+                    })
+            })
+            .transpose()?
+    };
 
-    let order_details = payment_intent
-        .order_details
-        .get_required_value("order_details")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "order_details",
-        })?;
+    let order_details = validate_order_details(payment_intent.order_details)?;
 
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url {
         payment_create_return_url
@@ -111,25 +116,38 @@ pub async fn intiate_payment_link_flow(
         payment_intent.client_secret,
     )?;
 
+    let (default_sdk_theme, default_background_color) =
+        ("#7EA8F6".to_string(), "#E5E5E5".to_string());
+
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency,
+        currency_symbol: currency.to_currency_symbol(),
         payment_id: payment_intent.payment_id,
         merchant_name: merchant_account.merchant_name,
         order_details,
         return_url,
-        expiry: fulfillment_time,
+        expiry: payment_link.fulfilment_time,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config
             .clone()
-            .map(|pl_metadata| pl_metadata.merchant_logo.unwrap_or_default())
+            .map(|pl_config| {
+                pl_config
+                    .merchant_logo
+                    .unwrap_or("https://i.imgur.com/RfxPFQo.png".to_string())
+            })
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
+        sdk_theme: payment_link_config.clone().and_then(|pl_config| {
+            pl_config
+                .color_scheme
+                .map(|color| color.sdk_theme.unwrap_or(default_sdk_theme.clone()))
+        }),
     };
 
     let js_script = get_js_script(payment_details)?;
-    let css_script = get_color_scheme_css(payment_link_config.clone());
+    let css_script = get_color_scheme_css(payment_link_config.clone(), default_background_color);
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
@@ -156,38 +174,21 @@ fn get_js_script(
 
 fn get_color_scheme_css(
     payment_link_config: Option<api_models::admin::PaymentLinkConfig>,
+    default_primary_color: String,
 ) -> String {
-    let (default_primary_color, default_accent_color, default_secondary_color) = (
-        "#C6C7C8".to_string(),
-        "#6A8EF5".to_string(),
-        "#0C48F6".to_string(),
-    );
-
-    let (primary_color, primary_accent_color, secondary_color) = payment_link_config
+    let background_primary_color = payment_link_config
         .and_then(|pl_config| {
             pl_config.color_scheme.map(|color| {
-                (
-                    color.primary_color.unwrap_or(default_primary_color.clone()),
-                    color
-                        .primary_accent_color
-                        .unwrap_or(default_accent_color.clone()),
-                    color
-                        .secondary_color
-                        .unwrap_or(default_secondary_color.clone()),
-                )
+                color
+                    .background_primary_color
+                    .unwrap_or(default_primary_color.clone())
             })
         })
-        .unwrap_or((
-            default_primary_color,
-            default_accent_color,
-            default_secondary_color,
-        ));
+        .unwrap_or(default_primary_color);
 
     format!(
         ":root {{
-      --primary-color: {primary_color};
-      --primary-accent-color: {primary_accent_color};
-      --secondary-color: {secondary_color};
+      --primary-color: {background_primary_color};
     }}"
     )
 }
@@ -230,15 +231,43 @@ pub async fn list_payment_link(
     Ok(services::ApplicationResponse::Json(payment_link_list))
 }
 
-
-pub fn check_payment_link_status(
-    fulfillment_time: Option<PrimitiveDateTime>
-) -> String {
+pub fn check_payment_link_status(fulfillment_time: Option<PrimitiveDateTime>) -> String {
     let curr_time = Some(common_utils::date_time::now());
 
-    if curr_time > fulfillment_time{
-        return "expired".to_string()
-    }else{
-        return "active".to_string()
-    };
+    if curr_time > fulfillment_time {
+        "expired".to_string()
+    } else {
+        "active".to_string()
+    }
+}
+
+fn validate_order_details(
+    order_details: Option<Vec<Secret<serde_json::Value>>>,
+) -> Result<Vec<OrderDetailsWithAmount>, error_stack::Report<errors::ApiErrorResponse>> {
+    let order_details = order_details
+        .map(|order_details| {
+            order_details
+                .iter()
+                .map(|data| {
+                    data.to_owned()
+                        .parse_value("OrderDetailsWithAmount")
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "OrderDetailsWithAmount",
+                        })
+                        .attach_printable("Unable to parse OrderDetailsWithAmount")
+                })
+                .collect::<Result<Vec<OrderDetailsWithAmount>, _>>()
+        })
+        .transpose()?;
+
+    if let Some(mut order_details) = order_details.clone() {
+        for order in order_details.iter_mut() {
+            if order.product_img_link.is_none() {
+                order.product_img_link = Some("https://i.imgur.com/On3VtKF.png".to_string());
+            }
+        }
+        return Ok(order_details);
+    }
+
+    Ok(Vec::new())
 }
