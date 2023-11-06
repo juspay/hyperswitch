@@ -31,6 +31,7 @@ use data_models::payments::{
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
+use some_crate::MerchantAccountInterface;
 
 use crate::{errors::CustomResult, services::Store};
 
