@@ -177,9 +177,23 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                 };
                 Source::PaymentCard { card }
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Methods".to_string(),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("fiserv"),
             ))?,
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.router_data.request.payment_method_data),
+                connector: "fiserv",
+            })?,
         };
         Ok(Self {
             amount,
@@ -299,7 +313,7 @@ impl From<FiservPaymentStatus> for enums::RefundStatus {
             | FiservPaymentStatus::Authorized
             | FiservPaymentStatus::Captured => Self::Success,
             FiservPaymentStatus::Declined | FiservPaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
+            FiservPaymentStatus::Voided | FiservPaymentStatus::Processing => Self::Pending,
         }
     }
 }

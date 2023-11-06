@@ -166,10 +166,22 @@ fn get_pm_and_subsequent_auth_detail(
                     });
                     Ok((payment_details, processing_options, subseuent_auth_info))
                 }
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.router_data.request.payment_method_data),
-                    connector: "AuthorizeDotNet",
-                })?,
+                api::PaymentMethodData::CardRedirect(_)
+                | api::PaymentMethodData::Wallet(_)
+                | api::PaymentMethodData::PayLater(_)
+                | api::PaymentMethodData::BankRedirect(_)
+                | api::PaymentMethodData::BankDebit(_)
+                | api::PaymentMethodData::BankTransfer(_)
+                | api::PaymentMethodData::Crypto(_)
+                | api::PaymentMethodData::MandatePayment
+                | api::PaymentMethodData::Reward
+                | api::PaymentMethodData::Upi(_)
+                | api::PaymentMethodData::Voucher(_)
+                | api::PaymentMethodData::GiftCard(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                    ))?
+                }
             }
         }
         _ => match item.router_data.request.payment_method_data {
@@ -195,10 +207,19 @@ fn get_pm_and_subsequent_auth_detail(
                 None,
                 None,
             )),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.router_data.request.payment_method_data),
-                connector: "AuthorizeDotNet",
-            })?,
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+            ))?,
         },
     }
 }
@@ -295,7 +316,9 @@ impl From<enums::CaptureMethod> for AuthorizationType {
     fn from(item: enums::CaptureMethod) -> Self {
         match item {
             enums::CaptureMethod::Manual => Self::Pre,
-            _ => Self::Final,
+            euclid::enums::CaptureMethod::Automatic
+            | euclid::enums::CaptureMethod::ManualMultiple
+            | euclid::enums::CaptureMethod::Scheduled => Self::Final,
         }
     }
 }
@@ -896,7 +919,14 @@ impl From<SyncStatus> for enums::RefundStatus {
         match transaction_status {
             SyncStatus::RefundSettledSuccessfully => Self::Success,
             SyncStatus::RefundPendingSettlement => Self::Pending,
-            _ => Self::Failure,
+            SyncStatus::AuthorizedPendingCapture
+            | SyncStatus::CapturedPendingSettlement
+            | SyncStatus::SettledSuccessfully
+            | SyncStatus::Declined
+            | SyncStatus::Voided
+            | SyncStatus::CouldNotVoid
+            | SyncStatus::GeneralError
+            | SyncStatus::FDSPendingReview => Self::Failure,
         }
     }
 }
@@ -911,7 +941,9 @@ impl From<SyncStatus> for enums::AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            _ => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully
+            | SyncStatus::RefundPendingSettlement
+            | SyncStatus::FDSPendingReview => Self::Pending,
         }
     }
 }
@@ -1153,9 +1185,33 @@ fn get_wallet_data(
                 cancel_url: return_url.to_owned(),
             }))
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment method".to_string(),
-        ))?,
+        api_models::payments::WalletData::AliPayQr(_)
+        | api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::AliPayHkRedirect(_)
+        | api_models::payments::WalletData::MomoRedirect(_)
+        | api_models::payments::WalletData::KakaoPayRedirect(_)
+        | api_models::payments::WalletData::GoPayRedirect(_)
+        | api_models::payments::WalletData::GcashRedirect(_)
+        | api_models::payments::WalletData::ApplePayRedirect(_)
+        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+        | api_models::payments::WalletData::DanaRedirect {}
+        | api_models::payments::WalletData::GooglePayRedirect(_)
+        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+        | api_models::payments::WalletData::MbWayRedirect(_)
+        | api_models::payments::WalletData::MobilePayRedirect(_)
+        | api_models::payments::WalletData::PaypalSdk(_)
+        | api_models::payments::WalletData::SamsungPay(_)
+        | api_models::payments::WalletData::TwintRedirect {}
+        | api_models::payments::WalletData::VippsRedirect {}
+        | api_models::payments::WalletData::TouchNGoRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayQr(_)
+        | api_models::payments::WalletData::CashappQr(_)
+        | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+            ))?
+        }
     }
 }
 
