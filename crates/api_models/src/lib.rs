@@ -18,5 +18,6 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 pub mod verifications;
 pub mod webhooks;
