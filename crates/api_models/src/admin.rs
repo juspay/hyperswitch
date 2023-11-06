@@ -102,6 +102,8 @@ pub struct MerchantAccountCreate {
     pub organization_id: Option<String>,
 
     pub payment_link_config: Option<PaymentLinkConfig>,
+    /// Whether to enable KV or not
+    pub kv_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

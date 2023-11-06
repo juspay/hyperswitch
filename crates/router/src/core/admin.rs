@@ -169,6 +169,16 @@ pub async fn create_merchant_account(
         organization.org_id
     };
 
+    let storage_scheme = req
+        .kv_enabled
+        .map_or(MerchantStorageScheme::PostgresOnly, |kv_enabled| {
+            if kv_enabled {
+                MerchantStorageScheme::RedisKv
+            } else {
+                MerchantStorageScheme::PostgresOnly
+            }
+        });
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -195,7 +205,7 @@ pub async fn create_merchant_account(
             publishable_key,
             locker_id: req.locker_id,
             metadata,
-            storage_scheme: MerchantStorageScheme::PostgresOnly,
+            storage_scheme,
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
