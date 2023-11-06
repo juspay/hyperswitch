@@ -38,6 +38,7 @@ impl Default for SqlxClient {
             "db_user", "db_pass", "localhost", 5432, "hyperswitch_db"
         );
         Self {
+            #[allow(clippy::expect_used)]
             pool: PgPoolOptions::new()
                 .connect_lazy(&database_url)
                 .expect("SQLX Pool Creation failed"),
