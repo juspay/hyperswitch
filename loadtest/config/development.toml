@@ -64,6 +64,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -130,6 +131,7 @@ cards = [
     "airwallex",
     "authorizedotnet",
     "bambora",
+    "bankofamerica",
     "bitpay",
     "bluesnap",
     "boku",
@@ -234,3 +236,6 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+
+[kv_config]
+ttl = 300 # 5 * 60 seconds

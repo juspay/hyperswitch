@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{AttemptStatus, CaptureMethod};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -25,7 +25,7 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::{AuthInfo, AuthenticateAndFetch};
+use super::authentication::AuthenticateAndFetch;
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
@@ -403,7 +403,21 @@ where
                                         500..=511 => {
                                             connector_integration.get_5xx_error_response(body)?
                                         }
-                                        _ => connector_integration.get_error_response(body)?,
+                                        _ => {
+                                            let error_res =
+                                                connector_integration.get_error_response(body)?;
+                                            if router_data.connector == "bluesnap"
+                                                && error_res.status_code == 403
+                                                && error_res.reason
+                                                    == Some(format!(
+                                                        "{} in bluesnap dashboard",
+                                                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                                                    ))
+                                            {
+                                                router_data.status = AttemptStatus::Failure;
+                                            };
+                                            error_res
+                                        }
                                     };
 
                                     router_data.response = Err(error);
@@ -759,9 +773,8 @@ where
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
-    T: Debug,
+    T: Debug + Serialize,
     A: AppStateInfo + Clone,
-    U: AuthInfo,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
@@ -776,13 +789,18 @@ where
 
     request_state.add_request_id(request_id);
     let start_instant = Instant::now();
+    let serialized_request = masking::masked_serialize(&payload)
+        .into_report()
+        .attach_printable("Failed to serialize json request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    let auth_out = api_auth
+    // Currently auth failures are not recorded as API events
+    let (auth_out, auth_type) = api_auth
         .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
 
-    let merchant_id = auth_out
+    let merchant_id = auth_type
         .get_merchant_id()
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
@@ -793,7 +811,6 @@ where
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let req_message = format!("{:?}", payload);
     let output = {
         lock_action
             .clone()
@@ -813,17 +830,31 @@ where
         .saturating_duration_since(start_instant)
         .as_millis();
 
+    let mut serialized_response = None;
     let status_code = match output.as_ref() {
-        Ok(res) => metrics::request::track_response_status_code(res),
+        Ok(res) => {
+            if let ApplicationResponse::Json(data) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+            }
+
+            metrics::request::track_response_status_code(res)
+        }
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
+
     let api_event = ApiEvent::new(
         flow,
         &request_id,
         request_duration,
         status_code,
-        req_message,
-        format!("{:?}", output),
+        serialized_request,
+        serialized_response,
+        auth_type,
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -856,8 +887,7 @@ where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
-    T: Debug,
-    U: AuthInfo,
+    T: Debug + Serialize,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
