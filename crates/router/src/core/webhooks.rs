@@ -98,6 +98,7 @@ pub async fn payments_incoming_webhook_flow<
                     },
                     services::AuthFlow::Merchant,
                     consume_or_trigger_flow,
+                    None,
                     HeaderPayload::default(),
                 )
                 .await;
@@ -579,6 +580,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
             request,
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            None,
             HeaderPayload::default(),
         )
         .await
