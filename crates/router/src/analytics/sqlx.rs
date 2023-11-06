@@ -37,9 +37,10 @@ impl Default for SqlxClient {
             "postgres://{}:{}@{}:{}/{}",
             "db_user", "db_pass", "localhost", 5432, "hyperswitch_db"
         );
-        Self{pool: PgPoolOptions::new()
-            .connect_lazy(&database_url)
-            .expect("SQLX Pool Creation failed")
+        Self {
+            pool: PgPoolOptions::new()
+                .connect_lazy(&database_url)
+                .expect("SQLX Pool Creation failed"),
         }
     }
 }
