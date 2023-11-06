@@ -737,6 +737,7 @@ impl Vault {
 
 //------------------------------------------------TokenizeService------------------------------------------------
 
+#[inline(always)]
 fn get_redis_locker_key(lookup_key: &str) -> String {
     format!("{}_{}", consts::LOCKER_REDIS_PREFIX, lookup_key)
 }
