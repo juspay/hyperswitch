@@ -76,6 +76,10 @@ impl ConnectorCommon for Nexinets {
         "nexinets"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -200,9 +204,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = nexinets::NexinetsPaymentsRequest::try_from(req)?;
+        let connector_router_data = nexinets::NexinetsRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = nexinets::NexinetsPaymentsRequest::try_from(&connector_router_data)?;
         let nexinets_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
+            &connector_req,
             utils::Encode::<nexinets::NexinetsPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
