@@ -28,7 +28,6 @@ where
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
-    U: auth::AuthInfo,
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug + Serialize,

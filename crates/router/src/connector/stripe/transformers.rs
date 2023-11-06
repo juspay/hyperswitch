@@ -2119,6 +2119,7 @@ impl Deref for PaymentSyncResponse {
 pub struct LastPaymentError {
     code: String,
     message: String,
+    decline_code: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -2464,7 +2465,16 @@ impl<F, T>
                 .map(|error| types::ErrorResponse {
                     code: error.code.to_owned(),
                     message: error.code.to_owned(),
-                    reason: Some(error.message.to_owned()),
+                    reason: error
+                        .decline_code
+                        .clone()
+                        .map(|decline_code| {
+                            format!(
+                                "message - {}, decline_code - {}",
+                                error.message, decline_code
+                            )
+                        })
+                        .or(Some(error.message.clone())),
                     status_code: item.http_code,
                 });
 
@@ -2773,6 +2783,7 @@ pub struct ErrorDetails {
     pub error_type: Option<String>,
     pub message: Option<String>,
     pub param: Option<String>,
+    pub decline_code: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]

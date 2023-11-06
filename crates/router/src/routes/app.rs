@@ -14,6 +14,8 @@ use tokio::sync::oneshot;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "olap")]
+use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
@@ -271,6 +273,43 @@ impl Payments {
                 );
         }
         route
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Routing;
+
+#[cfg(feature = "olap")]
+impl Routing {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/routing")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("/active")
+                    .route(web::get().to(cloud_routing::routing_retrieve_linked_config)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
+                    .route(web::post().to(cloud_routing::routing_create_config)),
+            )
+            .service(
+                web::resource("/default")
+                    .route(web::get().to(cloud_routing::routing_retrieve_default_config))
+                    .route(web::post().to(cloud_routing::routing_update_default_config)),
+            )
+            .service(
+                web::resource("/deactivate")
+                    .route(web::post().to(cloud_routing::routing_unlink_config)),
+            )
+            .service(
+                web::resource("/{algorithm_id}")
+                    .route(web::get().to(cloud_routing::routing_retrieve_config)),
+            )
+            .service(
+                web::resource("/{algorithm_id}/activate")
+                    .route(web::post().to(cloud_routing::routing_link_config)),
+            )
     }
 }
 

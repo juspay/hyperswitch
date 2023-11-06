@@ -9,6 +9,37 @@ use crate::{
     types::{self, api, storage::enums, ConnectorAuthType},
 };
 
+#[derive(Debug, Serialize)]
+pub struct BitpayRouterData<T> {
+    pub amount: i64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for BitpayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionSpeed {
@@ -29,11 +60,14 @@ pub struct BitpayPaymentsRequest {
     notification_url: String,
     transaction_speed: TransactionSpeed,
     token: Secret<String>,
+    order_id: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
+impl TryFrom<&BitpayRouterData<&types::PaymentsAuthorizeRouterData>> for BitpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BitpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(item)
     }
 }
@@ -152,11 +186,13 @@ pub struct BitpayRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BitpayRefundRequest {
+impl<F> TryFrom<&BitpayRouterData<&types::RefundsRouterData<F>>> for BitpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BitpayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.router_data.request.refund_amount,
         })
     }
 }
@@ -232,18 +268,19 @@ pub struct BitpayErrorResponse {
 }
 
 fn get_crypto_specific_payment_data(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &BitpayRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<BitpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let price = item.request.amount;
-    let currency = item.request.currency.to_string();
-    let redirect_url = item.request.get_return_url()?;
-    let notification_url = item.request.get_webhook_url()?;
+    let price = item.amount;
+    let currency = item.router_data.request.currency.to_string();
+    let redirect_url = item.router_data.request.get_return_url()?;
+    let notification_url = item.router_data.request.get_webhook_url()?;
     let transaction_speed = TransactionSpeed::Medium;
-    let auth_type = item.connector_auth_type.clone();
+    let auth_type = item.router_data.connector_auth_type.clone();
     let token = match auth_type {
         ConnectorAuthType::HeaderKey { api_key } => api_key,
         _ => String::default().into(),
     };
+    let order_id = item.router_data.connector_request_reference_id.clone();
 
     Ok(BitpayPaymentsRequest {
         price,
@@ -252,6 +289,7 @@ fn get_crypto_specific_payment_data(
         notification_url,
         transaction_speed,
         token,
+        order_id,
     })
 }
 
