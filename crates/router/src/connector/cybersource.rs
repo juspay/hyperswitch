@@ -93,6 +93,10 @@ impl ConnectorCommon for Cybersource {
         connectors.cybersource.base_url.as_ref()
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn build_error_response(
         &self,
         res: types::Response,
@@ -468,7 +472,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = cybersource::CybersourcePaymentsRequest::try_from(req)?;
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request =
+            cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
         let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,

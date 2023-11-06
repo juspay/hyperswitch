@@ -21,6 +21,7 @@ impl utils::Connector for BluesnapTest {
             connector: Box::new(&Bluesnap),
             connector_name: types::Connector::Bluesnap,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
