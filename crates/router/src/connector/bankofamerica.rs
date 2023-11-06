@@ -116,6 +116,10 @@ where
     {
         let date = OffsetDateTime::now_utc();
         let boa_req = self.get_request_body(req)?;
+        let http_method = match boa_req{
+            Some(_) => common_utils::request::Method::Post,
+            None => common_utils::request::Method::Get,
+        };
         let auth = bankofamerica::BankofamericaAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.bankofamerica.base_url.as_str();
@@ -137,7 +141,6 @@ where
                 })
                 .as_bytes(),
         );
-        let http_method = self.get_http_method();
         let signature = self.generate_signature(
             auth,
             host.to_string(),
@@ -474,13 +477,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = bankofamerica::BankofamericaPaymentsRequest::try_from(req)?;
-        let bankofamerica_payments_request = types::RequestBody::log_and_get_request_body(
+        let connector_request = bankofamerica::BankofamericaCaptureRequest::try_from(req)?;
+        let bankofamerica_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<bankofamerica::BankofamericaPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<bankofamerica::BankofamericaCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_payments_request))
+        Ok(Some(bankofamerica_capture_request))
     }
 
     fn build_request(
