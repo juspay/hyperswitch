@@ -973,7 +973,7 @@ S619.162,694.432,619.162,716.897z"
             // Payment details
             var amountNode = createItem(
               "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
+              paymentDetails.currency + " " + paymentDetails.amount
             );
             var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
             // @ts-ignore
@@ -988,7 +988,7 @@ S619.162,694.432,619.162,716.897z"
             // Payment details
             var amountNode = createItem(
               "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
+              paymentDetails.currency + " " + paymentDetails.amount
             );
             var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
             // @ts-ignore
@@ -1002,7 +1002,7 @@ S619.162,694.432,619.162,716.897z"
             // Payment details
             var amountNode = createItem(
               "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
+              paymentDetails.currency + " " + paymentDetails.amount
             );
             var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
             // @ts-ignore
@@ -1016,7 +1016,7 @@ S619.162,694.432,619.162,716.897z"
             // Payment details
             var amountNode = createItem(
               "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
+              paymentDetails.currency + " " + paymentDetails.amount
             );
             var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
             // @ts-ignore
@@ -1030,7 +1030,7 @@ S619.162,694.432,619.162,716.897z"
             // Payment details
             var amountNode = createItem(
               "AMOUNT PAID",
-              paymentDetails.currency_symbol + " " + paymentDetails.amount
+              paymentDetails.currency + " " + paymentDetails.amount
             );
             var paymentId = createItem("PAYMENT ID", paymentDetails.payment_id);
             var paymentId = createItem(
@@ -1125,7 +1125,7 @@ S619.162,694.432,619.162,716.897z"
         var priceNode = document.createElement("div");
         priceNode.className = "hyper-checkout-payment-price";
         priceNode.innerText =
-          paymentDetails.currency_symbol + " " + paymentDetails.amount;
+          paymentDetails.currency + " " + paymentDetails.amount;
 
         // Create merchant name's node
         var merchantNameNode = document.createElement("div");
@@ -1239,7 +1239,7 @@ S619.162,694.432,619.162,716.897z"
         var priceNode = document.createElement("div");
         priceNode.className = "hyper-checkout-card-item-price";
         priceNode.innerText =
-          paymentDetails.currency_symbol + " " + item.amount;
+          paymentDetails.currency + " " + item.amount;
         // Append items
         nameAndQuantityWrapperNode.append(productNameNode, quantityNode);
         itemWrapperNode.append(
@@ -1359,7 +1359,7 @@ S619.162,694.432,619.162,716.897z"
         var sdkHeaderAmountNode = document.createElement("div");
         sdkHeaderAmountNode.className = "hyper-checkout-sdk-header-amount";
         sdkHeaderAmountNode.innerText =
-          paymentDetails.currency_symbol + " " + paymentDetails.amount;
+          paymentDetails.currency + " " + paymentDetails.amount;
         sdkHeaderItemNode.append(sdkHeaderMerchantNameNode);
         sdkHeaderItemNode.append(sdkHeaderAmountNode);
 

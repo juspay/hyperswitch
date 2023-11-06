@@ -3140,7 +3140,6 @@ pub struct PaymentLinkInitiateRequest {
 pub struct PaymentLinkDetails {
     pub amount: i64,
     pub currency: api_enums::Currency,
-    pub currency_symbol: api_enums::CurrencySymbol,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
