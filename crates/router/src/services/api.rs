@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{AttemptStatus, CaptureMethod};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -25,7 +25,7 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::{AuthInfo, AuthenticateAndFetch};
+use super::authentication::AuthenticateAndFetch;
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
@@ -404,7 +404,21 @@ where
                                         500..=511 => {
                                             connector_integration.get_5xx_error_response(body)?
                                         }
-                                        _ => connector_integration.get_error_response(body)?,
+                                        _ => {
+                                            let error_res =
+                                                connector_integration.get_error_response(body)?;
+                                            if router_data.connector == "bluesnap"
+                                                && error_res.status_code == 403
+                                                && error_res.reason
+                                                    == Some(format!(
+                                                        "{} in bluesnap dashboard",
+                                                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                                                    ))
+                                            {
+                                                router_data.status = AttemptStatus::Failure;
+                                            };
+                                            error_res
+                                        }
                                     };
 
                                     router_data.response = Err(error);
@@ -762,7 +776,6 @@ where
     Q: Serialize + Debug + 'a,
     T: Debug + Serialize,
     A: AppStateInfo + Clone,
-    U: AuthInfo,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
@@ -783,12 +796,12 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     // Currently auth failures are not recorded as API events
-    let auth_out = api_auth
+    let (auth_out, auth_type) = api_auth
         .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
 
-    let merchant_id = auth_out
+    let merchant_id = auth_type
         .get_merchant_id()
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
@@ -842,6 +855,7 @@ where
         status_code,
         serialized_request,
         serialized_response,
+        auth_type,
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -875,7 +889,6 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug + Serialize,
-    U: AuthInfo,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
