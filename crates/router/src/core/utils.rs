@@ -1082,8 +1082,8 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
 
 pub async fn persist_individual_surcharge_details_in_redis(
     state: &AppState,
-    merchant_account: domain::MerchantAccount,
-    surcharge_metadata: api_models::payment_methods::SurchargeMetadata,
+    merchant_account: &domain::MerchantAccount,
+    surcharge_metadata: &api_models::payment_methods::SurchargeMetadata,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
