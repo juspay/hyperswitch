@@ -237,7 +237,11 @@ impl From<IatapayPaymentStatus> for enums::AttemptStatus {
             IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
-            _ => Self::Voided,
+            IatapayPaymentStatus::Tobeinvestigated
+            | IatapayPaymentStatus::Blocked
+            | IatapayPaymentStatus::Cleared
+            | IatapayPaymentStatus::Locked
+            | IatapayPaymentStatus::Unknown => Self::Voided,
         }
     }
 }
