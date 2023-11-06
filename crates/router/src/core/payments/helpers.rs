@@ -3477,7 +3477,6 @@ pub fn validate_payment_link_request(
     Ok(())
 }
 
-
 // #[cfg(feature = "olap")]
 // pub fn validate_payment_link_list_request(
 //     req: &api_models::payments::PaymentLinkListConstraints,

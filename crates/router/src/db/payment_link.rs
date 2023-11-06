@@ -1,6 +1,6 @@
 use error_stack::IntoReport;
-#[cfg(feature = "olap")]
 
+#[cfg(feature = "olap")]
 use super::{MockDb, Store};
 use crate::{
     connection,
@@ -24,7 +24,7 @@ pub trait PaymentLinkInterface {
     async fn find_payment_link_by_merchant_id(
         &self,
         merchant_id: &str,
-        payment_link_contraints: api_models::payments::PaymentLinkListConstraints
+        payment_link_contraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>;
 }
 
@@ -61,8 +61,9 @@ impl PaymentLinkInterface for Store {
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentLink::filter_by_constraints(&conn, merchant_id, payment_link_contraints)
-        .await.map_err(Into::into)
-        .into_report()
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 }
 
@@ -88,7 +89,7 @@ impl PaymentLinkInterface for MockDb {
         &self,
         _merchant_id: &str,
         _payment_link_contraints: api_models::payments::PaymentLinkListConstraints,
-    ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>{
+    ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         // TODO: Implement function for `MockDb`x
         Err(errors::StorageError::MockDbError)?
     }

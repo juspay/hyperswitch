@@ -1,13 +1,16 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::{
     payment_link::{PaymentLink, PaymentLinkNew},
     schema::payment_link::dsl,
 };
-
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-
-use crate::{connection::PgPooledConn, logger, core::errors::{self, CustomResult}};
 use error_stack::{IntoReport, ResultExt};
+
+use crate::{
+    connection::PgPooledConn,
+    core::errors::{self, CustomResult},
+    logger,
+};
 #[async_trait::async_trait]
 
 pub trait PaymentLinkDbExt: Sized {

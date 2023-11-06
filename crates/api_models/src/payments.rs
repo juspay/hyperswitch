@@ -3111,21 +3111,19 @@ pub struct PaymentLinkResponse {
     pub payment_link_id: String,
 }
 
+
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
-    pub payment_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
     pub amount: i64,
-    #[schema(value_type = Option<Currency>, example = "USD")]
-    pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
+    pub description: Option<String>,
+    pub status: String
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3149,7 +3147,6 @@ pub struct PaymentLinkDetails {
     pub order_details: Vec<pii::SecretSerdeValue>,
     pub max_items_visible_after_collapse: i8,
 }
-
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -3214,5 +3211,5 @@ pub struct PaymentLinkListResponse {
     /// The number of payment links included in the list
     pub size: usize,
     // The list of payment link response objects
-    pub data: Vec<PaymentLinkResponse>
+    pub data: Vec<PaymentLinkResponse>,
 }
