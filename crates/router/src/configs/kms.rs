@@ -1,6 +1,5 @@
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
-use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError, KmsValue};
+use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError};
 use masking::ExposeInterface;
 
 use crate::configs::settings;
