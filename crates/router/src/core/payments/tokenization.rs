@@ -43,26 +43,25 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let tokens = resp
-                .payment_method_token
-                .to_owned()
-                .get_required_value("payment_token")?;
+            let connector_email = if token_store {
+                let tokens = resp
+                    .payment_method_token
+                    .to_owned()
+                    .get_required_value("payment_token")?;
 
-            let (connector_token, connector_email) = if token_store {
-                let (token, email) = match tokens {
-                    types::PaymentMethodToken::Token(connector_token) => (connector_token, None),
+                match tokens {
                     types::PaymentMethodToken::TokenWithParameters(connector_token) => {
-                        (connector_token.token, connector_token.email)
+                        connector_token.email
                     }
+                    types::PaymentMethodToken::Token(_) => None,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ApiErrorResponse::NotSupported {
                             message: "Apple Pay Decrypt token is not supported".to_string(),
                         })?
                     }
-                };
-                (Some((connector, token)), email)
+                }
             } else {
-                (None, None)
+                None
             };
 
             let pm_id = if resp.request.get_setup_future_usage().is_some() {
@@ -106,7 +105,6 @@ where
                         Ok(pm) => {
                             let pm_metadata = create_payment_method_metadata(
                                 pm.metadata.as_ref(),
-                                connector_token,
                                 connector_email,
                             )?;
                             if let Some(metadata) = pm_metadata {
@@ -123,7 +121,6 @@ where
                                         diesel_models::errors::DatabaseError::NotFound => {
                                             let pm_metadata = create_payment_method_metadata(
                                                 None,
-                                                connector_token,
                                                 connector_email,
                                             )?;
                                             payment_methods::cards::create_payment_method(
@@ -152,8 +149,7 @@ where
                         }
                     };
                 } else {
-                    let pm_metadata =
-                        create_payment_method_metadata(None, connector_token, connector_email)?;
+                    let pm_metadata = create_payment_method_metadata(None, connector_email)?;
                     payment_methods::cards::create_payment_method(
                         db,
                         &payment_method_create_request,
@@ -220,7 +216,6 @@ pub async fn save_in_locker(
 
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
-    connector_token: Option<(&api::ConnectorData, String)>,
     connector_email: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mut meta = match metadata {
@@ -235,16 +230,9 @@ pub fn create_payment_method_metadata(
         }
     };
 
-    connector_token.map(|connector_and_token| {
-        meta.insert(
-            connector_and_token.0.connector_name.to_string(),
-            serde_json::Value::String(connector_and_token.1),
-        );
-    });
-
-    connector_email.map(|email| {
+    if let Some(email) = connector_email {
         meta.insert(String::from("email"), serde_json::Value::String(email));
-    });
+    }
 
     Ok(Some(serde_json::Value::Object(meta)))
 }

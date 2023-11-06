@@ -7,9 +7,10 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes, PaymentMethodsData,
-        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
-        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes, PaymentMethodDetails,
+        PaymentMethodsData, PaypalDetails, RequestPaymentMethodTypes, RequiredFieldInfo,
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
 };
@@ -1876,6 +1877,29 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
+        let payment_method_details: Option<PaymentMethodDetails> = match pm.payment_method {
+            enums::PaymentMethod::Card => get_card_details(&pm, key, state, &hyperswitch_token)
+                .await?
+                .map(PaymentMethodDetails::Card),
+            enums::PaymentMethod::BankTransfer => {
+                let bank_transfer_details =
+                    get_lookup_key_for_payout_method(state, &key_store, &hyperswitch_token, &pm)
+                        .await?;
+                Some(PaymentMethodDetails::BankTransfer(bank_transfer_details))
+            }
+            enums::PaymentMethod::Wallet => match pm.payment_method_type {
+                Some(enums::PaymentMethodType::Paypal) => {
+                    pm.metadata.clone().and_then(|wallet_data| {
+                        let paypal_details: Option<PaypalDetails> =
+                            wallet_data.parse_value("PaypalDetails").ok();
+                        paypal_details.map(PaymentMethodDetails::Paypal)
+                    })
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+
         let card = if pm.payment_method == enums::PaymentMethod::Card {
             get_card_details(&pm, key, state, &hyperswitch_token).await?
         } else {
@@ -1901,6 +1925,7 @@ pub async fn list_customer_payment_method(
             card,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
+            payment_method_details,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),

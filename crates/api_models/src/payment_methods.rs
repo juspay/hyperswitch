@@ -211,6 +211,19 @@ pub struct CardDetailFromLocker {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodDetails {
+    Card(CardDetailFromLocker),
+    BankTransfer(payouts::Bank),
+    Paypal(PaypalDetails),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaypalDetails {
+    pub email: Option<String>,
+}
+
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
@@ -714,6 +727,10 @@ pub struct CustomerPaymentMethod {
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+
+    /// Card details from card locker
+    #[schema(value_type = Option<PaymentMethodDetails>,example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
+    pub payment_method_details: Option<PaymentMethodDetails>,
 
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
