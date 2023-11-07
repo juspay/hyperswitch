@@ -11,6 +11,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
+use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
@@ -123,7 +124,11 @@ impl PaymentIntentInterface for MockDb {
             .iter_mut()
             .find(|item| item.id == this.id)
             .unwrap();
-        *payment_intent = update.apply_changeset(this);
+        *payment_intent = PaymentIntent::from_storage_model(
+            update
+                .to_storage_model()
+                .apply_changeset(this.to_storage_model()),
+        );
         Ok(payment_intent.clone())
     }
 

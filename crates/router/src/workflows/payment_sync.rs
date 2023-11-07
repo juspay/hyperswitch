@@ -69,6 +69,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
+                None,
                 api::HeaderPayload::default(),
             )
             .await?;
@@ -149,10 +150,28 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+                    let profile_id = payment_data
+                        .payment_intent
+                        .profile_id
+                        .as_ref()
+                        .get_required_value("profile_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Could not find profile_id in payment intent")?;
+
+                    let business_profile = db
+                        .find_business_profile_by_profile_id(profile_id)
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::BusinessProfileNotFound {
+                                id: profile_id.to_string(),
+                            },
+                        )?;
+
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     utils::trigger_payments_webhook::<_, api_models::payments::PaymentsRequest, _>(
                         merchant_account,
+                        business_profile,
                         payment_data,
                         None,
                         customer,

@@ -215,35 +215,6 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
 }
 
-impl PaymentIntentUpdate {
-    pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
-        let internal_update: PaymentIntentUpdateInternal = self.into();
-        PaymentIntent {
-            amount: internal_update.amount.unwrap_or(source.amount),
-            currency: internal_update.currency.or(source.currency),
-            status: internal_update.status.unwrap_or(source.status),
-            amount_captured: internal_update.amount_captured.or(source.amount_captured),
-            customer_id: internal_update.customer_id.or(source.customer_id),
-            return_url: internal_update.return_url.or(source.return_url),
-            setup_future_usage: internal_update
-                .setup_future_usage
-                .or(source.setup_future_usage),
-            off_session: internal_update.off_session.or(source.off_session),
-            metadata: internal_update.metadata.or(source.metadata),
-            billing_address_id: internal_update
-                .billing_address_id
-                .or(source.billing_address_id),
-            shipping_address_id: internal_update
-                .shipping_address_id
-                .or(source.shipping_address_id),
-            modified_at: common_utils::date_time::now(),
-            order_details: internal_update.order_details.or(source.order_details),
-            updated_by: internal_update.updated_by,
-            ..source
-        }
-    }
-}
-
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
