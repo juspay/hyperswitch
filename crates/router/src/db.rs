@@ -25,6 +25,8 @@ pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
+pub mod user;
+pub mod user_roles;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,

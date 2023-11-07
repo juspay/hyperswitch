@@ -27,3 +27,5 @@ pub mod process_tracker;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
+pub mod user;
+pub mod user_roles;

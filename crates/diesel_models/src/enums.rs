@@ -14,7 +14,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
-        DbRoutingAlgorithmKind as RoutingAlgorithmKind,
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbUserStatus as UserStatus,
     };
 }
 pub use common_enums::*;
@@ -400,4 +400,26 @@ pub enum FraudCheckLastStep {
     CheckoutOrSale,
     TransactionOrRecordRefund,
     Fulfillment,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UserStatus {
+    Active,
+    #[default]
+    InvitationSent,
 }
