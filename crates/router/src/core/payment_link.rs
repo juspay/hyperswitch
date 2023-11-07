@@ -1,5 +1,8 @@
 use api_models::admin as admin_types;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{
+    consts::{DEFAULT_BACKGROUND_COLOR, DEFAULT_SDK_THEME},
+    ext_traits::ValueExt,
+};
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 
@@ -96,7 +99,7 @@ pub async fn intiate_payment_link_flow(
     )?;
 
     let (default_sdk_theme, default_background_color) =
-        ("#7EA8F6".to_string(), "#E5E5E5".to_string());
+        (DEFAULT_SDK_THEME, DEFAULT_BACKGROUND_COLOR);
 
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
@@ -123,14 +126,19 @@ pub async fn intiate_payment_link_flow(
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
         sdk_theme: payment_link_config.clone().and_then(|pl_config| {
-            pl_config
-                .color_scheme
-                .map(|color| color.sdk_theme.unwrap_or(default_sdk_theme.clone()))
+            pl_config.color_scheme.map(|color| {
+                color
+                    .sdk_theme
+                    .unwrap_or(default_sdk_theme.clone().to_string())
+            })
         }),
     };
 
     let js_script = get_js_script(payment_details)?;
-    let css_script = get_color_scheme_css(payment_link_config.clone(), default_background_color);
+    let css_script = get_color_scheme_css(
+        payment_link_config.clone(),
+        default_background_color.to_string(),
+    );
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
