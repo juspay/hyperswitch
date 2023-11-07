@@ -412,18 +412,22 @@ pub struct BankofamericaCaptureRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for BankofamericaCaptureRequest {
+impl TryFrom<&BankofamericaRouterData<&types::PaymentsCaptureRouterData>>
+    for BankofamericaCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: &BankofamericaRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
-                    total_amount: value.request.amount_to_capture.to_string(),
-                    currency: value.request.currency.to_string(),
+                    total_amount: value.amount.to_owned(),
+                    currency: value.router_data.request.currency.to_string(),
                 },
             },
             client_reference_information: ClientReferenceInformation {
-                code: Some(value.connector_request_reference_id.clone()),
+                code: Some(value.router_data.connector_request_reference_id.clone()),
             },
         })
     }
@@ -446,6 +450,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BankofamericaVoidRequest {
 }
 
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BankofamericaRefundRequest {
     order_information: OrderInformation,
 }

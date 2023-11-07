@@ -183,7 +183,7 @@ impl ConnectorCommon for Bankofamerica {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -477,7 +477,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = bankofamerica::BankofamericaCaptureRequest::try_from(req)?;
+        let connector_router_data = bankofamerica::BankofamericaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_request =
+            bankofamerica::BankofamericaCaptureRequest::try_from(&connector_router_data)?;
         let bankofamerica_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<bankofamerica::BankofamericaCaptureRequest>::encode_to_string_of_json,
