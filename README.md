@@ -39,9 +39,7 @@ The single API to access payment ecosystems across 130+ countries</div>
 <hr>
 <img src="./docs/imgs/switch.png" />
 
-Hyperswitch is an open source payments switch to make payments fast, reliable, and, affordable.
-It lets you connect with multiple payment processors and route traffic effortlessly, all with a single API integration.
-
+Hyperswitch is a community-led, open payments switch to enable access to the best payments infrastructure for every digital business.
 
 Using Hyperswitch, you can:
 
@@ -63,14 +61,16 @@ Using Hyperswitch, you can:
 
 The fastest and easiest way to try hyperswitch is via our CDK scripts
 
-1. Click on the following button to deploy a Production-ready Kubernetes setup inside your AWS stack.
-   No code or setup is required in your system
+1. Click on the following button for a quick standalone deployment on AWS, suitable for prototyping.
+   No code or setup is required in your system and the deployment is covered within the AWS free-tier setup.
 
 <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/new?stackName=Hyperswitch&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/deployment.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
 
 2. Sign-in to your AWS console.
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
+
+For an early access to the production-ready setup fill this <a href="https://forms.gle/v6ru55XDZFufVPnu9">Early Access Form</a> 
 
 <a href="#Fast-Integration-for-Stripe-Users">
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
