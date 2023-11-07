@@ -82,6 +82,8 @@ pub trait StorageInterface:
     + business_profile::BusinessProfileInterface
     + organization::OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
+    + user::UserInterface
+    + user_roles::UserRoleInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
