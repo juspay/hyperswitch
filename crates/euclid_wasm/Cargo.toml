@@ -1,0 +1,37 @@
+[package]
+name = "euclid_wasm"
+description = "WASM bindings for Euclid DSL"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["connector_choice_bcompat", "payouts"]
+connector_choice_bcompat = [
+    "euclid/connector_choice_bcompat",
+    "api_models/connector_choice_bcompat",
+    "kgraph_utils/backwards_compatibility"
+]
+connector_choice_mca_id = [
+    "api_models/connector_choice_mca_id",
+    "euclid/connector_choice_mca_id",
+    "kgraph_utils/connector_choice_mca_id"
+]
+dummy_connector = ["kgraph_utils/dummy_connector"]
+payouts = []
+
+[dependencies]
+api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+euclid = { path = "../euclid", features = [] }
+kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
+getrandom = { version = "0.2.10", features = ["js"] }
+once_cell = "1.18.0"
+serde = { version = "1.0", features = [] }
+serde-wasm-bindgen = "0.5"
+strum = { version = "0.25", features = ["derive"] }
+wasm-bindgen = { version = "0.2.86" }
+ron-parser = "0.1.4"
