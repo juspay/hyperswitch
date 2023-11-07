@@ -28,6 +28,7 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     payout_method_data: Option<&api::PayoutMethodData>,
