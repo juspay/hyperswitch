@@ -5460,6 +5460,14 @@
           "card_details": {
             "type": "string",
             "description": "The details of the card"
+          },
+          "assurance_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
