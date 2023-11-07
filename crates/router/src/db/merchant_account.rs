@@ -399,19 +399,17 @@ async fn publish_and_redact_merchant_account_cache(
     store: &dyn super::StorageInterface,
     merchant_account: &storage::MerchantAccount,
 ) -> CustomResult<(), errors::StorageError> {
-    super::cache::publish_into_redact_channel(
-        store,
-        CacheKind::Accounts(merchant_account.merchant_id.as_str().into()),
-    )
-    .await?;
-    merchant_account
+    let publishable_key = merchant_account
         .publishable_key
         .as_ref()
-        .async_map(|pub_key| async {
-            super::cache::publish_into_redact_channel(store, CacheKind::Accounts(pub_key.into()))
-                .await
-        })
-        .await
-        .transpose()?;
+        .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
+
+    let mut cache_keys = vec![CacheKind::Accounts(
+        merchant_account.merchant_id.as_str().into(),
+    )];
+
+    cache_keys.extend(publishable_key.into_iter());
+
+    super::cache::publish_into_redact_channel(store, cache_keys).await?;
     Ok(())
 }

@@ -221,8 +221,6 @@ pub async fn create_or_update_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let customer_id = customer_id.get_required_value("customer_id")?;
-
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
                     db.insert_address_for_payments(
@@ -282,7 +280,6 @@ pub async fn create_or_find_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let customer_id = customer_id.get_required_value("customer_id")?;
 
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
@@ -317,7 +314,7 @@ pub async fn get_domain_address_for_payments(
     address_details: api_models::payments::AddressDetails,
     address: &api_models::payments::Address,
     merchant_id: &str,
-    customer_id: &str,
+    customer_id: Option<&String>,
     payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
@@ -332,7 +329,7 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-            customer_id: customer_id.to_string(),
+            customer_id: customer_id.cloned(),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.city,
@@ -763,25 +760,14 @@ fn validate_new_mandate_request(
 }
 
 pub fn validate_customer_id_mandatory_cases(
-    has_shipping: bool,
-    has_billing: bool,
     has_setup_future_usage: bool,
     customer_id: &Option<String>,
 ) -> RouterResult<()> {
-    match (
-        has_shipping,
-        has_billing,
-        has_setup_future_usage,
-        customer_id,
-    ) {
-        (true, _, _, None) | (_, true, _, None) | (_, _, true, None) => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "customer_id is mandatory when shipping or billing \
-                address is given or when setup_future_usage is given"
-                    .to_string(),
-            })
-            .into_report()
-        }
+    match (has_setup_future_usage, customer_id) {
+        (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "customer_id is mandatory when setup_future_usage is given".to_string(),
+        })
+        .into_report(),
         _ => Ok(()),
     }
 }
