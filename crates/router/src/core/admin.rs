@@ -1499,6 +1499,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Bankofamerica => {
+        //     bankofamerica::transformers::BankofamericaAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())
