@@ -37,6 +37,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
+pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merchant-transaction:";
+
 #[derive(Debug, Clone)]
 pub struct Bluesnap;
 
@@ -132,12 +134,24 @@ impl ConnectorCommon for Bluesnap {
                 message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
             },
-            bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
-                status_code: res.status_code,
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: error_response.clone(),
-                reason: Some(error_response),
-            },
+            bluesnap::BluesnapErrors::General(error_response) => {
+                let error_res = if res.status_code == 403
+                    && error_response.contains(BLUESNAP_TRANSACTION_NOT_FOUND)
+                {
+                    format!(
+                        "{} in bluesnap dashboard",
+                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                    )
+                } else {
+                    error_response.clone()
+                };
+                ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response,
+                    reason: Some(error_res),
+                }
+            }
         };
         Ok(response_error_message)
     }
@@ -322,21 +336,26 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
-
-        match meta_data {
-            // if merchant_id is present, psync can be made using merchant_transaction_id
-            Ok(data) => get_url_with_merchant_transaction_id(
-                self.base_url(connectors).to_string(),
-                data.merchant_id,
-                req.attempt_id.to_owned(),
-            ),
-            // otherwise psync is made using connector_transaction_id
-            Err(_) => get_psync_url_with_connector_transaction_id(
-                &req.request.connector_transaction_id,
-                self.base_url(connectors).to_string(),
-            ),
+        let connector_transaction_id = req.request.connector_transaction_id.clone();
+        match connector_transaction_id {
+            // if connector_transaction_id is present, we always sync with connector_transaction_id
+            types::ResponseId::ConnectorTransactionId(trans_id) => {
+                get_psync_url_with_connector_transaction_id(
+                    trans_id,
+                    self.base_url(connectors).to_string(),
+                )
+            }
+            _ => {
+                // if connector_transaction_id is not present, we sync with merchant_transaction_id
+                let meta_data: bluesnap::BluesnapConnectorMetaData =
+                    connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone())
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                get_url_with_merchant_transaction_id(
+                    self.base_url(connectors).to_string(),
+                    meta_data.merchant_id,
+                    req.attempt_id.to_owned(),
+                )
+            }
         }
     }
 
@@ -1269,12 +1288,9 @@ fn get_url_with_merchant_transaction_id(
 }
 
 fn get_psync_url_with_connector_transaction_id(
-    connector_transaction_id: &types::ResponseId,
+    connector_transaction_id: String,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let connector_transaction_id = connector_transaction_id
-        .get_connector_transaction_id()
-        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
     Ok(format!(
         "{}{}{}",
         base_url, "services/2/transactions/", connector_transaction_id

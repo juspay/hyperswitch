@@ -35,7 +35,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: String,
+    pub customer_id: Option<String>,
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub updated_by: String,

@@ -142,6 +142,8 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<String>,
 }
 
@@ -202,6 +204,8 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<String>,
 }
 
@@ -323,6 +327,13 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        updated_by: String,
+    },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
         updated_by: String,
     },
 }
