@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::ResultExt;
 use futures::FutureExt;
 use router_derive;
 use router_env::{instrument, tracing};
+use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
 use super::{Operation, PostUpdateTracker};
@@ -589,6 +591,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_db = state.clone().store;
     let m_payment_attempt_update = payment_attempt_update.clone();
     let m_payment_attempt = payment_attempt.clone();
+
+    let payment_attempt = payment_attempt_update
+        .map(|payment_attempt_update| {
+            PaymentAttempt::from_storage_model(
+                payment_attempt_update
+                    .to_storage_model()
+                    .apply_changeset(payment_attempt.clone().to_storage_model()),
+            )
+        })
+        .unwrap_or_else(|| payment_attempt);
+
     let payment_attempt_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -602,7 +615,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-                        None => payment_attempt,
+                        None => m_payment_attempt,
                     },
                 )
             })
@@ -614,6 +627,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_db = state.clone().store;
     let m_connector_response_update = connector_response_update.clone();
     let m_connector_response = connector_response.clone();
+
+    let connector_response = connector_response_update
+        .map(|connector_response_update| {
+            connector_response_update.apply_changeset(connector_response.clone())
+        })
+        .unwrap_or_else(|| connector_response);
+
     let connector_response_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -627,7 +647,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-                        None => connector_response,
+                        None => m_connector_response,
                     },
                 )
             })
@@ -636,10 +656,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .in_current_span(),
     );
 
-    let (payment_attempt, connector_response) = futures::try_join!(
-        utils::flatten_join_error(payment_attempt_fut),
-        utils::flatten_join_error(connector_response_fut)
-    )?;
     payment_data.payment_attempt = payment_attempt;
     payment_data.connector_response = connector_response;
 
@@ -701,12 +717,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .in_current_span(),
     );
 
-    let (payment_intent, _) = futures::try_join!(
+    let (payment_intent, _, _, _) = futures::try_join!(
         utils::flatten_join_error(payment_intent_fut),
-        utils::flatten_join_error(mandate_update_fut)
+        utils::flatten_join_error(mandate_update_fut),
+        utils::flatten_join_error(payment_attempt_fut),
+        utils::flatten_join_error(connector_response_fut)
     )?;
-    payment_data.payment_intent = payment_intent;
 
+    payment_data.payment_intent = payment_intent;
     Ok(payment_data)
 }
 
