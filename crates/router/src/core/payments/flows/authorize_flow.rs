@@ -1,3 +1,4 @@
+use api_models::payments::WalletData;
 use async_trait::async_trait;
 use error_stack;
 
@@ -234,6 +235,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
 impl types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
+        if let api_models::payments::PaymentMethodData::Wallet(WalletData::GooglePay(
+            google_pay_data,
+        )) = &self.request.payment_method_data
+        {
+            if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
+                if !assurance_details.card_holder_authenticated {
+                    self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
+                }
+            }
+        }
         if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
         {
