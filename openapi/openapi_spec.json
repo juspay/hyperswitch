@@ -6155,6 +6155,11 @@
               }
             ],
             "nullable": true
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Whether to enable KV or not",
+            "nullable": true
           }
         }
       },
