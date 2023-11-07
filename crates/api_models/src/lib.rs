@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 pub mod admin;
-pub mod analytics;
 pub mod api_keys;
 pub mod bank_accounts;
 pub mod cards_info;
@@ -18,5 +17,6 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 pub mod verifications;
 pub mod webhooks;

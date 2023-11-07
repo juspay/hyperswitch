@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use api_models::{
     admin::{self as admin_types},
-    enums as api_enums,
+    enums as api_enums, routing as routing_types,
 };
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
@@ -18,6 +20,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
+        routing::helpers as routing_helpers,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -737,6 +740,9 @@ pub async fn create_payment_connector(
     )
     .await?;
 
+    let routable_connector =
+        api_enums::RoutableConnectors::from_str(&req.connector_name.to_string()).ok();
+
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(&profile_id)
@@ -809,6 +815,37 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    // The purpose of this merchant account update is just to update the
+    // merchant account `modified_at` field for KGraph cache invalidation
+    let merchant_account_update = storage::MerchantAccountUpdate::Update {
+        merchant_name: None,
+        merchant_details: None,
+        return_url: None,
+        webhook_details: None,
+        sub_merchants_enabled: None,
+        parent_merchant_id: None,
+        enable_payment_response_hash: None,
+        locker_id: None,
+        payment_response_hash_key: None,
+        primary_business_details: None,
+        metadata: None,
+        publishable_key: None,
+        redirect_to_merchant_with_http_post: None,
+        routing_algorithm: None,
+        intent_fulfillment_time: None,
+        frm_routing_algorithm: None,
+        payout_routing_algorithm: None,
+        default_profile: None,
+        payment_link_config: None,
+    };
+
+    state
+        .store
+        .update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error updating the merchant account when creating payment connector")?;
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -833,7 +870,7 @@ pub async fn create_payment_connector(
         connector_label: Some(connector_label),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
-        business_sub_label: req.business_sub_label,
+        business_sub_label: req.business_sub_label.clone(),
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         id: None,
@@ -854,6 +891,9 @@ pub async fn create_payment_connector(
         pm_auth_config: req.pm_auth_config.clone(),
     };
 
+    let mut default_routing_config =
+        routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
+
     let mca = state
         .store
         .insert_merchant_connector_account(merchant_connector_account, &key_store)
@@ -864,6 +904,28 @@ pub async fn create_payment_connector(
                 connector_name: req.connector_name.to_string(),
             },
         )?;
+
+    if let Some(routable_connector_val) = routable_connector {
+        let choice = routing_types::RoutableConnectorChoice {
+            #[cfg(feature = "backwards_compatibility")]
+            choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+            connector: routable_connector_val,
+            #[cfg(feature = "connector_choice_mca_id")]
+            merchant_connector_id: Some(mca.merchant_connector_id.clone()),
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            sub_label: req.business_sub_label,
+        };
+
+        if !default_routing_config.contains(&choice) {
+            default_routing_config.push(choice);
+            routing_helpers::update_merchant_default_config(
+                &*state.store,
+                merchant_id,
+                default_routing_config,
+            )
+            .await?;
+        }
+    }
 
     metrics::MCA_CREATE.add(
         &metrics::CONTEXT,
@@ -1001,8 +1063,8 @@ pub async fn update_payment_connector(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
-        test_mode: mca.test_mode,
-        disabled: mca.disabled,
+        test_mode: req.test_mode,
+        disabled: req.disabled,
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
@@ -1395,6 +1457,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(val)?;
             Ok(())
         }
+        // api_enums::Connector::Bankofamerica => {
+        //     bankofamerica::transformers::BankofamericaAuthType::try_from(val)?;
+        //     Ok(())
+        // } Added as template code for future usage
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())

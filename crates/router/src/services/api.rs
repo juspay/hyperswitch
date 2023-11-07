@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{AttemptStatus, CaptureMethod};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -403,7 +403,21 @@ where
                                         500..=511 => {
                                             connector_integration.get_5xx_error_response(body)?
                                         }
-                                        _ => connector_integration.get_error_response(body)?,
+                                        _ => {
+                                            let error_res =
+                                                connector_integration.get_error_response(body)?;
+                                            if router_data.connector == "bluesnap"
+                                                && error_res.status_code == 403
+                                                && error_res.reason
+                                                    == Some(format!(
+                                                        "{} in bluesnap dashboard",
+                                                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                                                    ))
+                                            {
+                                                router_data.status = AttemptStatus::Failure;
+                                            };
+                                            error_res
+                                        }
                                     };
 
                                     router_data.response = Err(error);
