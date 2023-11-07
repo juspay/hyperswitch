@@ -1,23 +1,19 @@
 #![allow(clippy::unwrap_used)]
 
-use router_env as env;
 mod test_module;
-use env::TelemetryGuard;
-use test_module::some_module::*;
+
+use router_env::TelemetryGuard;
+
+use self::test_module::some_module::*;
 
 fn logger() -> &'static TelemetryGuard {
     use once_cell::sync::OnceCell;
 
     static INSTANCE: OnceCell<TelemetryGuard> = OnceCell::new();
     INSTANCE.get_or_init(|| {
-        let config = env::Config::new().unwrap();
+        let config = router_env::Config::new().unwrap();
 
-        env::logger::setup(
-            &config.log,
-            env::service_name!(),
-            vec![env::service_name!()],
-        )
-        .unwrap()
+        router_env::setup(&config.log, "router_env_test", [])
     })
 }
 

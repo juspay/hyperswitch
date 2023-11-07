@@ -6,7 +6,7 @@ use crate::{
     connector::utils::AccessTokenRequestInfo,
     consts,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums},
 };
 
@@ -16,7 +16,7 @@ const WALLET_IDENTIFIER: &str = "PBL";
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsRequest {
     customer_ip: std::net::IpAddr,
-    merchant_pos_id: String,
+    merchant_pos_id: Secret<String>,
     total_amount: i64,
     currency_code: enums::Currency,
     description: String,
@@ -42,7 +42,7 @@ pub enum PayuPaymentMethodData {
 pub enum PayuCard {
     #[serde(rename_all = "camelCase")]
     Card {
-        number: Secret<String, pii::CardNumber>,
+        number: cards::CardNumber,
         expiration_month: Secret<String>,
         expiration_year: Secret<String>,
         cvv: Secret<String>,
@@ -131,8 +131,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
 }
 
 pub struct PayuAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_pos_id: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_pos_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
@@ -140,8 +140,8 @@ impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_pos_id: key1.to_string(),
+                api_key: api_key.to_owned(),
+                merchant_pos_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -194,10 +194,17 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.order_id.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .ext_order_id
+                    .or(Some(item.response.order_id)),
             }),
             amount_captured: None,
             ..item.data
@@ -248,6 +255,8 @@ impl<F, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -258,8 +267,8 @@ impl<F, T>
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayuAuthUpdateRequest {
     grant_type: String,
-    client_id: String,
-    client_secret: String,
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
 }
 
 impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
@@ -274,7 +283,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
 }
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PayuAuthUpdateResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
     pub grant_type: String,
@@ -322,10 +331,17 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.order_id.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .ext_order_id
+                    .or(Some(item.response.order_id)),
             }),
             amount_captured: None,
             ..item.data
@@ -454,6 +470,11 @@ impl<F, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: order
+                    .ext_order_id
+                    .clone()
+                    .or(Some(order.order_id.clone())),
             }),
             amount_captured: Some(
                 order

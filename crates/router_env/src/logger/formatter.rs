@@ -13,7 +13,7 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 // use time::format_description::well_known::Rfc3339;
 use time::format_description::well_known::Iso8601;
-use tracing::{Event, Id, Metadata, Subscriber};
+use tracing::{Event, Metadata, Subscriber};
 use tracing_subscriber::{
     fmt::MakeWriter,
     layer::Context,
@@ -51,6 +51,8 @@ const REQUEST_METHOD: &str = "request_method";
 const REQUEST_URL_PATH: &str = "request_url_path";
 const REQUEST_ID: &str = "request_id";
 const WORKFLOW_ID: &str = "workflow_id";
+const GLOBAL_ID: &str = "global_id";
+const SESSION_ID: &str = "session_id";
 
 /// Set of predefined implicit keys.
 pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
@@ -85,6 +87,8 @@ pub static EXTRA_IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(||
     set.insert(REQUEST_METHOD);
     set.insert(REQUEST_URL_PATH);
     set.insert(REQUEST_ID);
+    set.insert(GLOBAL_ID);
+    set.insert(SESSION_ID);
     set.insert(WORKFLOW_ID);
 
     set
@@ -126,7 +130,9 @@ where
     hostname: String,
     env: String,
     service: String,
+    #[cfg(feature = "vergen")]
     version: String,
+    #[cfg(feature = "vergen")]
     build: String,
     default_fields: HashMap<String, Value>,
 }
@@ -159,7 +165,9 @@ where
         let pid = std::process::id();
         let hostname = gethostname::gethostname().to_string_lossy().into_owned();
         let service = service.to_string();
+        #[cfg(feature = "vergen")]
         let version = crate::version!().to_string();
+        #[cfg(feature = "vergen")]
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
 
@@ -169,7 +177,9 @@ where
             hostname,
             env,
             service,
+            #[cfg(feature = "vergen")]
             version,
+            #[cfg(feature = "vergen")]
             build,
             default_fields,
         }
@@ -195,15 +205,18 @@ where
         map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
         map_serializer.serialize_entry(PID, &self.pid)?;
         map_serializer.serialize_entry(ENV, &self.env)?;
+        #[cfg(feature = "vergen")]
         map_serializer.serialize_entry(VERSION, &self.version)?;
+        #[cfg(feature = "vergen")]
         map_serializer.serialize_entry(BUILD, &self.build)?;
-        map_serializer.serialize_entry(LEVEL, &format!("{}", metadata.level()))?;
+        map_serializer.serialize_entry(LEVEL, &format_args!("{}", metadata.level()))?;
         map_serializer.serialize_entry(TARGET, metadata.target())?;
         map_serializer.serialize_entry(SERVICE, &self.service)?;
         map_serializer.serialize_entry(LINE, &metadata.line())?;
         map_serializer.serialize_entry(FILE, &metadata.file())?;
         map_serializer.serialize_entry(FN, name)?;
-        map_serializer.serialize_entry(FULL_NAME, &format!("{}::{}", metadata.target(), name))?;
+        map_serializer
+            .serialize_entry(FULL_NAME, &format_args!("{}::{}", metadata.target(), name))?;
         if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT) {
             map_serializer.serialize_entry(TIME, time)?;
         }
@@ -274,6 +287,7 @@ where
     }
 
     /// Serialize entries of span.
+    #[cfg(feature = "log_active_span_json")]
     fn span_serialize<S>(
         &self,
         span: &SpanRef<'_, S>,
@@ -399,14 +413,16 @@ where
         }
     }
 
-    fn on_enter(&self, id: &Id, ctx: Context<'_, S>) {
+    #[cfg(feature = "log_active_span_json")]
+    fn on_enter(&self, id: &tracing::Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("No span");
         if let Ok(serialized) = self.span_serialize(&span, RecordType::EnterSpan) {
             let _ = self.flush(serialized);
         }
     }
 
-    fn on_close(&self, id: Id, ctx: Context<'_, S>) {
+    #[cfg(feature = "log_active_span_json")]
+    fn on_close(&self, id: tracing::Id, ctx: Context<'_, S>) {
         let span = ctx.span(&id).expect("No span");
         if let Ok(serialized) = self.span_serialize(&span, RecordType::ExitSpan) {
             let _ = self.flush(serialized);

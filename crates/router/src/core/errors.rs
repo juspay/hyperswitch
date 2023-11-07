@@ -1,19 +1,25 @@
 pub mod api_error_response;
+pub mod customers_error_response;
 pub mod error_handlers;
+pub mod transformers;
 pub mod utils;
 
 use std::fmt::Display;
 
-use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
+use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
-use config::ConfigError;
-use error_stack;
+pub use data_models::errors::StorageError as DataStorageError;
+use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
-use router_env::opentelemetry::metrics::MetricsError;
-use storage_models::errors as storage_errors;
+use scheduler::errors as sch_errors;
+use storage_impl::errors as storage_impl_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
+    customers_error_response::CustomersErrorResponse,
+    sch_errors::*,
+    storage_errors::*,
+    storage_impl_errors::*,
     utils::{ConnectorErrorExt, StorageErrorExt},
 };
 use crate::services;
@@ -22,6 +28,9 @@ pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiE
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
+
+pub type CustomerResponse<T> =
+    CustomResult<services::ApplicationResponse<T>, CustomersErrorResponse>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
@@ -48,129 +57,11 @@ macro_rules! impl_error_type {
     };
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum StorageError {
-    #[error("DatabaseError: {0:?}")]
-    DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
-    #[error("ValueNotFound: {0}")]
-    ValueNotFound(String),
-    #[error("DuplicateValue: {entity} already exists {key:?}")]
-    DuplicateValue {
-        entity: &'static str,
-        key: Option<String>,
-    },
-    #[error("Timed out while trying to connect to the database")]
-    DatabaseConnectionError,
-    #[error("KV error")]
-    KVError,
-    #[error("Serialization failure")]
-    SerializationFailed,
-    #[error("MockDb error")]
-    MockDbError,
-    #[error("Customer with this id is Redacted")]
-    CustomerRedacted,
-    #[error("Deserialization failure")]
-    DeserializationFailed,
-    #[error("RedisError: {0:?}")]
-    RedisError(error_stack::Report<RedisError>),
-}
-
-impl From<error_stack::Report<RedisError>> for StorageError {
-    fn from(err: error_stack::Report<RedisError>) -> Self {
-        Self::RedisError(err)
-    }
-}
-
-impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
-    fn from(err: error_stack::Report<storage_errors::DatabaseError>) -> Self {
-        Self::DatabaseError(err)
-    }
-}
-
-impl StorageError {
-    pub fn is_db_not_found(&self) -> bool {
-        match self {
-            Self::DatabaseError(err) => matches!(
-                err.current_context(),
-                storage_errors::DatabaseError::NotFound
-            ),
-            _ => false,
-        }
-    }
-
-    pub fn is_db_unique_violation(&self) -> bool {
-        match self {
-            Self::DatabaseError(err) => matches!(
-                err.current_context(),
-                storage_errors::DatabaseError::UniqueViolation,
-            ),
-            _ => false,
-        }
-    }
-}
-
 impl_error_type!(EncryptionError, "Encryption error");
-
-#[derive(Debug, thiserror::Error)]
-pub enum ApplicationError {
-    // Display's impl can be overridden by the attribute error marco.
-    // Don't use Debug here, Debug gives error stack in response.
-    #[error("Application configuration error: {0}")]
-    ConfigurationError(ConfigError),
-
-    #[error("Invalid configuration value provided: {0}")]
-    InvalidConfigurationValueError(String),
-
-    #[error("Metrics error: {0}")]
-    MetricsError(MetricsError),
-
-    #[error("I/O: {0}")]
-    IoError(std::io::Error),
-}
-
-impl From<MetricsError> for ApplicationError {
-    fn from(err: MetricsError) -> Self {
-        Self::MetricsError(err)
-    }
-}
-
-impl From<std::io::Error> for ApplicationError {
-    fn from(err: std::io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
 
 impl From<ring::error::Unspecified> for EncryptionError {
     fn from(_: ring::error::Unspecified) -> Self {
         Self
-    }
-}
-
-impl From<ConfigError> for ApplicationError {
-    fn from(err: ConfigError) -> Self {
-        Self::ConfigurationError(err)
-    }
-}
-
-fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    actix_web::HttpResponse::BadRequest()
-        .append_header(("Via", "Juspay_Router"))
-        .content_type("application/json")
-        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
-}
-
-impl ResponseError for ApplicationError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::MetricsError(_)
-            | Self::IoError(_)
-            | Self::ConfigurationError(_)
-            | Self::InvalidConfigurationValueError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
-    fn error_response(&self) -> actix_web::HttpResponse {
-        error_response(self)
     }
 }
 
@@ -181,39 +72,6 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     .error_response()
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum ApiClientError {
-    #[error("Header map construction failed")]
-    HeaderMapConstructionFailed,
-    #[error("Invalid proxy configuration")]
-    InvalidProxyConfiguration,
-    #[error("Client construction failed")]
-    ClientConstructionFailed,
-    #[error("Certificate decode failed")]
-    CertificateDecodeFailed,
-
-    #[error("URL encoding of request payload failed")]
-    UrlEncodingFailed,
-    #[error("Failed to send request to connector {0}")]
-    RequestNotSent(String),
-    #[error("Failed to decode response")]
-    ResponseDecodingFailed,
-
-    #[error("Server responded with Request Timeout")]
-    RequestTimeoutReceived,
-
-    #[error("Server responded with Internal Server Error")]
-    InternalServerErrorReceived,
-    #[error("Server responded with Bad Gateway")]
-    BadGatewayReceived,
-    #[error("Server responded with Service Unavailable")]
-    ServiceUnavailableReceived,
-    #[error("Server responded with Gateway Timeout")]
-    GatewayTimeoutReceived,
-    #[error("Server responded with unexpected response")]
-    UnexpectedServerResponse,
-}
-
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ConnectorError {
     #[error("Error while obtaining URL for the integration")]
@@ -222,6 +80,8 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
@@ -240,6 +100,8 @@ pub enum ConnectorError {
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+    #[error("Missing required fields: {field_names:?}")]
+    MissingRequiredFields { field_names: Vec<&'static str> },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
@@ -250,16 +112,23 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
-    #[error("{payment_method} is not supported by {connector}")]
+    #[error("{message} is not supported by {connector}")]
     NotSupported {
-        payment_method: String,
+        message: String,
         connector: &'static str,
-        payment_experience: String,
     },
+    #[error("{flow} flow not supported by {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
+    #[error("Capture method not supported")]
+    CaptureMethodNotSupported,
+    #[error("Missing connector mandate ID")]
+    MissingConnectorMandateID,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
     MissingConnectorRefundID,
+    #[error("Missing apple pay tokenization data")]
+    MissingApplePayTokenData,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]
@@ -270,16 +139,47 @@ pub enum ConnectorError {
     WebhookSourceVerificationFailed,
     #[error("Could not find merchant secret in DB for incoming webhook source verification")]
     WebhookVerificationSecretNotFound,
+    #[error("Merchant secret found for incoming webhook source verification is invalid")]
+    WebhookVerificationSecretInvalid,
     #[error("Incoming webhook object reference ID not found")]
     WebhookReferenceIdNotFound,
     #[error("Incoming webhook event type not found")]
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Could not respond to the incoming webhook event")]
+    WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Date Formatting Failed")]
+    DateFormattingFailed,
+    #[error("Invalid Data format")]
+    InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
+    #[error("Failed to parse Wallet token")]
+    InvalidWalletToken,
+    #[error("Missing Connector Related Transaction ID")]
+    MissingConnectorRelatedTransactionID { id: String },
+    #[error("File Validation failed")]
+    FileValidationFailed { reason: String },
+    #[error("Missing 3DS redirection payload: {field_name}")]
+    MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Failed at connector's end with code '{code}'")]
+    FailedAtConnector { message: String, code: String },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType,
+    #[error("Balance in the payment method is low")]
+    InSufficientBalanceInPaymentMethod,
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
+    #[error("The given currency method is not configured with the given connector")]
+    CurrencyNotSupported {
+        message: String,
+        connector: &'static str,
+    },
+    #[error("Invalid Configuration")]
+    InvalidConnectorConfig { config: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -296,100 +196,31 @@ pub enum VaultError {
     PaymentMethodCreationFailed,
     #[error("The given payment method is currently not supported in vault")]
     PaymentMethodNotSupported,
+    #[error("The given payout method is currently not supported in vault")]
+    PayoutMethodNotSupported,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+    #[error("Failed to update in PMD table")]
+    UpdateInPaymentMethodDataTableFailed,
+    #[error("Failed to fetch payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to save payment method in vault")]
+    SavePaymentMethodFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ProcessTrackerError {
-    #[error("An unexpected flow was specified")]
-    UnexpectedFlow,
-    #[error("Failed to serialize object")]
-    SerializationFailed,
-    #[error("Failed to deserialize object")]
-    DeserializationFailed,
-    #[error("Missing required field")]
-    MissingRequiredField,
-    #[error("Failed to insert process batch into stream")]
-    BatchInsertionFailed,
-    #[error("Failed to insert process into stream")]
-    ProcessInsertionFailed,
-    #[error("The process batch with the specified details was not found")]
-    BatchNotFound,
-    #[error("Failed to update process batch in stream")]
-    BatchUpdateFailed,
-    #[error("Failed to delete process batch from stream")]
-    BatchDeleteFailed,
-    #[error("An error occurred when trying to read process tracker configuration")]
-    ConfigurationError,
-    #[error("Failed to update process in database")]
-    ProcessUpdateFailed,
-    #[error("Failed to fetch processes from database")]
-    ProcessFetchingFailed,
-    #[error("Failed while fetching: {resource_name}")]
-    ResourceFetchingFailed { resource_name: &'static str },
-    #[error("Failed while executing: {flow}")]
-    FlowExecutionError { flow: &'static str },
-    #[error("Not Implemented")]
-    NotImplemented,
-    #[error("Job not found")]
-    JobNotFound,
-    #[error("Received Error ApiResponseError: {0}")]
-    EApiErrorResponse(error_stack::Report<ApiErrorResponse>),
-    #[error("Received Error StorageError: {0}")]
-    EStorageError(error_stack::Report<StorageError>),
-    #[error("Received Error RedisError: {0}")]
-    ERedisError(error_stack::Report<RedisError>),
-    #[error("Received Error ParsingError: {0}")]
-    EParsingError(error_stack::Report<ParsingError>),
-    #[error("Validation Error Received: {0}")]
-    EValidationError(error_stack::Report<ValidationError>),
+pub enum KmsError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to KMS decrypt input data")]
+    DecryptionFailed,
+    #[error("Missing plaintext KMS decryption output")]
+    MissingPlaintextDecryptionOutput,
+    #[error("Failed to UTF-8 decode decryption output")]
+    Utf8DecodingFailed,
 }
-
-macro_rules! error_to_process_tracker_error {
-    ($($path: ident)::+ < $st: ident >, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl From<$($path)::+ <$st>> for ProcessTrackerError {
-            fn from(err: $($path)::+ <$st> ) -> Self {
-                $($path2)::*(err)
-            }
-        }
-    };
-
-    ($($path: ident)::+  <$($inner_path:ident)::+>, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
-        impl<'a> From< $($path)::+ <$($inner_path)::+> > for ProcessTrackerError {
-            fn from(err: $($path)::+ <$($inner_path)::+> ) -> Self {
-                $($path2)::*(err)
-            }
-        }
-    };
-}
-
-error_to_process_tracker_error!(
-    error_stack::Report<ApiErrorResponse>,
-    ProcessTrackerError::EApiErrorResponse(error_stack::Report<ApiErrorResponse>)
-);
-
-error_to_process_tracker_error!(
-    error_stack::Report<StorageError>,
-    ProcessTrackerError::EStorageError(error_stack::Report<StorageError>)
-);
-
-error_to_process_tracker_error!(
-    error_stack::Report<RedisError>,
-    ProcessTrackerError::ERedisError(error_stack::Report<RedisError>)
-);
-
-error_to_process_tracker_error!(
-    error_stack::Report<ParsingError>,
-    ProcessTrackerError::EParsingError(error_stack::Report<ParsingError>)
-);
-
-error_to_process_tracker_error!(
-    error_stack::Report<ValidationError>,
-    ProcessTrackerError::EValidationError(error_stack::Report<ValidationError>)
-);
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebhooksFlowError {
@@ -403,8 +234,14 @@ pub enum WebhooksFlowError {
     PaymentsCoreFailed,
     #[error("Refunds core flow failed")]
     RefundsCoreFailed,
+    #[error("Dispuste core flow failed")]
+    DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
+    #[error("Webhook event updation failed")]
+    WebhookEventUpdationFailed,
+    #[error("Outgoing webhook body signing failed")]
+    OutgoingWebhookSigningFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
@@ -413,12 +250,124 @@ pub enum WebhooksFlowError {
     NotReceivedByMerchant,
     #[error("Resource not found")]
     ResourceNotFound,
+    #[error("Webhook source verification failed")]
+    WebhookSourceVerificationFailed,
+    #[error("Webhook event object creation failed")]
+    WebhookEventObjectCreationFailed,
+    #[error("Not implemented")]
+    NotImplemented,
+    #[error("Dispute webhook status validation failed")]
+    DisputeWebhookValidationFailed,
+    #[error("Outgoing webhook body encoding failed")]
+    OutgoingWebhookEncodingFailed,
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ApiKeyError {
-    #[error("Failed to read API key hash from hexadecimal string")]
-    FailedToReadHashFromHex,
-    #[error("Failed to verify provided API key hash against stored API key hash")]
-    HashVerificationFailed,
+pub enum ApplePayDecryptionError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+    #[error("Certificate parsing failed")]
+    MissingMerchantId,
+    #[error("Key Deserialization failure")]
+    KeyDeserializationFailed,
+    #[error("Failed to Derive a shared secret key")]
+    DerivingSharedSecretKeyFailed,
+}
+
+impl ConnectorError {
+    pub fn is_connector_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+}
+
+#[cfg(feature = "detailed_errors")]
+pub mod error_stack_parsing {
+
+    #[derive(serde::Deserialize)]
+    pub struct NestedErrorStack<'a> {
+        context: std::borrow::Cow<'a, str>,
+        attachments: Vec<std::borrow::Cow<'a, str>>,
+        sources: Vec<NestedErrorStack<'a>>,
+    }
+
+    #[derive(serde::Serialize, Debug)]
+    struct LinearErrorStack<'a> {
+        context: std::borrow::Cow<'a, str>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        attachments: Vec<std::borrow::Cow<'a, str>>,
+    }
+
+    #[derive(serde::Serialize, Debug)]
+    pub struct VecLinearErrorStack<'a>(Vec<LinearErrorStack<'a>>);
+
+    impl<'a> From<Vec<NestedErrorStack<'a>>> for VecLinearErrorStack<'a> {
+        fn from(value: Vec<NestedErrorStack<'a>>) -> Self {
+            let multi_layered_errors: Vec<_> = value
+                .into_iter()
+                .flat_map(|current_error| {
+                    [LinearErrorStack {
+                        context: current_error.context,
+                        attachments: current_error.attachments,
+                    }]
+                    .into_iter()
+                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
+                })
+                .collect();
+            Self(multi_layered_errors)
+        }
+    }
+}
+#[cfg(feature = "detailed_errors")]
+pub use error_stack_parsing::*;
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RoutingError {
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Final connector selection failed")]
+    ConnectorSelectionFailed,
+    #[error("[DSL] Missing required field in payment data: '{field_name}'")]
+    DslMissingRequiredField { field_name: String },
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error updating merchant with latest dsl cache contents")]
+    DslMerchantUpdateError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Final connector selection failed")]
+    DslFinalConnectorSelectionFailed,
+    #[error("[DSL] Received incorrect selection algorithm as DSL output")]
+    DslIncorrectSelectionAlgorithm,
+    #[error("there was an error saving/retrieving values from the kgraph cache")]
+    KgraphCacheFailure,
+    #[error("failed to refresh the kgraph cache")]
+    KgraphCacheRefreshFailed,
+    #[error("there was an error during the kgraph analysis phase")]
+    KgraphAnalysisError,
+    #[error("'profile_id' was not provided")]
+    ProfileIdMissing,
+    #[error("the profile was not found in the database")]
+    ProfileNotFound,
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("Invalid connector name received: '{0}'")]
+    InvalidConnectorName(String),
+    #[error("The routing algorithm in merchant account had invalid structure")]
+    InvalidRoutingAlgorithmStructure,
+    #[error("Volume split failed")]
+    VolumeSplitFailed,
+    #[error("Unable to parse metadata")]
+    MetadataParsingError,
 }

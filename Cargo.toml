@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "examples/*"]
+members = ["crates/*"]
+package.edition = "2021"
+package.rust-version = "1.65"
+package.license = "Apache-2.0"
 
 [profile.release]
 strip = true
 lto = true
 codegen-units = 1
-
-[patch.crates-io]
-opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658" }

@@ -13,13 +13,13 @@ async fn main() -> ApplicationResult<()> {
     {
         use router::configs::settings::Subcommand;
         if let Some(Subcommand::GenerateOpenapiSpec) = cmd_line.subcommand {
-            let file_path = "openapi/generated.json";
+            let file_path = "openapi/openapi_spec.json";
             #[allow(clippy::expect_used)]
             std::fs::write(
                 file_path,
                 <router::openapi::ApiDoc as utoipa::OpenApi>::openapi()
                     .to_pretty_json()
-                    .expect("Failed to generate serialize OpenAPI specification as JSON"),
+                    .expect("Failed to serialize OpenAPI specification as JSON"),
             )
             .expect("Failed to write OpenAPI specification to file");
             println!("Successfully saved OpenAPI specification file at '{file_path}'");
@@ -34,18 +34,19 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
-    let _guard = logger::setup(&conf.log)?;
+    let _guard = router_env::setup(
+        &conf.log,
+        router_env::service_name!(),
+        [router_env::service_name!(), "actix_server"],
+    );
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
-    let (server, mut state) = router::start_server(conf)
+    let server = router::start_server(conf)
         .await
         .expect("Failed to create the server");
-
     let _ = server.await;
-
-    state.store.close().await;
 
     Err(ApplicationError::from(std::io::Error::new(
         std::io::ErrorKind::Other,

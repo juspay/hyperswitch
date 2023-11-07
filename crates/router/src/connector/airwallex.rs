@@ -1,21 +1,27 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::ext_traits::{ByteSliceExt, ValueExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as airwallex;
 
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger, routes,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration, ConnectorValidation,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -35,10 +41,10 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string(),
+            self.get_content_type().to_string().into(),
         )];
         let access_token = req
             .access_token
@@ -47,7 +53,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);
@@ -58,6 +64,10 @@ where
 impl ConnectorCommon for Airwallex {
     fn id(&self) -> &'static str {
         "airwallex"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -87,12 +97,43 @@ impl ConnectorCommon for Airwallex {
     }
 }
 
-impl api::Payment for Airwallex {}
+impl ConnectorValidation for Airwallex {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
 
-impl api::PreVerify for Airwallex {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Airwallex
+impl api::Payment for Airwallex {}
+impl api::PaymentsCompleteAuthorize for Airwallex {}
+impl api::MandateSetup for Airwallex {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Airwallex
 {
+}
+
+impl api::PaymentToken for Airwallex {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Airwallex
+{
+    // Not Implemented (R)
 }
 
 impl api::ConnectorAccessToken for Airwallex {}
@@ -116,11 +157,17 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let headers = vec![
-            (headers::X_API_KEY.to_string(), req.request.app_id.clone()),
-            ("Content-Length".to_string(), "0".to_string()),
-            ("x-client-id".to_string(), req.get_request_id()?),
+            (
+                headers::X_API_KEY.to_string(),
+                req.request.app_id.clone().into_masked(),
+            ),
+            ("Content-Length".to_string(), "0".to_string().into()),
+            (
+                "x-client-id".to_string(),
+                req.get_request_id()?.into_masked(),
+            ),
         ];
         Ok(headers)
     }
@@ -133,6 +180,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let req = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
+                .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
@@ -172,16 +220,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl
     ConnectorIntegration<
-        api::AuthorizeSessionToken,
-        types::AuthorizeSessionTokenData,
+        api::InitPayment,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Airwallex
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -191,7 +239,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        _req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -203,57 +251,38 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeSessionTokenRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        req: &types::PaymentsInitRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
-        let req =
-            utils::Encode::<airwallex::AirwallexIntentRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<airwallex::AirwallexIntentRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsPreAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .headers(types::PaymentsPreAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsPreAuthorizeType::get_request_body(
-                    self, req,
-                )?)
+                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsInitType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &RouterData<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsInitRouterData,
         res: Response,
-    ) -> CustomResult<
-        RouterData<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-        errors::ConnectorError,
-    >
-    where
-        api::AuthorizeSessionToken: Clone,
-        types::AuthorizeSessionTokenData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
+    ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
         let response: airwallex::AirwallexPaymentsResponse = res
             .response
             .parse_struct("airwallex AirwallexPaymentsResponse")
@@ -289,19 +318,23 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<(), errors::ConnectorError> {
         let integ: Box<
             &(dyn ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
+                api::InitPayment,
+                types::PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             > + Send
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from(&router_data);
+        let authorize_data = &types::PaymentsInitRouterData::from((
+            &router_data.to_owned(),
+            router_data.request.clone(),
+        ));
         let resp = services::execute_connector_processing_step(
             app_state,
             integ,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         router_data.reference_id = resp.reference_id;
@@ -312,7 +345,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -339,10 +372,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexPaymentsRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
     }
 
@@ -357,6 +399,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -400,7 +443,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -435,6 +478,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -446,9 +490,100 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
+        let response: airwallex::AirwallexPaymentsSyncResponse = res
+            .response
+            .parse_struct("airwallex AirwallexPaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::PaymentsSyncRouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Airwallex
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}api/v1/pa/payment_intents/{}/confirm_continue",
+            self.base_url(connectors),
+            connector_payment_id,
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = airwallex::AirwallexCompleteRequest::try_from(req)?;
+
+        let req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<airwallex::AirwallexCompleteRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(req))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: airwallex::AirwallexPaymentsResponse = res
             .response
-            .parse_struct("airwallex PaymentsResponse")
+            .parse_struct("AirwallexPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -474,7 +609,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -499,13 +634,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = airwallex::AirwallexPaymentsCaptureRequest::try_from(req)?;
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexPaymentsCaptureRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(airwallex_req))
     }
 
@@ -518,6 +655,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -570,7 +708,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -594,13 +732,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = airwallex::AirwallexPaymentsCancelRequest::try_from(req)?;
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexPaymentsCancelRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsCancelRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
     }
     fn handle_response(
@@ -631,6 +770,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
@@ -656,7 +796,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -679,10 +819,19 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexRefundRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = airwallex::AirwallexRefundRequest::try_from(&connector_router_data)?;
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
     }
 
@@ -694,6 +843,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -736,7 +886,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -766,6 +916,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
@@ -811,6 +962,7 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers
@@ -834,7 +986,7 @@ impl api::IncomingWebhook for Airwallex {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp = request
             .headers
@@ -852,29 +1004,46 @@ impl api::IncomingWebhook for Airwallex {
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret.config.into_bytes())
-    }
-
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let details: airwallex::AirwallexWebhookData = request
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(details.source_id)
+        if airwallex::is_transaction_event(&details.name) {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    details
+                        .source_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ))
+        } else if airwallex::is_refund_event(&details.name) {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    details
+                        .source_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ))
+        } else if airwallex::is_dispute_event(&details.name) {
+            let dispute_details: airwallex::AirwallexDisputeObject = details
+                .data
+                .object
+                .parse_value("AirwallexDisputeObject")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    dispute_details.payment_intent_id,
+                ),
+            ))
+        } else {
+            Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
+        }
     }
 
     fn get_webhook_event_type(
@@ -885,12 +1054,7 @@ impl api::IncomingWebhook for Airwallex {
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        Ok(match details.name.as_str() {
-            "payment_attempt.failed_to_process" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "payment_attempt.authorized" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
-        })
+        Ok(api::IncomingWebhookEvent::try_from(details.name)?)
     }
 
     fn get_webhook_resource_object(
@@ -904,13 +1068,46 @@ impl api::IncomingWebhook for Airwallex {
 
         Ok(details.data.object)
     }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let details: airwallex::AirwallexWebhookData = request
+            .body
+            .parse_struct("airwallexWebhookData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let dispute_details: airwallex::AirwallexDisputeObject = details
+            .data
+            .object
+            .parse_value("AirwallexDisputeObject")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: dispute_details.dispute_amount.to_string(),
+            currency: dispute_details.dispute_currency,
+            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.stage.clone()),
+            connector_dispute_id: dispute_details.dispute_id,
+            connector_reason: dispute_details.dispute_reason_type,
+            connector_reason_code: dispute_details.dispute_original_reason_code,
+            challenge_required_by: None,
+            connector_status: dispute_details.status.to_string(),
+            created_at: dispute_details.created_at,
+            updated_at: dispute_details.updated_at,
+        })
+    }
 }
 
 impl services::ConnectorRedirectResponse for Airwallex {
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

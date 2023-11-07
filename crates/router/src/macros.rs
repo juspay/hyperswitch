@@ -51,3 +51,18 @@ macro_rules! async_spawn {
         tokio::spawn(async move { $t });
     };
 }
+
+#[macro_export]
+macro_rules! collect_missing_value_keys {
+    [$(($key:literal, $option:expr)),+] => {
+        {
+            let mut keys: Vec<&'static str> = Vec::new();
+            $(
+                if $option.is_none() {
+                    keys.push($key);
+                }
+            )*
+            keys
+        }
+    };
+}

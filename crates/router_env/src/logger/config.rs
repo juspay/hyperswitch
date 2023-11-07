@@ -6,9 +6,6 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-/// Directory of config toml files. Default is config
-pub const CONFIG_DIR: &str = "CONFIG_DIR";
-
 /// Config settings.
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -38,14 +35,16 @@ pub struct LogFile {
     pub path: String,
     /// Name of log file without suffix.
     pub file_name: String,
-    // pub do_async: bool, // is not used
     /// What gets into log files.
     pub level: Level,
+    /// Directive which sets the log level for one or more crates/modules.
+    pub filtering_directive: Option<String>,
+    // pub do_async: bool, // is not used
     // pub rotation: u16,
 }
 
 /// Describes the level of verbosity of a span or event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Level(pub(super) tracing::Level);
 
 impl Level {
@@ -80,16 +79,30 @@ pub struct LogConsole {
     /// Log format
     #[serde(default)]
     pub log_format: LogFormat,
+    /// Directive which sets the log level for one or more crates/modules.
+    pub filtering_directive: Option<String>,
 }
 
 /// Telemetry / tracing.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LogTelemetry {
-    /// Whether tracing/telemetry is enabled.
-    pub enabled: bool,
+    /// Whether the traces pipeline is enabled.
+    pub traces_enabled: bool,
+    /// Whether the metrics pipeline is enabled.
+    pub metrics_enabled: bool,
+    /// Whether errors in setting up traces or metrics pipelines must be ignored.
+    pub ignore_errors: bool,
     /// Sampling rate for traces
     pub sampling_rate: Option<f64>,
+    /// Base endpoint URL to send metrics and traces to. Can optionally include the port number.
+    pub otel_exporter_otlp_endpoint: Option<String>,
+    /// Timeout (in milliseconds) for sending metrics and traces.
+    pub otel_exporter_otlp_timeout: Option<u64>,
+    /// Whether to use xray ID generator, (enable this if you plan to use AWS-XRAY)
+    pub use_xray_generator: bool,
+    /// Route Based Tracing
+    pub route_to_trace: Option<Vec<String>>,
 }
 
 /// Telemetry / tracing.
@@ -118,8 +131,8 @@ impl Config {
         // 1. Defaults from the implementation of the `Default` trait.
         // 2. Values from config file. The config file accessed depends on the environment
         //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
-        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
-        //    `/config/Development.toml` file is read.
+        //    `development`, `sandbox` or `production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/development.toml` file is read.
         // 3. Environment variables prefixed with `ROUTER` and each level separated by double
         //    underscores.
         //
@@ -130,7 +143,7 @@ impl Config {
         let config_path = Self::config_path(&environment.to_string(), explicit_config_path);
 
         let config = Self::builder(&environment.to_string())?
-            .add_source(config::File::from(config_path).required(true))
+            .add_source(config::File::from(config_path).required(false))
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 
@@ -158,11 +171,12 @@ impl Config {
         if let Some(explicit_config_path_val) = explicit_config_path {
             config_path.push(explicit_config_path_val);
         } else {
-            let config_directory = std::env::var(CONFIG_DIR).unwrap_or_else(|_| "config".into());
+            let config_directory =
+                std::env::var(crate::env::vars::CONFIG_DIR).unwrap_or_else(|_| "config".into());
             let config_file_name = match environment {
-                "Production" => "Production.toml",
-                "Sandbox" => "Sandbox.toml",
-                _ => "Development.toml",
+                "production" => "production.toml",
+                "sandbox" => "sandbox.toml",
+                _ => "development.toml",
             };
 
             config_path.push(crate::env::workspace_path());

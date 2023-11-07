@@ -16,9 +16,10 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, StreamsInterface},
+    prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisKey, RedisMap, RedisValue, SetOptions, XCap, XReadResponse,
+        RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -26,15 +27,15 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     errors,
-    types::{HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
+    types::{DelReply, HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &str, value: V) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .set(
@@ -54,14 +55,30 @@ impl super::RedisConnectionPool {
         value: V,
     ) -> CustomResult<MsetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisMap> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisMap> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .msetnx(value)
             .await
             .into_report()
             .change_context(errors::RedisError::SetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_if_not_exist<V>(
+        &self,
+        key: &str,
+        value: V,
+        ttl: Option<i64>,
+    ) -> CustomResult<SetnxReply, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = Encode::<V>::encode_to_vec(&value)
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+        self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), ttl)
+            .await
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -77,6 +94,32 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_key(key, serialized.as_slice()).await
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_with_expiry<V>(
+        &self,
+        key: &str,
+        value: V,
+        seconds: i64,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = Encode::<V>::encode_to_vec(&value)
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+
+        self.pool
+            .set(
+                key,
+                serialized.as_slice(),
+                Some(Expiration::EX(seconds)),
+                None,
+                false,
+            )
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetExFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -107,7 +150,7 @@ impl super::RedisConnectionPool {
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &str,
-        type_name: &str,
+        type_name: &'static str,
     ) -> CustomResult<T, errors::RedisError>
     where
         T: serde::de::DeserializeOwned,
@@ -122,7 +165,7 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn delete_key(&self, key: &str) -> CustomResult<(), errors::RedisError> {
+    pub async fn delete_key(&self, key: &str) -> CustomResult<DelReply, errors::RedisError> {
         self.pool
             .del(key)
             .await
@@ -138,8 +181,8 @@ impl super::RedisConnectionPool {
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .set(key, value, Some(Expiration::EX(seconds)), None, false)
@@ -149,20 +192,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn set_key_if_not_exist<V>(
+    pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
         key: &str,
         value: V,
+        seconds: Option<i64>,
     ) -> CustomResult<SetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .set(
                 key,
                 value,
-                Some(Expiration::EX(self.config.default_ttl.into())),
+                Some(Expiration::EX(
+                    seconds.unwrap_or(self.config.default_ttl.into()),
+                )),
                 Some(SetOptions::NX),
                 false,
             )
@@ -202,10 +248,11 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         values: V,
+        ttl: Option<u32>,
     ) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisMap> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisMap> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<(), _> = self
             .pool
@@ -216,7 +263,9 @@ impl super::RedisConnectionPool {
 
         // setting expiry for the key
         output
-            .async_and_then(|_| self.set_expiry(key, self.config.default_hash_ttl.into()))
+            .async_and_then(|_| {
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
+            })
             .await
     }
 
@@ -226,10 +275,11 @@ impl super::RedisConnectionPool {
         key: &str,
         field: &str,
         value: V,
+        ttl: Option<u32>,
     ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<HsetnxReply, _> = self
             .pool
@@ -240,7 +290,7 @@ impl super::RedisConnectionPool {
 
         output
             .async_and_then(|inner| async {
-                self.set_expiry(key, self.config.default_hash_ttl.into())
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
                     .await?;
                 Ok(inner)
             })
@@ -253,6 +303,7 @@ impl super::RedisConnectionPool {
         key: &str,
         field: &str,
         value: V,
+        ttl: Option<u32>,
     ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
         V: serde::Serialize + Debug,
@@ -260,8 +311,48 @@ impl super::RedisConnectionPool {
         let serialized = Encode::<V>::encode_to_vec(&value)
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        self.set_hash_field_if_not_exist(key, field, serialized.as_slice())
+        self.set_hash_field_if_not_exist(key, field, serialized.as_slice(), ttl)
             .await
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_multiple_keys<K, V>(
+        &self,
+        keys: K,
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+        K: Into<MultipleKeys> + Send + Debug,
+    {
+        self.pool
+            .mget(keys)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_and_deserialize_multiple_keys<K, V>(
+        &self,
+        keys: K,
+        type_name: &'static str,
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        K: Into<MultipleKeys> + Send + Debug,
+        V: serde::de::DeserializeOwned,
+    {
+        let data = self.get_multiple_keys::<K, Vec<u8>>(keys).await?;
+        data.into_iter()
+            .map(|value_bytes| {
+                value_bytes
+                    .map(|bytes| {
+                        bytes
+                            .parse_struct(type_name)
+                            .change_context(errors::RedisError::JsonSerializationFailed)
+                    })
+                    .transpose()
+            })
+            .collect()
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -269,6 +360,7 @@ impl super::RedisConnectionPool {
         &self,
         kv: &[(&str, V)],
         field: &str,
+        ttl: Option<u32>,
     ) -> CustomResult<Vec<HsetnxReply>, errors::RedisError>
     where
         V: serde::Serialize + Debug,
@@ -276,7 +368,7 @@ impl super::RedisConnectionPool {
         let mut hsetnx: Vec<HsetnxReply> = Vec::with_capacity(kv.len());
         for (key, val) in kv {
             hsetnx.push(
-                self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                self.serialize_and_set_hash_field_if_not_exist(key, field, val, ttl)
                     .await?,
             );
         }
@@ -354,7 +446,7 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         field: &str,
-        type_name: &str,
+        type_name: &'static str,
     ) -> CustomResult<V, errors::RedisError>
     where
         V: serde::de::DeserializeOwned,
@@ -378,8 +470,8 @@ impl super::RedisConnectionPool {
         fields: F,
     ) -> CustomResult<(), errors::RedisError>
     where
-        F: TryInto<MultipleOrderedPairs> + Debug,
-        F::Error: Into<fred::error::RedisError>,
+        F: TryInto<MultipleOrderedPairs> + Debug + Send + Sync,
+        F::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .xadd(stream, false, None, entry_id, fields)
@@ -395,7 +487,7 @@ impl super::RedisConnectionPool {
         ids: Ids,
     ) -> CustomResult<usize, errors::RedisError>
     where
-        Ids: Into<MultipleStrings> + Debug,
+        Ids: Into<MultipleStrings> + Debug + Send + Sync,
     {
         self.pool
             .xdel(stream, ids)
@@ -411,8 +503,8 @@ impl super::RedisConnectionPool {
         xcap: C,
     ) -> CustomResult<usize, errors::RedisError>
     where
-        C: TryInto<XCap> + Debug,
-        C::Error: Into<fred::error::RedisError>,
+        C: TryInto<XCap> + Debug + Send + Sync,
+        C::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .xtrim(stream, xcap)
@@ -429,7 +521,7 @@ impl super::RedisConnectionPool {
         ids: Ids,
     ) -> CustomResult<usize, errors::RedisError>
     where
-        Ids: Into<MultipleIDs> + Debug,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         self.pool
             .xack(stream, group, ids)
@@ -441,7 +533,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
     where
-        K: Into<RedisKey> + Debug,
+        K: Into<RedisKey> + Debug + Send + Sync,
     {
         self.pool
             .xlen(stream)
@@ -458,8 +550,8 @@ impl super::RedisConnectionPool {
         read_count: Option<u64>,
     ) -> CustomResult<XReadResponse<String, String, String, String>, errors::RedisError>
     where
-        K: Into<MultipleKeys> + Debug,
-        Ids: Into<MultipleIDs> + Debug,
+        K: Into<MultipleKeys> + Debug + Send + Sync,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         self.pool
             .xread_map(
@@ -470,7 +562,12 @@ impl super::RedisConnectionPool {
             )
             .await
             .into_report()
-            .change_context(errors::RedisError::StreamReadFailed)
+            .map_err(|err| match err.current_context().kind() {
+                RedisErrorKind::NotFound => {
+                    err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                }
+                _ => err.change_context(errors::RedisError::StreamReadFailed),
+            })
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -483,8 +580,8 @@ impl super::RedisConnectionPool {
         group: Option<(&str, &str)>, // (group_name, consumer_name)
     ) -> CustomResult<XReadResponse<String, String, String, Option<String>>, errors::RedisError>
     where
-        K: Into<MultipleKeys> + Debug,
-        Ids: Into<MultipleIDs> + Debug,
+        K: Into<MultipleKeys> + Debug + Send + Sync,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         match group {
             Some((group_name, consumer_name)) => {
@@ -574,7 +671,7 @@ impl super::RedisConnectionPool {
         ids: Ids,
     ) -> CustomResult<R, errors::RedisError>
     where
-        Ids: Into<MultipleIDs> + Debug,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
         R: FromRedis + Unpin + Send + 'static,
     {
         self.pool
@@ -598,30 +695,81 @@ impl super::RedisConnectionPool {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
 
     #[tokio::test]
     async fn test_consumer_group_create() {
-        let redis_conn = RedisConnectionPool::new(&RedisSettings::default())
-            .await
-            .unwrap();
+        let is_invalid_redis_entry_error = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let redis_conn = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
 
-        let result1 = redis_conn
-            .consumer_group_create("TEST1", "GTEST", &RedisEntryId::AutoGeneratedID)
-            .await;
-        let result2 = redis_conn
-            .consumer_group_create("TEST3", "GTEST", &RedisEntryId::UndeliveredEntryID)
-            .await;
+                // Act
+                let result1 = redis_conn
+                    .consumer_group_create("TEST1", "GTEST", &RedisEntryId::AutoGeneratedID)
+                    .await;
 
-        assert!(matches!(
-            result1.unwrap_err().current_context(),
-            RedisError::InvalidRedisEntryId
-        ));
-        assert!(matches!(
-            result2.unwrap_err().current_context(),
-            RedisError::InvalidRedisEntryId
-        ));
+                let result2 = redis_conn
+                    .consumer_group_create("TEST3", "GTEST", &RedisEntryId::UndeliveredEntryID)
+                    .await;
+
+                // Assert Setup
+                *result1.unwrap_err().current_context() == RedisError::InvalidRedisEntryId
+                    && *result2.unwrap_err().current_context() == RedisError::InvalidRedisEntryId
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+
+        assert!(is_invalid_redis_entry_error);
+    }
+
+    #[tokio::test]
+    async fn test_delete_existing_key_success() {
+        let is_success = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
+                let _ = pool.set_key("key", "value".to_string()).await;
+
+                // Act
+                let result = pool.delete_key("key").await;
+
+                // Assert setup
+                result.is_ok()
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+
+        assert!(is_success);
+    }
+
+    #[tokio::test]
+    async fn test_delete_non_existing_key_success() {
+        let is_success = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
+
+                // Act
+                let result = pool.delete_key("key not exists").await;
+
+                // Assert Setup
+                result.is_ok()
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+
+        assert!(is_success);
     }
 }

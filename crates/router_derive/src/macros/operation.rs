@@ -10,13 +10,17 @@ use crate::macros::helpers;
 enum Derives {
     Sync,
     Cancel,
+    Reject,
     Capture,
+    Approvedata,
     Authorize,
     Authorizedata,
     Syncdata,
     Canceldata,
     Capturedata,
-    VerifyData,
+    CompleteAuthorizeData,
+    Rejectdata,
+    SetupMandateData,
     Start,
     Verify,
     Session,
@@ -28,15 +32,19 @@ impl From<String> for Derives {
         match s.as_str() {
             "sync" => Self::Sync,
             "cancel" => Self::Cancel,
+            "reject" => Self::Reject,
             "syncdata" => Self::Syncdata,
             "authorize" => Self::Authorize,
+            "approvedata" => Self::Approvedata,
             "authorizedata" => Self::Authorizedata,
             "canceldata" => Self::Canceldata,
             "capture" => Self::Capture,
             "capturedata" => Self::Capturedata,
+            "completeauthorizedata" => Self::CompleteAuthorizeData,
+            "rejectdata" => Self::Rejectdata,
             "start" => Self::Start,
             "verify" => Self::Verify,
-            "verifydata" => Self::VerifyData,
+            "setupmandatedata" => Self::SetupMandateData,
             "session" => Self::Session,
             "sessiondata" => Self::SessionData,
             _ => Self::Authorize,
@@ -53,7 +61,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         quote! {
             #[automatically_derived]
-            impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
+            impl<F:Send+Clone,Ctx: PaymentMethodRetrieve,> Operation<F,#req_type,Ctx> for #struct_name {
                 #(#fns)*
             }
         }
@@ -67,7 +75,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         quote! {
             #[automatically_derived]
-            impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
+            impl<F:Send+Clone,Ctx: PaymentMethodRetrieve,> Operation<F,#req_type,Ctx> for &#struct_name {
                 #(#ref_fns)*
             }
         }
@@ -108,11 +116,19 @@ impl Conversion {
             Derives::Syncdata => syn::Ident::new("PaymentsSyncData", Span::call_site()),
             Derives::Cancel => syn::Ident::new("PaymentsCancelRequest", Span::call_site()),
             Derives::Canceldata => syn::Ident::new("PaymentsCancelData", Span::call_site()),
+            Derives::Approvedata => syn::Ident::new("PaymentsApproveData", Span::call_site()),
+            Derives::Reject => syn::Ident::new("PaymentsRejectRequest", Span::call_site()),
+            Derives::Rejectdata => syn::Ident::new("PaymentsRejectData", Span::call_site()),
             Derives::Capture => syn::Ident::new("PaymentsCaptureRequest", Span::call_site()),
             Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
+            Derives::CompleteAuthorizeData => {
+                syn::Ident::new("CompleteAuthorizeData", Span::call_site())
+            }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
-            Derives::VerifyData => syn::Ident::new("VerifyRequestData", Span::call_site()),
+            Derives::SetupMandateData => {
+                syn::Ident::new("SetupMandateRequestData", Span::call_site())
+            }
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
             Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
         }
@@ -122,22 +138,22 @@ impl Conversion {
         let req_type = Self::get_req_type(ident);
         match self {
             Self::ValidateRequest => quote! {
-                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
+                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type,Ctx> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Self::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type,Ctx> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Self::Domain => quote! {
-                fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type>> {
+                fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type,Ctx>> {
                     Ok(self)
                 }
             },
             Self::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type,Ctx> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -170,22 +186,22 @@ impl Conversion {
         let req_type = Self::get_req_type(ident);
         match self {
             Self::ValidateRequest => quote! {
-                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
+                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type,Ctx> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Self::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type,Ctx> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Self::Domain => quote! {
-                fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type>)> {
+                fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type,Ctx>)> {
                     Ok(*self)
                 }
             },
             Self::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type,Ctx> + Send + Sync)> {
                     Ok(*self)
                 }
             },
@@ -322,16 +338,21 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     UpdateTracker,
                 }};
                 use #current_crate::types::{
-                    VerifyRequestData,
+                    SetupMandateRequestData,
                     PaymentsSyncData,
                     PaymentsCaptureData,
                     PaymentsCancelData,
+                    PaymentsApproveData,
+                    PaymentsRejectData,
                     PaymentsAuthorizeData,
                     PaymentsSessionData,
+                    CompleteAuthorizeData,
 
                     api::{
                         PaymentsCaptureRequest,
                         PaymentsCancelRequest,
+                        PaymentsApproveRequest,
+                        PaymentsRejectRequest,
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
                         PaymentsStartRequest,

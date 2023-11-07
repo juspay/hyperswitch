@@ -1,26 +1,26 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::marker::PhantomData;
 
-use api_models::admin::PaymentMethodsEnabled;
+use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    logger, pii,
-    pii::Secret,
     routes::AppState,
+    services,
     types::{
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -30,8 +30,8 @@ use crate::{
 pub struct PaymentSession;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
-    for PaymentSession
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -39,10 +39,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
-        _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        _mandate_type: Option<api::MandateTransactionType>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
@@ -57,9 +59,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -70,16 +70,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             "create a session token for",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            db,
+        )
+        .await?;
+
+        helpers::authenticate_client_secret(
+            Some(&request.client_secret),
+            &payment_intent,
+            intent_fulfillment_time,
+        )?;
+
         let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                payment_intent.payment_id.as_str(),
                 merchant_id,
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let currency = payment_intent.currency.get_required_value("currency")?;
 
@@ -87,26 +99,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let amount = payment_intent.amount.into();
 
-        helpers::authenticate_client_secret(
-            Some(&request.client_secret),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -135,6 +148,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             phone_country_code: None,
         };
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -143,21 +174,34 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 payment_attempt,
                 currency,
                 amount,
-                email: None::<Secret<String, pii::Email>>,
+                email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 token: None,
                 setup_mandate: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: None,
                 payment_method_data: None,
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
+                attempts: None,
                 sessions_token: vec![],
                 connector_response,
                 card_cvc: None,
+                creds_identifier,
+                pm_token: None,
+                connector_customer_id: None,
+                recurring_mandate_payment_data: None,
+                ephemeral_key: None,
+                multiple_capture_data: None,
+                redirect_response: None,
+                surcharge_details: None,
+                frm_message: None,
+                payment_link_data: None,
             },
             Some(customer_details),
         ))
@@ -165,17 +209,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         PaymentData<F>,
     )>
     where
@@ -186,13 +235,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
             Some(metadata) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
+                    storage::PaymentIntentUpdate::MetadataUpdate {
+                        metadata,
+                        updated_by: storage_scheme.to_string(),
+                    },
                     storage_scheme,
                 )
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                })?,
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
             None => payment_data.payment_intent,
         };
 
@@ -200,14 +250,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         //paymentid is already generated and should be sent in the request
@@ -220,16 +272,20 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
-    Domain<F, api::PaymentsSessionRequest> for Op
+impl<
+        F: Clone + Send,
+        Ctx: PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Ctx>,
+    > Domain<F, api::PaymentsSessionRequest, Ctx> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Ctx>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -237,11 +293,11 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-            Option<storage::Customer>,
+            BoxedOperation<'a, F, api::PaymentsSessionRequest, Ctx>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -250,7 +306,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -262,159 +319,145 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
+        BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         //No payment method data for this operation
         Ok((Box::new(self), None))
     }
 
+    /// Returns `Vec<SessionConnectorData>`
+    /// Steps carried out in this function
+    /// Get all the `merchant_connector_accounts` which are not disabled
+    /// Filter out connectors which have `invoke_sdk_client` enabled in `payment_method_types`
+    /// If session token is requested for certain wallets only, then return them, else
+    /// return all eligible connectors
+    ///
+    /// `GetToken` parameter specifies whether to get the session token from connector integration
+    /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        _previously_used_connector: Option<&String>,
-    ) -> RouterResult<api::ConnectorCallType> {
-        let connectors = &state.conf.connectors;
+        payment_intent: &storage::PaymentIntent,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<api::ConnectorChoice> {
         let db = &state.store;
 
-        let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
-
-        let connector_accounts = db
+        let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_account.merchant_id,
                 false,
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let normal_connector_names: HashSet<String> = connector_accounts
+        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            payment_intent.business_country,
+            payment_intent.business_label.as_ref(),
+            merchant_account,
+            payment_intent.profile_id.as_ref(),
+            &*state.store,
+            false,
+        )
+        .await
+        .attach_printable("Could not find profile id from business details")?;
+
+        let filtered_connector_accounts =
+            helpers::filter_mca_based_on_business_profile(all_connector_accounts, Some(profile_id));
+
+        let requested_payment_method_types = request.wallets.clone();
+        let mut connector_and_supporting_payment_method_type = Vec::new();
+
+        filtered_connector_accounts
             .iter()
-            .filter(|connector_account| {
-                connector_account
+            .for_each(|connector_account| {
+                let res = connector_account
                     .payment_methods_enabled
                     .clone()
                     .unwrap_or_default()
-                    .iter()
-                    .any(|payment_method| {
-                        let parsed_payment_method_result: Result<
-                            PaymentMethodsEnabled,
-                            error_stack::Report<errors::ParsingError>,
-                        > = payment_method.clone().parse_value("payment_method");
-
-                        match parsed_payment_method_result {
-                            Ok(parsed_payment_method) => parsed_payment_method
-                                .payment_method_types
-                                .map(|payment_method_types| {
-                                    payment_method_types.iter().any(|payment_method_type| {
-                                        matches!(
-                                        payment_method_type.payment_experience,
-                                        Some(api_models::enums::PaymentExperience::InvokeSdkClient)
-                                    )
-                                    })
-                                })
-                                .unwrap_or(false),
-                            Err(parsing_error) => {
-                                logger::debug!(session_token_parsing_error=?parsing_error);
-                                false
-                            }
-                        }
+                    .into_iter()
+                    .map(|payment_methods_enabled| {
+                        payment_methods_enabled
+                            .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
                     })
-            })
-            .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect();
-
-        // Parse the payment methods enabled to check if the merchant has enabled googlepay ( wallet ) using that connector.
-        // A single connector can support creating session token from metadata as well as by calling the connector.
-        let session_token_from_metadata_connectors = connector_accounts
-            .iter()
-            .filter(|connector_account| {
-                connector_account
-                    .payment_methods_enabled
-                    .clone()
-                    .unwrap_or_default()
-                    .iter()
-                    .any(|payment_method| {
-                        let parsed_payment_method_result: Result<
-                            PaymentMethodsEnabled,
-                            error_stack::Report<errors::ParsingError>,
-                        > = payment_method.clone().parse_value("payment_method");
-
-                        match parsed_payment_method_result {
-                            Ok(parsed_payment_method) => parsed_payment_method
-                                .payment_method_types
-                                .map(|payment_method_types| {
-                                    payment_method_types.iter().any(|payment_method_type| {
-                                        matches!(
-                                            payment_method_type.payment_method_type,
-                                            api_models::enums::PaymentMethodType::GooglePay
-                                        )
-                                    })
-                                })
-                                .unwrap_or(false),
-                            Err(parsing_error) => {
-                                logger::debug!(session_token_parsing_error=?parsing_error);
-                                false
-                            }
-                        }
+                    .filter_map(|parsed_payment_method_result| {
+                        parsed_payment_method_result
+                            .map_err(|err| {
+                                logger::error!(session_token_parsing_error=?err);
+                                err
+                            })
+                            .ok()
                     })
-            })
-            .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect::<HashSet<String>>();
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|payment_method_type| {
+                                let is_invoke_sdk_client = matches!(
+                                    payment_method_type.payment_experience,
+                                    Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                                );
 
-        let given_wallets = request.wallets.clone();
+                                // If session token is requested for the payment method type,
+                                // filter it out
+                                // if not, then create all sessions tokens
+                                let is_sent_in_request = requested_payment_method_types
+                                    .contains(&payment_method_type.payment_method_type)
+                                    || requested_payment_method_types.is_empty();
 
-        let connectors_data = if !given_wallets.is_empty() {
-            // Create connectors for provided wallets
-            let mut connectors_data = Vec::with_capacity(supported_connectors.len());
-            for wallet in given_wallets {
-                let (connector_name, connector_type) = match wallet {
-                    api_enums::SupportedWallets::Gpay => ("adyen", api::GetToken::Metadata),
-                    api_enums::SupportedWallets::ApplePay => ("applepay", api::GetToken::Connector),
-                    api_enums::SupportedWallets::Paypal => ("braintree", api::GetToken::Connector),
-                    api_enums::SupportedWallets::Klarna => ("klarna", api::GetToken::Connector),
-                };
+                                is_invoke_sdk_client && is_sent_in_request
+                            })
+                            .map(|payment_method_type| {
+                                (connector_account, payment_method_type.payment_method_type)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                connector_and_supporting_payment_method_type.extend(res);
+            });
 
-                // Check if merchant has enabled the required merchant connector account
-                if session_token_from_metadata_connectors.contains(connector_name)
-                    || normal_connector_names.contains(connector_name)
-                {
-                    connectors_data.push(api::ConnectorData::get_connector_by_name(
-                        connectors,
-                        connector_name,
-                        connector_type,
-                    )?);
-                }
-            }
-            connectors_data
-        } else {
-            // Create connectors for all enabled wallets
-            let mut connectors_data = Vec::with_capacity(
-                normal_connector_names.len() + session_token_from_metadata_connectors.len(),
-            );
+        let mut session_connector_data =
+            Vec::with_capacity(connector_and_supporting_payment_method_type.len());
 
-            for connector_name in normal_connector_names {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    connectors,
-                    &connector_name,
-                    api::GetToken::Connector,
-                )?;
-                connectors_data.push(connector_data);
-            }
+        for (merchant_connector_account, payment_method_type) in
+            connector_and_supporting_payment_method_type
+        {
+            let connector_type = api::GetToken::from(payment_method_type);
+            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &merchant_connector_account.connector_name.to_string(),
+                connector_type,
+                Some(merchant_connector_account.merchant_connector_id.clone()),
+            )
+            .map_err(|err| {
+                logger::error!(session_token_error=?err);
+                err
+            }) {
+                session_connector_data.push(api::SessionConnectorData {
+                    payment_method_type,
+                    connector: connector_data,
+                    business_sub_label: merchant_connector_account.business_sub_label.clone(),
+                })
+            };
+        }
 
-            for connector_name in session_token_from_metadata_connectors {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    connectors,
-                    &connector_name,
-                    api::GetToken::Metadata,
-                )?;
-                connectors_data.push(connector_data);
-            }
-            connectors_data
-        };
+        Ok(api::ConnectorChoice::SessionMultiple(
+            session_connector_data,
+        ))
+    }
+}
 
-        Ok(api::ConnectorCallType::Multiple(connectors_data))
+impl From<api_models::enums::PaymentMethodType> for api::GetToken {
+    fn from(value: api_models::enums::PaymentMethodType) -> Self {
+        match value {
+            api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
+            api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            _ => Self::Connector,
+        }
     }
 }

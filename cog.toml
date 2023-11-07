@@ -1,0 +1,21 @@
+tag_prefix = "v"
+ignore_merge_commits = true
+
+# the HTML comments (`<!-- N -->`) are a workaround to have sections in custom order, since they are alphabetically sorted
+[commit_types]
+feat = { changelog_title = "<!-- 0 -->Features" }
+fix = { changelog_title = "<!-- 1 -->Bug Fixes" }
+perf = { changelog_title = "<!-- 2 -->Performance" }
+refactor = { changelog_title = "<!-- 3 -->Refactors" }
+test = { changelog_title = "<!-- 4 -->Testing" }
+docs = { changelog_title = "<!-- 5 -->Documentation" }
+chore = { changelog_title = "<!-- 6 -->Miscellaneous Tasks" }
+build = { changelog_title = "<!-- 7 -->Build System / Dependencies" }
+ci = { changelog_title = "Continuous Integration", omit_from_changelog = true }
+
+[changelog]
+path = "CHANGELOG.md"
+template = ".github/cocogitto-changelog-template"
+remote = "github.com"
+owner = "juspay"
+repository = "hyperswitch"

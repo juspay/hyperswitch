@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::{
@@ -20,14 +22,16 @@ impl utils::Connector for WorldlineTest {
             connector: Box::new(&Worldline),
             connector_name: types::Connector::Worldline,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             ConnectorAuthentication::new()
                 .worldline
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -42,7 +46,7 @@ impl WorldlineTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some("US".to_string()),
+                        country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
@@ -64,13 +68,17 @@ impl WorldlineTest {
             amount: 3500,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new(card_number.to_string()),
+                card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -82,9 +90,18 @@ impl WorldlineTest {
             capture_method: Some(capture_method),
             browser_info: None,
             order_details: None,
+            order_category: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: None,
+            customer_id: None,
+            surcharge_details: None,
         })
     }
 }
@@ -135,9 +152,8 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
-            payment_method: "Maestro".to_string(),
+            message: "Maestro".to_string(),
             connector: "worldline",
-            payment_experience: "redirect_to_url".to_string(),
         }
     )
 }
@@ -212,8 +228,8 @@ async fn should_sync_manual_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
-                encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Manual),
+                ..Default::default()
             }),
             None,
         )
@@ -245,8 +261,8 @@ async fn should_sync_auto_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
-                encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                ..Default::default()
             }),
             None,
         )

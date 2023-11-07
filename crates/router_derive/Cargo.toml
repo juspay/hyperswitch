@@ -1,24 +1,25 @@
 [package]
 name = "router_derive"
-description = "Utility macros for the router crate"
+description = "Utility macros for the `router` crate"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [lib]
 proc-macro = true
 doctest = false
 
 [dependencies]
-darling = "0.14.3"
-proc-macro2 = "1.0.50"
-quote = "1.0.23"
-syn = { version = "1.0.107", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
+darling = "0.14.4"
+indexmap = "2.0.0"
+proc-macro2 = "1.0.56"
+quote = "1.0.26"
+syn = { version = "1.0.109", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
 
 [dev-dependencies]
-diesel = { version = "2.0.3", features = ["postgres"] }
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
+diesel = { version = "2.1.0", features = ["postgres"] }
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
 strum = { version = "0.24.1", features = ["derive"] }

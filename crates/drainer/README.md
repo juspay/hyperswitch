@@ -1,3 +1,3 @@
 # Drainer
 
-App that reads redis streams and executes queries in DB
+Application that reads Redis streams and executes queries in database.

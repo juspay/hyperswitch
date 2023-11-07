@@ -6,6 +6,7 @@
 /// # Panics
 ///
 /// Panics if `vergen` fails to generate `cargo` build instructions.
+#[cfg(feature = "vergen")]
 #[allow(clippy::expect_used)]
 pub fn generate_cargo_instructions() {
     use std::io::Write;
@@ -17,7 +18,7 @@ pub fn generate_cargo_instructions() {
         .cargo_opt_level()
         .cargo_target_triple()
         .git_commit_timestamp()
-        .git_describe(true, true)
+        .git_describe(true, true, None)
         .git_sha(true)
         .rustc_semver()
         .rustc_commit_hash()
@@ -31,3 +32,6 @@ pub fn generate_cargo_instructions() {
     )
     .expect("Failed to set `CARGO_PROFILE` environment variable");
 }
+
+#[cfg(not(feature = "vergen"))]
+pub fn generate_cargo_instructions() {}

@@ -1,30 +1,83 @@
 use std::{convert::From, default::Default};
 
-use api_models::payment_methods as api_types;
-use common_utils::date_time;
+use api_models::{payment_methods as api_types, payments};
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    pii::{self, Email},
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{logger, pii, types::api};
+use crate::{
+    logger,
+    types::{api, api::enums as api_enums},
+};
+
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+pub struct Shipping {
+    pub address: StripeAddressDetails,
+    pub name: Option<masking::Secret<String>>,
+    pub carrier: Option<String>,
+    pub phone: Option<masking::Secret<String>>,
+    pub tracking_number: Option<masking::Secret<String>>,
+}
+
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+pub struct StripeAddressDetails {
+    pub city: Option<String>,
+    pub country: Option<api_enums::CountryAlpha2>,
+    pub line1: Option<masking::Secret<String>>,
+    pub line2: Option<masking::Secret<String>>,
+    pub postal_code: Option<masking::Secret<String>>,
+    pub state: Option<masking::Secret<String>>,
+}
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateCustomerRequest {
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<String>,
+    pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String>>,
-    pub address: Option<masking::Secret<serde_json::Value>>,
-    pub metadata: Option<serde_json::Value>,
+    pub address: Option<StripeAddressDetails>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<String>,
+    pub shipping: Option<Shipping>,
+    pub payment_method: Option<String>,              // not used
+    pub balance: Option<i64>,                        // not used
+    pub cash_balance: Option<pii::SecretSerdeValue>, // not used
+    pub coupon: Option<String>,                      // not used
+    pub invoice_settings: Option<pii::SecretSerdeValue>, // not used
+    pub next_invoice_sequence: Option<String>,       // not used
+    pub preferred_locales: Option<String>,           // not used
+    pub promotion_code: Option<String>,              // not used
+    pub source: Option<String>,                      // not used
+    pub tax: Option<pii::SecretSerdeValue>,          // not used
+    pub tax_exempt: Option<String>,                  // not used
+    pub tax_id_data: Option<String>,                 // not used
+    pub test_clock: Option<String>,                  // not used
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerUpdateRequest {
     pub description: Option<String>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
-    pub name: Option<String>,
-    pub address: Option<masking::Secret<serde_json::Value>>,
-    pub metadata: Option<serde_json::Value>,
+    pub name: Option<masking::Secret<String>>,
+    pub address: Option<StripeAddressDetails>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub shipping: Option<Shipping>,
+    pub payment_method: Option<String>,              // not used
+    pub balance: Option<i64>,                        // not used
+    pub cash_balance: Option<pii::SecretSerdeValue>, // not used
+    pub coupon: Option<String>,                      // not used
+    pub default_source: Option<String>,              // not used
+    pub invoice_settings: Option<pii::SecretSerdeValue>, // not used
+    pub next_invoice_sequence: Option<String>,       // not used
+    pub preferred_locales: Option<String>,           // not used
+    pub promotion_code: Option<String>,              // not used
+    pub source: Option<String>,                      // not used
+    pub tax: Option<pii::SecretSerdeValue>,          // not used
+    pub tax_exempt: Option<String>,                  // not used
 }
 
 #[derive(Default, Serialize, PartialEq, Eq)]
@@ -33,9 +86,9 @@ pub struct CreateCustomerResponse {
     pub object: String,
     pub created: u64,
     pub description: Option<String>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
-    pub metadata: Option<serde_json::Value>,
-    pub name: Option<String>,
+    pub email: Option<Email>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
 }
 
@@ -48,6 +101,22 @@ pub struct CustomerDeleteResponse {
     pub deleted: bool,
 }
 
+impl From<StripeAddressDetails> for payments::AddressDetails {
+    fn from(address: StripeAddressDetails) -> Self {
+        Self {
+            city: address.city,
+            country: address.country,
+            line1: address.line1,
+            line2: address.line2,
+            zip: address.postal_code,
+            state: address.state,
+            first_name: None,
+            line3: None,
+            last_name: None,
+        }
+    }
+}
+
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
@@ -57,7 +126,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
-            address: req.address,
+            address: req.address.map(|s| s.into()),
             ..Default::default()
         }
     }
@@ -71,6 +140,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
+            address: req.address.map(|s| s.into()),
             ..Default::default()
         }
     }
@@ -95,10 +165,10 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
                 },
             ),
             description: cust.description,
-            email: cust.email,
+            email: cust.email.map(|inner| inner.into()),
             metadata: cust.metadata,
-            name: cust.name,
-            phone: cust.phone,
+            name: cust.name.map(Encryptable::into_inner),
+            phone: cust.phone.map(Encryptable::into_inner),
         }
     }
 }

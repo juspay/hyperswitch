@@ -1,7 +1,11 @@
 pub(crate) mod api_error;
 pub(crate) mod diesel;
-mod helpers;
+pub(crate) mod generate_schema;
+pub(crate) mod misc;
 pub(crate) mod operation;
+pub(crate) mod try_get_enum;
+
+mod helpers;
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -12,6 +16,7 @@ pub(crate) use self::{
     diesel::{
         diesel_enum_attribute_inner, diesel_enum_derive_inner, diesel_enum_text_derive_inner,
     },
+    generate_schema::polymorphic_macro_derive_inner,
     operation::operation_derive_inner,
 };
 

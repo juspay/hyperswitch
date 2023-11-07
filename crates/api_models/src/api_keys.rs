@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 /// The request body for creating an API Key.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateApiKeyRequest {
     /// A unique name for the API Key to help you identify it.
@@ -111,7 +111,7 @@ pub struct RetrieveApiKeyResponse {
 }
 
 /// The request body for updating an API Key.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateApiKeyRequest {
     /// A unique name for the API Key to help you identify it.
@@ -134,10 +134,13 @@ pub struct UpdateApiKeyRequest {
 /// The response body for revoking an API Key.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RevokeApiKeyResponse {
+    /// The identifier for the Merchant Account.
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: String,
+
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
     pub key_id: String,
-
     /// Indicates whether the API key was revoked or not.
     #[schema(example = "true")]
     pub revoked: bool,

@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::admin::*,
+    core::{admin::*, api_locking},
     services::{api, authentication as auth},
     types::api::admin,
 };
@@ -29,16 +29,18 @@ pub async fn merchant_account_create(
     req: HttpRequest,
     json_payload: web::Json<admin::MerchantAccountCreate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantsAccountCreate;
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_merchant_account(&*state.store, req),
+        |state, _, req| create_merchant_account(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.
@@ -60,17 +62,40 @@ pub async fn retrieve_merchant_account(
     req: HttpRequest,
     mid: web::Path<String>,
 ) -> HttpResponse {
-    let payload = web::Json(admin::MerchantId {
-        merchant_id: mid.into_inner(),
-    })
-    .into_inner();
+    let flow = Flow::MerchantsAccountRetrieve;
+    let merchant_id = mid.into_inner();
+    let payload = web::Json(admin::MerchantId { merchant_id }).into_inner();
+
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         payload,
-        |state, _, req| get_merchant_account(&*state.store, req),
+        |state, _, req| get_merchant_account(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
+pub async fn merchant_account_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<api_models::admin::MerchantAccountListRequest>,
+) -> HttpResponse {
+    let flow = Flow::MerchantAccountList;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params.into_inner(),
+        |state, _, request| list_merchant_account(state, request),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
 
@@ -97,13 +122,16 @@ pub async fn update_merchant_account(
     mid: web::Path<String>,
     json_payload: web::Json<admin::MerchantAccountUpdate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantsAccountUpdate;
     let merchant_id = mid.into_inner();
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
+        |state, _, req| merchant_account_update(state, &merchant_id, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
@@ -130,29 +158,30 @@ pub async fn delete_merchant_account(
     req: HttpRequest,
     mid: web::Path<String>,
 ) -> HttpResponse {
-    let payload = web::Json(admin::MerchantId {
-        merchant_id: mid.into_inner(),
-    })
-    .into_inner();
+    let flow = Flow::MerchantsAccountDelete;
+    let mid = mid.into_inner();
+
+    let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         payload,
-        |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
+        |state, _, req| merchant_account_delete(state, req.merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// PaymentsConnectors - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors",
-    request_body = MerchantConnector,
+    request_body = MerchantConnectorCreate,
     responses(
-        (status = 200, description = "Merchant Connector Created", body = MerchantConnector),
+        (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
         (status = 400, description = "Missing Mandatory fields"),
     ),
     tag = "Merchant Connector Account",
@@ -164,19 +193,21 @@ pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Json<admin::MerchantConnector>,
+    json_payload: web::Json<admin::MerchantConnectorCreate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsCreate;
     let merchant_id = path.into_inner();
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
+        |state, _, req| create_payment_connector(state, req, &merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
@@ -188,7 +219,7 @@ pub async fn payment_connector_create(
         ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnector),
+        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -202,24 +233,27 @@ pub async fn payment_connector_retrieve(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsRetrieve;
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
         merchant_id,
         merchant_connector_id,
     })
     .into_inner();
+
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         payload,
         |state, _, req| {
-            retrieve_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
+            retrieve_payment_connector(state, req.merchant_id, req.merchant_connector_id)
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
@@ -230,7 +264,7 @@ pub async fn payment_connector_retrieve(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
     responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnector>),
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -244,30 +278,33 @@ pub async fn payment_connector_list(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsList;
     let merchant_id = path.into_inner();
+
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         merchant_id,
-        |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
+        |state, _, merchant_id| list_payment_connectors(state, merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors/{connector_id}",
-    request_body = MerchantConnector,
+    request_body = MerchantConnectorUpdate,
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnector),
+        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -280,21 +317,22 @@ pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(String, String)>,
-    json_payload: web::Json<admin::MerchantConnector>,
+    json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsUpdate;
     let (merchant_id, merchant_connector_id) = path.into_inner();
+
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| {
-            update_payment_connector(&*state.store, &merchant_id, &merchant_connector_id, req)
-        },
+        |state, _, req| update_payment_connector(state, &merchant_id, &merchant_connector_id, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
@@ -320,24 +358,25 @@ pub async fn payment_connector_delete(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsDelete;
     let (merchant_id, merchant_connector_id) = path.into_inner();
+
     let payload = web::Json(admin::MerchantConnectorId {
         merchant_id,
         merchant_connector_id,
     })
     .into_inner();
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         payload,
-        |state, _, req| {
-            delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
-        },
+        |state, _, req| delete_payment_connector(state, req.merchant_id, req.merchant_connector_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - Toggle KV
 ///
 /// Toggle KV mode for the Merchant Account
@@ -348,20 +387,124 @@ pub async fn merchant_account_toggle_kv(
     path: web::Path<String>,
     json_payload: web::Json<admin::ToggleKVRequest>,
 ) -> HttpResponse {
+    let flow = Flow::ConfigKeyUpdate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
+
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         (merchant_id, payload),
-        |state, _, (merchant_id, payload)| {
-            kv_for_merchant(&*state.store, merchant_id, payload.kv_enabled)
-        },
+        |state, _, (merchant_id, payload)| kv_for_merchant(state, merchant_id, payload.kv_enabled),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
+pub async fn business_profile_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::BusinessProfileCreate>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileCreate;
+    let payload = json_payload.into_inner();
+    let merchant_id = path.into_inner();
 
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req| create_business_profile(state, req, &merchant_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
+pub async fn business_profile_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileRetrieve;
+    let (_, profile_id) = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id,
+        |state, _, profile_id| retrieve_business_profile(state, profile_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
+pub async fn business_profile_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileUpdate;
+    let (merchant_id, profile_id) = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req| update_business_profile(state, &profile_id, &merchant_id, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
+pub async fn business_profile_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileDelete;
+    let (merchant_id, profile_id) = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id,
+        |state, _, profile_id| delete_business_profile(state, profile_id, &merchant_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileList))]
+pub async fn business_profiles_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileList;
+    let merchant_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id,
+        |state, _, merchant_id| list_business_profile(state, merchant_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
@@ -371,13 +514,17 @@ pub async fn merchant_account_kv_status(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
     let merchant_id = path.into_inner();
+
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         merchant_id,
-        |state, _, req| check_merchant_account_kv_status(&*state.store, req),
+        |state, _, req| check_merchant_account_kv_status(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

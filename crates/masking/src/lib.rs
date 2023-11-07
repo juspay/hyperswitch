@@ -16,7 +16,7 @@ mod strategy;
 
 pub use strategy::{Strategy, WithType, WithoutType};
 mod abs;
-pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface};
+pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface, SwitchStrategy};
 
 mod secret;
 mod strong_secret;
@@ -42,7 +42,7 @@ mod vec;
 #[cfg(feature = "serde")]
 mod serde;
 #[cfg(feature = "serde")]
-pub use crate::serde::{Deserialize, SerializableSecret, Serialize};
+pub use crate::serde::{masked_serialize, Deserialize, SerializableSecret, Serialize};
 
 /// This module should be included with asterisk.
 ///
@@ -54,3 +54,7 @@ pub mod prelude {
 
 #[cfg(feature = "diesel")]
 mod diesel;
+
+pub mod maskable;
+
+pub use maskable::*;

@@ -1,20 +1,21 @@
 pub mod types;
-
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    compatibility::{stripe::errors, wrap},
-    core::payments,
+    compatibility::{
+        stripe::{errors, payment_intents::types as stripe_payment_types},
+        wrap,
+    },
+    core::{api_locking, payment_methods::Oss, payments},
     routes,
     services::{api, authentication as auth},
     types::api as api_types,
 };
 
-#[post("")]
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -29,9 +30,15 @@ pub async fn setup_intents_create(
         }
     };
 
-    let create_payment_req: payment_types::PaymentsRequest = payload.into();
+    let create_payment_req: payment_types::PaymentsRequest =
+        match payment_types::PaymentsRequest::try_from(payload) {
+            Ok(req) => req,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
 
-    wrap::compatibility_api_wrap::<
+    let flow = Flow::PaymentsCreate;
+
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -40,31 +47,43 @@ pub async fn setup_intents_create(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
-        state.get_ref(),
+        flow,
+        state.into_inner(),
         &req,
         create_payment_req,
-        |state, merchant_account, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::SetupMandate,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
+                api_types::HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
-#[instrument(skip_all)]
-#[get("/{setup_id}")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    query_payload: web::Query<stripe_payment_types::StripePaymentRetrieveBody>,
 ) -> HttpResponse {
     let payload = payment_types::PaymentsRetrieveRequest {
         resource_id: api_types::PaymentIdType::PaymentIntentId(path.to_string()),
@@ -72,14 +91,21 @@ pub async fn setup_intents_retrieve(
         force_sync: true,
         connector: None,
         param: None,
+        merchant_connector_details: None,
+        client_secret: query_payload.client_secret.clone(),
+        expand_attempts: None,
+        expand_captures: None,
     };
 
-    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
-    wrap::compatibility_api_wrap::<
+    let flow = Flow::PaymentsRetrieve;
+
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -88,27 +114,31 @@ pub async fn setup_intents_retrieve(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
-        state.get_ref(),
+        flow,
+        state.into_inner(),
         &req,
         payload,
-        |state, merchant_account, payload| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+        |state, auth, payload| {
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
-#[instrument(skip_all)]
-#[post("/{setup_id}")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -126,7 +156,11 @@ pub async fn setup_intents_update(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest =
+        match payment_types::PaymentsRequest::try_from(stripe_payload) {
+            Ok(req) => req,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
     let (auth_type, auth_flow) =
@@ -135,7 +169,9 @@ pub async fn setup_intents_update(
             Err(err) => return api::log_and_return_error_response(err),
         };
 
-    wrap::compatibility_api_wrap::<
+    let flow = Flow::PaymentsUpdate;
+
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -144,27 +180,38 @@ pub async fn setup_intents_update(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
-        state.get_ref(),
+        flow,
+        state.into_inner(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::SetupMandate,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
-#[instrument(skip_all)]
-#[post("/{setup_id}/confirm")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -182,7 +229,11 @@ pub async fn setup_intents_confirm(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest =
+        match payment_types::PaymentsRequest::try_from(stripe_payload) {
+            Ok(req) => req,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 
@@ -192,7 +243,9 @@ pub async fn setup_intents_confirm(
             Err(err) => return api::log_and_return_error_response(err),
         };
 
-    wrap::compatibility_api_wrap::<
+    let flow = Flow::PaymentsConfirm;
+
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -201,21 +254,34 @@ pub async fn setup_intents_confirm(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
-        state.get_ref(),
+        flow,
+        state.into_inner(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::SetupMandate,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

@@ -1,0 +1,1 @@
+ALTER TABLE file_metadata DROP COLUMN connector_label;

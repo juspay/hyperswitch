@@ -1,0 +1,6 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with Invalid card details",
+    "Scenario2-Confirming the payment without PMD"
+  ]
+}

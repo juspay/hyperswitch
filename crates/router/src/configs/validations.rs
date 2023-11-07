@@ -1,20 +1,45 @@
 use common_utils::ext_traits::ConfigExt;
-
-use crate::core::errors::ApplicationError;
+use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        when(self.jwt_secret.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "JWT secret must not be empty".into(),
-            ))
-        })?;
+        #[cfg(not(feature = "kms"))]
+        {
+            when(self.jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "JWT secret must not be empty".into(),
+                ))
+            })?;
 
-        when(self.admin_api_key.is_default_or_empty(), || {
+            when(self.admin_api_key.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "admin API key must not be empty".into(),
+                ))
+            })?;
+        }
+
+        #[cfg(feature = "kms")]
+        {
+            when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "KMS encrypted JWT secret must not be empty".into(),
+                ))
+            })?;
+
+            when(
+                self.kms_encrypted_admin_api_key.is_default_or_empty(),
+                || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "KMS encrypted admin API key must not be empty".into(),
+                    ))
+                },
+            )?;
+        }
+        when(self.master_enc_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
-                "admin API key must not be empty".into(),
+                "Master encryption key must not be empty".into(),
             ))
         })
     }
@@ -41,26 +66,6 @@ impl super::settings::Locker {
     }
 }
 
-impl super::settings::Jwekey {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        #[cfg(feature = "kms")]
-        common_utils::fp_utils::when(self.aws_key_id.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "AWS key ID must not be empty when KMS feature is enabled".into(),
-            ))
-        })?;
-
-        #[cfg(feature = "kms")]
-        common_utils::fp_utils::when(self.aws_region.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "AWS region must not be empty when KMS feature is enabled".into(),
-            ))
-        })?;
-
-        Ok(())
-    }
-}
-
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
@@ -81,6 +86,12 @@ impl super::settings::Database {
             ))
         })?;
 
+        when(self.dbname.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "database name must not be empty".into(),
+            ))
+        })?;
+
         when(self.username.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "database user username must not be empty".into(),
@@ -91,12 +102,6 @@ impl super::settings::Database {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "database user password must not be empty".into(),
             ))
-        })?;
-
-        when(self.dbname.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database name must not be empty".into(),
-            ))
         })
     }
 }
@@ -106,69 +111,6 @@ impl super::settings::SupportedConnectors {
         common_utils::fp_utils::when(self.wallets.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "list of connectors supporting wallets must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::Connectors {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        self.aci.validate()?;
-        self.adyen.validate()?;
-        self.applepay.validate()?;
-        self.authorizedotnet.validate()?;
-        self.braintree.validate()?;
-        self.checkout.validate()?;
-        self.cybersource.validate()?;
-        self.globalpay.validate()?;
-        self.klarna.validate()?;
-        self.shift4.validate()?;
-        self.stripe.validate()?;
-        self.worldpay.validate()?;
-
-        self.supported.validate()?;
-
-        Ok(())
-    }
-}
-
-impl super::settings::ConnectorParams {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::SchedulerSettings {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.stream.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "scheduler stream must not be empty".into(),
-            ))
-        })?;
-
-        when(self.consumer.consumer_group.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "scheduler consumer group must not be empty".into(),
-            ))
-        })?;
-
-        self.producer.validate()?;
-
-        Ok(())
-    }
-}
-
-impl super::settings::ProducerSettings {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.lock_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "producer lock key must not be empty".into(),
             ))
         })
     }
@@ -185,35 +127,68 @@ impl super::settings::DrainerSettings {
     }
 }
 
+#[cfg(feature = "s3")]
+impl super::settings::FileUploadConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.region.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "s3 region must not be empty".into(),
+            ))
+        })?;
+
+        when(self.bucket_name.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "s3 bucket name must not be empty".into(),
+            ))
+        })
+    }
+}
+
 impl super::settings::ApiKeys {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         #[cfg(feature = "kms")]
-        {
-            when(self.aws_key_id.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "API key AWS key ID must not be empty when KMS feature is enabled".into(),
-                ))
-            })?;
-
-            when(self.aws_region.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "API key AWS region must not be empty when KMS feature is enabled".into(),
-                ))
-            })?;
-
-            when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "API key hashing key must not be empty when KMS feature is enabled".into(),
-                ))
-            })
-        }
+        return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key hashing key must not be empty when KMS feature is enabled".into(),
+            ))
+        });
 
         #[cfg(not(feature = "kms"))]
         when(self.hash_key.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::LockSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.redis_lock_expiry_seconds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "redis_lock_expiry_seconds must not be empty or 0".into(),
+            ))
+        })?;
+
+        when(
+            self.delay_between_retries_in_milliseconds
+                .is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "delay_between_retries_in_milliseconds must not be empty or 0".into(),
+                ))
+            },
+        )?;
+
+        when(self.lock_retries.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "lock_retries must not be empty or 0".into(),
             ))
         })
     }

@@ -462,3 +462,117 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
 }
+
+/// Generates different schemas with the ability to mark few fields as mandatory for certain schema
+/// Usage
+/// ```
+/// #[derive(PolymorphicSchema)]
+/// #[generate_schemas(PaymentsCreateRequest, PaymentsConfirmRequest)]
+/// struct PaymentsRequest {
+///     #[mandatory_in(PaymentsCreateRequest)]
+///     amount: Option<u64>,
+///     #[mandatory_in(PaymentsCreateRequest)]
+///     currency: Option<String>,
+///     payment_method: String,
+/// }
+/// ```
+///
+/// This will create two structs `PaymentsCreateRequest` and `PaymentsConfirmRequest` as follows
+/// It will retain all the other attributes that are used in the original struct, and only consume
+/// the #[mandatory_in] attribute to generate schemas
+///
+/// ```
+/// #[derive(utoipa::ToSchema)]
+/// struct PaymentsCreateRequest {
+///     #[schema(required = true)]
+///     amount: Option<u64>,
+///
+///     #[schema(required = true)]
+///     currency: Option<String>,
+///
+///     payment_method: String,
+/// }
+///
+/// #[derive(utoipa::ToSchema)]
+/// struct PaymentsConfirmRequest {
+///     amount: Option<u64>,
+///     currency: Option<String>,
+///     payment_method: String,
+/// }
+/// ```
+
+#[proc_macro_derive(PolymorphicSchema, attributes(mandatory_in, generate_schemas))]
+pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::polymorphic_macro_derive_inner(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}
+
+/// Implements the `Validate` trait to check if the config variable is present
+/// Usage
+/// ```
+/// #[derive(ConfigValidate)]
+/// struct Connectors {
+///     pub stripe: ConnectorParams,
+///     pub checkout: ConnectorParams
+/// }
+/// ```
+///
+/// This will call the `validate()` function for all the fields in the struct
+///
+/// ```
+/// impl Connectors {
+///      fn validate(&self) -> Result<(), ApplicationError> {
+///         self.stripe.validate()?;
+///         self.checkout.validate()?;
+///      }
+/// }
+/// ```
+#[proc_macro_derive(ConfigValidate)]
+pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::misc::validate_config(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}
+
+/// Generates the function to get the value out of enum variant
+/// Usage
+/// ```
+/// #[derive(TryGetEnumVariant)]
+/// #[error(RedisError(UnknownResult))]
+/// enum Result {
+///     Set(String),
+///     Get(i32)
+/// }
+/// ```
+///
+/// This will generate the function to get `String` and `i32` out of the variants
+///
+/// ```
+/// impl Result {
+///     fn try_into_get(&self)-> Result<i32, RedisError> {
+///         match self {
+///             Self::Get(a) => Ok(a),
+///             _=>Err(RedisError::UnknownResult)
+///         }
+///     }
+///
+///     fn try_into_set(&self)-> Result<String, RedisError> {
+///         match self {
+///             Self::Set(a) => Ok(a),
+///             _=> Err(RedisError::UnknownResult)
+///         }
+///     }
+/// }
+#[proc_macro_derive(TryGetEnumVariant, attributes(error))]
+pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::try_get_enum::try_get_enum_variant(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}

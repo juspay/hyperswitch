@@ -23,14 +23,16 @@ impl utils::Connector for Worldpay {
             connector: Box::new(&Worldpay),
             connector_name: types::Connector::Worldpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .worldpay
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -150,8 +152,7 @@ async fn should_sync_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     "112233".to_string(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             None,
         )

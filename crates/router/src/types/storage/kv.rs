@@ -1,4 +1,4 @@
-pub use storage_models::kv::{
-    DBOperation, Insertable, PaymentAttemptUpdateMems, PaymentIntentUpdateMems, RefundUpdateMems,
-    TypedSql, Updateable,
+pub use diesel_models::kv::{
+    AddressUpdateMems, ConnectorResponseUpdateMems, DBOperation, Insertable,
+    PaymentAttemptUpdateMems, PaymentIntentUpdateMems, RefundUpdateMems, TypedSql, Updateable,
 };

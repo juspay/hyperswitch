@@ -86,6 +86,74 @@ pub mod iso8601 {
     }
 }
 
+/// Use the UNIX timestamp when serializing and deserializing an
+/// [`PrimitiveDateTime`][PrimitiveDateTime].
+///
+/// [PrimitiveDateTime]: ::time::PrimitiveDateTime
+pub mod timestamp {
+
+    use serde::{Deserializer, Serialize, Serializer};
+    use time::{serde::timestamp, PrimitiveDateTime, UtcOffset};
+
+    /// Serialize a [`PrimitiveDateTime`] using UNIX timestamp.
+    pub fn serialize<S>(date_time: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        date_time
+            .assume_utc()
+            .unix_timestamp()
+            .serialize(serializer)
+    }
+
+    /// Deserialize an [`PrimitiveDateTime`] from UNIX timestamp.
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<PrimitiveDateTime, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        timestamp::deserialize(deserializer).map(|offset_date_time| {
+            let utc_date_time = offset_date_time.to_offset(UtcOffset::UTC);
+            PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
+        })
+    }
+
+    /// Use the UNIX timestamp when serializing and deserializing an
+    /// [`Option<PrimitiveDateTime>`][PrimitiveDateTime].
+    ///
+    /// [PrimitiveDateTime]: ::time::PrimitiveDateTime
+    pub mod option {
+        use serde::Serialize;
+
+        use super::*;
+
+        /// Serialize an [`Option<PrimitiveDateTime>`] from UNIX timestamp.
+        pub fn serialize<S>(
+            date_time: &Option<PrimitiveDateTime>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            date_time
+                .map(|date_time| date_time.assume_utc().unix_timestamp())
+                .serialize(serializer)
+        }
+
+        /// Deserialize an [`Option<PrimitiveDateTime>`] from UNIX timestamp.
+        pub fn deserialize<'a, D>(deserializer: D) -> Result<Option<PrimitiveDateTime>, D::Error>
+        where
+            D: Deserializer<'a>,
+        {
+            timestamp::option::deserialize(deserializer).map(|option_offset_date_time| {
+                option_offset_date_time.map(|offset_date_time| {
+                    let utc_date_time = offset_date_time.to_offset(UtcOffset::UTC);
+                    PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
+                })
+            })
+        }
+    }
+}
+
 /// <https://github.com/serde-rs/serde/issues/994#issuecomment-316895860>
 
 pub mod json_string {

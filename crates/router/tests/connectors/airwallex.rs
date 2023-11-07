@@ -1,4 +1,6 @@
-use masking::Secret;
+use std::str::FromStr;
+
+use masking::{PeekInterface, Secret};
 use router::types::{self, api, storage::enums, AccessToken};
 
 use crate::{
@@ -19,14 +21,16 @@ impl Connector for AirwallexTest {
             connector: Box::new(&Airwallex),
             connector_name: types::Connector::Airwallex,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .airwallex
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -39,7 +43,7 @@ fn get_access_token() -> Option<AccessToken> {
     match CONNECTOR.get_auth_token() {
         types::ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
             token: api_key,
-            expires: key1.parse::<i64>().unwrap(),
+            expires: key1.peek().parse::<i64>().unwrap(),
         }),
         _ => None,
     }
@@ -47,22 +51,27 @@ fn get_access_token() -> Option<AccessToken> {
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         access_token: get_access_token(),
-        router_return_url: Some("https://google.com".to_string()),
         ..Default::default()
     })
 }
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4035501000000008".to_string()),
+            card_number: cards::CardNumber::from_str("4035501000000008").unwrap(),
             card_exp_month: Secret::new("02".to_string()),
             card_exp_year: Secret::new("2035".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
             card_cvc: Secret::new("123".to_string()),
             card_issuer: None,
             card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }),
-        capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+        capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
+        router_return_url: Some("https://google.com".to_string()),
+        complete_authorize_url: Some("https://google.com".to_string()),
         ..utils::PaymentAuthorizeType::default().0
     })
 }
@@ -98,7 +107,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_and_capture_payment(
             payment_method_details(),
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             get_default_payment_info(),
@@ -124,8 +133,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )
@@ -142,10 +150,9 @@ async fn should_void_authorized_payment() {
         .authorize_and_void_payment(
             payment_method_details(),
             Some(types::PaymentsCancelData {
-                amount: None,
-                currency: None,
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                ..Default::default()
             }),
             get_default_payment_info(),
         )
@@ -255,8 +262,7 @@ async fn should_sync_auto_captured_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )
@@ -352,7 +358,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -365,27 +371,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
         response.response.unwrap_err().message,
         "Invalid card number".to_string(),
     );
-}
-
-// Creates a payment with empty card number.
-#[serial_test::serial]
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid card number",);
 }
 
 // Creates a payment with incorrect CVC.

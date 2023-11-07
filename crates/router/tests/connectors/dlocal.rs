@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::Address;
 use masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
@@ -17,14 +19,16 @@ impl utils::Connector for DlocalTest {
             connector: Box::new(&Dlocal),
             connector_name: types::Connector::Dlocal,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .dlocal
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -63,7 +67,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_and_capture_payment(
             None,
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             Some(get_payment_info()),
@@ -88,8 +92,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             Some(get_payment_info()),
         )
@@ -200,8 +203,7 @@ async fn should_sync_auto_captured_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             Some(get_payment_info()),
         )
@@ -288,28 +290,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1891011".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            Some(get_payment_info()),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid parameter",);
-    assert_eq!(x.reason, Some("card.number".to_string()));
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
+                    card_number: cards::CardNumber::from_str("1891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -445,7 +426,7 @@ pub fn get_payment_info() -> PaymentInfo {
                 phone: None,
                 address: Some(api::AddressDetails {
                     city: None,
-                    country: Some("PA".to_string()),
+                    country: Some(api_models::enums::CountryAlpha2::PA),
                     line1: None,
                     line2: None,
                     line3: None,
@@ -458,8 +439,8 @@ pub fn get_payment_info() -> PaymentInfo {
         }),
         auth_type: None,
         access_token: None,
-        router_return_url: None,
         connector_meta_data: None,
+        ..Default::default()
     }
 }
 // Connector dependent test cases goes here

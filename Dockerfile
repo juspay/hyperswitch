@@ -1,6 +1,9 @@
-FROM rust:1.65 as builder
+FROM rust:slim-bookworm as builder
+
+ARG EXTRA_FEATURES=""
+
 RUN apt-get update \
-    && apt-get install -y libpq-dev libssl-dev
+    && apt-get install -y libpq-dev libssl-dev pkg-config
 
 # Copying codebase from current dir to /router dir
 # and creating a fresh build
@@ -25,27 +28,29 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
+# Use cargo's sparse index protocol
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
-RUN cargo build --release --features sandbox
+RUN cargo build --release --features release ${EXTRA_FEATURES}
 
 
 
-FROM debian
+FROM debian:bookworm-slim
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
 ARG BIN_DIR=/local/bin
 
 # RUN_ENV decides the corresponding config file to be used
-ARG RUN_ENV=Sandbox
+ARG RUN_ENV=sandbox
 
 # args for deciding the executable to export. three binaries:
 # 1. BINARY=router - for main application
-# 2. BINARY=scheduler, SCHEDULER_FLOW=Consumer - part of process tracker
-# 3. BINARY=scheduler, SCHEDULER_FLOW=Producer - part of process tracker
+# 2. BINARY=scheduler, SCHEDULER_FLOW=consumer - part of process tracker
+# 3. BINARY=scheduler, SCHEDULER_FLOW=producer - part of process tracker
 ARG BINARY=router
-ARG SCHEDULER_FLOW=Consumer
+ARG SCHEDULER_FLOW=consumer
 
 RUN apt-get update \
     && apt-get install -y ca-certificates tzdata libpq-dev curl procps

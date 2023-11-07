@@ -1,1 +1,1 @@
-pub use storage_models::enums::*;
+pub use diesel_models::enums::*;

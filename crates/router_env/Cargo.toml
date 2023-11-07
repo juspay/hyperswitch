@@ -2,41 +2,45 @@
 name = "router_env"
 description = "Environment of payment router: logger, basic config, its environment awareness."
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
-build = "src/build.rs"
+license.workspace = true
 
 [dependencies]
+cargo_metadata = "0.15.4"
 config = { version = "0.13.3", features = ["toml"] }
-gethostname = "0.4.1"
-once_cell = "1.17.0"
-opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust/", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658",  features = ["rt-tokio-current-thread", "metrics"] }
-opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust/", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658", features = ["metrics"] }
+error-stack = "0.3.1"
+gethostname = "0.4.3"
+once_cell = "1.18.0"
+opentelemetry = { version = "0.19.0", features = ["rt-tokio-current-thread", "metrics"] }
+opentelemetry-otlp = { version = "0.12.0", features = ["metrics"] }
 rustc-hash = "1.1"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
-serde_path_to_error = "0.1.9"
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
+serde_path_to_error = "0.1.11"
 strum = { version = "0.24.1", features = ["derive"] }
-time = { version = "0.3.17", default-features = false, features = ["formatting"] }
-tokio = { version = "1.25.0" }
-tracing = { version = "0.1.36" }
-tracing-actix-web = { version = "0.7.2", features = ["opentelemetry_0_18"], optional = true }
+time = { version = "0.3.21", default-features = false, features = ["formatting"] }
+tokio = { version = "1.28.2" }
+tracing = { version = "=0.1.36" }
+tracing-actix-web = { version = "0.7.8", features = ["opentelemetry_0_19", "uuid_v7"], optional = true }
 tracing-appender = { version = "0.2.2" }
 tracing-attributes = "=0.1.22"
-tracing-opentelemetry = { version = "0.18.0" }
-tracing-subscriber = { version = "0.3.16", default-features = true, features = ["json", "env-filter", "registry"] }
-vergen = { version = "8.0.0-beta.3", optional = true, features = ["cargo", "git", "git2", "rustc"] }
+tracing-opentelemetry = { version = "0.19.0" }
+tracing-subscriber = { version = "0.3.17", default-features = true, features = ["env-filter", "json", "registry"] }
+vergen = { version = "8.2.1", optional = true, features = ["cargo", "git", "git2", "rustc"] }
 
 [dev-dependencies]
-tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
-vergen = { version = "8.0.0-beta.3", features = ["cargo", "git", "git2", "rustc"] }
+cargo_metadata = "0.15.4"
+vergen = { version = "8.2.1", features = ["cargo", "git", "git2", "rustc"], optional = true }
 
 [features]
-default = ["actix_web"]
+default = ["actix_web", "payouts"]
 actix_web = ["tracing-actix-web"]
 log_custom_entries_to_extra = []
 log_extra_implicit_fields = []
+log_active_span_json = []
+payouts = []

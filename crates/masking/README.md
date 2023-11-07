@@ -1,10 +1,13 @@
-# masking
+# Masking
 
 Personal Identifiable Information protection.
-Wrapper types and traits for secret management which help ensure they aren't accidentally copied, logged, or otherwise exposed (as much as possible), and also ensure secrets are securely wiped from memory when dropped.
+Wrapper types and traits for secret management which help ensure they aren't
+accidentally copied, logged, or otherwise exposed (as much as possible), and
+also ensure secrets are securely wiped from memory when dropped.
 Secret-keeping library inspired by `secrecy`.
 
 This solution has such advantages over alternatives:
+
 - alternatives have not implemented several traits from the box which are needed
 - alternatives do not have WeakSecret and Secret differentiation
 - alternatives do not support masking strategies
@@ -35,18 +38,3 @@ Most fields are under `Option`. To simplify dealing with `Option`, use `expose_o
             .unwrap_or_default(),
     );
 ```
-
-
-## Files Tree Layout
-
-
-```bash
-.
-├── src                        # : source code
-└── tests                      # : unit and integration tests
-
-```
-
-<!--
-command to generate the tree `tree -L 3 -d`
--->

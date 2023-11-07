@@ -1,3 +1,4 @@
+#![allow(clippy::use_self)]
 use darling::FromMeta;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};

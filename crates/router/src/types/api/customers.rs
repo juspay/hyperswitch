@@ -1,15 +1,9 @@
 use api_models::customers;
 pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest};
-use error_stack::ResultExt;
 use serde::Serialize;
 
-use crate::{
-    core::errors::{self, RouterResult},
-    newtype,
-    pii::PeekInterface,
-    types::storage,
-    utils::{self, ValidateCall},
-};
+use super::payments;
+use crate::{core::errors::RouterResult, newtype, types::domain};
 
 newtype!(
     pub CustomerResponse = customers::CustomerResponse,
@@ -20,22 +14,8 @@ pub(crate) trait CustomerRequestExt: Sized {
     fn validate(self) -> RouterResult<Self>;
 }
 
-impl CustomerRequestExt for CustomerRequest {
-    fn validate(self) -> RouterResult<Self> {
-        self.email
-            .as_ref()
-            .validate_opt(|email| utils::validate_email(email.peek()))
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "email".to_string(),
-                expected_format: "valid email address".to_string(),
-            })?;
-
-        Ok(self)
-    }
-}
-
-impl From<storage::Customer> for CustomerResponse {
-    fn from(cust: storage::Customer) -> Self {
+impl From<(domain::Customer, Option<payments::AddressDetails>)> for CustomerResponse {
+    fn from((cust, address): (domain::Customer, Option<payments::AddressDetails>)) -> Self {
         customers::CustomerResponse {
             customer_id: cust.customer_id,
             name: cust.name,
@@ -45,7 +25,7 @@ impl From<storage::Customer> for CustomerResponse {
             description: cust.description,
             created_at: cust.created_at,
             metadata: cust.metadata,
-            address: None,
+            address,
         }
         .into()
     }

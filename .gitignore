@@ -249,10 +249,19 @@ logs/
 **/*.log
 **/*.log.*
 monitoring/*.tmp/
-config/Sandbox.toml
-config/Production.toml
+config/sandbox.toml
+config/production.toml
 !loadtest/.env
 loadtest/*.tmp/
 
 # Nix output
 result*
+
+.idea/
+
+# node_modules
+node_modules/
+
+**/connector_auth.toml
+**/sample_auth.toml
+**/auth.toml

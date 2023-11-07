@@ -35,3 +35,20 @@ pub(super) fn get_metadata_inner<'a, T: Parse + Spanned>(
             Ok(vec)
         })
 }
+
+pub(super) fn get_struct_fields(
+    data: syn::Data,
+) -> syn::Result<Punctuated<syn::Field, syn::token::Comma>> {
+    if let syn::Data::Struct(syn::DataStruct {
+        fields: syn::Fields::Named(syn::FieldsNamed { ref named, .. }),
+        ..
+    }) = data
+    {
+        Ok(named.to_owned())
+    } else {
+        Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "This macro cannot be used on structs with no fields",
+        ))
+    }
+}

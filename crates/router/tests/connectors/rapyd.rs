@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use futures::future::OptionFuture;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
@@ -17,14 +19,16 @@ impl utils::Connector for Rapyd {
             connector: Box::new(&Rapyd),
             connector_name: types::Connector::Rapyd,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .rapyd
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -39,15 +43,19 @@ async fn should_only_authorize_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4111111111111111".to_string()),
+                    card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
                     card_issuer: None,
                     card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
+                    nick_name: Some(masking::Secret::new("nick_name".into())),
                 }),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -63,13 +71,17 @@ async fn should_authorize_and_capture_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4111111111111111".to_string()),
+                    card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
                     card_issuer: None,
                     card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
+                    nick_name: Some(masking::Secret::new("nick_name".into())),
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -142,7 +154,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("0000000000000000".to_string()),
+                    card_number: cards::CardNumber::from_str("0000000000000000").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0

@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::mandate,
+    core::{api_locking, mandate},
     services::{api, authentication as auth},
     types::api::mandates,
 };
@@ -32,19 +32,21 @@ pub async fn get_mandate(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MandatesRetrieve;
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         mandate_id,
-        mandate::get_mandate,
+        |state, auth, req| mandate::get_mandate(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Mandates - Revoke Mandate
 ///
 /// Revoke a mandate
@@ -69,17 +71,59 @@ pub async fn revoke_mandate(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MandatesRevoke;
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         mandate_id,
-        |state, merchant_account, req| {
-            mandate::revoke_mandate(&*state.store, merchant_account, req)
-        },
+        |state, auth, req| mandate::revoke_mandate(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+/// Mandates - List Mandates
+#[utoipa::path(
+    get,
+    path = "/mandates/list",
+    params(
+        ("limit" = Option<i64>, Query, description = "The maximum number of Mandate Objects to include in the response"),
+        ("mandate_status" = Option<MandateStatus>, Query, description = "The status of mandate"),
+        ("connector" = Option<String>, Query, description = "The connector linked to mandate"),
+        ("created_time" = Option<PrimitiveDateTime>, Query, description = "The time at which mandate is created"),
+        ("created_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the mandate created time"),
+        ("created_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the mandate created time"),
+        ("created_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the mandate created time"),
+        ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the mandate created time"),
+    ),
+    responses(
+        (status = 200, description = "The mandate list was retrieved successfully", body = Vec<MandateResponse>),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Mandates",
+    operation_id = "List Mandates",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MandatesList))]
+pub async fn retrieve_mandates_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<api_models::mandates::MandateListConstraints>,
+) -> HttpResponse {
+    let flow = Flow::MandatesList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| mandate::retrieve_mandates_list(state, auth.merchant_account, req),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

@@ -1,20 +1,28 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bambora;
 
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    connector::utils::{PaymentsAuthorizeRequestData, PaymentsSyncRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{to_connector_meta, PaymentsAuthorizeRequestData, PaymentsSyncRequestData},
+    },
     core::{
         errors::{self, CustomResult},
         payments,
     },
     headers, logger,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration, ConnectorValidation,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -34,10 +42,12 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -61,11 +71,14 @@ impl ConnectorCommon for Bambora {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: bambora::BamboraAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -86,11 +99,42 @@ impl ConnectorCommon for Bambora {
     }
 }
 
+impl ConnectorValidation for Bambora {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl api::Payment for Bambora {}
 
-impl api::PreVerify for Bambora {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bambora
+impl api::PaymentToken for Bambora {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Bambora
+{
+    // Not Implemented (R)
+}
+
+impl api::MandateSetup for Bambora {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bambora
 {
 }
 
@@ -103,7 +147,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -128,11 +172,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let request = bambora::BamboraPaymentsRequest::try_from(req)?;
-        let bambora_req =
-            utils::Encode::<bambora::BamboraPaymentsRequest>::encode_to_string_of_json(&request)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let bambora_req = types::RequestBody::log_and_get_request_body(
+            &request,
+            utils::Encode::<bambora::BamboraPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
     }
 
@@ -145,6 +192,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(self.get_request_body(req)?)
                 .build(),
@@ -156,7 +204,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: bambora::BamboraPaymentsResponse = res
+        let response: bambora::BamboraResponse = res
             .response
             .parse_struct("bambora PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -194,7 +242,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -229,6 +277,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -246,7 +295,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bambora::BamboraPaymentsResponse = res
+        let response: bambora::BamboraResponse = res
             .response
             .parse_struct("bambora PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -256,7 +305,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            get_payment_flow(data.request.is_auto_capture()),
+            get_payment_flow(data.request.is_auto_capture()?),
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -270,7 +319,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -295,10 +344,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let bambora_req =
-            utils::Encode::<bambora::BamboraPaymentsCaptureRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = bambora::BamboraPaymentsCaptureRequest::try_from(req)?;
+        let bambora_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bambora::BamboraPaymentsCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
     }
 
@@ -311,6 +363,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -324,7 +377,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: bambora::BamboraPaymentsResponse = res
+        let response: bambora::BamboraResponse = res
             .response
             .parse_struct("Bambora PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -365,7 +418,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -376,19 +429,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(_connectors), "/v1/payments"))
+        Ok(format!("{}{}", self.base_url(connectors), "/v1/payments"))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let request = bambora::BamboraPaymentsRequest::try_from(req)?;
-        let bambora_req =
-            utils::Encode::<bambora::BamboraPaymentsRequest>::encode_to_string_of_json(&request)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let bambora_req = types::RequestBody::log_and_get_request_body(
+            &request,
+            utils::Encode::<bambora::BamboraPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
     }
 
@@ -403,6 +459,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -416,7 +473,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: bambora::BamboraPaymentsResponse = res
+        let response: bambora::BamboraResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -427,7 +484,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            get_payment_flow(data.request.is_auto_capture()),
+            get_payment_flow(data.request.is_auto_capture()?),
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -451,7 +508,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -477,9 +534,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let bambora_req = utils::Encode::<bambora::BamboraRefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = bambora::BamboraRefundRequest::try_from(req)?;
+        let bambora_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bambora::BamboraRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
     }
 
@@ -491,6 +552,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -529,7 +591,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -561,6 +623,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
@@ -597,7 +660,7 @@ impl api::IncomingWebhook for Bambora {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -605,7 +668,7 @@ impl api::IncomingWebhook for Bambora {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
@@ -616,19 +679,123 @@ impl api::IncomingWebhook for Bambora {
     }
 }
 
-impl services::ConnectorRedirectResponse for Bambora {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
-    }
-}
-
 pub fn get_payment_flow(is_auto_capture: bool) -> bambora::PaymentFlow {
     if is_auto_capture {
         bambora::PaymentFlow::Capture
     } else {
         bambora::PaymentFlow::Authorize
+    }
+}
+
+impl services::ConnectorRedirectResponse for Bambora {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
+    }
+}
+
+impl api::PaymentsCompleteAuthorize for Bambora {}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Bambora
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let meta: bambora::BamboraMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        Ok(format!(
+            "{}/v1/payments/{}{}",
+            self.base_url(connectors),
+            meta.three_d_session_data,
+            "/continue"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let request = bambora::BamboraThreedsContinueRequest::try_from(&req.request)?;
+
+        let bambora_req = types::RequestBody::log_and_get_request_body(
+            &request,
+            utils::Encode::<bambora::BamboraThreedsContinueRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bambora_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                self, req, connectors,
+            )?)
+            .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                self, req, connectors,
+            )?)
+            .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                self, req,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: bambora::BamboraResponse = res
+            .response
+            .parse_struct("Bambora PaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(bamborapayments_create_response=?response);
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            bambora::PaymentFlow::Capture,
+        ))
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }

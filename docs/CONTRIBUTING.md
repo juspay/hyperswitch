@@ -45,6 +45,7 @@ Please join us!
   - [Calls for participation](#calls-for-participation)
   - [Metadata](#metadata)
   - [Priority](#priority)
+  - [RFCs](#rfcs)
   - [Status](#status)
 
 ## Code of Conduct
@@ -85,7 +86,7 @@ having problems, you can [open a discussion] asking for help.
 In exchange for receiving help, we ask that you contribute back a documentation
 PR that helps others avoid the problems that you encountered.
 
-[open a discussion]: https://github.com/juspay/hyperswitch/discussions/new
+[open a discussion]: https://github.com/juspay/hyperswitch/discussions/new/choose
 
 ### Submitting a Bug Report
 
@@ -173,11 +174,19 @@ There is no limit to the number of commits any single Pull Request may have, and
 many contributors find it easier to review changes that are split across
 multiple commits.
 
-That said, if you have a number of commits that are "checkpoints" and don't
-represent a single logical change, please squash those together.
+Please adhere to the general guideline that you should never force push to a
+publicly shared branch.
+Once you have opened your pull request, you should consider your branch publicly shared.
+Instead of force pushing you can just add incremental commits;
+this is generally easier on your reviewers.
+If you need to pick up changes from main, you can merge main into your branch.
 
-Note that multiple commits often get squashed when they are landed (see the
-notes about [commit squashing](#commit-squashing)).
+A reviewer might ask you to rebase a long-running pull request
+in which case force pushing is okay for that request.
+
+Note that squashing at the end of the review process should also not be done,
+that can be done when the pull request is integrated via GitHub.
+
 
 #### Commit message guidelines
 
@@ -489,6 +498,8 @@ The area label describes the area relevant to this issue or PR.
 - **A-core**: This issue/PR concerns the core flows.
 - **A-dependencies**: The issue/PR concerns one or more of our dependencies.
 - **A-drainer**: The issue/PR concerns the drainer code.
+- **A-errors**: The issue/PR concerns error messages, error structure or error
+  logging.
 - **A-framework**: The issue/PR concerns code to interact with other systems or
   services such as database, Redis, connector APIs, etc.
 - **A-infra**: This issue/PR concerns deployments, Dockerfiles, Docker Compose
@@ -520,6 +531,7 @@ The area label describes the area relevant to this issue or PR.
 The metadata label describes additional metadata that are important for sandbox
 or production deployments of our application.
 
+- **M-api-contract-changes**: This PR involves API contract changes.
 - **M-configuration-changes**: This PR involves configuration changes.
 - **M-database-changes**: This PR involves database schema changes.
 
@@ -528,6 +540,12 @@ or production deployments of our application.
 - **P-low**: This is a low priority issue.
 - **P-medium**: This is not `P-low` or `P-high`.
 - **P-high**: This is a high priority issue and must be addressed quickly.
+
+### RFCs
+
+- **RFC-in-progress**: This RFC involves active discussion regarding substantial
+  design changes.
+- **RFC-resolved**: This RFC has been resolved.
 
 ### Status
 

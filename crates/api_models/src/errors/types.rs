@@ -15,6 +15,8 @@ pub struct ApiError {
     pub error_identifier: u16,
     pub error_message: String,
     pub extra: Option<Extra>,
+    #[cfg(feature = "detailed_errors")]
+    pub stacktrace: Option<serde_json::Value>,
 }
 
 impl ApiError {
@@ -29,6 +31,8 @@ impl ApiError {
             error_identifier,
             error_message: error_message.to_string(),
             extra,
+            #[cfg(feature = "detailed_errors")]
+            stacktrace: None,
         }
     }
 }
@@ -41,6 +45,9 @@ struct ErrorResponse<'a> {
     code: String,
     #[serde(flatten)]
     extra: &'a Option<Extra>,
+    #[cfg(feature = "detailed_errors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stacktrace: Option<&'a serde_json::Value>,
 }
 
 impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
@@ -52,6 +59,9 @@ impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
             message: Cow::Borrowed(value.get_internal_error().error_message.as_str()),
             error_type,
             extra: &error_info.extra,
+
+            #[cfg(feature = "detailed_errors")]
+            stacktrace: error_info.stacktrace.as_ref(),
         }
     }
 }
@@ -98,6 +108,23 @@ impl ::core::fmt::Display for ApiErrorResponse {
 
 impl ApiErrorResponse {
     pub(crate) fn get_internal_error(&self) -> &ApiError {
+        match self {
+            Self::Unauthorized(i)
+            | Self::ForbiddenCommonResource(i)
+            | Self::ForbiddenPrivateResource(i)
+            | Self::Conflict(i)
+            | Self::Gone(i)
+            | Self::Unprocessable(i)
+            | Self::InternalServerError(i)
+            | Self::NotImplemented(i)
+            | Self::NotFound(i)
+            | Self::MethodNotAllowed(i)
+            | Self::BadRequest(i)
+            | Self::ConnectorError(i, _) => i,
+        }
+    }
+
+    pub fn get_internal_error_mut(&mut self) -> &mut ApiError {
         match self {
             Self::Unauthorized(i)
             | Self::ForbiddenCommonResource(i)

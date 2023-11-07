@@ -1,7 +1,9 @@
-use common_utils::{consts, custom_serde, pii};
+use common_utils::{consts, crypto, custom_serde, pii};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use crate::payments;
 
 /// The customer details
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
@@ -15,13 +17,13 @@ pub struct CustomerRequest {
     #[serde(default = "unknown_merchant", skip)]
     pub merchant_id: String,
     /// The customer's name
-    #[schema(max_length = 255, example = "Jon Test")]
-    pub name: Option<String>,
+    #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
+    pub name: Option<Secret<String>>,
     /// The customer's email address
-    #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    #[schema(value_type = Option<String>, max_length = 255, example = "JonTest@test.com")]
+    pub email: Option<pii::Email>,
     /// The customer's phone number
-    #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9999999999")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
     #[schema(max_length = 255, example = "First Customer")]
@@ -30,23 +32,13 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<Object>,example = json!({
-    "city": "Bangalore",
-    "country": "IN",
-    "line1": "Hyperswitch router",
-    "line2": "Koramangala",
-    "line3": "Stallion",
-    "state": "Karnataka",
-    "zip": "560095",
-    "first_name": "John",
-    "last_name": "Doe"
-  }))]
-    pub address: Option<Secret<serde_json::Value>>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -55,14 +47,14 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: String,
     /// The customer's name
-    #[schema(max_length = 255, example = "Jon Test")]
-    pub name: Option<String>,
+    #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
+    pub name: crypto::OptionalEncryptableName,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: crypto::OptionalEncryptableEmail,
     /// The customer's phone number
     #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
-    pub phone: Option<Secret<String>>,
+    pub phone: crypto::OptionalEncryptablePhone,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
@@ -70,18 +62,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer")]
     pub description: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<Object>,example = json!({
-    "city": "Bangalore",
-    "country": "IN",
-    "line1": "Hyperswitch router",
-    "line2": "Koramangala",
-    "line3": "Stallion",
-    "state": "Karnataka",
-    "zip": "560095",
-    "first_name": "John",
-    "last_name": "Doe"
-  }))]
-    pub address: Option<Secret<serde_json::Value>>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "custom_serde::iso8601")]
@@ -90,10 +72,10 @@ pub struct CustomerResponse {
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct CustomerId {
     pub customer_id: String,
 }

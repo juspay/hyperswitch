@@ -13,9 +13,7 @@ use crate::{
     types::{
         api,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
-    utils::OptionExt,
 };
 
 newtype!(
@@ -25,43 +23,29 @@ newtype!(
 
 #[async_trait::async_trait]
 pub(crate) trait MandateResponseExt: Sized {
-    async fn from_db_mandate(
-        state: &AppState,
-        mandate: storage::Mandate,
-        merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<Self>;
+    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self>;
 }
 
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
-    async fn from_db_mandate(
-        state: &AppState,
-        mandate: storage::Mandate,
-        merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<Self> {
+    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            let locker_id = merchant_account
-                .locker_id
-                .to_owned()
-                .get_required_value("locker_id")?;
-            let get_card_resp = payment_methods::cards::get_card_from_legacy_locker(
+            let card = payment_methods::cards::get_card_from_locker(
                 state,
-                &locker_id,
+                &payment_method.customer_id,
+                &payment_method.merchant_id,
                 &payment_method.payment_method_id,
             )
             .await?;
-            let card_detail =
-                payment_methods::transformers::get_card_detail(&payment_method, get_card_resp.card)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while getting card details")?;
+            let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card details")?;
             Some(MandateCardDetails::from(card_detail).into_inner())
         } else {
             None
@@ -77,12 +61,12 @@ impl MandateResponseExt for MandateResponse {
                 },
                 accepted_at: mandate.customer_accepted_at,
                 online: Some(api::payments::OnlineMandate {
-                    ip_address: mandate.customer_ip_address.unwrap_or_default(),
+                    ip_address: mandate.customer_ip_address,
                     user_agent: mandate.customer_user_agent.unwrap_or_default(),
                 }),
             }),
             card,
-            status: mandate.mandate_status.foreign_into(),
+            status: mandate.mandate_status,
             payment_method: payment_method.payment_method.to_string(),
             payment_method_id: mandate.payment_method_id,
         })

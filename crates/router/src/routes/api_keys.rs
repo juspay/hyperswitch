@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::api_keys,
+    core::{api_keys, api_locking},
     services::{api, authentication as auth},
     types::api as api_types,
 };
@@ -32,27 +32,32 @@ pub async fn api_key_create(
     path: web::Path<String>,
     json_payload: web::Json<api_types::CreateApiKeyRequest>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyCreate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
 
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         payload,
         |state, _, payload| async {
+            #[cfg(feature = "kms")]
+            let kms_client = external_services::kms::get_kms_client(&state.clone().conf.kms).await;
             api_keys::create_api_key(
-                &*state.store,
-                &state.conf.api_keys,
+                state,
+                #[cfg(feature = "kms")]
+                kms_client,
                 payload,
                 merchant_id.clone(),
             )
             .await
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - Retrieve
 ///
 /// Retrieve information about the specified API Key.
@@ -77,18 +82,20 @@ pub async fn api_key_retrieve(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
-    let (_merchant_id, key_id) = path.into_inner();
+    let flow = Flow::ApiKeyRetrieve;
+    let (merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
-        &key_id,
-        |state, _, key_id| api_keys::retrieve_api_key(&*state.store, key_id),
+        (&merchant_id, &key_id),
+        |state, _, (merchant_id, key_id)| api_keys::retrieve_api_key(state, merchant_id, key_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - Update
 ///
 /// Update information for the specified API Key.
@@ -115,19 +122,23 @@ pub async fn api_key_update(
     path: web::Path<(String, String)>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
-    let (_merchant_id, key_id) = path.into_inner();
+    let flow = Flow::ApiKeyUpdate;
+    let (merchant_id, key_id) = path.into_inner();
     let payload = json_payload.into_inner();
 
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
-        (&key_id, payload),
-        |state, _, (key_id, payload)| api_keys::update_api_key(&*state.store, key_id, payload),
+        (&merchant_id, &key_id, payload),
+        |state, _, (merchant_id, key_id, payload)| {
+            api_keys::update_api_key(state, merchant_id, key_id, payload)
+        },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - Revoke
 ///
 /// Revoke the specified API Key. Once revoked, the API Key can no longer be used for
@@ -153,18 +164,20 @@ pub async fn api_key_revoke(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
-    let (_merchant_id, key_id) = path.into_inner();
+    let flow = Flow::ApiKeyRevoke;
+    let (merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
-        &key_id,
-        |state, _, key_id| api_keys::revoke_api_key(&*state.store, key_id),
+        (&merchant_id, &key_id),
+        |state, _, (merchant_id, key_id)| api_keys::revoke_api_key(state, merchant_id, key_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - List
 ///
 /// List all API Keys associated with your merchant account.
@@ -190,19 +203,22 @@ pub async fn api_key_list(
     path: web::Path<String>,
     query: web::Query<api_types::ListApiKeyConstraints>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyList;
     let list_api_key_constraints = query.into_inner();
     let limit = list_api_key_constraints.limit;
     let offset = list_api_key_constraints.skip;
     let merchant_id = path.into_inner();
 
     api::server_wrap(
-        state.get_ref(),
+        flow,
+        state,
         &req,
         (limit, offset, merchant_id),
         |state, _, (limit, offset, merchant_id)| async move {
-            api_keys::list_api_keys(&*state.store, merchant_id, limit, offset).await
+            api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

@@ -1,27 +1,117 @@
 //! Personal Identifiable Information protection.
 
-use std::{convert::AsRef, fmt};
+use std::{convert::AsRef, fmt, ops, str::FromStr};
 
-use masking::{Strategy, WithType};
+use diesel::{
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    prelude::*,
+    serialize::{Output, ToSql},
+    sql_types, AsExpression,
+};
+use error_stack::{IntoReport, ResultExt};
+use masking::{ExposeInterface, Secret, Strategy, WithType};
 
-use crate::validation::validate_email;
+use crate::{
+    crypto::Encryptable,
+    errors::{self, ValidationError},
+    validation::{validate_email, validate_phone_number},
+};
 
-/// Card number
+/// A string constant representing a redacted or masked value.
+pub const REDACTED: &str = "Redacted";
+
+/// Type alias for serde_json value which has Secret Information
+pub type SecretSerdeValue = Secret<serde_json::Value>;
+
+/// Strategy for masking a PhoneNumber
 #[derive(Debug)]
-pub struct CardNumber;
+pub struct PhoneNumberStrategy;
 
-impl<T> Strategy<T> for CardNumber
+/// Phone Number
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(try_from = "String")]
+pub struct PhoneNumber(Secret<String, PhoneNumberStrategy>);
+
+impl<T> Strategy<T> for PhoneNumberStrategy
 where
-    T: AsRef<str>,
+    T: AsRef<str> + std::fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
 
-        if val_str.len() < 15 || val_str.len() > 19 {
-            return WithType::fmt(val, f);
-        }
+        // masks everything but the last 4 digits
+        write!(
+            f,
+            "{}{}",
+            "*".repeat(val_str.len() - 4),
+            &val_str[val_str.len() - 4..]
+        )
+    }
+}
 
-        write!(f, "{}{}", &val_str[..6], "*".repeat(val_str.len() - 6))
+impl FromStr for PhoneNumber {
+    type Err = error_stack::Report<ValidationError>;
+    fn from_str(phone_number: &str) -> Result<Self, Self::Err> {
+        validate_phone_number(phone_number)?;
+        let secret = Secret::<String, PhoneNumberStrategy>::new(phone_number.to_string());
+        Ok(Self(secret))
+    }
+}
+
+impl TryFrom<String> for PhoneNumber {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value).change_context(errors::ParsingError::PhoneNumberParsingError)
+    }
+}
+
+impl ops::Deref for PhoneNumber {
+    type Target = Secret<String, PhoneNumberStrategy>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ops::DerefMut for PhoneNumber {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<DB> Queryable<diesel::sql_types::Text, DB> for PhoneNumber
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for PhoneNumber
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from_str(val.as_str())?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for PhoneNumber
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
     }
 }
 
@@ -51,6 +141,19 @@ where
     }
 }
 */
+
+/// Strategy for Encryption
+#[derive(Debug)]
+pub struct EncryptionStratergy;
+
+impl<T> Strategy<T> for EncryptionStratergy
+where
+    T: AsRef<[u8]>,
+{
+    fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "*** Encrypted {} of bytes ***", value.as_ref().len())
+    }
+}
 
 /// Client secret
 #[derive(Debug)]
@@ -84,26 +187,118 @@ where
     }
 }
 
-/// Email address
+/// Strategy for masking Email
 #[derive(Debug)]
-pub struct Email;
+pub struct EmailStrategy;
 
-impl<T> Strategy<T> for Email
+impl<T> Strategy<T> for EmailStrategy
 where
-    T: AsRef<str>,
+    T: AsRef<str> + std::fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
-        let is_valid = validate_email(val_str);
-
-        if is_valid.is_err() {
-            return WithType::fmt(val, f);
+        match val_str.split_once('@') {
+            Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
+            None => WithType::fmt(val, f),
         }
+    }
+}
+/// Email address
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+#[serde(try_from = "String")]
+pub struct Email(Secret<String, EmailStrategy>);
 
-        if let Some((a, b)) = val_str.split_once('@') {
-            write!(f, "{}@{}", "*".repeat(a.len()), b)
-        } else {
-            WithType::fmt(val, f)
+impl From<Encryptable<Secret<String, EmailStrategy>>> for Email {
+    fn from(item: Encryptable<Secret<String, EmailStrategy>>) -> Self {
+        Self(item.into_inner())
+    }
+}
+
+impl ExposeInterface<Secret<String, EmailStrategy>> for Email {
+    fn expose(self) -> Secret<String, EmailStrategy> {
+        self.0
+    }
+}
+
+impl TryFrom<String> for Email {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value).change_context(errors::ParsingError::EmailParsingError)
+    }
+}
+
+impl From<Secret<String, EmailStrategy>> for Email {
+    fn from(value: Secret<String, EmailStrategy>) -> Self {
+        Self(value)
+    }
+}
+
+impl ops::Deref for Email {
+    type Target = Secret<String, EmailStrategy>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ops::DerefMut for Email {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<DB> Queryable<diesel::sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from_str(val.as_str())?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl FromStr for Email {
+    type Err = error_stack::Report<ValidationError>;
+    fn from_str(email: &str) -> Result<Self, Self::Err> {
+        if email.eq(REDACTED) {
+            return Ok(Self(Secret::new(email.to_string())));
+        }
+        match validate_email(email) {
+            Ok(_) => {
+                let secret = Secret::<String, EmailStrategy>::new(email.to_string());
+                Ok(Self(secret))
+            }
+            Err(_) => Err(ValidationError::InvalidValue {
+                message: "Invalid email address format".into(),
+            })
+            .into_report(),
         }
     }
 }
@@ -134,23 +329,34 @@ where
     }
 }
 
+/// Strategy for masking UPI VPA's
+
+#[derive(Debug)]
+pub struct UpiVpaMaskingStrategy;
+
+impl<T> Strategy<T> for UpiVpaMaskingStrategy
+where
+    T: AsRef<str> + std::fmt::Debug,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let vpa_str: &str = val.as_ref();
+        if let Some((user_identifier, bank_or_psp)) = vpa_str.split_once('@') {
+            let masked_user_identifier = "*".repeat(user_identifier.len());
+            write!(f, "{masked_user_identifier}@{bank_or_psp}")
+        } else {
+            WithType::fmt(val, f)
+        }
+    }
+}
+
 #[cfg(test)]
 mod pii_masking_strategy_tests {
-    use masking::Secret;
+    use std::str::FromStr;
 
-    use super::{CardNumber, ClientSecret, Email, IpAddress};
+    use masking::{ExposeInterface, Secret};
 
-    #[test]
-    fn test_valid_card_number_masking() {
-        let secret: Secret<String, CardNumber> = Secret::new("1234567890987654".to_string());
-        assert_eq!("123456**********", format!("{secret:?}"));
-    }
-
-    #[test]
-    fn test_invalid_card_number_masking() {
-        let secret: Secret<String, CardNumber> = Secret::new("1234567890".to_string());
-        assert_eq!("123456****", format!("{secret:?}"));
-    }
+    use super::{ClientSecret, Email, IpAddress, UpiVpaMaskingStrategy};
+    use crate::pii::{EmailStrategy, REDACTED};
 
     /*
     #[test]
@@ -171,17 +377,42 @@ mod pii_masking_strategy_tests {
 
     #[test]
     fn test_valid_email_masking() {
-        let secret: Secret<String, Email> = Secret::new("myemail@gmail.com".to_string());
-        assert_eq!("*******@gmail.com", format!("{secret:?}"));
+        let secret: Secret<String, EmailStrategy> = Secret::new("example@test.com".to_string());
+        assert_eq!("*******@test.com", format!("{secret:?}"));
+
+        let secret: Secret<String, EmailStrategy> = Secret::new("username@gmail.com".to_string());
+        assert_eq!("********@gmail.com", format!("{secret:?}"));
     }
 
     #[test]
     fn test_invalid_email_masking() {
-        let secret: Secret<String, Email> = Secret::new("myemailgmail.com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemailgmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
-        let secret: Secret<String, Email> = Secret::new("myemail@gmail@com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemail$gmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_newtype_email() {
+        let email_check = Email::from_str("example@abc.com");
+        assert!(email_check.is_ok());
+    }
+
+    #[test]
+    fn test_invalid_newtype_email() {
+        let email_check = Email::from_str("example@abc@com");
+        assert!(email_check.is_err());
+    }
+
+    #[test]
+    fn test_redacted_email() {
+        let email_result = Email::from_str(REDACTED);
+        assert!(email_result.is_ok());
+        if let Ok(email) = email_result {
+            let secret_value = email.0.expose();
+            assert_eq!(secret_value.as_str(), REDACTED);
+        }
     }
 
     #[test]
@@ -216,6 +447,24 @@ mod pii_masking_strategy_tests {
     fn test_invalid_client_secret_masking() {
         let secret: Secret<String, IpAddress> =
             Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_phone_number_default_masking() {
+        let secret: Secret<String> = Secret::new("+40712345678".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_upi_vpa_masking() {
+        let secret: Secret<String, UpiVpaMaskingStrategy> = Secret::new("my_name@upi".to_string());
+        assert_eq!("*******@upi", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_invalid_upi_vpa_masking() {
+        let secret: Secret<String, UpiVpaMaskingStrategy> = Secret::new("my_name_upi".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 }

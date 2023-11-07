@@ -4,12 +4,45 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums},
 };
+
+#[derive(Debug, Serialize)]
+pub struct MultisafepayRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for MultisafepayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -28,6 +61,8 @@ pub enum Gateway {
     MasterCard,
     Visa,
     Klarna,
+    Googlepay,
+    Paypal,
 }
 
 #[serde_with::skip_serializing_none]
@@ -63,8 +98,8 @@ pub struct Settings {
 pub struct PaymentOptions {
     pub notification_url: Option<String>,
     pub notification_method: Option<String>,
-    pub redirect_url: Option<String>,
-    pub cancel_url: Option<String>,
+    pub redirect_url: String,
+    pub cancel_url: String,
     pub close_window: Option<bool>,
     pub settings: Option<Settings>,
     pub template_id: Option<String>,
@@ -105,23 +140,45 @@ pub struct Customer {
     pub state: Option<String>,
     pub country: Option<String>,
     pub phone: Option<String>,
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
     pub user_agent: Option<String>,
     pub referrer: Option<String>,
     pub reference: Option<String>,
 }
 
-#[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct GatewayInfo {
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct CardInfo {
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: Option<i32>,
     pub card_cvc: Option<Secret<String>>,
     pub flexible_3d: Option<bool>,
     pub moto: Option<bool>,
     pub term_url: Option<String>,
-    pub email: Option<Secret<String, Email>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GpayInfo {
+    pub payment_token: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct PayLaterInfo {
+    pub email: Option<Email>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum GatewayInfo {
+    Card(CardInfo),
+    Wallet(WalletInfo),
+    PayLater(PayLaterInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum WalletInfo {
+    GooglePay(GpayInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -132,7 +189,7 @@ pub struct DeliveryObject {
     house_number: Secret<String>,
     zip_code: Secret<String>,
     city: String,
-    country: String,
+    country: api_models::enums::CountryAlpha2,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -168,11 +225,11 @@ pub struct ShoppingCart {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
     pub payment_type: Type,
-    pub gateway: Gateway,
+    pub gateway: Option<Gateway>,
     pub order_id: String,
     pub currency: String,
     pub amount: i64,
@@ -184,7 +241,7 @@ pub struct MultisafepayPaymentsRequest {
     pub checkout_options: Option<CheckoutOptions>,
     pub shopping_cart: Option<ShoppingCart>,
     pub items: Option<String>,
-    pub recurring_model: Option<String>,
+    pub recurring_model: Option<MandateType>,
     pub recurring_id: Option<String>,
     pub capture: Option<String>,
     pub days_active: Option<i32>,
@@ -194,44 +251,129 @@ pub struct MultisafepayPaymentsRequest {
     pub var3: Option<String>,
 }
 
-impl From<utils::CardIssuer> for Gateway {
-    fn from(issuer: utils::CardIssuer) -> Self {
+impl TryFrom<utils::CardIssuer> for Gateway {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(issuer: utils::CardIssuer) -> Result<Self, Self::Error> {
         match issuer {
-            utils::CardIssuer::AmericanExpress => Self::Amex,
-            utils::CardIssuer::Master => Self::MasterCard,
-            utils::CardIssuer::Maestro => Self::Maestro,
-            utils::CardIssuer::Visa => Self::Visa,
-            utils::CardIssuer::Discover => Self::Discover,
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            utils::CardIssuer::Master => Ok(Self::MasterCard),
+            utils::CardIssuer::Maestro => Ok(Self::Maestro),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::Visa => Ok(Self::Visa),
+            utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: issuer.to_string(),
+                    connector: "Multisafe pay",
+                }
+                .into())
+            }
         }
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsRequest {
+impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
+    for MultisafepayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_type = match item.request.payment_method_data {
+    fn try_from(
+        item: &MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let payment_type = match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            api::PaymentMethodData::MandatePayment => Type::Direct,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(_) => Type::Direct,
+                api::WalletData::PaypalRedirect(_) => Type::Redirect,
+                api::WalletData::AliPayQr(_)
+                | api::WalletData::AliPayRedirect(_)
+                | api::WalletData::AliPayHkRedirect(_)
+                | api::WalletData::MomoRedirect(_)
+                | api::WalletData::KakaoPayRedirect(_)
+                | api::WalletData::GoPayRedirect(_)
+                | api::WalletData::GcashRedirect(_)
+                | api::WalletData::ApplePay(_)
+                | api::WalletData::ApplePayRedirect(_)
+                | api::WalletData::ApplePayThirdPartySdk(_)
+                | api::WalletData::DanaRedirect {}
+                | api::WalletData::GooglePayRedirect(_)
+                | api::WalletData::GooglePayThirdPartySdk(_)
+                | api::WalletData::MbWayRedirect(_)
+                | api::WalletData::MobilePayRedirect(_)
+                | api::WalletData::PaypalSdk(_)
+                | api::WalletData::SamsungPay(_)
+                | api::WalletData::TwintRedirect {}
+                | api::WalletData::VippsRedirect {}
+                | api::WalletData::TouchNGoRedirect(_)
+                | api::WalletData::WeChatPayRedirect(_)
+                | api::WalletData::WeChatPayQr(_)
+                | api::WalletData::CashappQr(_)
+                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
+            },
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
-        let gateway = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Gateway::from(ccard.get_card_issuer()?),
+        let gateway = match item.router_data.request.payment_method_data {
+            api::PaymentMethodData::Card(ref ccard) => {
+                Some(Gateway::try_from(ccard.get_card_issuer()?)?)
+            }
+            api::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
+                api::WalletData::GooglePay(_) => Gateway::Googlepay,
+                api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                api::WalletData::AliPayQr(_)
+                | api::WalletData::AliPayRedirect(_)
+                | api::WalletData::AliPayHkRedirect(_)
+                | api::WalletData::MomoRedirect(_)
+                | api::WalletData::KakaoPayRedirect(_)
+                | api::WalletData::GoPayRedirect(_)
+                | api::WalletData::GcashRedirect(_)
+                | api::WalletData::ApplePay(_)
+                | api::WalletData::ApplePayRedirect(_)
+                | api::WalletData::ApplePayThirdPartySdk(_)
+                | api::WalletData::DanaRedirect {}
+                | api::WalletData::GooglePayRedirect(_)
+                | api::WalletData::GooglePayThirdPartySdk(_)
+                | api::WalletData::MbWayRedirect(_)
+                | api::WalletData::MobilePayRedirect(_)
+                | api::WalletData::PaypalSdk(_)
+                | api::WalletData::SamsungPay(_)
+                | api::WalletData::TwintRedirect {}
+                | api::WalletData::VippsRedirect {}
+                | api::WalletData::TouchNGoRedirect(_)
+                | api::WalletData::WeChatPayRedirect(_)
+                | api::WalletData::WeChatPayQr(_)
+                | api::WalletData::CashappQr(_)
+                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
+            }),
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
                     billing_country: _,
                 },
-            ) => Gateway::Klarna,
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
+            ) => Some(Gateway::Klarna),
+            api::PaymentMethodData::MandatePayment => None,
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("multisafepay"),
             ))?,
         };
-        let description = item.get_description()?;
+        let description = item.router_data.get_description()?;
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: item.router_return_url.clone(),
-            cancel_url: None,
+            redirect_url: item.router_data.request.get_router_return_url()?,
+            cancel_url: item.router_data.request.get_router_return_url()?,
             close_window: None,
             notification_method: None,
             settings: None,
@@ -256,13 +398,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             state: None,
             country: None,
             phone: None,
-            email: item.request.email.clone(),
+            email: item.router_data.request.email.clone(),
             user_agent: None,
             referrer: None,
-            reference: None,
+            reference: Some(item.router_data.connector_request_reference_id.clone()),
         };
 
         let billing_address = item
+            .router_data
             .get_billing()?
             .address
             .as_ref()
@@ -277,8 +420,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             country: billing_address.get_country()?.to_owned(),
         };
 
-        let gateway_info = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => GatewayInfo {
+        let gateway_info = match item.router_data.request.payment_method_data {
+            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
                     (format!(
@@ -294,58 +437,114 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 flexible_3d: None,
                 moto: None,
                 term_url: None,
-                email: None,
+            })),
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(ref google_pay) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
+                        GpayInfo {
+                            payment_token: Some(google_pay.tokenization_data.token.clone()),
+                        }
+                    })))
+                }
+                api::WalletData::PaypalRedirect(_) => None,
+                api::WalletData::AliPayQr(_)
+                | api::WalletData::AliPayRedirect(_)
+                | api::WalletData::AliPayHkRedirect(_)
+                | api::WalletData::MomoRedirect(_)
+                | api::WalletData::KakaoPayRedirect(_)
+                | api::WalletData::GoPayRedirect(_)
+                | api::WalletData::GcashRedirect(_)
+                | api::WalletData::ApplePay(_)
+                | api::WalletData::ApplePayRedirect(_)
+                | api::WalletData::ApplePayThirdPartySdk(_)
+                | api::WalletData::DanaRedirect {}
+                | api::WalletData::GooglePayRedirect(_)
+                | api::WalletData::GooglePayThirdPartySdk(_)
+                | api::WalletData::MbWayRedirect(_)
+                | api::WalletData::MobilePayRedirect(_)
+                | api::WalletData::PaypalSdk(_)
+                | api::WalletData::SamsungPay(_)
+                | api::WalletData::TwintRedirect {}
+                | api::WalletData::VippsRedirect {}
+                | api::WalletData::TouchNGoRedirect(_)
+                | api::WalletData::WeChatPayRedirect(_)
+                | api::WalletData::WeChatPayQr(_)
+                | api::WalletData::CashappQr(_)
+                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?,
             },
-            api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo {
-                card_number: None,
-                card_expiry_date: None,
-                card_cvc: None,
-                card_holder_name: None,
-                flexible_3d: None,
-                moto: None,
-                term_url: None,
-                email: Some(match paylater {
-                    api_models::payments::PayLaterData::KlarnaRedirect {
-                        billing_email,
-                        billing_country: _,
-                    } => billing_email.clone(),
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Only KlarnaRedirect is implemented".to_string(),
-                    ))?,
-                }),
-            },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
+            api::PaymentMethodData::PayLater(ref paylater) => {
+                Some(GatewayInfo::PayLater(PayLaterInfo {
+                    email: Some(match paylater {
+                        api_models::payments::PayLaterData::KlarnaRedirect {
+                            billing_email,
+                            ..
+                        } => billing_email.clone(),
+                        api_models::payments::PayLaterData::KlarnaSdk { token: _ }
+                        | api_models::payments::PayLaterData::AffirmRedirect {}
+                        | api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                            billing_email: _,
+                            billing_name: _,
+                        }
+                        | api_models::payments::PayLaterData::PayBrightRedirect {}
+                        | api_models::payments::PayLaterData::WalleyRedirect {}
+                        | api_models::payments::PayLaterData::AlmaRedirect {}
+                        | api_models::payments::PayLaterData::AtomeRedirect {} => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message(
+                                    "multisafepay",
+                                ),
+                            ))?
+                        }
+                    }),
+                }))
+            }
+            api::PaymentMethodData::MandatePayment => None,
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("multisafepay"),
             ))?,
         };
 
         Ok(Self {
             payment_type,
             gateway,
-            order_id: item.payment_id.to_string(),
-            currency: item.request.currency.to_string(),
-            amount: item.request.amount,
+            order_id: item.router_data.connector_request_reference_id.to_string(),
+            currency: item.router_data.request.currency.to_string(),
+            amount: item.amount,
             description,
             payment_options: Some(payment_options),
             customer: Some(customer),
             delivery: Some(delivery),
-            gateway_info: Some(gateway_info),
+            gateway_info,
             checkout_options: None,
             shopping_cart: None,
             capture: None,
             items: None,
-            recurring_model: if item.request.setup_future_usage
-                == Some(enums::FutureUsage::OffSession)
-            {
-                Some("Unscheduled".to_string())
+            recurring_model: if item.router_data.request.is_mandate_payment() {
+                Some(MandateType::Unscheduled)
             } else {
                 None
             },
             recurring_id: item
+                .router_data
                 .request
                 .mandate_id
                 .clone()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id),
+                .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
+                    Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    )) => connector_mandate_ids.connector_mandate_id,
+                    _ => None,
+                }),
             days_active: Some(30),
             seconds_active: Some(259200),
             var1: None,
@@ -357,7 +556,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
 
 // Auth Struct
 pub struct MultisafepayAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
@@ -365,7 +564,7 @@ impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -380,6 +579,13 @@ pub enum MultisafepayPaymentStatus {
     Declined,
     #[default]
     Initialized,
+    Void,
+}
+
+#[derive(Debug, Clone, Eq, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum MandateType {
+    Unscheduled,
 }
 
 impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
@@ -388,6 +594,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
             MultisafepayPaymentStatus::Completed => Self::Charged,
             MultisafepayPaymentStatus::Declined => Self::Failure,
             MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Void => Self::Voided,
         }
     }
 }
@@ -429,49 +636,76 @@ pub struct MultisafepayPaymentsResponse {
     pub data: Data,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(untagged)]
+pub enum MultisafepayAuthResponse {
+    ErrorResponse(MultisafepayErrorResponse),
+    PaymentResponse(MultisafepayPaymentsResponse),
+}
+
 impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, MultisafepayAuthResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            MultisafepayPaymentsResponse,
+            MultisafepayAuthResponse,
             T,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .data
-            .payment_url
-            .clone()
-            .map(|url| services::RedirectForm::from((url, services::Method::Get)));
-
-        let default_status = if item.response.success {
-            MultisafepayPaymentStatus::Initialized
-        } else {
-            MultisafepayPaymentStatus::Declined
-        };
-
-        let status = item.response.data.status.unwrap_or(default_status);
-
-        Ok(Self {
-            status: enums::AttemptStatus::from(status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
-                redirection_data,
-                mandate_reference: item
-                    .response
+        match item.response {
+            MultisafepayAuthResponse::PaymentResponse(payment_response) => {
+                let redirection_data = payment_response
                     .data
-                    .payment_details
-                    .and_then(|payment_details| payment_details.recurring_id),
-                connector_metadata: None,
+                    .payment_url
+                    .clone()
+                    .map(|url| services::RedirectForm::from((url, services::Method::Get)));
+
+                let default_status = if payment_response.success {
+                    MultisafepayPaymentStatus::Initialized
+                } else {
+                    MultisafepayPaymentStatus::Declined
+                };
+
+                let status = payment_response.data.status.unwrap_or(default_status);
+
+                Ok(Self {
+                    status: enums::AttemptStatus::from(status),
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            payment_response.data.order_id.clone(),
+                        ),
+                        redirection_data,
+                        mandate_reference: payment_response
+                            .data
+                            .payment_details
+                            .and_then(|payment_details| payment_details.recurring_id)
+                            .map(|id| types::MandateReference {
+                                connector_mandate_id: Some(id),
+                                payment_method_id: None,
+                            }),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(
+                            payment_response.data.order_id.clone(),
+                        ),
+                    }),
+                    ..item.data
+                })
+            }
+            MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: error_response.error_code.to_string(),
+                    message: error_response.error_info.clone(),
+                    reason: Some(error_response.error_info),
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -479,21 +713,25 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub amount: i64,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,
     pub checkout_data: Option<ShoppingCart>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+impl<F> TryFrom<&MultisafepayRouterData<&types::RefundsRouterData<F>>>
+    for MultisafepayRefundRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &MultisafepayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            currency: item.request.currency,
-            amount: item.request.amount,
-            description: item.description.clone(),
-            refund_order_id: Some(item.request.refund_id.clone()),
+            currency: item.router_data.request.currency,
+            amount: item.amount,
+            description: item.router_data.description.clone(),
+            refund_order_id: Some(item.router_data.request.refund_id.clone()),
             checkout_data: None,
         })
     }
@@ -528,61 +766,93 @@ pub struct RefundData {
     pub error_code: Option<i32>,
     pub error_info: Option<String>,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub success: bool,
     pub data: RefundData,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MultisafepayRefundResponse {
+    ErrorResponse(MultisafepayErrorResponse),
+    RefundResponse(RefundResponse),
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, MultisafepayRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_stat = if item.response.success {
-            RefundStatus::Succeeded
-        } else {
-            RefundStatus::Failed
-        };
+        match item.response {
+            MultisafepayRefundResponse::RefundResponse(refund_data) => {
+                let refund_status = if refund_data.success {
+                    RefundStatus::Succeeded
+                } else {
+                    RefundStatus::Failed
+                };
 
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.data.refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(refund_stat),
+                Ok(Self {
+                    response: Ok(types::RefundsResponseData {
+                        connector_refund_id: refund_data.data.refund_id.to_string(),
+                        refund_status: enums::RefundStatus::from(refund_status),
+                    }),
+                    ..item.data
+                })
+            }
+            MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: error_response.error_code.to_string(),
+                    message: error_response.error_info.clone(),
+                    reason: Some(error_response.error_info),
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = if item.response.success {
-            RefundStatus::Succeeded
-        } else {
-            RefundStatus::Failed
-        };
+        match item.response {
+            MultisafepayRefundResponse::RefundResponse(refund_data) => {
+                let refund_status = if refund_data.success {
+                    RefundStatus::Succeeded
+                } else {
+                    RefundStatus::Failed
+                };
 
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.data.refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(refund_status),
+                Ok(Self {
+                    response: Ok(types::RefundsResponseData {
+                        connector_refund_id: refund_data.data.refund_id.to_string(),
+                        refund_status: enums::RefundStatus::from(refund_status),
+                    }),
+                    ..item.data
+                })
+            }
+            MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: error_response.error_code.to_string(),
+                    message: error_response.error_info.clone(),
+                    reason: Some(error_response.error_info),
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct MultisafepayErrorResponse {
-    pub success: bool,
     pub error_code: i32,
     pub error_info: String,
 }

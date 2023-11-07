@@ -1,1 +1,1 @@
-pub use storage_models::events::{Event, EventNew};
+pub use diesel_models::events::{Event, EventNew, EventUpdate};

@@ -4,57 +4,25 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments,
     },
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
-    types::{self, api as api_types, storage},
+    types::{self, api as api_types, domain},
 };
 
-/// This function replaces the request and response type of routerdata with the
-/// request and response type passed
-/// # Arguments
-///
-/// * `router_data` - original router data
-/// * `request` - new request
-/// * `response` - new response
-pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
-    router_data: types::RouterData<F1, Req1, Res1>,
-    request: Req2,
-    response: Result<Res2, types::ErrorResponse>,
-) -> types::RouterData<F2, Req2, Res2> {
-    types::RouterData {
-        flow: std::marker::PhantomData,
-        request,
-        response,
-        merchant_id: router_data.merchant_id,
-        address: router_data.address,
-        amount_captured: router_data.amount_captured,
-        auth_type: router_data.auth_type,
-        connector: router_data.connector,
-        connector_auth_type: router_data.connector_auth_type,
-        connector_meta_data: router_data.connector_meta_data,
-        description: router_data.description,
-        router_return_url: router_data.router_return_url,
-        payment_id: router_data.payment_id,
-        payment_method: router_data.payment_method,
-        payment_method_id: router_data.payment_method_id,
-        return_url: router_data.return_url,
-        status: router_data.status,
-        attempt_id: router_data.attempt_id,
-        access_token: router_data.access_token,
-        session_token: router_data.session_token,
-        reference_id: None,
-    }
-}
-
+/// After we get the access token, check if there was an error and if the flow should proceed further
+/// Returns bool
+/// true - Everything is well, continue with the flow
+/// false - There was an error, cannot proceed further
 pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
     call_connector_action: &payments::CallConnectorAction,
-) {
+) -> bool {
     // Update router data with access token or error only if it will be calling connector
     let should_update_router_data = matches!(
         (
@@ -66,9 +34,17 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
 
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
-            Ok(access_token) => router_data.access_token = access_token.clone(),
-            Err(connector_error) => router_data.response = Err(connector_error.clone()),
+            Ok(access_token) => {
+                router_data.access_token = access_token.clone();
+                true
+            }
+            Err(connector_error) => {
+                router_data.response = Err(connector_error.clone());
+                false
+            }
         }
+    } else {
+        true
     }
 }
 
@@ -79,10 +55,13 @@ pub async fn add_access_token<
 >(
     state: &AppState,
     connector: &api_types::ConnectorData,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
 ) -> RouterResult<types::AddAccessTokenResult> {
-    if connector.connector_name.supports_access_token() {
+    if connector
+        .connector_name
+        .supports_access_token(router_data.payment_method)
+    {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
         let old_access_token = store
@@ -105,12 +84,18 @@ pub async fn add_access_token<
 
                 let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
                     Err(types::ErrorResponse::default());
-                let refresh_token_router_data =
-                    router_data_type_conversion::<_, api_types::AccessTokenAuth, _, _, _, _>(
-                        cloned_router_data,
-                        refresh_token_request_data,
-                        refresh_token_response_data,
-                    );
+                let refresh_token_router_data = payments::helpers::router_data_type_conversion::<
+                    _,
+                    api_types::AccessTokenAuth,
+                    _,
+                    _,
+                    _,
+                    _,
+                >(
+                    cloned_router_data,
+                    refresh_token_request_data,
+                    refresh_token_response_data,
+                );
                 refresh_connector_auth(
                     state,
                     connector,
@@ -153,7 +138,7 @@ pub async fn add_access_token<
 pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,
-    _merchant_account: &storage::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
@@ -167,15 +152,45 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data = services::execute_connector_processing_step(
+    let access_token_router_data_result = services::execute_connector_processing_step(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Could not refresh access token")?;
+    .await;
 
-    Ok(access_token_router_data.response)
+    let access_token_router_data = match access_token_router_data_result {
+        Ok(router_data) => Ok(router_data.response),
+        Err(connector_error) => {
+            // If we receive a timeout error from the connector, then
+            // the error has to be handled gracefully by updating the payment status to failed.
+            // further payment flow will not be continued
+            if connector_error.current_context().is_connector_timeout() {
+                let error_response = types::ErrorResponse {
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    status_code: 504,
+                };
+
+                Ok(Err(error_response))
+            } else {
+                Err(connector_error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not refresh access token"))
+            }
+        }
+    }?;
+
+    metrics::ACCESS_TOKEN_CREATION.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
+    Ok(access_token_router_data)
 }

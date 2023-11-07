@@ -4,7 +4,7 @@
 
 pub use diesel::Expression;
 use diesel::{
-    backend::{Backend, RawValue},
+    backend::Backend,
     deserialize::{self, FromSql, Queryable},
     expression::AsExpression,
     internal::derives::as_expression::Bound,
@@ -53,7 +53,7 @@ where
     S: FromSql<T, DB>,
     I: Strategy<S>,
 {
-    fn from_sql(bytes: RawValue<'_, DB>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
 }
@@ -123,7 +123,7 @@ where
     S: FromSql<T, DB> + ZeroizableSecret,
     I: Strategy<S>,
 {
-    fn from_sql(bytes: RawValue<'_, DB>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
 }

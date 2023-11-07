@@ -1,61 +1,35 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
-    NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
-    PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
-    VerifyResponse, WalletData,
+    CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
+    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
+    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
+    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use time::PrimitiveDateTime;
 
 use crate::{
     core::errors,
     services::api,
-    types::{
-        self, api as api_types, storage,
-        transformers::{ForeignFrom, ForeignInto},
-    },
+    types::{self, api as api_types},
 };
 
 pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn is_mandate(&self) -> Option<MandateTransactionType>;
 }
 
 impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
         }
-    }
-}
-
-pub(crate) trait CustomerAcceptanceExt {
-    fn get_ip_address(&self) -> Option<String>;
-    fn get_user_agent(&self) -> Option<String>;
-    fn get_accepted_at(&self) -> PrimitiveDateTime;
-}
-
-impl CustomerAcceptanceExt for CustomerAcceptance {
-    fn get_ip_address(&self) -> Option<String> {
-        self.online
-            .as_ref()
-            .map(|data| data.ip_address.peek().to_owned())
-    }
-
-    fn get_user_agent(&self) -> Option<String> {
-        self.online.as_ref().map(|data| data.user_agent.clone())
-    }
-
-    fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at
-            .unwrap_or_else(common_utils::date_time::now)
     }
 }
 
@@ -67,6 +41,20 @@ pub struct Authorize;
 
 #[derive(Debug, Clone)]
 pub struct AuthorizeSessionToken;
+
+#[derive(Debug, Clone)]
+pub struct CompleteAuthorize;
+
+#[derive(Debug, Clone)]
+pub struct Approve;
+
+// Used in gift cards balance check
+#[derive(Debug, Clone)]
+pub struct Balance;
+
+#[derive(Debug, Clone)]
+pub struct InitPayment;
+
 #[derive(Debug, Clone)]
 pub struct Capture;
 
@@ -76,12 +64,24 @@ pub struct PSync;
 pub struct Void;
 
 #[derive(Debug, Clone)]
+pub struct Reject;
+
+#[derive(Debug, Clone)]
 pub struct Session;
 
 #[derive(Debug, Clone)]
-pub struct Verify;
+pub struct PaymentMethodToken;
 
-pub(crate) trait PaymentIdTypeExt {
+#[derive(Debug, Clone)]
+pub struct CreateConnectorCustomer;
+
+#[derive(Debug, Clone)]
+pub struct SetupMandate;
+
+#[derive(Debug, Clone)]
+pub struct PreProcessing;
+
+pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
 }
 
@@ -89,47 +89,35 @@ impl PaymentIdTypeExt for PaymentIdType {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
-                Err(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "payment_id",
-                })
-                .into_report()
-                .attach_printable("Expected payment intent ID but got connector transaction ID")
-            }
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .into_report()
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
     }
 }
 
 pub(crate) trait MandateValidationFieldsExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn validate_and_get_mandate_type(
+        &self,
+    ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError>;
 }
 
 impl MandateValidationFieldsExt for MandateValidationFields {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn validate_and_get_mandate_type(
+        &self,
+    ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError> {
         match (&self.mandate_data, &self.mandate_id) {
-            (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
-        }
-    }
-}
-
-impl ForeignFrom<storage::PaymentIntent> for PaymentsResponse {
-    fn foreign_from(item: storage::PaymentIntent) -> Self {
-        let item = item;
-        Self {
-            payment_id: Some(item.payment_id),
-            merchant_id: Some(item.merchant_id),
-            status: item.status.foreign_into(),
-            amount: item.amount,
-            amount_capturable: item.amount_captured,
-            client_secret: item.client_secret.map(|s| s.into()),
-            created: Some(item.created_at),
-            currency: item.currency.map(|c| c.to_string()).unwrap_or_default(),
-            description: item.description,
-            metadata: item.metadata,
-            customer_id: item.customer_id,
-            ..Default::default()
+            (None, None) => Ok(None),
+            (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
+                message: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            })
+            .into_report(),
+            (_, Some(_)) => Ok(Some(MandateTransactionType::RecurringMandateTransaction)),
+            (Some(_), _) => Ok(Some(MandateTransactionType::NewMandateTransaction)),
         }
     }
 }
@@ -151,6 +139,16 @@ pub trait PaymentVoid:
 {
 }
 
+pub trait PaymentApprove:
+    api::ConnectorIntegration<Approve, types::PaymentsApproveData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentReject:
+    api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
+{
+}
+
 pub trait PaymentCapture:
     api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
@@ -161,19 +159,62 @@ pub trait PaymentSession:
 {
 }
 
-pub trait PreVerify:
-    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+pub trait MandateSetup:
+    api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentsCompleteAuthorize:
+    api::ConnectorIntegration<
+    CompleteAuthorize,
+    types::CompleteAuthorizeData,
+    types::PaymentsResponseData,
+>
+{
+}
+
+pub trait PaymentToken:
+    api::ConnectorIntegration<
+    PaymentMethodToken,
+    types::PaymentMethodTokenizationData,
+    types::PaymentsResponseData,
+>
+{
+}
+
+pub trait ConnectorCustomer:
+    api::ConnectorIntegration<
+    CreateConnectorCustomer,
+    types::ConnectorCustomerData,
+    types::PaymentsResponseData,
+>
+{
+}
+
+pub trait PaymentsPreProcessing:
+    api::ConnectorIntegration<
+    PreProcessing,
+    types::PaymentsPreProcessingData,
+    types::PaymentsResponseData,
+>
 {
 }
 
 pub trait Payment:
     api_types::ConnectorCommon
+    + api_types::ConnectorValidation
     + PaymentAuthorize
+    + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
-    + PreVerify
+    + PaymentApprove
+    + PaymentReject
+    + MandateSetup
     + PaymentSession
+    + PaymentToken
+    + PaymentsPreProcessing
+    + ConnectorCustomer
 {
 }
 
@@ -186,13 +227,17 @@ mod payments_test {
     #[allow(dead_code)]
     fn card() -> Card {
         Card {
-            card_number: "1234432112344321".to_string().into(),
+            card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }
     }
 

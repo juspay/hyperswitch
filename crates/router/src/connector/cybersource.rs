@@ -1,9 +1,11 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersource;
@@ -11,11 +13,15 @@ use url::Url;
 
 use crate::{
     configs::settings,
-    connector::utils::RefundsRequestData,
+    connector::{utils as connector_utils, utils::RefundsRequestData},
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration, ConnectorValidation,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -55,17 +61,19 @@ impl Cybersource {
             format!("(request-target): get {resource}\n")
         };
         let signature_string = format!(
-            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {merchant_account}"
+            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
+            merchant_account.peek()
         );
         let key_value = consts::BASE64_ENGINE
-            .decode(api_secret)
+            .decode(api_secret.expose())
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
         let signature_header = format!(
-            r#"keyid="{api_key}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#
+            r#"keyid="{}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#,
+            api_key.peek()
         );
 
         Ok(signature_header)
@@ -85,6 +93,10 @@ impl ConnectorCommon for Cybersource {
         connectors.cybersource.base_url.as_ref()
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn build_error_response(
         &self,
         res: types::Response,
@@ -93,23 +105,53 @@ impl ConnectorCommon for Cybersource {
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let details = response.details.unwrap_or_default();
+        let connector_reason = details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let error_message = if res.status_code == 401 {
+            consts::CONNECTOR_UNAUTHORIZED_ERROR
+        } else {
+            consts::NO_ERROR_MESSAGE
+        };
+
+        let (code, message) = match response.error_information {
+            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (
+                response
+                    .reason
+                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                        reason.to_string()
+                    }),
+                response
+                    .message
+                    .map_or(error_message.to_string(), |message| message),
+            ),
+        };
         Ok(types::ErrorResponse {
             status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response
-                .message
-                .map(|m| {
-                    format!(
-                        "{} {}",
-                        m,
-                        response.details.map(|d| d.to_string()).unwrap_or_default()
-                    )
-                    .trim()
-                    .to_string()
-                })
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.reason,
+            code,
+            message,
+            reason: Some(connector_reason),
         })
+    }
+}
+
+impl ConnectorValidation for Cybersource {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -121,7 +163,8 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         let date = OffsetDateTime::now_utc();
         let cybersource_req = self.get_request_body(req)?;
         let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
@@ -138,8 +181,13 @@ where
             .chars()
             .skip(base_url.len() - 1)
             .collect();
-        let sha256 =
-            self.generate_digest(cybersource_req.map_or("{}".to_string(), |s| s).as_bytes());
+        let sha256 = self.generate_digest(
+            cybersource_req
+                .map_or("{}".to_string(), |s| {
+                    types::RequestBody::get_inner_value(s).expose()
+                })
+                .as_bytes(),
+        );
         let http_method = self.get_http_method();
         let signature = self.generate_signature(
             auth,
@@ -153,19 +201,25 @@ where
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string(),
+                self.get_content_type().to_string().into(),
             ),
             (
                 headers::ACCEPT.to_string(),
-                "application/hal+json;charset=utf-8".to_string(),
+                "application/hal+json;charset=utf-8".to_string().into(),
             ),
-            ("v-c-merchant-id".to_string(), merchant_account),
-            ("Date".to_string(), date.to_string()),
-            ("Host".to_string(), host.to_string()),
-            ("Signature".to_string(), signature),
+            (
+                "v-c-merchant-id".to_string(),
+                merchant_account.into_masked(),
+            ),
+            ("Date".to_string(), date.to_string().into()),
+            ("Host".to_string(), host.to_string().into()),
+            ("Signature".to_string(), signature.into_masked()),
         ];
         if matches!(http_method, services::Method::Post | services::Method::Put) {
-            headers.push(("Digest".to_string(), format!("SHA-256={sha256}")));
+            headers.push((
+                "Digest".to_string(),
+                format!("SHA-256={sha256}").into_masked(),
+            ));
         }
         Ok(headers)
     }
@@ -176,11 +230,26 @@ impl api::PaymentAuthorize for Cybersource {}
 impl api::PaymentSync for Cybersource {}
 impl api::PaymentVoid for Cybersource {}
 impl api::PaymentCapture for Cybersource {}
-impl api::PreVerify for Cybersource {}
+impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
+impl api::PaymentToken for Cybersource {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cybersource
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Cybersource
+{
+    // Not Implemented (R)
+}
+
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cybersource
 {
 }
 
@@ -204,7 +273,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -228,14 +297,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = cybersource::CybersourcePaymentsRequest::try_from(req)?;
-        let req =
-            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = cybersource::CybersourcePaymentsRequest::try_from(req)?;
+        let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_payments_request))
     }
     fn build_request(
         &self,
@@ -246,6 +315,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -290,7 +360,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -322,8 +393,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         _req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(Some("{}".to_string()))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        Ok(Some(
+            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        ))
     }
     fn build_request(
         &self,
@@ -334,6 +408,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -348,7 +423,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -374,7 +449,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -396,14 +471,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = cybersource::CybersourcePaymentsRequest::try_from(req)?;
-        let cybersource_req =
-            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(cybersource_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request =
+            cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
+        let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_payments_request))
     }
 
     fn build_request(
@@ -416,6 +498,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .url(&types::PaymentsAuthorizeType::get_url(
                 self, req, connectors,
             )?)
+            .attach_default_headers()
             .headers(types::PaymentsAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
@@ -435,7 +518,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -462,7 +545,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -486,8 +569,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         _req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(Some("{}".to_string()))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        Ok(Some(
+            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        ))
     }
 
     fn build_request(
@@ -499,6 +585,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(self.get_request_body(req)?)
                 .build(),
@@ -545,7 +632,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundExecuteRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -569,13 +656,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundExecuteRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = cybersource::CybersourceRefundRequest::try_from(req)?;
-        let req = utils::Encode::<cybersource::CybersourceRefundRequest>::encode_to_string_of_json(
-            &req_obj,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = cybersource::CybersourceRefundRequest::try_from(req)?;
+        let cybersource_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cybersource::CybersourceRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+        Ok(Some(cybersource_refund_request))
     }
     fn build_request(
         &self,
@@ -586,6 +674,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
@@ -626,7 +715,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -656,6 +745,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
@@ -691,23 +781,21 @@ impl api::IncomingWebhook for Cybersource {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Cybersource {}
