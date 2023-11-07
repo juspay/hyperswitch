@@ -76,6 +76,9 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
+}
+
+pub trait PaymentResponseRouterData {
     fn get_attempt_status_for_db_update<F>(
         &self,
         payment_data: &PaymentData<F>,
@@ -83,6 +86,40 @@ pub trait RouterData {
     where
         F: Clone;
 }
+
+impl<Flow, Request, Response> PaymentResponseRouterData
+    for types::RouterData<Flow, Request, Response>
+where
+    Request: types::Capturable,
+{
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone,
+    {
+        match self.status {
+            enums::AttemptStatus::Voided => {
+                if payment_data.payment_intent.amount_captured > Some(0) {
+                    enums::AttemptStatus::PartialCharged
+                } else {
+                    self.status
+                }
+            }
+            enums::AttemptStatus::Charged => {
+                let captured_amount = types::Capturable::get_capture_amount(&self.request);
+                if Some(payment_data.payment_intent.amount) == captured_amount {
+                    enums::AttemptStatus::Charged
+                } else {
+                    enums::AttemptStatus::PartialCharged
+                }
+            }
+            _ => self.status,
+        }
+    }
+}
+
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
@@ -196,23 +233,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
-    }
-    fn get_attempt_status_for_db_update<F>(
-        &self,
-        payment_data: &PaymentData<F>,
-    ) -> enums::AttemptStatus
-    where
-        F: Clone,
-    {
-        if self.status == enums::AttemptStatus::Voided {
-            if payment_data.payment_intent.amount_captured > Some(0) {
-                enums::AttemptStatus::PartialCharged
-            } else {
-                self.status
-            }
-        } else {
-            self.status
-        }
     }
 }
 

@@ -1561,7 +1561,7 @@ pub(crate) fn validate_status_with_capture_method(
     }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {

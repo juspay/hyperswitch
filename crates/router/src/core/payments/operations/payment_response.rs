@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 
 use super::{Operation, PostUpdateTracker};
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::PaymentResponseRouterData,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
