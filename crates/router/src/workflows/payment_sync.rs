@@ -69,6 +69,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
+                None,
                 api::HeaderPayload::default(),
             )
             .await?;
