@@ -80,7 +80,9 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
+        self.store.add_request_id(request_id.to_string())
     }
+
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
         self.api_client.add_merchant_id(merchant_id);
     }
