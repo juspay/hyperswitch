@@ -796,7 +796,7 @@ pub async fn create_tokenize(
     match func().await {
         Ok(s) => {
             logger::info!(
-                "Insert payload in redis locker successfull with lookup key: {:?}",
+                "Insert payload in redis locker successful with lookup key: {:?}",
                 redis_key
             );
             Ok(s)
@@ -864,7 +864,7 @@ pub async fn get_tokenized_data(
     match func().await {
         Ok(s) => {
             logger::info!(
-                "Fetch payload in redis locker successfull with lookup key: {:?}",
+                "Fetch payload in redis locker successful with lookup key: {:?}",
                 redis_key
             );
             Ok(s)
@@ -915,7 +915,7 @@ pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -
     match func().await {
         Ok(s) => {
             logger::info!(
-                "Delete payload in redis locker successfull with lookup key: {:?}",
+                "Delete payload in redis locker successful with lookup key: {:?}",
                 redis_key
             );
             Ok(s)
