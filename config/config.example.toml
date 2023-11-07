@@ -163,6 +163,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -199,6 +200,7 @@ payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
+prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
@@ -435,3 +437,8 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private
 
 [payment_link]
 sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+
+# Config for KV setup
+[kv_config]
+# TTL for KV in seconds
+ttl = 900

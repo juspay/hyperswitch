@@ -1,5 +1,4 @@
-use data_models::MerchantStorageScheme;
-use diesel_models::address::AddressUpdateInternal;
+use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -78,7 +77,6 @@ where
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use data_models::MerchantStorageScheme;
     use error_stack::{IntoReport, ResultExt};
     use router_env::{instrument, tracing};
 
@@ -92,7 +90,7 @@ mod storage {
                 self,
                 behaviour::{Conversion, ReverseConversion},
             },
-            storage::{self as storage_types},
+            storage::{self as storage_types, enums::MerchantStorageScheme},
         },
     };
     #[async_trait::async_trait]
@@ -275,12 +273,11 @@ mod storage {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use data_models::MerchantStorageScheme;
-    use diesel_models::AddressUpdateInternal;
+    use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::AddressInterface;
     use crate::{
@@ -419,15 +416,6 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_address)
                         .into_report()
                         .change_context(errors::StorageError::KVError)?;
-                    kv_wrapper::<(), _, _>(
-                        self,
-                        KvOperation::Hset::<storage_types::Address>((&field, redis_value)),
-                        &key,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_hset()
-                    .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
@@ -440,15 +428,19 @@ mod storage {
                         },
                     };
 
-                    self.push_to_drainer_stream::<storage_types::Address>(
-                        redis_entry,
-                        PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_address.merchant_id,
-                            payment_id: &payment_id,
-                        },
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_types::Address>(
+                            (&field, redis_value),
+                            redis_entry,
+                        ),
+                        &key,
                     )
                     .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
+
                     updated_address
                         .convert(key_store.key.get_inner())
                         .await
@@ -508,11 +500,22 @@ mod storage {
                         customer_id: address_new.customer_id.clone(),
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
+                        updated_by: storage_scheme.to_string(),
+                    };
+
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::Address(Box::new(address_new)),
+                        },
                     };
 
                     match kv_wrapper::<diesel_models::Address, _, _>(
                         self,
-                        KvOperation::HSetNx(&field, &created_address),
+                        KvOperation::HSetNx::<diesel_models::Address>(
+                            &field,
+                            &created_address,
+                            redis_entry,
+                        ),
                         &key,
                     )
                     .await
@@ -521,30 +524,13 @@ mod storage {
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
-                            key: Some(address_new.address_id),
+                            key: Some(created_address.address_id),
                         })
                         .into_report(),
-                        Ok(HsetnxReply::KeySet) => {
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::Address(Box::new(address_new)),
-                                },
-                            };
-                            self.push_to_drainer_stream::<diesel_models::Address>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentId {
-                                    merchant_id: &merchant_id,
-                                    payment_id,
-                                },
-                            )
+                        Ok(HsetnxReply::KeySet) => Ok(created_address
+                            .convert(key_store.key.get_inner())
                             .await
-                            .change_context(errors::StorageError::KVError)?;
-
-                            Ok(created_address
-                                .convert(key_store.key.get_inner())
-                                .await
-                                .change_context(errors::StorageError::DecryptionError)?)
-                        }
+                            .change_context(errors::StorageError::DecryptionError)?),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -777,7 +763,8 @@ impl AddressInterface for MockDb {
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == customer_id && address.merchant_id == merchant_id
+                address.customer_id == Some(customer_id.to_string())
+                    && address.merchant_id == merchant_id
             })
             .map(|a| {
                 let address_updated =

@@ -267,6 +267,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::PaymentLinkNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment Link does not exist in our records", None))
             }
+            Self::InvalidConnectorConfiguration {config} => {
+                AER::BadRequest(ApiError::new("IR", 24, format!("Merchant connector account is configured with invalid {config}"), None))
+            }
         }
     }
 }

@@ -176,10 +176,16 @@ key1 = "transaction key"
 [helcim]
 api_key="API Key"
 
-
 [gocardless]
 api_key="API Key"
 
-
 [volt]
 api_key="API Key"
+
+[prophetpay]
+api_key="API Key"
+
+[bankofamerica]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"

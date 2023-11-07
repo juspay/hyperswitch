@@ -454,6 +454,7 @@ pub trait CustomerAddress {
         &self,
         address_details: api_models::payments::AddressDetails,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
@@ -462,6 +463,7 @@ pub trait CustomerAddress {
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
 }
 
@@ -471,6 +473,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         address_details: api_models::payments::AddressDetails,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
         async {
             Ok(storage::AddressUpdate::Update {
@@ -510,6 +513,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
+                updated_by: storage_scheme.to_string(),
             })
         }
         .await
@@ -521,6 +525,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
         async {
             Ok(domain::Address {
@@ -561,12 +566,13 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: customer_id.to_string(),
+                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
                 payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
+                updated_by: storage_scheme.to_string(),
             })
         }
         .await
@@ -693,6 +699,7 @@ impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
 
 pub async fn trigger_payments_webhook<F, Req, Op>(
     merchant_account: domain::MerchantAccount,
+    business_profile: diesel_models::business_profile::BusinessProfile,
     payment_data: crate::core::payments::PaymentData<F>,
     req: Option<Req>,
     customer: Option<domain::Customer>,
@@ -747,6 +754,7 @@ where
                 webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
                     state.clone(),
                     merchant_account,
+                    business_profile,
                     event_type,
                     diesel_models::enums::EventClass::Payments,
                     None,

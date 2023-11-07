@@ -146,8 +146,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
-                request.shipping.is_some(),
-                request.billing.is_some(),
                 request.setup_future_usage.is_some(),
                 &payment_intent
                     .customer_id
@@ -499,6 +497,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     business_sub_label,
                     amount_to_capture,
                     capture_method,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -561,6 +560,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     order_details,
                     metadata,
                     payment_confirm_source: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )

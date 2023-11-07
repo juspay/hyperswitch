@@ -22,6 +22,7 @@ pub enum ApiIdentifier {
     Verification,
     ApiKeys,
     PaymentLink,
+    Routing,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -30,7 +31,19 @@ impl From<Flow> for ApiIdentifier {
             Flow::MerchantsAccountCreate
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
-            | Flow::MerchantsAccountDelete => Self::MerchantAccount,
+            | Flow::MerchantsAccountDelete
+            | Flow::MerchantAccountList => Self::MerchantAccount,
+
+            Flow::RoutingCreateConfig
+            | Flow::RoutingLinkConfig
+            | Flow::RoutingUnlinkConfig
+            | Flow::RoutingRetrieveConfig
+            | Flow::RoutingRetrieveActiveConfig
+            | Flow::RoutingRetrieveDefaultConfig
+            | Flow::RoutingRetrieveDictionary
+            | Flow::RoutingUpdateConfig
+            | Flow::RoutingUpdateDefaultConfig
+            | Flow::RoutingDeleteConfig => Self::Routing,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve

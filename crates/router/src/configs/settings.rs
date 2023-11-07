@@ -101,6 +101,13 @@ pub struct Settings {
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
+    #[cfg(feature = "kv_store")]
+    pub kv_config: KvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KvConfig {
+    pub ttl: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -491,17 +498,17 @@ impl From<QueueStrategy> for bb8::QueueStrategy {
 }
 
 #[cfg(not(feature = "kms"))]
-impl Into<storage_impl::config::Database> for Database {
-    fn into(self) -> storage_impl::config::Database {
-        storage_impl::config::Database {
-            username: self.username,
-            password: self.password,
-            host: self.host,
-            port: self.port,
-            dbname: self.dbname,
-            pool_size: self.pool_size,
-            connection_timeout: self.connection_timeout,
-            queue_strategy: self.queue_strategy.into(),
+impl From<Database> for storage_impl::config::Database {
+    fn from(val: Database) -> Self {
+        Self {
+            username: val.username,
+            password: val.password,
+            host: val.host,
+            port: val.port,
+            dbname: val.dbname,
+            pool_size: val.pool_size,
+            connection_timeout: val.connection_timeout,
+            queue_strategy: val.queue_strategy.into(),
         }
     }
 }
@@ -524,6 +531,7 @@ pub struct Connectors {
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
+    pub bankofamerica: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
@@ -557,6 +565,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub powertranz: ConnectorParams,
+    pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub square: ConnectorParams,

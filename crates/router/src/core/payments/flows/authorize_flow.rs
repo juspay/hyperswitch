@@ -73,6 +73,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .connector
             .validate_capture_method(self.request.capture_method)
             .to_payment_failed_response()?;
+        if self.request.surcharge_details.is_some() {
+            connector
+                .connector
+                .validate_if_surcharge_implemented()
+                .to_payment_failed_response()?;
+        }
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -112,7 +118,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 }
             }?;
 
-            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+            Ok(mandate::mandate_procedure(
+                state,
+                resp,
+                maybe_customer,
+                pm_id,
+                connector.merchant_connector_id.clone(),
+            )
+            .await?)
         } else {
             Ok(self.clone())
         }
@@ -381,6 +394,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
         })
     }
 }

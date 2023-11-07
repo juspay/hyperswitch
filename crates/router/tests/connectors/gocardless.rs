@@ -14,6 +14,7 @@ impl utils::Connector for GocardlessTest {
             connector: Box::new(&Gocardless),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

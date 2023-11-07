@@ -17,24 +17,23 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
-
-use std::fmt::Debug;
+pub mod routing_algorithm;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
-use serde::de;
 use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
-use crate::{consts, errors::CustomResult, services::Store};
+use crate::{errors::CustomResult, services::Store};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -77,7 +76,10 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + RequestIdStore
     + business_profile::BusinessProfileInterface
+    + organization::OrganizationInterface
+    + routing_algorithm::RoutingAlgorithmInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -117,6 +119,25 @@ impl StorageInterface for MockDb {
     }
 }
 
+pub trait RequestIdStore {
+    fn add_request_id(&mut self, _request_id: String) {}
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
+}
+
+impl RequestIdStore for MockDb {}
+
+impl RequestIdStore for Store {
+    fn add_request_id(&mut self, request_id: String) {
+        self.request_id = Some(request_id)
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
+    }
+}
+
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
     key: &str,
@@ -132,70 +153,6 @@ where
     bytes
         .parse_struct(type_name)
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
-}
-
-pub enum KvOperation<'a, S: serde::Serialize + Debug> {
-    Hset((&'a str, String)),
-    SetNx(S),
-    HSetNx(&'a str, S),
-    Get(&'a str),
-    Scan(&'a str),
-}
-
-#[derive(router_derive::TryGetEnumVariant)]
-#[error(RedisError(UnknownResult))]
-pub enum KvResult<T: de::DeserializeOwned> {
-    Get(T),
-    Hset(()),
-    SetNx(redis_interface::SetnxReply),
-    HSetNx(redis_interface::HsetnxReply),
-    Scan(Vec<T>),
-}
-
-pub async fn kv_wrapper<'a, T, S>(
-    store: &Store,
-    op: KvOperation<'a, S>,
-    key: impl AsRef<str>,
-) -> CustomResult<KvResult<T>, RedisError>
-where
-    T: de::DeserializeOwned,
-    S: serde::Serialize + Debug,
-{
-    let redis_conn = store.get_redis_conn()?;
-
-    let key = key.as_ref();
-    let type_name = std::any::type_name::<T>();
-
-    match op {
-        KvOperation::Hset(value) => {
-            redis_conn
-                .set_hash_fields(key, value, Some(consts::KV_TTL))
-                .await?;
-            Ok(KvResult::Hset(()))
-        }
-        KvOperation::Get(field) => {
-            let result = redis_conn
-                .get_hash_field_and_deserialize(key, field, type_name)
-                .await?;
-            Ok(KvResult::Get(result))
-        }
-        KvOperation::Scan(pattern) => {
-            let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
-            Ok(KvResult::Scan(result))
-        }
-        KvOperation::HSetNx(field, value) => {
-            let result = redis_conn
-                .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(consts::KV_TTL))
-                .await?;
-            Ok(KvResult::HSetNx(result))
-        }
-        KvOperation::SetNx(value) => {
-            let result = redis_conn
-                .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
-                .await?;
-            Ok(KvResult::SetNx(result))
-        }
-    }
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

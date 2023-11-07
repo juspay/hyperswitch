@@ -13,6 +13,7 @@ pub(crate) const ALPHABETS: [char; 62] = [
 pub const REQUEST_TIME_OUT: u64 = 30;
 pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
+pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
 
@@ -46,6 +47,5 @@ pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
 pub(crate) const METRICS_HOST_TAG_NAME: &str = "host";
-
-// TTL for KV setup
-pub(crate) const KV_TTL: u32 = 300;
+pub const MAX_ROUTING_CONFIGS_PER_MERCHANT: usize = 100;
+pub const ROUTING_CONFIG_ID_LENGTH: usize = 10;

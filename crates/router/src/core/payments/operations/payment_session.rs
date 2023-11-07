@@ -235,7 +235,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             Some(metadata) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
+                    storage::PaymentIntentUpdate::MetadataUpdate {
+                        metadata,
+                        updated_by: storage_scheme.to_string(),
+                    },
                     storage_scheme,
                 )
                 .await
@@ -371,10 +374,11 @@ where
         let mut connector_and_supporting_payment_method_type = Vec::new();
 
         filtered_connector_accounts
-            .into_iter()
+            .iter()
             .for_each(|connector_account| {
                 let res = connector_account
                     .payment_methods_enabled
+                    .clone()
                     .unwrap_or_default()
                     .into_iter()
                     .map(|payment_methods_enabled| {
@@ -410,11 +414,7 @@ where
                                 is_invoke_sdk_client && is_sent_in_request
                             })
                             .map(|payment_method_type| {
-                                (
-                                    connector_account.connector_name.to_owned(),
-                                    payment_method_type.payment_method_type,
-                                    connector_account.business_sub_label.to_owned(),
-                                )
+                                (connector_account, payment_method_type.payment_method_type)
                             })
                             .collect::<Vec<_>>()
                     })
@@ -425,14 +425,15 @@ where
         let mut session_connector_data =
             Vec::with_capacity(connector_and_supporting_payment_method_type.len());
 
-        for (connector, payment_method_type, business_sub_label) in
+        for (merchant_connector_account, payment_method_type) in
             connector_and_supporting_payment_method_type
         {
             let connector_type = api::GetToken::from(payment_method_type);
             if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                &connector,
+                &merchant_connector_account.connector_name.to_string(),
                 connector_type,
+                Some(merchant_connector_account.merchant_connector_id.clone()),
             )
             .map_err(|err| {
                 logger::error!(session_token_error=?err);
@@ -441,7 +442,7 @@ where
                 session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
-                    business_sub_label,
+                    business_sub_label: merchant_connector_account.business_sub_label.clone(),
                 })
             };
         }

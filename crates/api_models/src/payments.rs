@@ -226,6 +226,7 @@ pub struct PaymentsRequest {
         "product_name": "gillete creme",
         "quantity": 15,
         "amount" : 900
+        "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
@@ -301,9 +302,21 @@ pub struct PaymentsRequest {
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
 
+    /// surcharge_details for this payment
+    #[schema(value_type = Option<RequestSurchargeDetails>)]
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+}
+
+#[derive(
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
+)]
+pub struct RequestSurchargeDetails {
+    pub surcharge_amount: i64,
+    pub tax_amount: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -2085,14 +2098,20 @@ pub struct PaymentsResponse {
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
+    /// details of surcharge applied on this payment
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+
+    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    pub merchant_connector_id: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for customer
@@ -2168,7 +2187,7 @@ pub struct PaymentListResponseV2 {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
@@ -2408,6 +2427,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    /// The image URL of the product
+    pub product_img_link: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2418,6 +2439,8 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    /// The image URL of the product
+    pub product_img_link: Option<String>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -3077,7 +3100,7 @@ pub struct PaymentLinkObject {
     pub merchant_custom_domain_name: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
@@ -3105,8 +3128,24 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentLinkDetails {
+    pub amount: i64,
+    pub currency: api_enums::Currency,
+    pub pub_key: String,
+    pub client_secret: String,
+    pub payment_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime,
+    pub merchant_logo: String,
+    pub return_url: String,
+    pub merchant_name: crypto::OptionalEncryptableName,
+    pub order_details: Vec<pii::SecretSerdeValue>,
+    pub max_items_visible_after_collapse: i8,
 }

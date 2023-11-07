@@ -6,7 +6,7 @@ pub mod compatibility;
 pub mod configs;
 pub mod connection;
 pub mod connector;
-pub(crate) mod consts;
+pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
@@ -15,6 +15,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod workflows;
 
+pub mod events;
 pub mod middleware;
 pub mod openapi;
 pub mod services;
@@ -140,6 +141,7 @@ pub fn mk_app(
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))
             .service(routes::Disputes::server(state.clone()))
+            .service(routes::Routing::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]

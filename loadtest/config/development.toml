@@ -64,6 +64,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -100,6 +101,7 @@ payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
+prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
@@ -129,6 +131,7 @@ cards = [
     "airwallex",
     "authorizedotnet",
     "bambora",
+    "bankofamerica",
     "bitpay",
     "bluesnap",
     "boku",
@@ -159,6 +162,7 @@ cards = [
     "paypal",
     "payu",
     "powertranz",
+    "prophetpay",
     "shift4",
     "square",
     "stax",
@@ -232,3 +236,6 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+
+[kv_config]
+ttl = 300 # 5 * 60 seconds

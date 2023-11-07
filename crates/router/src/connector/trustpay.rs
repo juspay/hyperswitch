@@ -148,7 +148,11 @@ impl ConnectorCommon for Trustpay {
     }
 }
 
-impl ConnectorValidation for Trustpay {}
+impl ConnectorValidation for Trustpay {
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+}
 
 impl api::Payment for Trustpay {}
 
@@ -430,8 +434,13 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let amount = req.request.get_amount()?;
         let currency = req.request.get_currency()?;
+        let amount = req
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(req.request.get_amount()?);
         let connector_router_data = trustpay::TrustpayRouterData::try_from((
             &self.get_currency_unit(),
             currency,
@@ -542,10 +551,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let amount = req
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(req.request.amount);
         let connector_router_data = trustpay::TrustpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            amount,
             req,
         ))?;
         let connector_req = trustpay::TrustpayPaymentsRequest::try_from(&connector_router_data)?;

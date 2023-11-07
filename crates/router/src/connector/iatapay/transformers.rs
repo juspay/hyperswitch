@@ -8,7 +8,7 @@ use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, PaymentsAuthorizeData},
 };
 
 // Every access token will be valid for 5 minutes. It contains grant_type and scope for different type of access, but for our usecases it should be only 'client_credentials' and 'payment' resp(as per doc) for all type of api call.
@@ -26,7 +26,34 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
         })
     }
 }
-
+#[derive(Debug, Serialize)]
+pub struct IatapayRouterData<T> {
+    amount: f64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for IatapayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, _amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: utils::to_currency_base_unit_asf64(_amount, _currency)?,
+            router_data: item,
+        })
+    }
+}
 #[derive(Debug, Deserialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
@@ -80,33 +107,62 @@ pub struct IatapayPaymentsRequest {
     payer_info: Option<PayerInfo>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
+impl
+    TryFrom<
+        &IatapayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                types::PaymentsResponseData,
+            >,
+        >,
+    > for IatapayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_method = item.payment_method;
+
+    fn try_from(
+        item: &IatapayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                types::PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_method = item.router_data.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-            _ => item.get_billing_country()?.to_string(),
+
+            PaymentMethod::Card
+            | PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::Voucher
+            | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
         };
-        let return_url = item.get_return_url()?;
-        let payer_info = match item.request.payment_method_data.clone() {
+        let return_url = item.router_data.get_return_url()?;
+        let payer_info = match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
             _ => None,
         };
-        let amount =
-            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
-            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_payment_id: Some(item.payment_id.clone()),
-            amount,
-            currency: item.request.currency.to_string(),
+            merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
+                .merchant_id,
+            merchant_payment_id: Some(item.router_data.connector_request_reference_id.clone()),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
-            notification_url: item.request.get_webhook_url()?,
+            notification_url: item.router_data.request.get_webhook_url()?,
         };
         Ok(payload)
     }
@@ -264,18 +320,19 @@ pub struct IatapayRefundRequest {
     pub notification_url: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
+impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount =
-            utils::to_currency_base_unit_asf64(item.request.refund_amount, item.request.currency)?;
+    fn try_from(
+        item: &IatapayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount,
-            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_refund_id: Some(item.request.refund_id.clone()),
-            currency: item.request.currency.to_string(),
-            bank_transfer_description: item.request.reason.clone(),
-            notification_url: item.request.get_webhook_url()?,
+            amount: item.amount,
+            merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
+                .merchant_id,
+            merchant_refund_id: Some(item.router_data.request.refund_id.clone()),
+            currency: item.router_data.request.currency.to_string(),
+            bank_transfer_description: item.router_data.request.reason.clone(),
+            notification_url: item.router_data.request.get_webhook_url()?,
         })
     }
 }
