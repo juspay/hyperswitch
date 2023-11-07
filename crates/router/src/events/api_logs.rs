@@ -39,21 +39,23 @@ use serde::Serialize;
 use time::OffsetDateTime;
 
 use super::{EventType, RawEvent};
+#[cfg(feature = "stripe")]
+use crate::compatibility::stripe::{
+    customers::types::{
+        CreateCustomerResponse, CustomerDeleteResponse, CustomerPaymentMethodListResponse,
+    },
+    payment_intents::types::{StripePaymentIntentListResponse, StripePaymentIntentResponse},
+    refunds::types::StripeRefundResponse,
+    setup_intents::types::StripeSetupIntentResponse,
+};
+#[cfg(feature = "dummy_connector")]
+use crate::routes::dummy_connector::types::{
+    DummyConnectorPaymentCompleteRequest, DummyConnectorPaymentConfirmRequest,
+    DummyConnectorPaymentRequest, DummyConnectorPaymentResponse,
+    DummyConnectorPaymentRetrieveRequest, DummyConnectorRefundRequest,
+    DummyConnectorRefundResponse, DummyConnectorRefundRetrieveRequest,
+};
 use crate::{
-    compatibility::stripe::{
-        customers::types::{
-            CreateCustomerResponse, CustomerDeleteResponse, CustomerPaymentMethodListResponse,
-        },
-        payment_intents::types::{StripePaymentIntentListResponse, StripePaymentIntentResponse},
-        refunds::types::StripeRefundResponse,
-        setup_intents::types::StripeSetupIntentResponse,
-    },
-    routes::dummy_connector::types::{
-        DummyConnectorPaymentCompleteRequest, DummyConnectorPaymentConfirmRequest,
-        DummyConnectorPaymentRequest, DummyConnectorPaymentResponse,
-        DummyConnectorPaymentRetrieveRequest, DummyConnectorRefundRequest,
-        DummyConnectorRefundResponse, DummyConnectorRefundRetrieveRequest,
-    },
     services::{authentication::AuthenticationType, ApplicationResponse, PaymentLinkFormData},
     types::api::{
         AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, CustomerResponse,
@@ -202,11 +204,6 @@ impl_misc_api_event_type!(
     PaymentLinkInitiateRequest,
     RetrievePaymentLinkResponse,
     MandateListConstraints,
-    DummyConnectorPaymentCompleteRequest,
-    DummyConnectorPaymentRequest,
-    DummyConnectorPaymentResponse,
-    DummyConnectorPaymentRetrieveRequest,
-    DummyConnectorPaymentConfirmRequest,
     Vec<DisputeEvidenceBlock>,
     DisputeId,
     CreateFileResponse,
@@ -219,11 +216,8 @@ impl_misc_api_event_type!(
     MandateResponse,
     FileId,
     MandateRevokedResponse,
-    DummyConnectorRefundResponse,
     RetrievePaymentLinkRequest,
     MandateId,
-    DummyConnectorRefundRetrieveRequest,
-    DummyConnectorRefundRequest,
     EphemeralKey,
     String,
     DisputeListConstraints,
@@ -265,14 +259,30 @@ impl_misc_api_event_type!(
     ApplepayMerchantVerificationRequest,
     ApplepayMerchantResponse,
     ApplepayVerifiedDomainsResponse,
+    RefundUpdateRequest
+);
+
+#[cfg(feature = "stripe")]
+impl_misc_api_event_type!(
     StripeSetupIntentResponse,
     StripeRefundResponse,
     StripePaymentIntentListResponse,
     StripePaymentIntentResponse,
     CustomerDeleteResponse,
     CustomerPaymentMethodListResponse,
-    CreateCustomerResponse,
-    RefundUpdateRequest
+    CreateCustomerResponse
+);
+
+#[cfg(feature = "dummy_connector")]
+impl_misc_api_event_type!(
+    DummyConnectorPaymentCompleteRequest,
+    DummyConnectorPaymentRequest,
+    DummyConnectorPaymentResponse,
+    DummyConnectorPaymentRetrieveRequest,
+    DummyConnectorPaymentConfirmRequest,
+    DummyConnectorRefundRetrieveRequest,
+    DummyConnectorRefundResponse,
+    DummyConnectorRefundRequest
 );
 
 impl<T: ApiEventMetric> ApiEventMetric for &T {
