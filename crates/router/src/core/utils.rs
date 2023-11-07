@@ -2,14 +2,16 @@ use std::{marker::PhantomData, str::FromStr};
 
 use api_models::{
     enums::{DisputeStage, DisputeStatus},
-    payment_methods::SurchargeDetailsResponse,
+    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
 };
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{AsyncExt, Encode},
+};
 use error_stack::{report, IntoReport, ResultExt};
 use euclid::enums as euclid_enums;
-use futures::future::try_join_all;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -1083,31 +1085,37 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
 pub async fn persist_individual_surcharge_details_in_redis(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    surcharge_metadata: &api_models::payment_methods::SurchargeMetadata,
+    surcharge_metadata: &SurchargeMetadata,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
+    let redis_key =
+        SurchargeMetadata::get_surcharge_metadata_redis_key(&surcharge_metadata.payment_attempt_id);
 
-    let redis_store_futures_iter = surcharge_metadata
+    let mut value_list = Vec::with_capacity(surcharge_metadata.get_surcharge_results_size());
+    for (key, value) in surcharge_metadata
         .get_individual_surcharge_key_value_pairs()
         .into_iter()
-        .map(|(redis_key, surcharge_details)| {
-            redis_conn.serialize_and_set_key_with_expiry(
-                redis_key,
-                surcharge_details,
-                merchant_account
-                    .intent_fulfillment_time
-                    .unwrap_or(DEFAULT_FULFILLMENT_TIME),
-            )
-        });
+    {
+        value_list.push((
+            key,
+            Encode::<SurchargeDetailsResponse>::encode_to_string_of_json(&value)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encode to string of json")?,
+        ));
+    }
+    let intent_fulfillment_time = merchant_account
+        .intent_fulfillment_time
+        .unwrap_or(DEFAULT_FULFILLMENT_TIME);
 
-    let _ = try_join_all(redis_store_futures_iter)
+    redis_conn
+        .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach("Error while inserting key value in redis")?;
+        .attach_printable("Failed to write to redis")?;
     Ok(())
 }
 
@@ -1122,14 +1130,14 @@ pub async fn get_individual_surcharge_detail_from_redis(
         .store
         .get_redis_conn()
         .attach_printable("Failed to get redis connection")?;
-    let redis_key =
-        api_models::payment_methods::SurchargeMetadata::get_individual_surcharge_details_redis_key(
-            payment_method,
-            payment_method_type,
-            card_network.as_ref(),
-            payment_attempt_id,
-        );
+    let redis_key = SurchargeMetadata::get_surcharge_metadata_redis_key(payment_attempt_id);
+    let value_key = SurchargeMetadata::get_individual_surcharge_details_redis_hashset_key(
+        payment_method,
+        payment_method_type,
+        card_network.as_ref(),
+    );
+
     redis_conn
-        .get_and_deserialize_key::<SurchargeDetailsResponse>(&redis_key, "SurchargeDetailsResponse")
+        .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetailsResponse")
         .await
 }
