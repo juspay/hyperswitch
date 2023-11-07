@@ -408,9 +408,9 @@ where
                                         _ => {
                                             let error_res =
                                                 connector_integration.get_error_response(body)?;
-                                            router_data.status = error_res
-                                                .attempt_status
-                                                .map_or(router_data.status, |status| status);
+                                            if let Some(status) = error_res.attempt_status {
+                                                router_data.status = status;
+                                            };
                                             error_res
                                         }
                                     };
