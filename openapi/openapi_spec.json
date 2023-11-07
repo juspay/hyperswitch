@@ -6690,7 +6690,9 @@
         "required": [
           "connector_type",
           "connector_name",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "created_at",
+          "modified_at"
         ],
         "properties": {
           "connector_type": {
@@ -6833,6 +6835,14 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
