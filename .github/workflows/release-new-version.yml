@@ -74,20 +74,31 @@ jobs:
             connector=$(basename ${connector_dir})
             newman dir-import ${POSTMAN_DIR}/${connector} -o ${POSTMAN_JSON_DIR}/${connector}.postman_collection.json
           done
-          (git diff --quiet && git diff --staged --quiet) || (git commit -am 'test(postman): update postman collection files' && echo "Committed changes") || (echo "Unable to commit the following changes:" && git diff)
+
+          if git add postman && ! git diff --staged --quiet postman; then
+            git commit --message 'test(postman): update postman collection files'
+            echo "Changes detected and commited."
+          fi
 
       - name: Obtain previous and new tag information
         shell: bash
         # Only consider tags on current branch when setting PREVIOUS_TAG
         run: |
-          echo "PREVIOUS_TAG=$(git tag --sort='version:refname' --merged | tail --lines 1)" >> $GITHUB_ENV
-          echo "NEW_TAG=$(cog bump --auto --dry-run)" >> $GITHUB_ENV
+          PREVIOUS_TAG="$(git tag --sort='version:refname' --merged | tail --lines 1)"
+          if [[ "$(cog bump --auto --dry-run)" == *"No conventional commits for your repository that required a bump"* ]]; then
+            NEW_TAG="$(cog bump --patch --dry-run)"
+          elif [[ "${PREVIOUS_TAG}" != "${NEW_TAG}" ]]; then
+            NEW_TAG="$(cog bump --auto --dry-run)"
+          fi
+          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+          echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> $GITHUB_ENV
 
       - name: Update changelog and create tag
         shell: bash
         if: ${{ env.NEW_TAG != env.PREVIOUS_TAG }}
+        # Remove prefix 'v' from 'NEW_TAG' as cog bump --version expects only the version number
         run: |
-          cog bump --auto
+          cog bump --version ${NEW_TAG#v}
 
       - name: Push created commit and tag
         shell: bash

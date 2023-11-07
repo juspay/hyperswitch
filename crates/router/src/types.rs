@@ -834,10 +834,12 @@ pub struct DefendDisputeResponse {
     pub connector_status: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct UploadFileRequestData {
     pub file_key: String,
+    #[serde(skip)]
     pub file: Vec<u8>,
+    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
     pub file_type: mime::Mime,
     pub file_size: i32,
 }
@@ -956,6 +958,11 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: Some(key1),
             }),
+            ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
             }),

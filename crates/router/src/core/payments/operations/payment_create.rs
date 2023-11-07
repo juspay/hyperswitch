@@ -417,6 +417,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .straight_through_algorithm
             .clone();
         let authorized_amount = payment_data.payment_attempt.amount;
+        let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
@@ -430,6 +431,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         false => None,
                     },
                     updated_by: storage_scheme.to_string(),
+                    merchant_connector_id,
                 },
                 storage_scheme,
             )
@@ -525,8 +527,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             )?;
 
             helpers::validate_customer_id_mandatory_cases(
-                request.shipping.is_some(),
-                request.billing.is_some(),
                 request.setup_future_usage.is_some(),
                 &request
                     .customer
@@ -709,6 +709,7 @@ impl PaymentCreate {
             merchant_decision: None,
             payment_link_id,
             payment_confirm_source: None,
+            surcharge_applicable: None,
             updated_by: merchant_account.storage_scheme.to_string(),
         })
     }

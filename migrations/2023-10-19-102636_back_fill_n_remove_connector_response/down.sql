@@ -32,5 +32,3 @@ ALTER TABLE connector_response
 ALTER COLUMN created_at DROP DEFAULT;
 
 ALTER TABLE connector_response ADD column updated_by VARCHAR(32) NOT NULL DEFAULT 'postgres_only';
-
-ALTER TABLE payment_attempt DROP COLUMN authentication_data, DROP COLUMN encoded_data;

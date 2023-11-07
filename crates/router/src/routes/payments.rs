@@ -13,12 +13,12 @@ use crate::{
         payment_methods::{Oss, PaymentMethodRetrieve},
         payments::{self, PaymentRedirectFlow},
     },
-    openapi::examples::{
-        PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
-        PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
-        PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-        PAYMENTS_CREATE_WITH_ORDER_DETAILS,
-    },
+    // openapi::examples::{
+    //     PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
+    //     PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
+    //     PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
+    //     PAYMENTS_CREATE_WITH_ORDER_DETAILS,
+    // },
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
@@ -36,48 +36,49 @@ use crate::{
     path = "/payments",
     request_body(
         content = PaymentsCreateRequest,
-        examples(
-            (
-                "Create a payment with minimul fields" = (
-                    value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
-                )
-            ),
-            (
-                "Create a manual capture payment" = (
-                    value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
-                )
-            ),
-            (
-                "Create a payment with address" = (
-                    value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
-                )
-            ),
-            (
-                "Create a payment with customer details" = (
-                    value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
-                )
-            ),
-            (
-                "Create a 3DS payment" = (
-                    value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
-                )
-            ),
-            (
-                "Create a payment" = (
-                    value = json!(PAYMENTS_CREATE)
-                )
-            ),
-            (
-                "Create a payment with order details" = (
-                    value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
-                )
-            ),
-            (
-                "Create a payment with order category for noon" = (
-                    value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
-                )
-            ),
-        )),
+        // examples(
+        //     (
+        //         "Create a payment with minimul fields" = (
+        //             value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a manual capture payment" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with address" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with customer details" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
+        //         )
+        //     ),
+        //     (
+        //         "Create a 3DS payment" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment" = (
+        //             value = json!(PAYMENTS_CREATE)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with order details" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
+        //         )
+        //     ),
+        //     (
+        //         "Create a payment with order category for noon" = (
+        //             value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
+        //         )
+        //     ),
+        // )
+    ),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -177,6 +178,7 @@ pub async fn payments_start(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -243,6 +245,7 @@ pub async fn payments_retrieve(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -304,6 +307,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -508,6 +512,7 @@ pub async fn payments_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -563,6 +568,7 @@ pub async fn payments_connector_session(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -773,6 +779,7 @@ pub async fn payments_cancel(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -896,6 +903,7 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
+    let eligible_connectors = req.connector.clone();
     match req.payment_type.unwrap_or_default() {
         api_models::enums::PaymentType::Normal
         | api_models::enums::PaymentType::RecurringMandate
@@ -915,6 +923,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 header_payload,
             )
             .await
@@ -935,6 +944,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 header_payload,
             )
             .await

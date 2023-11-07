@@ -16,12 +16,14 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod routing_algorithm;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -72,7 +74,10 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + RequestIdStore
     + business_profile::BusinessProfileInterface
+    + organization::OrganizationInterface
+    + routing_algorithm::RoutingAlgorithmInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -109,6 +114,25 @@ impl StorageInterface for Store {
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
+    }
+}
+
+pub trait RequestIdStore {
+    fn add_request_id(&mut self, _request_id: String) {}
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
+}
+
+impl RequestIdStore for MockDb {}
+
+impl RequestIdStore for Store {
+    fn add_request_id(&mut self, request_id: String) {
+        self.request_id = Some(request_id)
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
     }
 }
 
