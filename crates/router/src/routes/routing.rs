@@ -349,4 +349,3 @@ pub async fn routing_update_default_config_for_profile(
     )
     .await
 }
-

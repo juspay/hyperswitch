@@ -916,11 +916,8 @@ pub async fn create_payment_connector(
     let mut default_routing_config =
         routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
 
-    let mut default_routing_config_for_profile = routing_helpers::get_merchant_default_config(
-        &*state.clone().store,
-        &profile_id,
-    )
-    .await?;
+    let mut default_routing_config_for_profile =
+        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
 
     let mca = state
         .store
