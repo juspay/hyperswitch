@@ -346,16 +346,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("BankOfAmerica PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_auto_capture =
-            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            is_auto_capture,
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -520,14 +515,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("BankOfAmerica PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            true,
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -603,14 +595,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("BankOfAmerica PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            false,
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(

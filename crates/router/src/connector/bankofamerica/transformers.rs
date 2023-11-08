@@ -4,7 +4,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, CardIssuer, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, CardIssuer, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     types::{
@@ -308,28 +310,126 @@ fn get_payment_status(is_capture: bool, status: enums::AttemptStatus) -> enums::
     status
 }
 
-impl<F, T>
-    TryFrom<(
-        types::ResponseRouterData<F, BankofamericaPaymentsResponse, T, types::PaymentsResponseData>,
-        bool,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BankofamericaPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (
-            types::ResponseRouterData<
-                F,
-                BankofamericaPaymentsResponse,
-                T,
-                types::PaymentsResponseData,
-            >,
-            bool,
-        ),
+        item: types::ResponseRouterData<
+            F,
+            BankofamericaPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let item = data.0;
-        let is_capture = data.1;
         Ok(Self {
-            status: get_payment_status(is_capture, item.response.status.into()),
+            status: get_payment_status(
+                item.data.request.is_auto_capture()?,
+                item.response.status.into(),
+            ),
+            response: match item.response.error_information {
+                Some(error) => Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error.message,
+                    reason: Some(error.reason),
+                    status_code: item.http_code,
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(item.response.id)),
+                }),
+            },
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BankofamericaPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BankofamericaPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: get_payment_status(true, item.response.status.into()),
+            response: match item.response.error_information {
+                Some(error) => Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error.message,
+                    reason: Some(error.reason),
+                    status_code: item.http_code,
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(item.response.id)),
+                }),
+            },
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BankofamericaPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BankofamericaPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: item.response.status.into(),
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -472,6 +572,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BankofamericaVoidRequest {
 #[serde(rename_all = "camelCase")]
 pub struct BankofamericaRefundRequest {
     order_information: OrderInformation,
+    client_reference_information: ClientReferenceInformation,
 }
 
 impl<F> TryFrom<&BankofamericaRouterData<&types::RefundsRouterData<F>>>
@@ -487,6 +588,9 @@ impl<F> TryFrom<&BankofamericaRouterData<&types::RefundsRouterData<F>>>
                     total_amount: item.router_data.request.refund_amount.to_string(),
                     currency: item.router_data.request.currency.to_string(),
                 },
+            },
+            client_reference_information: ClientReferenceInformation {
+                code: Some(item.router_data.request.refund_id.clone()),
             },
         })
     }
