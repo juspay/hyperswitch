@@ -573,6 +573,7 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
                     })
                 });
                 let metadata = transaction_response
@@ -647,6 +648,7 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
                     })
                 });
                 let metadata = transaction_response
@@ -789,6 +791,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 message: error.error_text.clone(),
                 reason: None,
                 status_code: item.http_code,
+                attempt_status: None,
             })
         });
 
@@ -1021,6 +1024,7 @@ fn get_err_response(status_code: u16, message: ResponseMessages) -> types::Error
         message: message.message[0].text.clone(),
         reason: None,
         status_code,
+        attempt_status: None,
     }
 }
 
