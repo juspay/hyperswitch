@@ -1,23 +1,12 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{
-    associations::HasTable, debug_query, query_dsl::JoinOnDsl, result::Error as DieselError,
-    ExpressionMethods, QueryDsl,
-};
-use error_stack::{report, IntoReport};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use diesel::{associations::HasTable, ExpressionMethods};
+use error_stack::report;
+use router_env::tracing::{self, instrument};
 
 use crate::{
     errors::{self},
     query::generics,
-    schema::{
-        user_roles::{self, dsl as user_roles_dsl},
-        users::dsl,
-    },
+    schema::users::dsl,
     user::*,
-    user_role::UserRole,
     PgPooledConn, StorageResult,
 };
 

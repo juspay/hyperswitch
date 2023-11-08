@@ -6,7 +6,7 @@ CREATE TABLE user_roles (
 	user_id VARCHAR(64) NOT NULL,
 	merchant_id VARCHAR(64) NOT NULL,
 	role_id VARCHAR(64) NOT NULL,
-    org_id VARCHAR(64) NOT NULL, 
+	org_id VARCHAR(64) NOT NULL, 
 	status "UserStatus" NOT NULL, 
 	created_by VARCHAR(64) NOT NULL,
 	last_modified_by VARCHAR(64) NOT NULL,
@@ -16,5 +16,5 @@ CREATE TABLE user_roles (
 );
 
 
-CREATE INDEX user_id_roles_index ON user_roles (user_id);
-CREATE INDEX user_mid_roles_index ON user_roles (merchant_id);
+CREATE IF NOT EXISTS INDEX user_id_roles_index ON user_roles (user_id);
+CREATE IF NOT EXISTS INDEX user_mid_roles_index ON user_roles (merchant_id);
