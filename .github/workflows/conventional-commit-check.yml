@@ -1,4 +1,4 @@
-name: PR Title Checks
+name: Conventional Commit Message Check
 
 on:
   # This is a dangerous event trigger as it causes the workflow to run in the
@@ -35,19 +35,6 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
-  typos:
-    name: Spell check PR title
-    runs-on: ubuntu-latest
-    steps:
-      - name: Store PR title in a file
-        shell: bash
-        run: echo '${{ github.event.pull_request.title }}' > pr_title.txt
-
-      - name: Spell check
-        uses: crate-ci/typos@master
-        with:
-          files: ./pr_title.txt
-
   pr_title_check:
     name: Verify PR title follows conventional commit standards
     runs-on: ubuntu-latest
@@ -66,8 +53,10 @@ jobs:
         id: pr_title_check
         if: ${{ github.event_name == 'pull_request_target' }}
         shell: bash
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
         continue-on-error: true
-        run: cog verify '${{ github.event.pull_request.title }}'
+        run: cog verify "$TITLE"
 
       - name: Verify commit message follows conventional commit standards
         id: commit_message_check
