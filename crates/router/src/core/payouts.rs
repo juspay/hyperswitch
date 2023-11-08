@@ -112,7 +112,7 @@ where
 
     // Validate create request
     let (payout_id, payout_method_data) =
-        validator::validate_create_request(&state, &merchant_account, &req).await?;
+        validator::validate_create_request(&state, &merchant_account, &req, &key_store).await?;
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
@@ -403,6 +403,7 @@ pub async fn payouts_fulfill_core(
             &payout_attempt.merchant_id,
             &payout_attempt.payout_id,
             Some(&payout_data.payouts.payout_type),
+            &key_store,
         )
         .await?
         .get_required_value("payout_method_data")?,
@@ -458,6 +459,7 @@ pub async fn call_connector_payout(
                 &payout_attempt.merchant_id,
                 &payout_attempt.payout_id,
                 Some(&payouts.payout_type),
+                key_store,
             )
             .await?
             .get_required_value("payout_method_data")?,

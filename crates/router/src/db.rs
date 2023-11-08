@@ -12,6 +12,7 @@ pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod gsm;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -82,6 +83,7 @@ pub trait StorageInterface:
     + business_profile::BusinessProfileInterface
     + organization::OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
+    + gsm::GsmInterface
     + user::UserInterface
     + user_role::UserRoleInterface
     + 'static

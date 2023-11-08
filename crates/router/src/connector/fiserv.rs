@@ -62,7 +62,7 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let auth: fiserv::FiservAuthType =
@@ -70,7 +70,7 @@ where
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
         let fiserv_req = self
-            .get_request_body(req)?
+            .get_request_body(req, connectors)?
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
 
         let client_request_id = Uuid::new_v4().to_string();
@@ -151,6 +151,7 @@ impl ConnectorCommon for Fiserv {
                         message: first_error.message.to_owned(),
                         reason: first_error.field.to_owned(),
                         status_code: res.status_code,
+                        attempt_status: None,
                     })
             })
             .unwrap_or(types::ErrorResponse {
@@ -158,6 +159,7 @@ impl ConnectorCommon for Fiserv {
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
                 status_code: res.status_code,
+                attempt_status: None,
             }))
     }
 }
@@ -244,6 +246,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = fiserv::FiservCancelRequest::try_from(req)?;
         let fiserv_payments_cancel_request = types::RequestBody::log_and_get_request_body(
@@ -265,7 +268,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
 
@@ -330,6 +335,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = fiserv::FiservSyncRequest::try_from(req)?;
         let fiserv_payments_sync_request = types::RequestBody::log_and_get_request_body(
@@ -351,7 +357,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                .body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(request)
@@ -403,6 +411,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let router_obj = fiserv::FiservRouterData::try_from((
             &self.get_currency_unit(),
@@ -432,7 +441,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(request)
@@ -514,6 +525,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let router_obj = fiserv::FiservRouterData::try_from((
             &self.get_currency_unit(),
@@ -545,7 +557,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
 
@@ -607,6 +621,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let router_obj = fiserv::FiservRouterData::try_from((
             &self.get_currency_unit(),
@@ -634,7 +649,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -693,6 +710,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = fiserv::FiservSyncRequest::try_from(req)?;
         let fiserv_sync_request = types::RequestBody::log_and_get_request_body(
@@ -714,7 +732,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
+                .body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(request)
