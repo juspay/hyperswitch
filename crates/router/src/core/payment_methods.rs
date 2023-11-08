@@ -13,7 +13,10 @@ use diesel_models::enums;
 use crate::{
     core::{errors::RouterResult, payments::helpers},
     routes::AppState,
-    types::api::{self, payments},
+    types::{
+        api::{self, payments},
+        domain,
+    },
 };
 
 pub struct Oss;
@@ -25,6 +28,7 @@ pub trait PaymentMethodRetrieve {
         state: &AppState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)>;
 }
 
@@ -35,6 +39,7 @@ impl PaymentMethodRetrieve for Oss {
         state: &AppState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
         match pm_data {
             pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {
@@ -44,6 +49,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::Card,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -64,6 +70,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::BankTransfer,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -76,6 +83,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::Wallet,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -88,6 +96,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::BankRedirect,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
