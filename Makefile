@@ -65,7 +65,7 @@ fmt :
 #	make clippy
 
 clippy :
-	cargo clippy --all-features --all-targets -- -D warnings -A clippy::large_futures
+	cargo clippy --all-features --all-targets -- -D warnings
 
 # Run Rust tests of project.
 #
