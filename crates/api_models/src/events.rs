@@ -1,5 +1,6 @@
 pub mod customer;
 pub mod payment;
+#[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refund;
 pub mod routing;
