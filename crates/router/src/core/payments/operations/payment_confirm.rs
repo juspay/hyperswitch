@@ -344,29 +344,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        // populate payment_data.surcharge_details from request
-        let surcharge_details = request
-            .surcharge_details
-            .map(|surcharge_details| SurchargeDetailsResponse {
-                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
-                tax_on_surcharge: None,
-                surcharge_amount: surcharge_details.surcharge_amount,
-                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
-                final_amount: payment_attempt.amount
-                    + surcharge_details.surcharge_amount
-                    + surcharge_details.tax_amount.unwrap_or(0),
-            }) // if not passed in confirm request, look inside payment_attempt
-            .or(payment_attempt.surcharge_amount.map(|surcharge_amount| {
-                SurchargeDetailsResponse {
-                    surcharge: payment_methods::Surcharge::Fixed(surcharge_amount),
-                    tax_on_surcharge: None,
-                    surcharge_amount,
-                    tax_on_surcharge_amount: payment_attempt.tax_amount.unwrap_or(0),
-                    final_amount: payment_attempt.amount
-                        + surcharge_amount
-                        + payment_attempt.tax_amount.unwrap_or(0),
-                }
-            }));
+        let surcharge_details = Self::get_surcharge_details_from_payment_request_or_payment_attempt(
+            request,
+            &payment_attempt,
+        );
 
         Ok((
             Box::new(self),
@@ -578,14 +559,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
-        let tax_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         let authorized_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -611,8 +584,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     error_code,
                     error_message,
                     amount_capturable: Some(authorized_amount),
-                    surcharge_amount,
-                    tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                 },
@@ -748,42 +719,33 @@ impl PaymentConfirm {
                         {
                             return invalid_surcharge_details_error;
                         }
-                    } else {
-                        // is not sent in payment create
-                        // verify that any calculated surcharge sent in session flow is same as the one sent in confirm
-                        match get_individual_surcharge_detail_from_redis(
-                            state,
-                            &payment_method_type.into(),
-                            &payment_method_type,
-                            None,
-                            &payment_attempt.attempt_id,
-                        )
-                        .await
-                        {
-                            Ok(surcharge_details) => {
-                                if surcharge_details
-                                    .is_request_surcharge_matching(request_surcharge_details)
-                                {
-                                    return Ok(());
-                                } else {
-                                    return invalid_surcharge_details_error;
-                                }
-                            }
-                            Err(err) if err.current_context() == &RedisError::NotFound => {
-                                if request_surcharge_details.surcharge_amount == 0
-                                    && request_surcharge_details.tax_amount.unwrap_or(0) == 0
-                                {
-                                    return Ok(());
-                                } else {
-                                    return invalid_surcharge_details_error;
-                                }
-                            }
-                            Err(_) => {
-                                return Err(errors::ApiErrorResponse::InternalServerError.into())
-                                    .attach_printable("Failed to fetch redis value");
-                            }
-                        }
                     }
+                    // is not sent in payment create
+                    // verify that any calculated surcharge sent in session flow is same as the one sent in confirm
+                    let result = match get_individual_surcharge_detail_from_redis(
+                        state,
+                        &payment_method_type.into(),
+                        &payment_method_type,
+                        None,
+                        &payment_attempt.attempt_id,
+                    )
+                    .await
+                    {
+                        Ok(surcharge_details) => utils::when(
+                            !surcharge_details
+                                .is_request_surcharge_matching(request_surcharge_details),
+                            || invalid_surcharge_details_error,
+                        ),
+                        Err(err) if err.current_context() == &RedisError::NotFound => {
+                            utils::when(!request_surcharge_details.is_surcharge_zero(), || {
+                                invalid_surcharge_details_error
+                            })
+                        }
+                        Err(err) => Err(err)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to fetch redis value"),
+                    };
+                    return result;
                 }
                 Ok(())
             }
@@ -795,5 +757,27 @@ impl PaymentConfirm {
             }
             _ => Ok(()),
         }
+    }
+
+    fn get_surcharge_details_from_payment_request_or_payment_attempt(
+        payment_request: &api::PaymentsRequest,
+        payment_attempt: &storage::PaymentAttempt,
+    ) -> Option<SurchargeDetailsResponse> {
+        payment_request
+            .surcharge_details
+            .map(|surcharge_details| {
+                surcharge_details.get_surcharge_details_object(payment_attempt.amount)
+            }) // if not passed in confirm request, look inside payment_attempt
+            .or(payment_attempt
+                .surcharge_amount
+                .map(|surcharge_amount| SurchargeDetailsResponse {
+                    surcharge: payment_methods::Surcharge::Fixed(surcharge_amount),
+                    tax_on_surcharge: None,
+                    surcharge_amount,
+                    tax_on_surcharge_amount: payment_attempt.tax_amount.unwrap_or(0),
+                    final_amount: payment_attempt.amount
+                        + surcharge_amount
+                        + payment_attempt.tax_amount.unwrap_or(0),
+                }))
     }
 }

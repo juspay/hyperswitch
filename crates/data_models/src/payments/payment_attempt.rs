@@ -257,8 +257,6 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -287,6 +285,8 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UnresolvedResponseUpdate {

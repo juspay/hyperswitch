@@ -222,6 +222,22 @@ pub enum SessionSurchargeDetails {
     PreDetermined(SurchargeDetailsResponse),
 }
 
+impl SessionSurchargeDetails {
+    pub fn get_surcharge_details(
+        &self,
+        payment_method: &enums::PaymentMethod,
+        payment_method_type: &enums::PaymentMethodType,
+        card_network: Option<&enums::CardNetwork>,
+    ) -> Option<SurchargeDetailsResponse> {
+        match self {
+            Self::Calculated(surcharge_metadata) => surcharge_metadata
+                .get_surcharge_details(payment_method, payment_method_type, card_network)
+                .cloned(),
+            Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
+        }
+    }
+}
+
 pub enum ConnectorChoice {
     SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),

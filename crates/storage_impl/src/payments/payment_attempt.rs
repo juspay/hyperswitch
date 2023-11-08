@@ -1198,8 +1198,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
@@ -1219,8 +1217,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -1248,6 +1244,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1263,6 +1261,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1439,8 +1439,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             } => Self::ConfirmUpdate {
@@ -1460,8 +1458,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -1489,6 +1485,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -1504,6 +1502,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,

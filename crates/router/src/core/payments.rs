@@ -946,22 +946,13 @@ where
         payment_data.surcharge_details =
             session_surcharge_details
                 .as_ref()
-                .and_then(
-                    |session_surcharge_details| match session_surcharge_details {
-                        api::SessionSurchargeDetails::Calculated(surcharge_metadata) => {
-                            surcharge_metadata
-                                .get_surcharge_details(
-                                    &session_connector_data.payment_method_type.into(),
-                                    &session_connector_data.payment_method_type,
-                                    None,
-                                )
-                                .cloned()
-                        }
-                        api::SessionSurchargeDetails::PreDetermined(surcharge_details_response) => {
-                            Some(surcharge_details_response.to_owned())
-                        }
-                    },
-                );
+                .and_then(|session_surcharge_details| {
+                    session_surcharge_details.get_surcharge_details(
+                        &session_connector_data.payment_method_type.into(),
+                        &session_connector_data.payment_method_type,
+                        None,
+                    )
+                });
 
         let router_data = payment_data
             .construct_router_data(

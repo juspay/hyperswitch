@@ -174,8 +174,6 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -204,6 +202,8 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UnresolvedResponseUpdate {
@@ -415,8 +415,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id,
             } => Self {
@@ -437,8 +435,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id,
                 ..Default::default()
@@ -479,6 +475,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self {
                 status: Some(status),
@@ -496,6 +494,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
