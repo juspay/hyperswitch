@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, CardIssuer, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, CardData, CardIssuer, PaymentsAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -13,6 +14,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums,
+        transformers::ForeignFrom,
     },
 };
 
@@ -269,9 +271,9 @@ pub enum BankofamericaPaymentStatus {
     Transmitted,
 }
 
-impl From<BankofamericaPaymentStatus> for enums::AttemptStatus {
-    fn from(item: BankofamericaPaymentStatus) -> Self {
-        match item {
+impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
+    fn foreign_from(item: (BankofamericaPaymentStatus, bool)) -> Self {
+        let status = match item.0 {
             BankofamericaPaymentStatus::Authorized
             | BankofamericaPaymentStatus::AuthorizedPendingReview => Self::Authorized,
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
@@ -284,7 +286,11 @@ impl From<BankofamericaPaymentStatus> for enums::AttemptStatus {
                 Self::Failure
             }
             BankofamericaPaymentStatus::Pending => Self::Pending,
+        };
+        if item.1 && status == Self::Authorized {
+            return enums::AttemptStatus::Pending;
         }
+        status
     }
 }
 
@@ -300,14 +306,6 @@ pub struct BankofamericaPaymentsResponse {
 pub struct BankofamericaErrorInformation {
     reason: String,
     message: String,
-}
-
-fn get_payment_status(is_capture: bool, status: enums::AttemptStatus) -> enums::AttemptStatus {
-    let is_authorized = matches!(status, enums::AttemptStatus::Authorized);
-    if is_capture && is_authorized {
-        return enums::AttemptStatus::Pending;
-    }
-    status
 }
 
 impl<F>
@@ -330,10 +328,10 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: get_payment_status(
+            status: enums::AttemptStatus::foreign_from((
+                item.response.status,
                 item.data.request.is_auto_capture()?,
-                item.response.status.into(),
-            ),
+            )),
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -382,7 +380,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: get_payment_status(true, item.response.status.into()),
+            status: enums::AttemptStatus::foreign_from((item.response.status, true)),
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -431,7 +429,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: item.response.status.into(),
+            status: enums::AttemptStatus::foreign_from((item.response.status, false)),
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -474,36 +472,30 @@ pub struct ApplicationInformation {
     status: BankofamericaPaymentStatus,
 }
 
-impl<F, T>
-    TryFrom<(
+impl<F>
+    TryFrom<
         types::ResponseRouterData<
             F,
             BankofamericaTransactionResponse,
-            T,
+            types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        bool,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (
-            types::ResponseRouterData<
-                F,
-                BankofamericaTransactionResponse,
-                T,
-                types::PaymentsResponseData,
-            >,
-            bool,
-        ),
+        item: types::ResponseRouterData<
+            F,
+            BankofamericaTransactionResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let item = data.0;
-        let is_capture = data.1;
         Ok(Self {
-            status: get_payment_status(
-                is_capture,
-                item.response.application_information.status.into(),
-            ),
+            status: enums::AttemptStatus::foreign_from((
+                item.response.application_information.status,
+                item.data.request.is_auto_capture()?,
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
@@ -588,7 +580,7 @@ impl<F> TryFrom<&BankofamericaRouterData<&types::RefundsRouterData<F>>>
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
-                    total_amount: item.router_data.request.refund_amount.to_string(),
+                    total_amount: item.amount.clone(),
                     currency: item.router_data.request.currency.to_string(),
                 },
             },
@@ -605,8 +597,8 @@ impl From<BankofamericaPaymentStatus> for enums::RefundStatus {
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
                 Self::Success
             }
-            BankofamericaPaymentStatus::Failed
-            | BankofamericaPaymentStatus::Authorized
+            BankofamericaPaymentStatus::Failed => Self::Failure,
+            BankofamericaPaymentStatus::Authorized
             | BankofamericaPaymentStatus::Voided
             | BankofamericaPaymentStatus::Reversed
             | BankofamericaPaymentStatus::Pending

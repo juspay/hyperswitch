@@ -395,9 +395,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}tss/v2/transactions/{}",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}tss/v2/transactions/{connector_payment_id}",
+            self.base_url(connectors)
         ))
     }
 
@@ -425,16 +424,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("BankOfAmerica PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_auto_capture =
-            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            is_auto_capture,
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
