@@ -785,7 +785,7 @@ impl PaymentConfirm {
                         }
                     }
                 }
-                return Ok(());
+                Ok(())
             }
             (Some(_request_surcharge_details), None) => {
                 Err(errors::ApiErrorResponse::MissingRequiredField {

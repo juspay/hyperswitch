@@ -1131,7 +1131,7 @@ pub async fn get_individual_surcharge_detail_from_redis(
         .get_redis_conn()
         .attach_printable("Failed to get redis connection")?;
     let redis_key = SurchargeMetadata::get_surcharge_metadata_redis_key(payment_attempt_id);
-    let value_key = SurchargeMetadata::get_individual_surcharge_details_redis_hashset_key(
+    let value_key = SurchargeMetadata::get_surcharge_details_redis_hashset_key(
         payment_method,
         payment_method_type,
         card_network.as_ref(),

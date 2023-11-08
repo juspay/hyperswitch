@@ -373,20 +373,6 @@ impl SurchargeMetadata {
     pub fn get_surcharge_results_size(&self) -> usize {
         self.surcharge_results.len()
     }
-    fn get_key_for_surcharge_details_hash_map(
-        payment_method: &common_enums::PaymentMethod,
-        payment_method_type: &common_enums::PaymentMethodType,
-        card_network: Option<&common_enums::CardNetwork>,
-    ) -> String {
-        if let Some(card_network) = card_network {
-            format!(
-                "{}_{}_{}",
-                payment_method, payment_method_type, card_network
-            )
-        } else {
-            format!("{}_{}", payment_method, payment_method_type)
-        }
-    }
     pub fn insert_surcharge_details(
         &mut self,
         payment_method: &common_enums::PaymentMethod,
@@ -417,50 +403,31 @@ impl SurchargeMetadata {
     pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
         format!("surcharge_metadata_{}", payment_attempt_id)
     }
-    // pub fn get_surcharge_metadata_redis_key(&self) -> String {
-    //     format!("surcharge_metadata_{}", self.payment_attempt_id)
-    // }
     pub fn get_individual_surcharge_key_value_pairs(
         &self,
     ) -> Vec<(String, SurchargeDetailsResponse)> {
         self.surcharge_results
             .iter()
             .map(|((pm, pmt, card_network), surcharge_details)| {
-                let key = Self::get_individual_surcharge_details_redis_hashset_key(
-                    pm,
-                    pmt,
-                    card_network.as_ref(),
-                );
+                let key =
+                    Self::get_surcharge_details_redis_hashset_key(pm, pmt, card_network.as_ref());
                 (key, surcharge_details.to_owned())
             })
             .collect()
     }
-    // pub fn get_individual_surcharge_details_redis_key(
-    //     payment_method: &common_enums::PaymentMethod,
-    //     payment_method_type: &common_enums::PaymentMethodType,
-    //     card_network: Option<&common_enums::CardNetwork>,
-    //     payment_attempt_id: &str,
-    // ) -> String {
-    //     format!(
-    //         "{}_{}",
-    //         Self::get_surcharge_metadata_redis_key(payment_attempt_id),
-    //         Self::get_key_for_surcharge_details_hash_map(
-    //             payment_method,
-    //             payment_method_type,
-    //             card_network
-    //         )
-    //     )
-    // }
-    pub fn get_individual_surcharge_details_redis_hashset_key(
+    pub fn get_surcharge_details_redis_hashset_key(
         payment_method: &common_enums::PaymentMethod,
         payment_method_type: &common_enums::PaymentMethodType,
         card_network: Option<&common_enums::CardNetwork>,
     ) -> String {
-        Self::get_key_for_surcharge_details_hash_map(
-            payment_method,
-            payment_method_type,
-            card_network,
-        )
+        if let Some(card_network) = card_network {
+            format!(
+                "{}_{}_{}",
+                payment_method, payment_method_type, card_network
+            )
+        } else {
+            format!("{}_{}", payment_method, payment_method_type)
+        }
     }
 }
 
