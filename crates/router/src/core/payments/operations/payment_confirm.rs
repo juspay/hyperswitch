@@ -69,6 +69,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             mandate_type.clone(),
             merchant_account,
+            key_store,
         );
 
         let (mut payment_intent, mandate_details) =

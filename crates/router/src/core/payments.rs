@@ -1401,7 +1401,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, Ctx>(
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    key_store: &domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -1468,7 +1468,7 @@ where
                             state,
                             payment_data,
                             validate_result.storage_scheme,
-                            key_store,
+                            merchant_key_store,
                         )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
@@ -1483,7 +1483,7 @@ where
                             state,
                             payment_data,
                             validate_result.storage_scheme,
-                            key_store,
+                            merchant_key_store,
                         )
                         .await?;
 
@@ -1520,7 +1520,7 @@ pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
-    key_store: &domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
@@ -1534,7 +1534,7 @@ where
                 state,
                 payment_data,
                 validate_result.storage_scheme,
-                key_store,
+                merchant_key_store,
             )
             .await?;
         payment_data.payment_method_data = payment_method_data;

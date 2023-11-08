@@ -32,6 +32,7 @@ pub trait PaymentMethodRetrieve {
         state: &AppState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)>;
 
     async fn retrieve_payment_method_with_token(
@@ -50,6 +51,7 @@ impl PaymentMethodRetrieve for Oss {
         state: &AppState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
         match pm_data {
             pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {
@@ -59,6 +61,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::Card,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -79,6 +82,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::BankTransfer,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -91,6 +95,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::Wallet,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -103,6 +108,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::BankRedirect,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -114,7 +120,7 @@ impl PaymentMethodRetrieve for Oss {
 
     async fn retrieve_payment_method_with_token(
         state: &AppState,
-        _key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &domain::MerchantKeyStore,
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,
@@ -126,6 +132,7 @@ impl PaymentMethodRetrieve for Oss {
                     &generic_token.token,
                     payment_intent,
                     card_cvc,
+                    merchant_key_store,
                 )
                 .await
             }
@@ -136,6 +143,7 @@ impl PaymentMethodRetrieve for Oss {
                     &generic_token.token,
                     payment_intent,
                     card_cvc,
+                    merchant_key_store,
                 )
                 .await
             }
