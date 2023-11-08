@@ -109,8 +109,12 @@ pub async fn create_routing_config(
             })
             .attach_printable("Profile_id not provided")?;
 
-        core_utils::validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
-            .await?;
+        core_utils::validate_and_get_business_profile(
+            db,
+            Some(&profile_id),
+            &merchant_account.merchant_id,
+        )
+        .await?;
 
         helpers::validate_connectors_in_routing_config(
             db,
@@ -399,9 +403,12 @@ pub async fn unlink_routing_config(
                 field_name: "profile_id",
             })
             .attach_printable("Profile_id not provided")?;
-        let business_profile =
-            core_utils::validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
-                .await?;
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            Some(&profile_id),
+            &merchant_account.merchant_id,
+        )
+        .await?;
         match business_profile {
             Some(business_profile) => {
                 let routing_algo_ref: routing_types::RoutingAlgorithmRef = business_profile
@@ -620,13 +627,15 @@ pub async fn retrieve_linked_routing_config(
     #[cfg(feature = "business_profile_routing")]
     {
         let business_profiles = if let Some(profile_id) = query_params.profile_id {
-            core_utils::validate_and_get_business_profile(db, Some(&profile_id), &merchant_account.merchant_id)
-                .await?
-                .map(|profile| vec![profile])
-                .get_required_value("BusinessProfile")
-                .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id,
-                })?
+            core_utils::validate_and_get_business_profile(
+                db,
+                Some(&profile_id),
+                &merchant_account.merchant_id,
+            )
+            .await?
+            .map(|profile| vec![profile])
+            .get_required_value("BusinessProfile")
+            .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?
         } else {
             db.list_business_profile_by_merchant_id(&merchant_account.merchant_id)
                 .await
