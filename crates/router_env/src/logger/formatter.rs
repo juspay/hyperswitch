@@ -51,6 +51,8 @@ const REQUEST_METHOD: &str = "request_method";
 const REQUEST_URL_PATH: &str = "request_url_path";
 const REQUEST_ID: &str = "request_id";
 const WORKFLOW_ID: &str = "workflow_id";
+const GLOBAL_ID: &str = "global_id";
+const SESSION_ID: &str = "session_id";
 
 /// Set of predefined implicit keys.
 pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
@@ -85,6 +87,8 @@ pub static EXTRA_IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(||
     set.insert(REQUEST_METHOD);
     set.insert(REQUEST_URL_PATH);
     set.insert(REQUEST_ID);
+    set.insert(GLOBAL_ID);
+    set.insert(SESSION_ID);
     set.insert(WORKFLOW_ID);
 
     set

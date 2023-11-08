@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.73.0 (2023-11-07)
+
+### Features
+
+- **connector:**
+  - [BANKOFAMERICA] Add Connector Template Code ([#2764](https://github.com/juspay/hyperswitch/pull/2764)) ([`4563935`](https://github.com/juspay/hyperswitch/commit/4563935372d2cdff3f746fa86a47f1166ffd32ac))
+  - [Bitpay] Add order id as the reference id ([#2591](https://github.com/juspay/hyperswitch/pull/2591)) ([`d47d4ac`](https://github.com/juspay/hyperswitch/commit/d47d4ac682705d6ac692f9381149bbf08ad71264))
+- **router:** Make webhook events config disabled only and by default enable all the events ([#2770](https://github.com/juspay/hyperswitch/pull/2770)) ([`d335879`](https://github.com/juspay/hyperswitch/commit/d335879f9289b57a90a76c6587a58a0b3e12c9ad))
+- Make drainer logs queryable with request_id and global_id ([#2771](https://github.com/juspay/hyperswitch/pull/2771)) ([`ff73aba`](https://github.com/juspay/hyperswitch/commit/ff73aba8e72d8e072027881760335c0c818df665))
+
+### Bug Fixes
+
+- **connector:** Fix amount conversion incase of minor unit  ([#2793](https://github.com/juspay/hyperswitch/pull/2793)) ([`34f5226`](https://github.com/juspay/hyperswitch/commit/34f52260d3fa68b54e5b46207afaf2ad07a8d8ba))
+
+### Refactors
+
+- **payment_methods:** Added support for account subtype in pmd ([#2651](https://github.com/juspay/hyperswitch/pull/2651)) ([`e7375d0`](https://github.com/juspay/hyperswitch/commit/e7375d0e26099a7e0e6efd1b83b8eb9c7b1c5411))
+
+### Documentation
+
+- **README:** Add one-click deployment information using CDK ([#2798](https://github.com/juspay/hyperswitch/pull/2798)) ([`bb39cd4`](https://github.com/juspay/hyperswitch/commit/bb39cd4081fdcaf68b2b5de2234e93493dbd84b6))
+
+**Full Changelog:** [`v1.72.0...v1.73.0`](https://github.com/juspay/hyperswitch/compare/v1.72.0...v1.73.0)
+
+- - -
+
+
 ## 1.72.0 (2023-11-05)
 
 ### Features
