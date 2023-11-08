@@ -831,6 +831,7 @@ where
         .as_millis();
 
     let mut serialized_response = None;
+    let mut error = None;
     let status_code = match output.as_ref() {
         Ok(res) => {
             if let ApplicationResponse::Json(data) = res {
@@ -855,6 +856,7 @@ where
         serialized_request,
         serialized_response,
         auth_type,
+        error,
     );
     match api_event.clone().try_into() {
         Ok(event) => {

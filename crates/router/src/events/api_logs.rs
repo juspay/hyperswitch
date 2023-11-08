@@ -16,6 +16,7 @@ pub struct ApiEvent {
     auth_type: AuthenticationType,
     request: serde_json::Value,
     response: Option<serde_json::Value>,
+    error: Option<serde_json::Value>,
 }
 
 impl ApiEvent {
@@ -27,6 +28,7 @@ impl ApiEvent {
         request: serde_json::Value,
         response: Option<serde_json::Value>,
         auth_type: AuthenticationType,
+        error: Option<serde_json::Value>,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
@@ -37,6 +39,7 @@ impl ApiEvent {
             request,
             response,
             auth_type,
+            error,
         }
     }
 }
