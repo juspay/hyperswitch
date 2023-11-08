@@ -298,7 +298,8 @@ pub trait PaymentMethodTokenizationRequestData {
 
 impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
-        self.browser_info.clone()
+        self.browser_info
+            .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
 }

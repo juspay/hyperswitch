@@ -9,7 +9,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData, PaymentMethodTokenizationRequestData, BrowserInformationData,
+        self, AddressDetailsData, BrowserInformationData, CardData,
+        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     services, types,
@@ -282,9 +283,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
                 let card_cvv = ccard.card_cvc;
-                let locale = item
-                    .request
-                    .get_browser_info()?.get_language()?;
+                let locale = item.request.get_browser_info()?.get_language()?;
                 let testmode =
                     item.test_mode
                         .ok_or(errors::ConnectorError::MissingRequiredField {
