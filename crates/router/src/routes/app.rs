@@ -666,7 +666,6 @@ impl BusinessProfile {
     }
 }
 
-#[cfg(feature = "olap")]
 pub struct Gsm;
 
 #[cfg(feature = "olap")]
