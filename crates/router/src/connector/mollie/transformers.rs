@@ -9,7 +9,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData, PaymentMethodTokenizationRequestData, BrowserInformationData,
+        self, AddressDetailsData, BrowserInformationData, CardData,
+        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     services, types,
@@ -61,7 +62,7 @@ pub struct MolliePaymentsRequest {
     locale: Option<String>,
     #[serde(flatten)]
     payment_method_data: PaymentMethodData,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<MollieMetadata>,
     sequence_type: SequenceType,
     mandate_id: Option<String>,
 }
@@ -147,6 +148,12 @@ pub struct Address {
     pub country: api_models::enums::CountryAlpha2,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieMetadata {
+    pub order_id: String,
+}
+
 impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MolliePaymentsRequest {
     type Error = Error;
     fn try_from(
@@ -211,7 +218,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             webhook_url: "".to_string(),
             locale: None,
             payment_method_data,
-            metadata: None,
+            metadata: Some(MollieMetadata {
+                order_id: item.router_data.connector_request_reference_id.clone(),
+            }),
             sequence_type: SequenceType::Oneoff,
             mandate_id: None,
         })
@@ -282,9 +291,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
                 let card_cvv = ccard.card_cvc;
-                let locale = item
-                    .request
-                    .get_browser_info()?.get_language()?;
+                let locale = item.request.get_browser_info()?.get_language()?;
                 let testmode =
                     item.test_mode
                         .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -385,7 +392,7 @@ pub struct MolliePaymentsResponse {
     pub id: String,
     pub amount: Amount,
     pub description: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<MollieMetadata>,
     pub status: MolliePaymentStatus,
     pub is_cancelable: Option<bool>,
     pub sequence_type: SequenceType,
@@ -518,12 +525,12 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: url,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -535,6 +542,7 @@ impl<F, T>
 pub struct MollieRefundRequest {
     amount: Amount,
     description: Option<String>,
+    metadata: Option<MollieMetadata>,
 }
 
 impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefundRequest {
@@ -549,6 +557,9 @@ impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefun
         Ok(Self {
             amount,
             description: item.router_data.request.reason.to_owned(),
+            metadata: Some(MollieMetadata {
+                order_id: item.router_data.request.refund_id.clone(),
+            }),
         })
     }
 }
@@ -563,7 +574,7 @@ pub struct RefundResponse {
     settlement_amount: Option<Amount>,
     status: MollieRefundStatus,
     description: Option<String>,
-    metadata: serde_json::Value,
+    metadata: Option<MollieMetadata>,
     payment_id: String,
     #[serde(rename = "_links")]
     links: Links,
