@@ -4,6 +4,107 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.74.0 (2023-11-08)
+
+### Features
+
+- **core:** Use redis as temp locker instead of basilisk ([#2789](https://github.com/juspay/hyperswitch/pull/2789)) ([`6678689`](https://github.com/juspay/hyperswitch/commit/6678689265ae9a4fbb7a43c1938237d349c5a68e))
+- **events:** Add request details to api events ([#2769](https://github.com/juspay/hyperswitch/pull/2769)) ([`164d1c6`](https://github.com/juspay/hyperswitch/commit/164d1c66fbcb84104db07412496114db2f8c5c0c))
+- **router:** Add `gateway_status_map` interface ([#2804](https://github.com/juspay/hyperswitch/pull/2804)) ([`a429b23`](https://github.com/juspay/hyperswitch/commit/a429b23c7f21c9d08a79895c0b770b35aab725f7))
+- **test_utils:** Add custom-headers and custom delay support to rustman ([#2636](https://github.com/juspay/hyperswitch/pull/2636)) ([`1effddd`](https://github.com/juspay/hyperswitch/commit/1effddd0a0d3985d6df03c4ae9be28712befc05e))
+
+### Bug Fixes
+
+- **connector:** Add attempt_status in field in error_response ([#2794](https://github.com/juspay/hyperswitch/pull/2794)) ([`5642fef`](https://github.com/juspay/hyperswitch/commit/5642fef52a6d591d12c5745ed381f41a1593f183))
+
+### Refactors
+
+- **config:** Update payment method filter of Klarna in Stripe ([#2807](https://github.com/juspay/hyperswitch/pull/2807)) ([`21ce807`](https://github.com/juspay/hyperswitch/commit/21ce8079f4cb11d70c5eaae78f83773141c67d0c))
+- **router:** Add parameter connectors to get_request_body function ([#2708](https://github.com/juspay/hyperswitch/pull/2708)) ([`7623ea9`](https://github.com/juspay/hyperswitch/commit/7623ea93bee61b0bb22b68e86f44de17f04f876b))
+
+### Documentation
+
+- **README:** Update README ([#2800](https://github.com/juspay/hyperswitch/pull/2800)) ([`bef0a04`](https://github.com/juspay/hyperswitch/commit/bef0a04edc6323b3b7a2e0dd7eeb7954915ba7cf))
+
+**Full Changelog:** [`v1.73.0...v1.74.0`](https://github.com/juspay/hyperswitch/compare/v1.73.0...v1.74.0)
+
+- - -
+
+
+## 1.73.0 (2023-11-07)
+
+### Features
+
+- **connector:**
+  - [BANKOFAMERICA] Add Connector Template Code ([#2764](https://github.com/juspay/hyperswitch/pull/2764)) ([`4563935`](https://github.com/juspay/hyperswitch/commit/4563935372d2cdff3f746fa86a47f1166ffd32ac))
+  - [Bitpay] Add order id as the reference id ([#2591](https://github.com/juspay/hyperswitch/pull/2591)) ([`d47d4ac`](https://github.com/juspay/hyperswitch/commit/d47d4ac682705d6ac692f9381149bbf08ad71264))
+- **router:** Make webhook events config disabled only and by default enable all the events ([#2770](https://github.com/juspay/hyperswitch/pull/2770)) ([`d335879`](https://github.com/juspay/hyperswitch/commit/d335879f9289b57a90a76c6587a58a0b3e12c9ad))
+- Make drainer logs queryable with request_id and global_id ([#2771](https://github.com/juspay/hyperswitch/pull/2771)) ([`ff73aba`](https://github.com/juspay/hyperswitch/commit/ff73aba8e72d8e072027881760335c0c818df665))
+
+### Bug Fixes
+
+- **connector:** Fix amount conversion incase of minor unit  ([#2793](https://github.com/juspay/hyperswitch/pull/2793)) ([`34f5226`](https://github.com/juspay/hyperswitch/commit/34f52260d3fa68b54e5b46207afaf2ad07a8d8ba))
+
+### Refactors
+
+- **payment_methods:** Added support for account subtype in pmd ([#2651](https://github.com/juspay/hyperswitch/pull/2651)) ([`e7375d0`](https://github.com/juspay/hyperswitch/commit/e7375d0e26099a7e0e6efd1b83b8eb9c7b1c5411))
+
+### Documentation
+
+- **README:** Add one-click deployment information using CDK ([#2798](https://github.com/juspay/hyperswitch/pull/2798)) ([`bb39cd4`](https://github.com/juspay/hyperswitch/commit/bb39cd4081fdcaf68b2b5de2234e93493dbd84b6))
+
+**Full Changelog:** [`v1.72.0...v1.73.0`](https://github.com/juspay/hyperswitch/compare/v1.72.0...v1.73.0)
+
+- - -
+
+
+## 1.72.0 (2023-11-05)
+
+### Features
+
+- **connector:**
+  - [ACI] Currency Unit Conversion ([#2750](https://github.com/juspay/hyperswitch/pull/2750)) ([`cdead78`](https://github.com/juspay/hyperswitch/commit/cdead78ea6a1f2dce92187f499f54498ba4bb173))
+  - [Fiserv] Currency Unit Conversion ([#2715](https://github.com/juspay/hyperswitch/pull/2715)) ([`b6b9e4f`](https://github.com/juspay/hyperswitch/commit/b6b9e4f912e1c61cd31ab91be587ffb08c9f3a5b))
+  - [Bitpay] Use `connector_request_reference_id` as reference to the connector ([#2697](https://github.com/juspay/hyperswitch/pull/2697)) ([`7141b89`](https://github.com/juspay/hyperswitch/commit/7141b89d231bae0c3b1c10095b88df16129b1665))
+  - [NMI] Currency Unit Conversion ([#2707](https://github.com/juspay/hyperswitch/pull/2707)) ([`1b45a30`](https://github.com/juspay/hyperswitch/commit/1b45a302630ed8affc5abff0de1325fb5c6f870e))
+  - [Payeezy] Currency Unit Conversion ([#2710](https://github.com/juspay/hyperswitch/pull/2710)) ([`25245b9`](https://github.com/juspay/hyperswitch/commit/25245b965371d93449f4584667adeb38ab7e0e59))
+
+### Refactors
+
+- **connector:** [Stax] Currency Unit Conversion ([#2711](https://github.com/juspay/hyperswitch/pull/2711)) ([`2782923`](https://github.com/juspay/hyperswitch/commit/278292322c7c06f4239dd73861469e436bd941fa))
+
+### Testing
+
+- **postman:** Update postman collection files ([`d11e7fd`](https://github.com/juspay/hyperswitch/commit/d11e7fd5642efe7da4b5021d87cf40f16d9eeded))
+
+**Full Changelog:** [`v1.71.0...v1.72.0`](https://github.com/juspay/hyperswitch/compare/v1.71.0...v1.72.0)
+
+- - -
+
+
+## 1.71.0 (2023-11-03)
+
+### Features
+
+- **merchant_connector_account:** Add cache for querying by `merchant_connector_id` ([#2738](https://github.com/juspay/hyperswitch/pull/2738)) ([`1ba6282`](https://github.com/juspay/hyperswitch/commit/1ba6282699b7dff5e6e95c9a14e51c0f8bf749cd))
+- **router:** Add Smart Routing to route payments efficiently ([#2665](https://github.com/juspay/hyperswitch/pull/2665)) ([`9b618d2`](https://github.com/juspay/hyperswitch/commit/9b618d24476967d364835d04010d9076a80aeb9c))
+
+### Bug Fixes
+
+- **connector:**
+  - [Cryptopay]Remove default case handling for Cryptopay ([#2699](https://github.com/juspay/hyperswitch/pull/2699)) ([`255a4f8`](https://github.com/juspay/hyperswitch/commit/255a4f89a8e0124310d42bb63ad459bd8cde2cba))
+  - [Bluesnap] fix psync status to failure when it is '403'  ([#2772](https://github.com/juspay/hyperswitch/pull/2772)) ([`9314d14`](https://github.com/juspay/hyperswitch/commit/9314d1446326fd8a69f1f69657a976bbe7c27901))
+- Response spelling ([#2779](https://github.com/juspay/hyperswitch/pull/2779)) ([`5859372`](https://github.com/juspay/hyperswitch/commit/585937204d9071baa37d402f73159f8f650d0a07))
+
+### Testing
+
+- **postman:** Update postman collection files ([`21e8a10`](https://github.com/juspay/hyperswitch/commit/21e8a105f9b47ded232b457a0420ad71ec2414ed))
+
+**Full Changelog:** [`v1.70.1...v1.71.0`](https://github.com/juspay/hyperswitch/compare/v1.70.1...v1.71.0)
+
+- - -
+
+
 ## 1.70.1 (2023-11-03)
 
 ### Revert
@@ -26,7 +127,7 @@ All notable changes to HyperSwitch will be documented here.
 ### Bug Fixes
 
 - **router:** Make customer_id optional when billing and shipping address is passed in payments create, update ([#2762](https://github.com/juspay/hyperswitch/pull/2762)) ([`e40a293`](https://github.com/juspay/hyperswitch/commit/e40a29351c7aa7b86a5684959a84f0236104cafd))
-- Null fields in payments respose ([#2745](https://github.com/juspay/hyperswitch/pull/2745)) ([`42261a5`](https://github.com/juspay/hyperswitch/commit/42261a5306bb99d3e20eb3aa734a895e589b1d94))
+- Null fields in payments response ([#2745](https://github.com/juspay/hyperswitch/pull/2745)) ([`42261a5`](https://github.com/juspay/hyperswitch/commit/42261a5306bb99d3e20eb3aa734a895e589b1d94))
 
 ### Testing
 

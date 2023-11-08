@@ -963,8 +963,13 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             return Ok((response, WebhookResponseTracker::NoEffect));
         }
     };
+    logger::info!(event_type=?event_type);
 
-    let process_webhook_further = utils::lookup_webhook_event(
+    let is_webhook_event_supported = !matches!(
+        event_type,
+        api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+    );
+    let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &*state.clone().store,
         connector_name.as_str(),
         &merchant_account.merchant_id,
@@ -972,8 +977,10 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     )
     .await;
 
+    //process webhook further only if webhook event is enabled and is not event_not_supported
+    let process_webhook_further = is_webhook_event_enabled && is_webhook_event_supported;
+
     logger::info!(process_webhook=?process_webhook_further);
-    logger::info!(event_type=?event_type);
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
     let webhook_effect = if process_webhook_further

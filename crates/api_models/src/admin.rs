@@ -893,6 +893,8 @@ pub struct ToggleKVResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,

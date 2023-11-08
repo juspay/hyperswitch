@@ -943,6 +943,7 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
+    pub attempt_status: Option<storage_enums::AttemptStatus>,
 }
 
 impl ErrorResponse {
@@ -958,6 +959,7 @@ impl ErrorResponse {
             .error_message(),
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            attempt_status: None,
         }
     }
 }
@@ -1000,6 +1002,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
                 _ => 500,
             },
+            attempt_status: None,
         }
     }
 }
