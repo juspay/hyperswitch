@@ -44,6 +44,7 @@ pub struct UserRoleUpdateInternal {
 pub enum UserRoleUpdate {
     UpdateStatus {
         status: enums::UserStatus,
+        modified_by: String,
     },
     UpdateRole {
         role_id: String,
@@ -64,10 +65,13 @@ impl From<UserRoleUpdate> for UserRoleUpdateInternal {
                 status: None,
                 last_modified_at,
             },
-            UserRoleUpdate::UpdateStatus { status } => Self {
+            UserRoleUpdate::UpdateStatus {
+                status,
+                modified_by,
+            } => Self {
                 status: Some(status),
                 last_modified_at,
-                last_modified_by: None,
+                last_modified_by: Some(modified_by),
                 role_id: None,
             },
         }

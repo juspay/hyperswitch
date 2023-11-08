@@ -74,12 +74,3 @@ impl From<UserUpdate> for UserUpdateInternal {
         }
     }
 }
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct UserListResponse {
-    pub user_id: String,
-    pub email: pii::Email,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub onboarding_modified_at: PrimitiveDateTime,
-    pub onboarding_step: i32,
-}

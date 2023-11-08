@@ -168,8 +168,12 @@ impl UserRoleInterface for MockDb {
                         last_modified_by: modified_by.to_string(),
                         ..user_role.to_owned()
                     },
-                    storage::UserRoleUpdate::UpdateStatus { status } => storage::UserRoles {
+                    storage::UserRoleUpdate::UpdateStatus {
+                        status,
+                        modified_by,
+                    } => storage::UserRoles {
                         status: status.to_owned(),
+                        last_modified_by: modified_by.to_owned(),
                         ..user_role.to_owned()
                     },
                 };

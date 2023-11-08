@@ -926,7 +926,7 @@ diesel::table! {
 
     users (id) {
         id -> Int4,
-        #[max_length = 255]
+        #[max_length = 64]
         user_id -> Varchar,
         #[max_length = 255]
         email -> Varchar,

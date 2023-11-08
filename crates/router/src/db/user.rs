@@ -1,4 +1,4 @@
-use diesel_models::{user as storage, user_roles::UserRoles};
+use diesel_models::user as storage;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 
@@ -24,23 +24,6 @@ pub trait UserInterface {
     async fn find_user_by_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<storage::User, errors::StorageError>;
-
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRoles)>, errors::StorageError>;
-
-    async fn find_user_and_role_by_user_id_and_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<(storage::User, UserRoles), errors::StorageError>;
-
-    async fn update_user_by_email(
-        &self,
-        user_email: &str,
-        user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn update_user_by_user_id(
@@ -86,45 +69,6 @@ impl UserInterface for Store {
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRoles)>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_joined_users_and_roles_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
-    async fn find_user_and_role_by_user_id_and_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<(storage::User, UserRoles), errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_joined_user_and_role_by_user_id_and_merchant_id(
-            &conn,
-            user_id,
-            merchant_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()
-    }
-
-    async fn update_user_by_email(
-        &self,
-        user_email: &str,
-        user: storage::UserUpdate,
-    ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::update_by_user_email(&conn, user_email, user)
             .await
             .map_err(Into::into)
             .into_report()
@@ -227,58 +171,6 @@ impl UserInterface for MockDb {
             )
     }
 
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        _merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRoles)>, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
-
-    async fn find_user_and_role_by_user_id_and_merchant_id(
-        &self,
-        _user_id: &str,
-        _merchant_id: &str,
-    ) -> CustomResult<(storage::User, UserRoles), errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
-
-    async fn update_user_by_email(
-        &self,
-        user_email: &str,
-        update_user: storage::UserUpdate,
-    ) -> CustomResult<storage::User, errors::StorageError> {
-        let mut users = self.users.lock().await;
-        let user_email_pii: common_utils::pii::Email = user_email
-            .to_string()
-            .try_into()
-            .map_err(|_| errors::StorageError::MockDbError)?;
-        users
-            .iter_mut()
-            .find(|user| user.email == user_email_pii)
-            .map(|user| match &update_user {
-                storage::UserUpdate::VerifyUser => storage::User {
-                    is_verified: true,
-                    ..user.to_owned()
-                },
-                storage::UserUpdate::AccountUpdate {
-                    name,
-                    password,
-                    is_verified,
-                } => storage::User {
-                    name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                    password: password.clone().unwrap_or(user.password.clone()),
-                    is_verified: is_verified.unwrap_or(user.is_verified),
-                    ..user.to_owned()
-                },
-            })
-            .ok_or(
-                errors::StorageError::ValueNotFound(format!(
-                    "No user available for email = {user_email}"
-                ))
-                .into(),
-            )
-    }
-
     async fn update_user_by_user_id(
         &self,
         user_id: &str,
@@ -352,35 +244,6 @@ impl UserInterface for super::KafkaStore {
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store.find_user_by_id(user_id).await
-    }
-
-    async fn find_users_and_roles_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<(storage::User, UserRoles)>, errors::StorageError> {
-        self.diesel_store
-            .find_users_and_roles_by_merchant_id(merchant_id)
-            .await
-    }
-
-    async fn find_user_and_role_by_user_id_and_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &str,
-    ) -> CustomResult<(storage::User, UserRoles), errors::StorageError> {
-        self.diesel_store
-            .find_user_and_role_by_user_id_and_merchant_id(user_id, merchant_id)
-            .await
-    }
-
-    async fn update_user_by_email(
-        &self,
-        user_email: &str,
-        user: storage::UserUpdate,
-    ) -> CustomResult<storage::User, errors::StorageError> {
-        self.diesel_store
-            .update_user_by_email(user_email, user)
-            .await
     }
 
     async fn update_user_by_user_id(

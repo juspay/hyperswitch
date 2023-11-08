@@ -11,7 +11,8 @@ CREATE TABLE user_roles (
 	created_by VARCHAR(64) NOT NULL,
 	last_modified_by VARCHAR(64) NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT now(),
-	last_modified_at TIMESTAMP NOT NULL DEFAULT now()
+	last_modified_at TIMESTAMP NOT NULL DEFAULT now(),
+	CONSTRAINT user_merchant_unique UNIQUE (user_id, merchant_id)
 );
 
 
