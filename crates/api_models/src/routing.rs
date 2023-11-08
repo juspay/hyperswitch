@@ -40,6 +40,12 @@ pub struct RoutingConfigRequest {
     pub profile_id: Option<String>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct ProfileDefaultRoutingConfig {
+    pub profile_id: String,
+    pub connectors: Vec<RoutableConnectorChoice>,
+}
+
 #[cfg(feature = "business_profile_routing")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
