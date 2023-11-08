@@ -1,6 +1,6 @@
+use actix_web::HttpRequest;
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
 use common_utils::impl_misc_api_event_type;
-use actix_web::HttpRequest;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::Serialize;
 use time::OffsetDateTime;
