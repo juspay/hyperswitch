@@ -221,8 +221,6 @@ pub async fn create_or_update_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let customer_id = customer_id.get_required_value("customer_id")?;
-
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
                     db.insert_address_for_payments(
@@ -282,7 +280,6 @@ pub async fn create_or_find_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let customer_id = customer_id.get_required_value("customer_id")?;
 
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
@@ -317,7 +314,7 @@ pub async fn get_domain_address_for_payments(
     address_details: api_models::payments::AddressDetails,
     address: &api_models::payments::Address,
     merchant_id: &str,
-    customer_id: &str,
+    customer_id: Option<&String>,
     payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
@@ -332,7 +329,7 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-            customer_id: customer_id.to_string(),
+            customer_id: customer_id.cloned(),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.city,
@@ -763,25 +760,14 @@ fn validate_new_mandate_request(
 }
 
 pub fn validate_customer_id_mandatory_cases(
-    has_shipping: bool,
-    has_billing: bool,
     has_setup_future_usage: bool,
     customer_id: &Option<String>,
 ) -> RouterResult<()> {
-    match (
-        has_shipping,
-        has_billing,
-        has_setup_future_usage,
-        customer_id,
-    ) {
-        (true, _, _, None) | (_, true, _, None) | (_, _, true, None) => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "customer_id is mandatory when shipping or billing \
-                address is given or when setup_future_usage is given"
-                    .to_string(),
-            })
-            .into_report()
-        }
+    match (has_setup_future_usage, customer_id) {
+        (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "customer_id is mandatory when setup_future_usage is given".to_string(),
+        })
+        .into_report(),
         _ => Ok(()),
     }
 }
@@ -1891,7 +1877,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -1900,7 +1886,7 @@ pub fn get_handle_response_url(
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
     let return_url = make_merchant_url_with_response(
-        merchant_account,
+        business_profile,
         redirection_response,
         payments_return_url,
         response.client_secret.as_ref(),
@@ -1908,11 +1894,11 @@ pub fn get_handle_response_url(
     )
     .attach_printable("Failed to make merchant url with response")?;
 
-    make_url_with_signature(&return_url, merchant_account)
+    make_url_with_signature(&return_url, business_profile)
 }
 
 pub fn make_merchant_url_with_response(
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -1920,7 +1906,7 @@ pub fn make_merchant_url_with_response(
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
-        .or(merchant_account.return_url.as_ref())
+        .or(business_profile.return_url.as_ref())
         .get_required_value("return_url")?;
 
     let status_check = redirection_response.status;
@@ -1930,7 +1916,7 @@ pub fn make_merchant_url_with_response(
         .into_report()
         .attach_printable("Expected client secret to be `Some`")?;
 
-    let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
+    let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
@@ -2024,7 +2010,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .into_report()
@@ -2034,8 +2020,8 @@ pub fn make_url_with_signature(
     let mut base_url = url.clone();
     base_url.query_pairs_mut().clear();
 
-    let url = if merchant_account.enable_payment_response_hash {
-        let key = merchant_account
+    let url = if business_profile.enable_payment_response_hash {
+        let key = business_profile
             .payment_response_hash_key
             .as_ref()
             .get_required_value("payment_response_hash_key")?;
@@ -2063,7 +2049,7 @@ pub fn make_url_with_signature(
         return_url: base_url.to_string(),
         params: parameters,
         return_url_with_query_params: url.to_string(),
-        http_method: if merchant_account.redirect_to_merchant_with_http_post {
+        http_method: if business_profile.redirect_to_merchant_with_http_post {
             services::Method::Post.to_string()
         } else {
             services::Method::Get.to_string()
@@ -2933,6 +2919,8 @@ impl AttemptType {
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
             updated_by: storage_scheme.to_string(),
+            authentication_data: None,
+            encoded_data: None,
             merchant_connector_id: None,
         }
     }

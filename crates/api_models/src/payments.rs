@@ -3099,6 +3099,8 @@ pub struct PaymentLinkObject {
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
     pub payment_link_config: Option<admin::PaymentLinkConfig>,
+    /// Custom merchant name for payment link
+    pub custom_merchant_name: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
@@ -3137,7 +3139,6 @@ pub struct PaymentLinkInitiateRequest {
 pub struct PaymentLinkDetails {
     pub amount: i64,
     pub currency: api_enums::Currency,
-    pub currency_symbol: api_enums::CurrencySymbol,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
@@ -3145,7 +3146,7 @@ pub struct PaymentLinkDetails {
     pub expiry: Option<PrimitiveDateTime>,
     pub merchant_logo: String,
     pub return_url: String,
-    pub merchant_name: crypto::OptionalEncryptableName,
+    pub merchant_name: String,
     pub order_details: Vec<OrderDetailsWithAmount>,
     pub max_items_visible_after_collapse: i8,
     pub sdk_theme: Option<String>,

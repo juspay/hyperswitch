@@ -22,10 +22,21 @@ pub struct PaymentLink {
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
+    pub custom_merchant_name: Option<String>,
 }
 
-#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize)]
-#[diesel(table_name = payment_link, primary_key(payment_link_id))]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Insertable,
+    serde::Serialize,
+    serde::Deserialize,
+    router_derive::DebugAsDisplay,
+)]
+#[diesel(table_name = payment_link)]
 pub struct PaymentLinkNew {
     pub payment_link_id: String,
     pub payment_id: String,
@@ -41,4 +52,5 @@ pub struct PaymentLinkNew {
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
+    pub custom_merchant_name: Option<String>,
 }

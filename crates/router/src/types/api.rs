@@ -12,6 +12,7 @@ pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
@@ -37,6 +38,13 @@ pub struct AccessTokenAuth;
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
+}
+
+#[derive(Clone)]
+pub enum ConnectorCallType {
+    PreDetermined(ConnectorData),
+    Retryable(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
 }
 
 #[derive(Clone, Debug)]
@@ -219,23 +227,11 @@ pub enum PayoutConnectorChoice {
     Decide,
 }
 
-#[derive(Clone)]
-pub enum ConnectorCallType {
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
-}
-
 #[cfg(feature = "payouts")]
 #[derive(Clone)]
 pub enum PayoutConnectorCallType {
     Multiple(Vec<PayoutSessionConnectorData>),
     Single(PayoutConnectorData),
-}
-
-impl ConnectorCallType {
-    pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
 }
 
 #[cfg(feature = "payouts")]
@@ -308,6 +304,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                // enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)), Added as template code for future usage
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -363,7 +360,7 @@ impl ConnectorData {
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
-                // enums::Connector::Volt => Ok(Box::new(&connector::Volt)), it is added as template code for future usage
+                enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)

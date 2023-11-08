@@ -539,8 +539,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             )?;
 
             helpers::validate_customer_id_mandatory_cases(
-                request.shipping.is_some(),
-                request.billing.is_some(),
                 request.setup_future_usage.is_some(),
                 &request
                     .customer
@@ -823,6 +821,7 @@ async fn create_payment_link(
         fulfilment_time: payment_link_object.link_expiry,
         description,
         payment_link_config,
+        custom_merchant_name: payment_link_object.custom_merchant_name,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

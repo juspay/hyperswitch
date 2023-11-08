@@ -566,7 +566,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: customer_id.to_string(),
+                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
                 payment_id: None,
@@ -699,6 +699,7 @@ impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
 
 pub async fn trigger_payments_webhook<F, Req, Op>(
     merchant_account: domain::MerchantAccount,
+    business_profile: diesel_models::business_profile::BusinessProfile,
     payment_data: crate::core::payments::PaymentData<F>,
     req: Option<Req>,
     customer: Option<domain::Customer>,
@@ -753,6 +754,7 @@ where
                 webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
                     state.clone(),
                     merchant_account,
+                    business_profile,
                     event_type,
                     diesel_models::enums::EventClass::Payments,
                     None,
