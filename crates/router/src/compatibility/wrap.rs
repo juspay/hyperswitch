@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use crate::{
     core::{api_locking, errors},
+    events::api_logs::ApiEventMetric,
     routes::{app::AppStateInfo, metrics},
     services::{self, api, authentication as auth, logger},
 };
@@ -25,12 +26,12 @@ where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
-    Q: Serialize + std::fmt::Debug + 'a,
+    Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
-    T: std::fmt::Debug + Serialize,
+    T: std::fmt::Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();

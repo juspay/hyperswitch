@@ -34,7 +34,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    events::api_logs::ApiEvent,
+    events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
     logger,
     routes::{
         app::AppStateInfo,
@@ -769,8 +769,8 @@ where
     F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
-    Q: Serialize + Debug + 'a,
-    T: Debug + Serialize,
+    Q: Serialize + Debug + 'a + ApiEventMetric,
+    T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
     OErr: ResponseError + error_stack::Context,
@@ -790,6 +790,8 @@ where
         .into_report()
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
+
+    let mut event_type = payload.get_api_event_type();
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
@@ -838,6 +840,7 @@ where
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             }
+            event_type = res.get_api_event_type().or(event_type);
 
             metrics::request::track_response_status_code(res)
         }
@@ -852,6 +855,7 @@ where
         serialized_request,
         serialized_response,
         auth_type,
+        event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
     );
     match api_event.clone().try_into() {
@@ -884,8 +888,8 @@ pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
 where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
-    Q: Serialize + Debug + 'a,
-    T: Debug + Serialize,
+    Q: Serialize + Debug + ApiEventMetric + 'a,
+    T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
