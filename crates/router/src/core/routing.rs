@@ -231,7 +231,7 @@ pub async fn link_routing_config(
             .await
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-        let business_profile = care_utils::validate_and_get_business_profile(
+        let business_profile = core_utils::validate_and_get_business_profile(
             db,
             Some(&routing_algorithm.profile_id),
             &merchant_account.merchant_id,
