@@ -150,6 +150,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::CaptureBuyerRequest::try_from(req)?;
 
@@ -173,7 +174,9 @@ impl
                     .url(&types::TokenizationType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                    .body(types::TokenizationType::get_request_body(self, req)?)
+                    .body(types::TokenizationType::get_request_body(
+                        self, req, connectors,
+                    )?)
                     .build(),
             ),
             AuthenticationType::NoThreeDs => None,
@@ -253,6 +256,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let amount = req.request.get_amount()?;
         let currency = req.request.get_currency()?;
@@ -283,7 +287,7 @@ impl
                     self, req, connectors,
                 )?)
                 .body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req,
+                    self, req, connectors,
                 )?)
                 .build(),
         );
@@ -378,6 +382,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::Pay3dsRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
@@ -403,7 +408,7 @@ impl
                     self, req, connectors,
                 )?)
                 .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req,
+                    self, req, connectors,
                 )?)
                 .build(),
         ))
@@ -480,6 +485,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = payme::PaymeRouterData::try_from((
             &self.get_currency_unit(),
@@ -511,7 +517,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -574,6 +582,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::PaymeQuerySaleRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
@@ -595,7 +604,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                .body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -659,6 +670,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = payme::PaymeRouterData::try_from((
             &self.get_currency_unit(),
@@ -688,7 +700,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -765,6 +779,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = payme::PaymeRouterData::try_from((
             &self.get_currency_unit(),
@@ -793,7 +808,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -854,6 +871,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::PaymeQueryTransactionRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
@@ -874,7 +892,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .url(&types::RefundSyncType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-            .body(types::RefundSyncType::get_request_body(self, req)?)
+            .body(types::RefundSyncType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
