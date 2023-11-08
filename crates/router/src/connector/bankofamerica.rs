@@ -30,6 +30,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
+pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
+
 #[derive(Debug, Clone)]
 pub struct Bankofamerica;
 
@@ -68,14 +70,14 @@ impl Bankofamerica {
         } = auth;
         let is_post_method = matches!(http_method, services::Method::Post);
         let digest_str = if is_post_method { "digest " } else { "" };
-        let headers = format!("host date (request-target) {digest_str}v-c-merchant-id");
+        let headers = format!("host date (request-target) {digest_str}{V_C_MERCHANT_ID}");
         let request_target = if is_post_method {
             format!("(request-target): post {resource}\ndigest: SHA-256={payload}\n")
         } else {
             format!("(request-target): get {resource}\n")
         };
         let signature_string = format!(
-            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
+            "host: {host}\ndate: {date}\n{request_target}{V_C_MERCHANT_ID}: {}",
             merchant_account.peek()
         );
         let key_value = consts::BASE64_ENGINE
@@ -116,10 +118,7 @@ where
     {
         let date = OffsetDateTime::now_utc();
         let boa_req = self.get_request_body(req)?;
-        let http_method = match boa_req {
-            Some(_) => common_utils::request::Method::Post,
-            None => common_utils::request::Method::Get,
-        };
+        let http_method = self.get_http_method();
         let auth = bankofamerica::BankofamericaAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.bankofamerica.base_url.as_str();
@@ -159,10 +158,7 @@ where
                 headers::ACCEPT.to_string(),
                 "application/hal+json;charset=utf-8".to_string().into(),
             ),
-            (
-                "v-c-merchant-id".to_string(),
-                merchant_account.into_masked(),
-            ),
+            (V_C_MERCHANT_ID.to_string(), merchant_account.into_masked()),
             ("Date".to_string(), date.to_string().into()),
             ("Host".to_string(), host.to_string().into()),
             ("Signature".to_string(), signature.into_masked()),
@@ -202,12 +198,6 @@ impl ConnectorCommon for Bankofamerica {
             .response
             .parse_struct("BankOfAmerica ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let details = response.details.unwrap_or_default();
-        let connector_reason = details
-            .iter()
-            .map(|det| format!("{} : {}", det.field, det.reason))
-            .collect::<Vec<_>>()
-            .join(", ");
 
         let error_message = if res.status_code == 401 {
             consts::CONNECTOR_UNAUTHORIZED_ERROR
@@ -228,6 +218,15 @@ impl ConnectorCommon for Bankofamerica {
                     .map_or(error_message.to_string(), |message| message),
             ),
         };
+        let connector_reason = match response.details {
+            Some(details) => details
+                .iter()
+                .map(|det| format!("{} : {}", det.field, det.reason))
+                .collect::<Vec<_>>()
+                .join(", "),
+            None => message.clone(),
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
@@ -357,7 +356,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             },
             is_auto_capture,
         ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -381,6 +379,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
+    }
+
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Get
     }
 
     fn get_url(
@@ -434,7 +436,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             },
             is_auto_capture,
         ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -467,9 +468,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}pts/v2/payments/{}/captures",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}pts/v2/payments/{connector_payment_id}/captures",
+            self.base_url(connectors)
         ))
     }
 
@@ -528,7 +528,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             },
             true,
         ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -557,9 +556,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}pts/v2/payments/{}/voids",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}pts/v2/payments/{connector_payment_id}/voids",
+            self.base_url(connectors)
         ))
     }
 
@@ -613,7 +611,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             },
             false,
         ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -646,9 +643,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}pts/v2/payments/{}/refunds",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}pts/v2/payments/{connector_payment_id}/refunds",
+            self.base_url(connectors)
         ))
     }
 
@@ -727,6 +723,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         self.common_get_content_type()
     }
 
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Get
+    }
+
     fn get_url(
         &self,
         req: &types::RefundSyncRouterData,
@@ -734,9 +734,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}tss/v2/transactions/{}",
-            self.base_url(connectors),
-            refund_id
+            "{}tss/v2/transactions/{refund_id}",
+            self.base_url(connectors)
         ))
     }
 

@@ -4,12 +4,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, AddressDetailsData, CardData, CardIssuer, PhoneDetailsData, RouterData,
-    },
+    connector::utils::{self, AddressDetailsData, CardData, CardIssuer, RouterData},
     consts,
     core::errors,
-    pii::PeekInterface,
     types::{
         self,
         api::{self, enums as api_enums},
@@ -73,8 +70,7 @@ impl<T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankofamericaPaymentsRequest {
     processing_information: ProcessingInformation,
@@ -83,26 +79,26 @@ pub struct BankofamericaPaymentsRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
     capture: bool,
     capture_options: Option<CaptureOptions>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureOptions {
     capture_sequence_number: u32,
     total_capture_count: u32,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct PaymentInformation {
     card: Card,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     number: cards::CardNumber,
@@ -113,21 +109,21 @@ pub struct Card {
     card_type: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformationWithBill {
     amount_details: Amount,
     bill_to: BillTo,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
     total_amount: String,
     currency: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
     first_name: Secret<String>,
@@ -138,14 +134,12 @@ pub struct BillTo {
     postal_code: Secret<String>,
     country: api_enums::CountryAlpha2,
     email: pii::Email,
-    phone_number: Secret<String>,
 }
 
 // for bankofamerica each item in Billing is mandatory
 fn build_bill_to(
     address_details: &payments::Address,
     email: pii::Email,
-    phone_number: Secret<String>,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let address = address_details
         .address
@@ -160,7 +154,6 @@ fn build_bill_to(
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
         email,
-        phone_number,
     })
 }
 
@@ -168,7 +161,7 @@ fn get_card_type(card_issuer: CardIssuer) -> &'static str {
     match card_issuer {
         CardIssuer::AmericanExpress => "003",
         CardIssuer::Master => "002",
-        //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping shoule be "024"
+        //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         CardIssuer::Maestro => "042",
         CardIssuer::Visa => "001",
         CardIssuer::Discover => "004",
@@ -178,7 +171,7 @@ fn get_card_type(card_issuer: CardIssuer) -> &'static str {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
     code: Option<String>,
@@ -193,19 +186,13 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                let phone = item.router_data.get_billing_phone()?;
-                let phone_number = phone.get_number()?;
-                let country_code = phone.get_country_code()?;
-                let number_with_code =
-                    Secret::new(format!("{}{}", country_code, phone_number.peek()));
                 let email = item
                     .router_data
                     .request
                     .email
                     .clone()
                     .ok_or_else(utils::missing_field_err("email"))?;
-                let bill_to =
-                    build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
+                let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
 
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {
@@ -248,12 +235,25 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     client_reference_information,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
         }
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaPaymentStatus {
     Authorized,
@@ -265,8 +265,6 @@ pub enum BankofamericaPaymentStatus {
     Declined,
     AuthorizedPendingReview,
     Transmitted,
-    #[default]
-    Processing,
 }
 
 impl From<BankofamericaPaymentStatus> for enums::AttemptStatus {
@@ -283,14 +281,12 @@ impl From<BankofamericaPaymentStatus> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Failed | BankofamericaPaymentStatus::Declined => {
                 Self::Failure
             }
-            BankofamericaPaymentStatus::Processing => Self::Authorizing,
             BankofamericaPaymentStatus::Pending => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct BankofamericaPaymentsResponse {
     id: String,
     status: BankofamericaPaymentStatus,
@@ -298,7 +294,7 @@ pub struct BankofamericaPaymentsResponse {
     client_reference_information: Option<ClientReferenceInformation>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct BankofamericaErrorInformation {
     reason: String,
     message: String,
@@ -422,13 +418,13 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformation {
     amount_details: Amount,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankofamericaCaptureRequest {
     order_information: OrderInformation,
@@ -456,7 +452,7 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct BankofamericaVoidRequest {
     client_reference_information: ClientReferenceInformation,
 }
@@ -472,7 +468,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BankofamericaVoidRequest {
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankofamericaRefundRequest {
     order_information: OrderInformation,
@@ -502,8 +498,13 @@ impl From<BankofamericaPaymentStatus> for enums::RefundStatus {
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
                 Self::Success
             }
-            BankofamericaPaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
+            BankofamericaPaymentStatus::Failed
+            | BankofamericaPaymentStatus::Authorized
+            | BankofamericaPaymentStatus::Voided
+            | BankofamericaPaymentStatus::Reversed
+            | BankofamericaPaymentStatus::Pending
+            | BankofamericaPaymentStatus::Declined
+            | BankofamericaPaymentStatus::AuthorizedPendingReview => Self::Pending,
         }
     }
 }
