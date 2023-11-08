@@ -33,7 +33,7 @@ pub mod payouts;
 mod query;
 pub mod refund;
 pub mod user;
-pub mod user_roles;
+pub mod user_role;
 
 pub use data_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
@@ -46,7 +46,7 @@ pub use self::{
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, locker_mock_up::*, mandate::*,
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
     payment_method::*, payout_attempt::*, payouts::*, process_tracker::*, refund::*,
-    reverse_lookup::*, routing_algorithm::*, user::*, user_roles::*,
+    reverse_lookup::*, routing_algorithm::*, user::*, user_role::*,
 };
 use crate::types::api::routing;
 

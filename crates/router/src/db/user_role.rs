@@ -1,4 +1,4 @@
-use diesel_models::user_roles as storage;
+use diesel_models::user_role as storage;
 use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
@@ -12,32 +12,32 @@ use crate::{
 pub trait UserRoleInterface {
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRolesNew,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError>;
+        user_role: storage::UserRoleNew,
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError>;
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError>;
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
     async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError>;
 
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<Vec<storage::UserRoles>, errors::StorageError>;
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
 impl UserRoleInterface for Store {
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRolesNew,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+        user_role: storage::UserRoleNew,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         user_role
             .insert(&conn)
@@ -49,9 +49,9 @@ impl UserRoleInterface for Store {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRoles::find_by_user_id(&conn, user_id.to_owned())
+        storage::UserRole::find_by_user_id(&conn, user_id.to_owned())
             .await
             .map_err(Into::into)
             .into_report()
@@ -62,9 +62,9 @@ impl UserRoleInterface for Store {
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRoles::update_by_user_id_merchant_id(
+        storage::UserRole::update_by_user_id_merchant_id(
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
@@ -77,7 +77,7 @@ impl UserRoleInterface for Store {
 
     async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRoles::delete_by_user_id(&conn, user_id.to_owned())
+        storage::UserRole::delete_by_user_id(&conn, user_id.to_owned())
             .await
             .map_err(Into::into)
             .into_report()
@@ -86,9 +86,9 @@ impl UserRoleInterface for Store {
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<Vec<storage::UserRoles>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRoles::list_by_user_id(&conn, user_id.to_owned())
+        storage::UserRole::list_by_user_id(&conn, user_id.to_owned())
             .await
             .map_err(Into::into)
             .into_report()
@@ -99,8 +99,8 @@ impl UserRoleInterface for Store {
 impl UserRoleInterface for MockDb {
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRolesNew,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+        user_role: storage::UserRoleNew,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
         if user_roles
             .iter()
@@ -111,7 +111,7 @@ impl UserRoleInterface for MockDb {
                 key: None,
             })?
         }
-        let user_role = storage::UserRoles {
+        let user_role = storage::UserRole {
             id: user_roles
                 .len()
                 .try_into()
@@ -134,7 +134,7 @@ impl UserRoleInterface for MockDb {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
         user_roles
             .iter()
@@ -153,7 +153,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
         user_roles
             .iter_mut()
@@ -163,7 +163,7 @@ impl UserRoleInterface for MockDb {
                     storage::UserRoleUpdate::UpdateRole {
                         role_id,
                         modified_by,
-                    } => storage::UserRoles {
+                    } => storage::UserRole {
                         role_id: role_id.to_string(),
                         last_modified_by: modified_by.to_string(),
                         ..user_role.to_owned()
@@ -171,7 +171,7 @@ impl UserRoleInterface for MockDb {
                     storage::UserRoleUpdate::UpdateStatus {
                         status,
                         modified_by,
-                    } => storage::UserRoles {
+                    } => storage::UserRole {
                         status: status.to_owned(),
                         last_modified_by: modified_by.to_owned(),
                         ..user_role.to_owned()
@@ -202,7 +202,7 @@ impl UserRoleInterface for MockDb {
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<Vec<storage::UserRoles>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
         Ok(user_roles
@@ -223,8 +223,8 @@ impl UserRoleInterface for MockDb {
 impl UserRoleInterface for super::KafkaStore {
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRolesNew,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+        user_role: storage::UserRoleNew,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
     async fn update_user_role_by_user_id_merchant_id(
@@ -232,7 +232,7 @@ impl UserRoleInterface for super::KafkaStore {
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
@@ -240,7 +240,7 @@ impl UserRoleInterface for super::KafkaStore {
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<storage::UserRoles, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store.find_user_role_by_user_id(user_id).await
     }
     async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError> {
@@ -249,7 +249,7 @@ impl UserRoleInterface for super::KafkaStore {
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
-    ) -> CustomResult<Vec<storage::UserRoles>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         self.diesel_store.list_user_roles_by_user_id(user_id).await
     }
 }

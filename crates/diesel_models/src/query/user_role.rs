@@ -1,16 +1,16 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::tracing::{self, instrument};
 
-use crate::{query::generics, schema::user_roles::dsl, user_roles::*, PgPooledConn, StorageResult};
+use crate::{query::generics, schema::user_roles::dsl, user_role::*, PgPooledConn, StorageResult};
 
-impl UserRolesNew {
+impl UserRoleNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRoles> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRole> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl UserRoles {
+impl UserRole {
     pub async fn find_by_user_id(conn: &PgPooledConn, user_id: String) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,

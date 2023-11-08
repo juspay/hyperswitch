@@ -5,7 +5,7 @@ use crate::{enums, schema::user_roles};
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(table_name = user_roles)]
-pub struct UserRoles {
+pub struct UserRole {
     pub id: i32,
     pub user_id: String,
     pub merchant_id: String,
@@ -20,7 +20,7 @@ pub struct UserRoles {
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = user_roles)]
-pub struct UserRolesNew {
+pub struct UserRoleNew {
     pub user_id: String,
     pub merchant_id: String,
     pub role_id: String,

@@ -43,7 +43,7 @@ pub struct MockDb {
     pub payment_link: Arc<Mutex<Vec<store::payment_link::PaymentLink>>>,
     pub organizations: Arc<Mutex<Vec<store::organization::Organization>>>,
     pub users: Arc<Mutex<Vec<store::user::User>>>,
-    pub user_roles: Arc<Mutex<Vec<store::user_roles::UserRoles>>>,
+    pub user_roles: Arc<Mutex<Vec<store::user_role::UserRole>>>,
 }
 
 impl MockDb {
