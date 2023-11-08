@@ -16,5 +16,5 @@ CREATE TABLE user_roles (
 );
 
 
-CREATE IF NOT EXISTS INDEX user_id_roles_index ON user_roles (user_id);
-CREATE IF NOT EXISTS INDEX user_mid_roles_index ON user_roles (merchant_id);
+CREATE INDEX IF NOT EXISTS  user_id_roles_index ON user_roles (user_id);
+CREATE INDEX IF NOT EXISTS  user_mid_roles_index ON user_roles (merchant_id);
