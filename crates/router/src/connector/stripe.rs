@@ -225,6 +225,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -351,6 +352,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -473,6 +475,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -603,6 +606,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -743,6 +747,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -897,6 +902,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1016,6 +1022,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1170,6 +1177,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1287,6 +1295,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1390,6 +1399,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1534,6 +1544,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1636,6 +1647,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }
@@ -1761,6 +1773,7 @@ impl
                     })
                     .unwrap_or(message)
             }),
+            attempt_status: None,
         })
     }
 }

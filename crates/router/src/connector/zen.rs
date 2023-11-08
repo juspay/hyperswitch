@@ -126,6 +126,7 @@ impl ConnectorCommon for Zen {
                 |error| error.message,
             ),
             reason: None,
+            attempt_status: None,
         })
     }
 }

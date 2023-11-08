@@ -122,6 +122,7 @@ impl ConnectorCommon for Gocardless {
             code: response.error.code.to_string(),
             message: response.error.error_type,
             reason: Some(error_reason.join("; ")),
+            attempt_status: None,
         })
     }
 }

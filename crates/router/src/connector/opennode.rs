@@ -110,6 +110,7 @@ impl ConnectorCommon for Opennode {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.message,
             reason: None,
+            attempt_status: None,
         })
     }
 }

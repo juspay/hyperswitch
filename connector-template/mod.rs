@@ -105,6 +105,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             code: response.code,
             message: response.message,
             reason: response.reason,
+            attempt_status: None,
         })
     }
 }

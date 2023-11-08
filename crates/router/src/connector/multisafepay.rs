@@ -83,6 +83,7 @@ impl ConnectorCommon for Multisafepay {
             code: response.error_code.to_string(),
             message: response.error_info,
             reason: None,
+            attempt_status: None,
         })
     }
 }

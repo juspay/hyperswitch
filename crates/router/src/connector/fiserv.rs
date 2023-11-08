@@ -151,6 +151,7 @@ impl ConnectorCommon for Fiserv {
                         message: first_error.message.to_owned(),
                         reason: first_error.field.to_owned(),
                         status_code: res.status_code,
+                        attempt_status: None,
                     })
             })
             .unwrap_or(types::ErrorResponse {
@@ -158,6 +159,7 @@ impl ConnectorCommon for Fiserv {
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
                 status_code: res.status_code,
+                attempt_status: None,
             }))
     }
 }

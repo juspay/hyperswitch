@@ -440,6 +440,7 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
             message: response.responsetext,
             reason: None,
             status_code: http_code,
+            attempt_status: None,
         }
     }
 }

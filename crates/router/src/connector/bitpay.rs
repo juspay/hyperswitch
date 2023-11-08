@@ -120,6 +120,7 @@ impl ConnectorCommon for Bitpay {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.error,
             reason: response.message,
+            attempt_status: None,
         })
     }
 }

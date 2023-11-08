@@ -119,6 +119,7 @@ impl ConnectorCommon for Cashtocode {
             code: response.error.to_string(),
             message: response.error_description,
             reason: None,
+            attempt_status: None,
         })
     }
 }

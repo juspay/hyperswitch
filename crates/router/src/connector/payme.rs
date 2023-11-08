@@ -97,6 +97,7 @@ impl ConnectorCommon for Payme {
                 "{}, additional info: {}",
                 response.status_error_details, response.status_additional_info
             )),
+            attempt_status: None,
         })
     }
 }

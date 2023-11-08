@@ -511,6 +511,7 @@ impl<F, T>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 _ => {
                     let connector_response_reference_id =

@@ -123,6 +123,7 @@ impl ConnectorCommon for Payeezy {
             code: response.transaction_status,
             message: error_messages.join(", "),
             reason: None,
+            attempt_status: None,
         })
     }
 }

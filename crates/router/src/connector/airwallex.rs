@@ -93,6 +93,7 @@ impl ConnectorCommon for Airwallex {
             code: response.code,
             message: response.message,
             reason: response.source,
+            attempt_status: None,
         })
     }
 }

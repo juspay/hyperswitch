@@ -135,6 +135,7 @@ impl ConnectorCommon for Dlocal {
             code: response.code.to_string(),
             message: response.message,
             reason: response.param,
+            attempt_status: None,
         })
     }
 }

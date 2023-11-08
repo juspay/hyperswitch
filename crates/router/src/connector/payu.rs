@@ -96,6 +96,7 @@ impl ConnectorCommon for Payu {
             code: response.status.status_code,
             message: response.status.status_desc,
             reason: response.status.code_literal,
+            attempt_status: None,
         })
     }
 }
@@ -304,6 +305,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             code: response.error,
             message: response.error_description,
             reason: None,
+            attempt_status: None,
         })
     }
 }

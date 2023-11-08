@@ -111,6 +111,7 @@ impl ConnectorCommon for Bankofamerica {
             code: response.code,
             message: response.message,
             reason: response.reason,
+            attempt_status: None,
         })
     }
 }

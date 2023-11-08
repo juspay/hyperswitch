@@ -110,6 +110,7 @@ impl ConnectorCommon for Prophetpay {
             code: response.code,
             message: response.message,
             reason: response.reason,
+            attempt_status: None,
         })
     }
 }

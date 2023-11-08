@@ -136,6 +136,7 @@ impl ConnectorCommon for Cybersource {
             code,
             message,
             reason: Some(connector_reason),
+            attempt_status: None,
         })
     }
 }

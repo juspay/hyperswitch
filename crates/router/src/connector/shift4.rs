@@ -99,6 +99,7 @@ impl ConnectorCommon for Shift4 {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.error.message,
             reason: None,
+            attempt_status: None,
         })
     }
 }

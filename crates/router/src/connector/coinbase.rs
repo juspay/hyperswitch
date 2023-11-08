@@ -108,6 +108,7 @@ impl ConnectorCommon for Coinbase {
             code: response.error.error_type,
             message: response.error.message,
             reason: response.error.code,
+            attempt_status: None,
         })
     }
 }

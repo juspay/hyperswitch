@@ -78,6 +78,7 @@ impl ConnectorCommon for Aci {
                     .collect::<Vec<String>>()
                     .join("; ")
             }),
+            attempt_status: None,
         })
     }
 }

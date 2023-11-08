@@ -138,6 +138,7 @@ impl ConnectorCommon for Trustpay {
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: reason.or(response_data.description),
+                    attempt_status: None,
                 })
             }
             Err(error_msg) => {
@@ -293,6 +294,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
             reason: response.result_info.additional_info,
+            attempt_status: None,
         })
     }
 }
@@ -366,6 +368,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             // message vary for the same code, so relying on code alone as it is unique
             message: response.status.to_string(),
             reason: Some(response.payment_description),
+            attempt_status: None,
         })
     }
 

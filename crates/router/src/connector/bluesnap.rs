@@ -126,6 +126,7 @@ impl ConnectorCommon for Bluesnap {
                         .map(|error_code_message| error_code_message.error_message)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: Some(reason),
+                    attempt_status: None,
                 }
             }
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
@@ -133,23 +134,28 @@ impl ConnectorCommon for Bluesnap {
                 code: error_res.error_code.clone(),
                 message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
+                attempt_status: None,
             },
             bluesnap::BluesnapErrors::General(error_response) => {
-                let error_res = if res.status_code == 403
+                let (error_res, attempt_status) = if res.status_code == 403
                     && error_response.contains(BLUESNAP_TRANSACTION_NOT_FOUND)
                 {
-                    format!(
-                        "{} in bluesnap dashboard",
-                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                    (
+                        format!(
+                            "{} in bluesnap dashboard",
+                            consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                        ),
+                        Some(enums::AttemptStatus::Failure), // when bluesnap throws 403 for payment not found, we update the payment status to failure.
                     )
                 } else {
-                    error_response.clone()
+                    (error_response.clone(), None)
                 };
                 ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: error_response,
                     reason: Some(error_res),
+                    attempt_status,
                 }
             }
         };

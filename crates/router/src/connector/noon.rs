@@ -136,6 +136,7 @@ impl ConnectorCommon for Noon {
             code: response.result_code.to_string(),
             message: response.class_description,
             reason: Some(response.message),
+            attempt_status: None,
         })
     }
 }
