@@ -480,7 +480,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = tsys::TsysRefundRequest::try_from(req)?;
+        let req_obj = tsys::TsysRefundRequest::try_from(&connector_router_data)?;
         let tsys_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<tsys::TsysRefundRequest>::encode_to_string_of_json,
