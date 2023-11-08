@@ -71,7 +71,10 @@ pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
-    #[cfg(feature = "business_profile_routing")]
+    #[cfg(any(
+        feature = "business_profile_routing",
+        feature = "profile_specific_fallback_routing"
+    ))]
     profile_id: Option<String>,
 }
 static ROUTING_CACHE: StaticCache<CachedAlgorithm> = StaticCache::new();
@@ -843,8 +846,11 @@ pub async fn perform_session_flow_routing(
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
-            #[cfg(feature = "business_profile_routing")]
-            profile_id: session_input.payment_intent.clone().profile_id,
+            #[cfg(any(
+                feature = "business_profile_routing",
+                feature = "profile_specific_fallback_routing"
+            ))]
+            profile_id: session_input.payment_intent.profile_id.clone(),
         };
         let maybe_choice = perform_session_routing_for_pm_type(session_pm_input).await?;
 
