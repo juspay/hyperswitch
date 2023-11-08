@@ -33,9 +33,3 @@ impl ApiEventMetric for CustomerId {
         })
     }
 }
-
-// impl ApiEventMetric for (PaymentMethodListRequest, CustomerId) {
-//     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-//         self.1.get_api_event_type()
-//     }
-// }
