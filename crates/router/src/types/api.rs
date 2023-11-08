@@ -216,7 +216,7 @@ pub struct SessionConnectorData {
 
 /// Session Surcharge type
 pub enum SessionSurchargeDetails {
-    /// Surcharge is calculated by us
+    /// Surcharge is calculated by hyperswitch
     Calculated(SurchargeMetadata),
     /// Surcharge is sent by merchant
     PreDetermined(SurchargeDetailsResponse),

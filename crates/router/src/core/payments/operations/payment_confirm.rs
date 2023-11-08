@@ -728,69 +728,72 @@ impl PaymentConfirm {
         payment_attempt: &storage::PaymentAttempt,
         request: &api::PaymentsRequest,
     ) -> RouterResult<()> {
-        if let Some(request_surcharge_details) = request.surcharge_details {
-            let payment_method_data = request
-                .payment_method_data
-                .as_ref()
-                .get_required_value("payment_method_data")
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "payment_method_data is required when surcharge_details is not null"
-                        .into(),
-                })?;
-
-            if let Some(payment_method_type) =
-                payment_method_data.get_payment_method_type_if_session_token_type()
-            {
-                let invalid_surcharge_details_error = Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "surcharge_details sent in session token flow doesn't match with the one sent in confirm request".into(),
-                }.into());
-                if let Some(attempt_surcharge_amount) = payment_attempt.surcharge_amount {
-                    // payment_attempt.surcharge_amount will be Some if some surcharge was sent in payment create
-                    // if surcharge was sent in payment create call, the same would have been sent to the connector during session call
-                    // So verify the same
-                    if request_surcharge_details.surcharge_amount != attempt_surcharge_amount
-                        || request_surcharge_details.tax_amount != payment_attempt.tax_amount
-                    {
-                        return invalid_surcharge_details_error;
-                    }
-                } else {
-                    // is not sent in payment create
-                    // verify that any generated surcharge sent in session flow is same as the one sent in confirm
-                    match get_individual_surcharge_detail_from_redis(
-                        state,
-                        &payment_method_type.into(),
-                        &payment_method_type,
-                        None,
-                        &payment_attempt.attempt_id,
-                    )
-                    .await
-                    {
-                        Ok(surcharge_details) => {
-                            if surcharge_details
-                                .is_request_surcharge_matching(request_surcharge_details)
-                            {
-                                return Ok(());
-                            } else {
-                                return invalid_surcharge_details_error;
-                            }
+        match (
+            request.surcharge_details,
+            request.payment_method_data.as_ref(),
+        ) {
+            (Some(request_surcharge_details), Some(payment_method_data)) => {
+                if let Some(payment_method_type) =
+                    payment_method_data.get_payment_method_type_if_session_token_type()
+                {
+                    let invalid_surcharge_details_error = Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "surcharge_details sent in session token flow doesn't match with the one sent in confirm request".into(),
+                    }.into());
+                    if let Some(attempt_surcharge_amount) = payment_attempt.surcharge_amount {
+                        // payment_attempt.surcharge_amount will be Some if some surcharge was sent in payment create
+                        // if surcharge was sent in payment create call, the same would have been sent to the connector during session call
+                        // So verify the same
+                        if request_surcharge_details.surcharge_amount != attempt_surcharge_amount
+                            || request_surcharge_details.tax_amount != payment_attempt.tax_amount
+                        {
+                            return invalid_surcharge_details_error;
                         }
-                        Err(err) if err.current_context() == &RedisError::NotFound => {
-                            if request_surcharge_details.surcharge_amount == 0
-                                && request_surcharge_details.tax_amount.unwrap_or(0) == 0
-                            {
-                                return Ok(());
-                            } else {
-                                return invalid_surcharge_details_error;
+                    } else {
+                        // is not sent in payment create
+                        // verify that any calculated surcharge sent in session flow is same as the one sent in confirm
+                        match get_individual_surcharge_detail_from_redis(
+                            state,
+                            &payment_method_type.into(),
+                            &payment_method_type,
+                            None,
+                            &payment_attempt.attempt_id,
+                        )
+                        .await
+                        {
+                            Ok(surcharge_details) => {
+                                if surcharge_details
+                                    .is_request_surcharge_matching(request_surcharge_details)
+                                {
+                                    return Ok(());
+                                } else {
+                                    return invalid_surcharge_details_error;
+                                }
                             }
-                        }
-                        Err(_) => {
-                            return Err(errors::ApiErrorResponse::InternalServerError.into())
-                                .attach_printable("Failed to fetch redis value");
+                            Err(err) if err.current_context() == &RedisError::NotFound => {
+                                if request_surcharge_details.surcharge_amount == 0
+                                    && request_surcharge_details.tax_amount.unwrap_or(0) == 0
+                                {
+                                    return Ok(());
+                                } else {
+                                    return invalid_surcharge_details_error;
+                                }
+                            }
+                            Err(_) => {
+                                return Err(errors::ApiErrorResponse::InternalServerError.into())
+                                    .attach_printable("Failed to fetch redis value");
+                            }
                         }
                     }
                 }
+                return Ok(());
             }
+            (Some(_request_surcharge_details), None) => {
+                Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_data",
+                }
+                .into())
+            }
+            _ => Ok(()),
         }
-        Ok(())
     }
 }
