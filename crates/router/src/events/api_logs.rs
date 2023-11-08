@@ -1,10 +1,6 @@
-// mod customer;
-// mod payment;
-// mod payouts;
-// mod refund;
-// mod routing;
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
 use common_utils::impl_misc_api_event_type;
+use actix_web::HttpRequest;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -35,6 +31,9 @@ pub struct ApiEvent {
     #[serde(flatten)]
     auth_type: AuthenticationType,
     request: serde_json::Value,
+    user_agent: Option<String>,
+    ip_addr: Option<String>,
+    url_path: String,
     response: Option<serde_json::Value>,
     #[serde(flatten)]
     event_type: ApiEventsType,
@@ -51,6 +50,7 @@ impl ApiEvent {
         response: Option<serde_json::Value>,
         auth_type: AuthenticationType,
         event_type: ApiEventsType,
+        http_req: &HttpRequest,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
@@ -61,6 +61,15 @@ impl ApiEvent {
             request,
             response,
             auth_type,
+            ip_addr: http_req
+                .connection_info()
+                .realip_remote_addr()
+                .map(ToOwned::to_owned),
+            user_agent: http_req
+                .headers()
+                .get("user-agent")
+                .and_then(|user_agent_value| user_agent_value.to_str().ok().map(ToOwned::to_owned)),
+            url_path: http_req.path().to_string(),
             event_type,
         }
     }

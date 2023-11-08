@@ -108,6 +108,7 @@ impl ConnectorCommon for Coinbase {
             code: response.error.error_type,
             message: response.error.message,
             reason: response.error.code,
+            attempt_status: None,
         })
     }
 }
@@ -183,6 +184,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = coinbase::CoinbasePaymentsRequest::try_from(req)?;
         let coinbase_payment_request = types::RequestBody::log_and_get_request_body(
@@ -207,7 +209,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
