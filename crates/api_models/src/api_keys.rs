@@ -129,6 +129,12 @@ pub struct UpdateApiKeyRequest {
     /// rotating your keys once every 6 months.
     #[schema(example = "2022-09-10T10:11:12Z")]
     pub expiration: Option<ApiKeyExpiration>,
+
+    #[serde(skip_deserializing)]
+    pub key_id: String,
+
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
 }
 
 /// The response body for revoking an API Key.
