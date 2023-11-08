@@ -126,11 +126,9 @@ pub async fn intiate_payment_link_flow(
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
         sdk_theme: payment_link_config.clone().and_then(|pl_config| {
-            pl_config.color_scheme.map(|color| {
-                color
-                    .sdk_theme
-                    .unwrap_or(default_sdk_theme.clone().to_string())
-            })
+            pl_config
+                .color_scheme
+                .map(|color| color.sdk_theme.unwrap_or(default_sdk_theme.to_string()))
         }),
     };
 
