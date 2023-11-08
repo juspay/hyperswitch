@@ -58,6 +58,10 @@ impl ConnectorCommon for Nmi {
         "nmi"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.nmi.base_url.as_ref()
     }
@@ -210,7 +214,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
+        let connector_router_data = nmi::NmiRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = nmi::NmiPaymentsRequest::try_from(&connector_router_data)?;
         let nmi_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<nmi::NmiPaymentsRequest>::url_encode,
@@ -351,7 +361,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = nmi::NmiCaptureRequest::try_from(req)?;
+        let connector_router_data = nmi::NmiRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = nmi::NmiCaptureRequest::try_from(&connector_router_data)?;
         let nmi_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<NmiCaptureRequest>::url_encode,
@@ -491,7 +507,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = nmi::NmiRefundRequest::try_from(req)?;
+        let connector_router_data = nmi::NmiRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = nmi::NmiRefundRequest::try_from(&connector_router_data)?;
         let nmi_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<nmi::NmiRefundRequest>::url_encode,

@@ -70,6 +70,10 @@ impl ConnectorCommon for Stax {
         "stax"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -347,7 +351,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = stax::StaxPaymentsRequest::try_from(req)?;
+        let connector_router_data = stax::StaxRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = stax::StaxPaymentsRequest::try_from(&connector_router_data)?;
 
         let stax_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
@@ -503,7 +513,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = stax::StaxCaptureRequest::try_from(req)?;
+        let connector_router_data = stax::StaxRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = stax::StaxCaptureRequest::try_from(&connector_router_data)?;
         let stax_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<stax::StaxCaptureRequest>::encode_to_string_of_json,
@@ -657,7 +673,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = stax::StaxRefundRequest::try_from(req)?;
+        let connector_router_data = stax::StaxRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = stax::StaxRefundRequest::try_from(&connector_router_data)?;
         let stax_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<stax::StaxRefundRequest>::encode_to_string_of_json,
