@@ -9,8 +9,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        RouterData,
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData, PaymentMethodTokenizationRequestData, BrowserInformationData,
     },
     core::errors,
     services, types,
@@ -148,10 +147,6 @@ pub struct Address {
     pub country: api_models::enums::CountryAlpha2,
 }
 
-pub struct MollieBrowserInfo {
-    language: String,
-}
-
 impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MolliePaymentsRequest {
     type Error = Error;
     fn try_from(
@@ -287,12 +282,9 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
                 let card_cvv = ccard.card_cvc;
-                let browser_info = get_browser_info(item)?;
-                let locale = browser_info
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info.language",
-                    })?
-                    .language;
+                let locale = item
+                    .request
+                    .get_browser_info()?.get_language()?;
                 let testmode =
                     item.test_mode
                         .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -384,24 +376,6 @@ fn get_address_details(
         None => None,
     };
     Ok(address_details)
-}
-
-fn get_browser_info(
-    item: &types::TokenizationRouterData,
-) -> Result<Option<MollieBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
-    if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
-        item.request
-            .browser_info
-            .as_ref()
-            .map(|info| {
-                Ok(MollieBrowserInfo {
-                    language: info.get_language()?,
-                })
-            })
-            .transpose()
-    } else {
-        Ok(None)
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -642,6 +616,4 @@ pub struct ErrorResponse {
     pub title: Option<String>,
     pub detail: String,
     pub field: Option<String>,
-    #[serde(rename = "_links")]
-    pub links: Option<Links>,
 }
