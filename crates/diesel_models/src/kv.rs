@@ -27,13 +27,21 @@ pub struct TypedSql {
 }
 
 impl TypedSql {
-    pub fn to_field_value_pairs(&self) -> crate::StorageResult<Vec<(&str, String)>> {
-        Ok(vec![(
-            "typed_sql",
-            serde_json::to_string(self)
-                .into_report()
-                .change_context(errors::DatabaseError::QueryGenerationFailed)?,
-        )])
+    pub fn to_field_value_pairs(
+        &self,
+        request_id: String,
+        global_id: String,
+    ) -> crate::StorageResult<Vec<(&str, String)>> {
+        Ok(vec![
+            (
+                "typed_sql",
+                serde_json::to_string(self)
+                    .into_report()
+                    .change_context(errors::DatabaseError::QueryGenerationFailed)?,
+            ),
+            ("global_id", global_id),
+            ("request_id", request_id),
+        ])
     }
 }
 
