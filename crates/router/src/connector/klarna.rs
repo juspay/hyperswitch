@@ -75,6 +75,7 @@ impl ConnectorCommon for Klarna {
             code: response.error_code,
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason,
+            attempt_status: None,
         })
     }
 }
@@ -153,6 +154,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsSessionRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
@@ -177,7 +179,9 @@ impl
                 .headers(types::PaymentsSessionType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .body(types::PaymentsSessionType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -409,6 +413,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = klarna::KlarnaRouterData::try_from((
             &self.get_currency_unit(),
@@ -440,7 +445,9 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }

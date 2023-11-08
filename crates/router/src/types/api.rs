@@ -111,6 +111,7 @@ pub trait ConnectorCommon {
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
+            attempt_status: None,
         })
     }
 }
