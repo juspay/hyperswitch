@@ -4,7 +4,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PhoneDetailsData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, CardIssuer, PhoneDetailsData, RouterData,
+    },
     consts,
     core::errors,
     pii::PeekInterface,
@@ -107,6 +109,8 @@ pub struct Card {
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
+    #[serde(rename = "type")]
+    card_type: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -160,6 +164,20 @@ fn build_bill_to(
     })
 }
 
+fn get_card_type(card_issuer: CardIssuer) -> &'static str {
+    match card_issuer {
+        CardIssuer::AmericanExpress => "003",
+        CardIssuer::Master => "002",
+        //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping shoule be "024"
+        CardIssuer::Maestro => "042",
+        CardIssuer::Visa => "001",
+        CardIssuer::Discover => "004",
+        CardIssuer::DinersClub => "005",
+        CardIssuer::CarteBlanche => "006",
+        CardIssuer::JCB => "007",
+    }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
@@ -196,13 +214,18 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                     bill_to,
                 };
-
+                let card_issuer = ccard.get_card_issuer();
+                let card_type = match card_issuer {
+                    Ok(issuer) => Some(get_card_type(issuer).to_string()),
+                    Err(_) => None,
+                };
                 let payment_information = PaymentInformation {
                     card: Card {
                         number: ccard.card_number,
                         expiration_month: ccard.card_exp_month,
                         expiration_year: ccard.card_exp_year,
                         security_code: ccard.card_cvc,
+                        card_type,
                     },
                 };
 

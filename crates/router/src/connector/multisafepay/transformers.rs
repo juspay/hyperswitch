@@ -260,13 +260,13 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Maestro => Ok(Self::Maestro),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: issuer.to_string(),
-                    connector: "Multisafe pay",
-                }
-                .into())
+            utils::CardIssuer::DinersClub
+            | utils::CardIssuer::JCB
+            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotSupported {
+                message: issuer.to_string(),
+                connector: "Multisafe pay",
             }
+            .into()),
         }
     }
 }
