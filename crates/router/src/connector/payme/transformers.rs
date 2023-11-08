@@ -226,6 +226,7 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: pay_sale_response.status_error_details.to_owned(),
             status_code: http_code,
+            attempt_status: None,
         }
     }
 }
@@ -308,6 +309,7 @@ impl From<(&SaleQuery, u16)> for types::ErrorResponse {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: sale_query_response.sale_error_text.clone(),
             status_code: http_code,
+            attempt_status: None,
         }
     }
 }

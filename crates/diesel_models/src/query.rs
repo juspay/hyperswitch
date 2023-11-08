@@ -11,6 +11,7 @@ pub mod events;
 pub mod file;
 pub mod fraud_check;
 pub mod generics;
+pub mod gsm;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;

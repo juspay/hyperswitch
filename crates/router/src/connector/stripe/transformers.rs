@@ -2475,6 +2475,7 @@ impl<F, T>
                         })
                         .or(Some(error.message.clone())),
                     status_code: item.http_code,
+                    attempt_status: None,
                 });
 
         let connector_metadata =
