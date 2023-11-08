@@ -340,6 +340,7 @@ impl<F>
                     message: error.message,
                     reason: Some(error.reason),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
@@ -388,6 +389,7 @@ impl<F>
                     message: error.message,
                     reason: Some(error.reason),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
@@ -436,6 +438,7 @@ impl<F>
                     message: error.message,
                     reason: Some(error.reason),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(

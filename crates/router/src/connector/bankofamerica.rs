@@ -117,7 +117,7 @@ where
     ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
     {
         let date = OffsetDateTime::now_utc();
-        let boa_req = self.get_request_body(req)?;
+        let boa_req = self.get_request_body(req, connectors)?;
         let http_method = self.get_http_method();
         let auth = bankofamerica::BankofamericaAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
@@ -232,6 +232,7 @@ impl ConnectorCommon for Bankofamerica {
             code,
             message,
             reason: Some(connector_reason),
+            attempt_status: None,
         })
     }
 }
@@ -333,7 +334,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(self.get_request_body(req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -564,6 +567,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = bankofamerica::BankofamericaVoidRequest::try_from(req)?;
         let bankofamerica_void_request = types::RequestBody::log_and_get_request_body(
@@ -585,7 +589,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(self.get_request_body(req)?)
+                .body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
