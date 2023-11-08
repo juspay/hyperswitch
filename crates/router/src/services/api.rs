@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::{AttemptStatus, CaptureMethod};
+use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -136,6 +136,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_request_body(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
@@ -226,6 +227,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
             message: error_message.to_string(),
             reason: String::from_utf8(res.response.to_vec()).ok(),
             status_code: res.status_code,
+            attempt_status: None,
         })
     }
 
@@ -303,6 +305,7 @@ where
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
                     reason: None,
+                    attempt_status: None,
                 })
             } else {
                 None
@@ -406,15 +409,8 @@ where
                                         _ => {
                                             let error_res =
                                                 connector_integration.get_error_response(body)?;
-                                            if router_data.connector == "bluesnap"
-                                                && error_res.status_code == 403
-                                                && error_res.reason
-                                                    == Some(format!(
-                                                        "{} in bluesnap dashboard",
-                                                        consts::REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
-                                                    ))
-                                            {
-                                                router_data.status = AttemptStatus::Failure;
+                                            if let Some(status) = error_res.attempt_status {
+                                                router_data.status = status;
                                             };
                                             error_res
                                         }
@@ -434,6 +430,7 @@ where
                                     message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
                                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                                     status_code: 504,
+                                    attempt_status: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -855,6 +852,7 @@ where
         serialized_request,
         serialized_response,
         auth_type,
+        request,
     );
     match api_event.clone().try_into() {
         Ok(event) => {
