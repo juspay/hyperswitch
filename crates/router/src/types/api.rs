@@ -224,7 +224,7 @@ pub enum SessionSurchargeDetails {
 }
 
 impl SessionSurchargeDetails {
-    pub fn get_surcharge_details(
+    pub fn fetch_surcharge_details(
         &self,
         payment_method: &enums::PaymentMethod,
         payment_method_type: &enums::PaymentMethodType,

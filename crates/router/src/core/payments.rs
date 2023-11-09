@@ -949,7 +949,7 @@ where
             session_surcharge_details
                 .as_ref()
                 .and_then(|session_surcharge_details| {
-                    session_surcharge_details.get_surcharge_details(
+                    session_surcharge_details.fetch_surcharge_details(
                         &session_connector_data.payment_method_type.into(),
                         &session_connector_data.payment_method_type,
                         None,
