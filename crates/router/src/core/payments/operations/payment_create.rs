@@ -62,7 +62,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-        let (payment_intent, payment_attempt, connector_response);
+        let (payment_intent, payment_attempt);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -196,16 +196,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_id: payment_id.clone(),
             })?;
 
-        connector_response = db
-            .insert_connector_response(
-                Self::make_connector_response(&payment_attempt),
-                storage_scheme,
-            )
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                payment_id: payment_id.clone(),
-            })?;
-
         let mandate_id = request
             .mandate_id
             .as_ref()
@@ -300,7 +290,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 disputes: vec![],
                 attempts: None,
                 force_sync: None,
-                connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
@@ -725,24 +714,6 @@ impl PaymentCreate {
             surcharge_applicable: None,
             updated_by: merchant_account.storage_scheme.to_string(),
         })
-    }
-
-    #[instrument(skip_all)]
-    pub fn make_connector_response(
-        payment_attempt: &PaymentAttempt,
-    ) -> storage::ConnectorResponseNew {
-        storage::ConnectorResponseNew {
-            payment_id: payment_attempt.payment_id.clone(),
-            merchant_id: payment_attempt.merchant_id.clone(),
-            attempt_id: payment_attempt.attempt_id.clone(),
-            created_at: payment_attempt.created_at,
-            modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.connector.clone(),
-            connector_transaction_id: None,
-            authentication_data: None,
-            encoded_data: None,
-            updated_by: payment_attempt.updated_by.clone(),
-        }
     }
 
     #[instrument(skip_all)]
