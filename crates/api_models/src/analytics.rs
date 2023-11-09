@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
+use common_utils::events::ApiEventMetric;
 use time::PrimitiveDateTime;
 
-use common_utils::events::ApiEventMetric;
 use self::{
     payments::{PaymentDimensions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},

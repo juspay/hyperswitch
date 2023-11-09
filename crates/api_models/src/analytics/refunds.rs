@@ -2,8 +2,10 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-use common_utils::events::ApiEventMetric;
+
 use common_enums::enums::{Currency, RefundStatus};
+use common_utils::events::ApiEventMetric;
+
 use crate::analytics::MetricsResponse;
 
 #[derive(

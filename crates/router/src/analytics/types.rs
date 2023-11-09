@@ -1,6 +1,9 @@
 use std::{fmt::Display, str::FromStr};
 
-use common_utils::{errors::{CustomResult, ErrorSwitch, ParsingError}, events::ApiEventMetric};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch, ParsingError},
+    events::ApiEventMetric,
+};
 use error_stack::{report, Report, ResultExt};
 
 use super::query::QueryBuildingError;

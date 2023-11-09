@@ -2,11 +2,12 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-use common_utils::events::ApiEventMetric;
+
 use common_enums::enums::{AttemptStatus, AuthenticationType, Currency, PaymentMethod};
+use common_utils::events::ApiEventMetric;
 
 use super::{NameDescription, TimeRange};
-use crate::{enums::Connector, analytics::MetricsResponse};
+use crate::{analytics::MetricsResponse, enums::Connector};
 
 #[derive(Clone, Debug, Default, serde::Deserialize, masking::Serialize)]
 pub struct PaymentFilters {
