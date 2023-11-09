@@ -1,5 +1,5 @@
 -- Your SQL goes here
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(64) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -10,5 +10,5 @@ CREATE TABLE users (
     last_modified_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX user_id_index ON users (user_id);
-CREATE UNIQUE INDEX user_email_index ON users (email);
+CREATE UNIQUE INDEX IF NOT EXISTS user_id_index ON users (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS user_email_index ON users (email);

@@ -14,7 +14,8 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
-        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbUserStatus as UserStatus,
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind, 
+        
     };
 }
 pub use common_enums::*;
@@ -415,7 +416,7 @@ pub enum FraudCheckLastStep {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum UserStatus {

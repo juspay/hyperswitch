@@ -1,13 +1,11 @@
 -- Your SQL goes here
-CREATE TYPE "UserStatus" AS ENUM ('active', 'invitation_sent');
-
-CREATE TABLE user_roles (
+CREATE TABLE IF NOT EXISTS user_roles (
 	id SERIAL PRIMARY KEY,
 	user_id VARCHAR(64) NOT NULL,
 	merchant_id VARCHAR(64) NOT NULL,
 	role_id VARCHAR(64) NOT NULL,
 	org_id VARCHAR(64) NOT NULL, 
-	status "UserStatus" NOT NULL, 
+	status VARCHAR(64) NOT NULL, 
 	created_by VARCHAR(64) NOT NULL,
 	last_modified_by VARCHAR(64) NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT now(),

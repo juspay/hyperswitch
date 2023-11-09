@@ -937,7 +937,8 @@ diesel::table! {
         role_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        status -> UserStatus,
+        #[max_length = 64]
+        status -> Varchar,
         #[max_length = 64]
         created_by -> Varchar,
         #[max_length = 64]
