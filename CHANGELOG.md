@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.73.0+hotfix.1 (2023-11-09)
+
+### Refactors
+
+- **config:** Update payment method filter of Klarna in Stripe ([#2815](https://github.com/juspay/hyperswitch/pull/2815)) ([`cc17304`](https://github.com/juspay/hyperswitch/commit/cc1730402db601ecce415022ab4bff563b944e04))
+
+**Full Changelog:** [`v1.73.0...v1.73.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.73.0...v1.73.0+hotfix.1)
+
+- - -
+
 ## 1.73.0 (2023-11-07)
 
 ### Features
