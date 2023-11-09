@@ -13,7 +13,7 @@ use crate::{
     routes::AppState,
     services,
     types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 pub async fn retrieve_payment_link(
@@ -203,7 +203,10 @@ fn validate_sdk_requirements(
 
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
-) -> Result<Vec<Secret<serde_json::Value>>, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<
+    Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -228,18 +231,5 @@ fn validate_order_details(
         }
         order_details
     });
-
-    let order_details_as_value = updated_order_details
-        .iter()
-        .map(|order| {
-            utils::Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(&order)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "OrderDetailsWithAmount",
-                })
-                .attach_printable("Unable to parse OrderDetailsWithAmount")
-                .map(masking::Secret::new)
-        })
-        .collect::<Result<Vec<_>, _>>();
-
-    order_details_as_value
+    Ok(updated_order_details)
 }
