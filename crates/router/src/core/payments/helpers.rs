@@ -3082,7 +3082,7 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
-            | enums::AttemptStatus::PendingReview=> {
+            | enums::AttemptStatus::PendingReview => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
