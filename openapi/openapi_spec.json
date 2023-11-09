@@ -2464,7 +2464,8 @@
           "failure",
           "payment_method_awaited",
           "confirmation_awaited",
-          "device_data_collection_pending"
+          "device_data_collection_pending",
+          "pending_review"
         ]
       },
       "AuthenticationType": {
@@ -5750,7 +5751,8 @@
           "requires_payment_method",
           "requires_confirmation",
           "requires_capture",
-          "partially_captured"
+          "partially_captured",
+          "manual_review"
         ]
       },
       "JCSVoucherData": {
