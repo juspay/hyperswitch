@@ -1,6 +1,9 @@
 //! Gateway status mapping
 
-use common_utils::custom_serde;
+use common_utils::{
+    custom_serde,
+    events::{ApiEventMetric, ApiEventsType},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
@@ -93,5 +96,11 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             step_up_possible,
             ..Default::default()
         }
+    }
+}
+
+impl ApiEventMetric for GatewayStatusMap {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Gsm)
     }
 }

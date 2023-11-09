@@ -1,4 +1,5 @@
 pub mod customer;
+pub mod gsm;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
