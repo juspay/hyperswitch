@@ -110,6 +110,7 @@ impl ConnectorCommon for Opennode {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.message,
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -172,6 +173,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = opennode::OpennodeRouterData::try_from((
             &self.get_currency_unit(),
@@ -202,7 +204,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
