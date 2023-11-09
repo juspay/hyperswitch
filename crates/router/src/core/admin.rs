@@ -365,26 +365,12 @@ pub async fn create_business_profile_from_business_labels(
             ..Default::default()
         };
 
-        let business_profile_create_result = create_and_insert_business_profile(
+        create_and_insert_business_profile(
             db,
             business_profile_create_request,
             merchant_account.clone(),
         )
-        .await
-        .map_err(|business_profile_insert_error| {
-            // If there is any duplicate error, we need not take any action
-            crate::logger::warn!(
-                "Business profile already exists {business_profile_insert_error:?}"
-            );
-        });
-
-        // If a business_profile is created, then unset the default profile
-        if business_profile_create_result.is_ok() && merchant_account.default_profile.is_some() {
-            let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
-            db.update_merchant(merchant_account.clone(), unset_default_profile, key_store)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-        }
+        .await?;
     }
 
     Ok(())
@@ -1324,13 +1310,6 @@ pub async fn create_business_profile(
 
     let business_profile =
         create_and_insert_business_profile(db, request, merchant_account.clone()).await?;
-
-    if merchant_account.default_profile.is_some() {
-        let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
-        db.update_merchant(merchant_account, unset_default_profile, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    }
 
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
