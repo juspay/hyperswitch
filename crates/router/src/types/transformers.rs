@@ -83,7 +83,8 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
                 Self::RequiresCustomerAction
             }
-            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
+            storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::PendingReview => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
             storage_enums::AttemptStatus::Started
@@ -135,7 +136,8 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Unresolved
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PendingReview => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -403,7 +405,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::PaymentProcessing)
             }
             api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::RequiresCustomerAction => {
+            | api_enums::IntentStatus::RequiresCustomerAction
+            | api_enums::IntentStatus::ManualReview => {
                 Some(storage_enums::EventType::ActionRequired)
             }
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),

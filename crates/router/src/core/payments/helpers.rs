@@ -2786,7 +2786,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::Voided
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
-                    | enums::AttemptStatus::DeviceDataCollectionPending => {
+                    | enums::AttemptStatus::DeviceDataCollectionPending
+                    | enums::AttemptStatus::PendingReview => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             &metrics::CONTEXT,
                             1,
@@ -2856,7 +2857,8 @@ pub fn get_attempt_type(
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
-        | enums::IntentStatus::RequiresConfirmation => Ok(AttemptType::SameOld),
+        | enums::IntentStatus::RequiresConfirmation
+        | enums::IntentStatus::ManualReview => Ok(AttemptType::SameOld),
     }
 }
 
@@ -3079,7 +3081,8 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Voided
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
+            | enums::AttemptStatus::DeviceDataCollectionPending
+            | enums::AttemptStatus::PendingReview=> {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
@@ -3101,7 +3104,8 @@ pub fn is_manual_retry_allowed(
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
-        | enums::IntentStatus::RequiresConfirmation => None,
+        | enums::IntentStatus::RequiresConfirmation
+        | enums::IntentStatus::ManualReview => None,
     };
     let is_merchant_id_enabled_for_retries = !connector_request_reference_id_config
         .merchant_ids_send_payment_id_as_connector_request_id

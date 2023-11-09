@@ -318,6 +318,7 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            api_enums::IntentStatus::ManualReview => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture

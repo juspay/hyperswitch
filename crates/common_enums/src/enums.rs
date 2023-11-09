@@ -57,6 +57,7 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
+    PendingReview,
 }
 
 impl AttemptStatus {
@@ -84,7 +85,8 @@ impl AttemptStatus {
             | Self::Pending
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
-            | Self::DeviceDataCollectionPending => false,
+            | Self::DeviceDataCollectionPending
+            | Self::PendingReview => false,
         }
     }
 }
@@ -861,6 +863,7 @@ pub enum IntentStatus {
     RequiresConfirmation,
     RequiresCapture,
     PartiallyCaptured,
+    ManualReview,
 }
 
 #[derive(
