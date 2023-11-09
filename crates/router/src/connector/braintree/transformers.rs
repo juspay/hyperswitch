@@ -158,10 +158,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         | api_models::payments::WalletData::WeChatPayQr(_)
                         | api_models::payments::WalletData::CashappQr(_)
                         | api_models::payments::WalletData::SwishQr(_) => {
-                            Err(errors::ConnectorError::NotSupported {
-                                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                                connector: "Braintree",
-                            })?
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("braintree"),
+                            ))
                         }
                     }?,
                 }))
@@ -180,10 +179,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "Braintree",
-            })?,
+            | api::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                ))
+            }?,
         }?;
         let braintree_transaction_body = TransactionBody {
             amount,
