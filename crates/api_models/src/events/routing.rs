@@ -2,8 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
-    RoutableConnectorChoice, RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord,
-    RoutingKind,
+    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
+    RoutingPayloadWrapper,
 };
 #[cfg(feature = "business_profile_routing")]
 use crate::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
@@ -38,12 +38,11 @@ impl ApiEventMetric for LinkedRoutingConfigRetrieveResponse {
     }
 }
 
-impl ApiEventMetric for Vec<RoutableConnectorChoice> {
+impl ApiEventMetric for RoutingPayloadWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
-
 impl ApiEventMetric for ProfileDefaultRoutingConfig {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)

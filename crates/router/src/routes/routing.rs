@@ -328,12 +328,15 @@ pub async fn routing_update_default_config_for_profile(
     path: web::Path<String>,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
 ) -> impl Responder {
+    let routing_payload_wrapper =
+        routing_types::RoutingPayloadWrapper(json_payload.into_inner(), path.into_inner());
     oss_api::server_wrap(
         Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
-        (json_payload.into_inner(), path.into_inner()),
-        |state, auth: oss_auth::AuthenticationData, (updated_config, profile_id)| {
+        routing_payload_wrapper,
+        |state, auth: oss_auth::AuthenticationData, wrapper| {
+            let (updated_config, profile_id) = (wrapper.0, wrapper.1);
             routing::update_default_routing_config_for_profile(
                 state,
                 auth.merchant_account,
