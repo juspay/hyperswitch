@@ -1,10 +1,4 @@
-use std::{
-    env,
-    fs::OpenOptions,
-    io::{self, Write},
-    path::Path,
-    process::Command,
-};
+use std::{env, io::Write, path::Path, process::Command};
 
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
@@ -52,22 +46,22 @@ fn get_path(name: impl AsRef<str>) -> String {
 
 // This function currently allows you to add only custom headers.
 // In future, as we scale, this can be modified based on the need
-fn insert_content<T, U>(dir: T, content_to_insert: U) -> io::Result<()>
+fn insert_content<T, U>(dir: T, content_to_insert: U) -> std::io::Result<()>
 where
-    T: AsRef<Path> + std::fmt::Debug,
-    U: AsRef<str> + std::fmt::Debug,
+    T: AsRef<Path>,
+    U: AsRef<str>,
 {
     let file_name = "event.prerequest.js";
     let file_path = dir.as_ref().join(file_name);
 
     // Open the file in write mode or create it if it doesn't exist
-    let mut file = OpenOptions::new()
+    let mut file = std::fs::OpenOptions::new()
         .write(true)
         .append(true)
         .create(true)
         .open(file_path)?;
 
-    write!(file, "\n{:#?}", content_to_insert)?;
+    write!(file, "{}", content_to_insert.as_ref())?;
 
     Ok(())
 }
