@@ -14,8 +14,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
-        DbRoutingAlgorithmKind as RoutingAlgorithmKind, 
-        
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind,
     };
 }
 pub use common_enums::*;
