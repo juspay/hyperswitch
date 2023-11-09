@@ -27,7 +27,7 @@ pub trait RefundDbExt: Sized {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        refund_list_details: &api_models::refunds::TimeRange,
+        refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
@@ -114,7 +114,7 @@ impl RefundDbExt for Refund {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        refund_list_details: &api_models::refunds::TimeRange,
+        refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         let start_time = refund_list_details.start_time;
 

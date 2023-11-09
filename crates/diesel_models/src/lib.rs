@@ -15,6 +15,7 @@ pub mod events;
 pub mod file;
 #[allow(unused)]
 pub mod fraud_check;
+pub mod gsm;
 #[cfg(feature = "kv_store")]
 pub mod kv;
 pub mod locker_mock_up;
@@ -34,6 +35,7 @@ pub mod process_tracker;
 pub mod query;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod routing_algorithm;
 #[allow(unused_qualifications)]
 pub mod schema;
 
