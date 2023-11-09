@@ -13,7 +13,7 @@ use crate::{
     routes::AppState,
     services,
     types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 pub async fn retrieve_payment_link(
@@ -203,10 +203,7 @@ fn validate_sdk_requirements(
 
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
-) -> Result<
-    Vec<api_models::payments::OrderDetailsWithAmount>,
-    error_stack::Report<errors::ApiErrorResponse>,
-> {
+) -> Result<Vec<Secret<serde_json::Value>>, error_stack::Report<errors::ApiErrorResponse>> {
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -223,14 +220,26 @@ fn validate_order_details(
         })
         .transpose()?;
 
-    if let Some(mut order_details) = order_details.clone() {
+    let updated_order_details = order_details.map(|mut order_details| {
         for order in order_details.iter_mut() {
             if order.product_img_link.is_none() {
                 order.product_img_link = Some("https://i.imgur.com/On3VtKF.png".to_string());
             }
         }
-        return Ok(order_details);
-    }
+        order_details
+    });
 
-    Ok(Vec::new())
+    let order_details_as_value = updated_order_details
+        .iter()
+        .map(|order| {
+            utils::Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(&order)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "OrderDetailsWithAmount",
+                })
+                .attach_printable("Unable to parse OrderDetailsWithAmount")
+                .map(masking::Secret::new)
+        })
+        .collect::<Result<Vec<_>, _>>();
+
+    order_details_as_value
 }
