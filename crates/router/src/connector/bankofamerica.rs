@@ -56,14 +56,14 @@ impl Bankofamerica {
 
     pub fn generate_signature(
         &self,
-        auth: bankofamerica::BankofamericaAuthType,
+        auth: bankofamerica::BankOfAmericaAuthType,
         host: String,
         resource: &str,
         payload: &String,
         date: OffsetDateTime,
         http_method: services::Method,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let bankofamerica::BankofamericaAuthType {
+        let bankofamerica::BankOfAmericaAuthType {
             api_key,
             merchant_account,
             api_secret,
@@ -119,7 +119,7 @@ where
         let date = OffsetDateTime::now_utc();
         let boa_req = self.get_request_body(req, connectors)?;
         let http_method = self.get_http_method();
-        let auth = bankofamerica::BankofamericaAuthType::try_from(&req.connector_auth_type)?;
+        let auth = bankofamerica::BankOfAmericaAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.bankofamerica.base_url.as_str();
         let boa_host = Url::parse(base_url)
@@ -194,7 +194,7 @@ impl ConnectorCommon for Bankofamerica {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaErrorResponse = res
+        let response: bankofamerica::BankOfAmericaErrorResponse = res
             .response
             .parse_struct("BankOfAmerica ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -303,17 +303,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankofamericaRouterData::try_from((
+        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
         let connector_request =
-            bankofamerica::BankofamericaPaymentsRequest::try_from(&connector_router_data)?;
+            bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
         let bankofamerica_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<bankofamerica::BankofamericaPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bankofamerica_payments_request))
@@ -346,7 +346,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaPaymentsResponse = res
+        let response: bankofamerica::BankOfAmericaPaymentsResponse = res
             .response
             .parse_struct("BankOfAmerica PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -420,7 +420,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaTransactionResponse = res
+        let response: bankofamerica::BankOfAmericaTransactionResponse = res
             .response
             .parse_struct("BankOfAmerica PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -471,17 +471,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankofamericaRouterData::try_from((
+        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount_to_capture,
             req,
         ))?;
         let connector_request =
-            bankofamerica::BankofamericaCaptureRequest::try_from(&connector_router_data)?;
+            bankofamerica::BankOfAmericaCaptureRequest::try_from(&connector_router_data)?;
         let bankofamerica_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<bankofamerica::BankofamericaCaptureRequest>::encode_to_string_of_json,
+            utils::Encode::<bankofamerica::BankOfAmericaCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bankofamerica_capture_request))
@@ -512,7 +512,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaPaymentsResponse = res
+        let response: bankofamerica::BankOfAmericaPaymentsResponse = res
             .response
             .parse_struct("BankOfAmerica PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -563,10 +563,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = bankofamerica::BankofamericaVoidRequest::try_from(req)?;
+        let connector_request = bankofamerica::BankOfAmericaVoidRequest::try_from(req)?;
         let bankofamerica_void_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<bankofamerica::BankofamericaPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bankofamerica_void_request))
@@ -595,7 +595,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaPaymentsResponse = res
+        let response: bankofamerica::BankOfAmericaPaymentsResponse = res
             .response
             .parse_struct("BankOfAmerica PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -646,16 +646,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankofamericaRouterData::try_from((
+        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = bankofamerica::BankofamericaRefundRequest::try_from(&connector_router_data)?;
+        let req_obj = bankofamerica::BankOfAmericaRefundRequest::try_from(&connector_router_data)?;
         let bankofamerica_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<bankofamerica::BankofamericaRefundRequest>::encode_to_string_of_json,
+            utils::Encode::<bankofamerica::BankOfAmericaRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bankofamerica_req))
@@ -685,7 +685,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaPaymentsResponse = res
+        let response: bankofamerica::BankOfAmericaPaymentsResponse = res
             .response
             .parse_struct("bankofamerica RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -758,7 +758,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: bankofamerica::BankofamericaTransactionResponse = res
+        let response: bankofamerica::BankOfAmericaTransactionResponse = res
             .response
             .parse_struct("bankofamerica RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

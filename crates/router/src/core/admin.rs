@@ -1500,7 +1500,7 @@ pub(crate) fn validate_auth_and_metadata_type(
             Ok(())
         }
         api_enums::Connector::Bankofamerica => {
-            bankofamerica::transformers::BankofamericaAuthType::try_from(val)?;
+            bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Bitpay => {

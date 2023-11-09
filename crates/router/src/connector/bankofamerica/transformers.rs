@@ -18,13 +18,13 @@ use crate::{
     },
 };
 
-pub struct BankofamericaAuthType {
+pub struct BankOfAmericaAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_account: Secret<String>,
     pub(super) api_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BankofamericaAuthType {
+impl TryFrom<&types::ConnectorAuthType> for BankOfAmericaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::SignatureKey {
@@ -44,7 +44,7 @@ impl TryFrom<&types::ConnectorAuthType> for BankofamericaAuthType {
     }
 }
 
-pub struct BankofamericaRouterData<T> {
+pub struct BankOfAmericaRouterData<T> {
     pub amount: String,
     pub router_data: T,
 }
@@ -55,7 +55,7 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
-    )> for BankofamericaRouterData<T>
+    )> for BankOfAmericaRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -76,7 +76,7 @@ impl<T>
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankofamericaPaymentsRequest {
+pub struct BankOfAmericaPaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
@@ -87,7 +87,6 @@ pub struct BankofamericaPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
     capture: bool,
-    capture_options: Option<CaptureOptions>,
 }
 
 #[derive(Debug, Serialize)]
@@ -124,7 +123,7 @@ pub struct OrderInformationWithBill {
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
     total_amount: String,
-    currency: String,
+    currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -161,17 +160,20 @@ fn build_bill_to(
     })
 }
 
-fn get_card_type(card_issuer: CardIssuer) -> &'static str {
-    match card_issuer {
-        CardIssuer::AmericanExpress => "003",
-        CardIssuer::Master => "002",
-        //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
-        CardIssuer::Maestro => "042",
-        CardIssuer::Visa => "001",
-        CardIssuer::Discover => "004",
-        CardIssuer::DinersClub => "005",
-        CardIssuer::CarteBlanche => "006",
-        CardIssuer::JCB => "007",
+impl From<CardIssuer> for String {
+    fn from(card_issuer: CardIssuer) -> Self {
+        let card_type = match card_issuer {
+            CardIssuer::AmericanExpress => "003",
+            CardIssuer::Master => "002",
+            //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
+            CardIssuer::Maestro => "042",
+            CardIssuer::Visa => "001",
+            CardIssuer::Discover => "004",
+            CardIssuer::DinersClub => "005",
+            CardIssuer::CarteBlanche => "006",
+            CardIssuer::JCB => "007",
+        };
+        return card_type.to_string();
     }
 }
 
@@ -181,33 +183,28 @@ pub struct ClientReferenceInformation {
     code: Option<String>,
 }
 
-impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
-    for BankofamericaPaymentsRequest
+impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
+    for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                let email = item
-                    .router_data
-                    .request
-                    .email
-                    .clone()
-                    .ok_or_else(utils::missing_field_err("email"))?;
+                let email = item.router_data.request.get_email()?;
                 let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
 
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {
                         total_amount: item.amount.to_owned(),
-                        currency: item.router_data.request.currency.to_string().to_uppercase(),
+                        currency: item.router_data.request.currency,
                     },
                     bill_to,
                 };
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {
-                    Ok(issuer) => Some(get_card_type(issuer).to_string()),
+                    Ok(issuer) => Some(String::from(issuer)),
                     Err(_) => None,
                 };
                 let payment_information = PaymentInformation {
@@ -225,7 +222,6 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         item.router_data.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
-                    capture_options: None,
                 };
 
                 let client_reference_information = ClientReferenceInformation {
@@ -251,7 +247,10 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
             | payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Bank of America"),
+                )
+                .into())
             }
         }
     }
@@ -288,22 +287,22 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Pending => Self::Pending,
         };
         if item.1 && status == Self::Authorized {
-            return enums::AttemptStatus::Pending;
+            return Self::Pending;
         }
         status
     }
 }
 
 #[derive(Debug, Deserialize)]
-pub struct BankofamericaPaymentsResponse {
+pub struct BankOfAmericaPaymentsResponse {
     id: String,
     status: BankofamericaPaymentStatus,
-    error_information: Option<BankofamericaErrorInformation>,
+    error_information: Option<BankOfAmericaErrorInformation>,
     client_reference_information: Option<ClientReferenceInformation>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct BankofamericaErrorInformation {
+pub struct BankOfAmericaErrorInformation {
     reason: String,
     message: String,
 }
@@ -312,7 +311,7 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BankofamericaPaymentsResponse,
+            BankOfAmericaPaymentsResponse,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
@@ -322,7 +321,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BankofamericaPaymentsResponse,
+            BankOfAmericaPaymentsResponse,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
@@ -364,7 +363,7 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BankofamericaPaymentsResponse,
+            BankOfAmericaPaymentsResponse,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
@@ -374,7 +373,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BankofamericaPaymentsResponse,
+            BankOfAmericaPaymentsResponse,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
@@ -413,7 +412,7 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BankofamericaPaymentsResponse,
+            BankOfAmericaPaymentsResponse,
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
@@ -423,7 +422,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BankofamericaPaymentsResponse,
+            BankOfAmericaPaymentsResponse,
             types::PaymentsCancelData,
             types::PaymentsResponseData,
         >,
@@ -460,7 +459,7 @@ impl<F>
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankofamericaTransactionResponse {
+pub struct BankOfAmericaTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
     client_reference_information: Option<ClientReferenceInformation>,
@@ -476,7 +475,7 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BankofamericaTransactionResponse,
+            BankOfAmericaTransactionResponse,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
@@ -486,7 +485,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            BankofamericaTransactionResponse,
+            BankOfAmericaTransactionResponse,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
@@ -521,23 +520,23 @@ pub struct OrderInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankofamericaCaptureRequest {
+pub struct BankOfAmericaCaptureRequest {
     order_information: OrderInformation,
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&BankofamericaRouterData<&types::PaymentsCaptureRouterData>>
-    for BankofamericaCaptureRequest
+impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
+    for BankOfAmericaCaptureRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: &BankofamericaRouterData<&types::PaymentsCaptureRouterData>,
+        value: &BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
                     total_amount: value.amount.to_owned(),
-                    currency: value.router_data.request.currency.to_string(),
+                    currency: value.router_data.request.currency,
                 },
             },
             client_reference_information: ClientReferenceInformation {
@@ -548,11 +547,11 @@ impl TryFrom<&BankofamericaRouterData<&types::PaymentsCaptureRouterData>>
 }
 
 #[derive(Debug, Serialize)]
-pub struct BankofamericaVoidRequest {
+pub struct BankOfAmericaVoidRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for BankofamericaVoidRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for BankOfAmericaVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -565,23 +564,23 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BankofamericaVoidRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankofamericaRefundRequest {
+pub struct BankOfAmericaRefundRequest {
     order_information: OrderInformation,
     client_reference_information: ClientReferenceInformation,
 }
 
-impl<F> TryFrom<&BankofamericaRouterData<&types::RefundsRouterData<F>>>
-    for BankofamericaRefundRequest
+impl<F> TryFrom<&BankOfAmericaRouterData<&types::RefundsRouterData<F>>>
+    for BankOfAmericaRefundRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &BankofamericaRouterData<&types::RefundsRouterData<F>>,
+        item: &BankOfAmericaRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
                     total_amount: item.amount.clone(),
-                    currency: item.router_data.request.currency.to_string(),
+                    currency: item.router_data.request.currency,
                 },
             },
             client_reference_information: ClientReferenceInformation {
@@ -608,12 +607,12 @@ impl From<BankofamericaPaymentStatus> for enums::RefundStatus {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankofamericaPaymentsResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaPaymentsResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, BankofamericaPaymentsResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -625,12 +624,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankofamericaPayment
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankofamericaTransactionResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaTransactionResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, BankofamericaTransactionResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, BankOfAmericaTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -646,7 +645,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankofamericaTransacti
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankofamericaErrorResponse {
+pub struct BankOfAmericaErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: Option<String>,
     pub message: Option<String>,
