@@ -54,6 +54,7 @@ pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
     let merchant_id = &merchant_account.merchant_id;
 
@@ -100,6 +101,7 @@ pub async fn validate_create_request(
                 &merchant_account.merchant_id,
                 payout_id.as_ref(),
                 req.payout_type.as_ref(),
+                merchant_key_store,
             )
             .await?
         }

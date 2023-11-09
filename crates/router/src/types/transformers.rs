@@ -1,6 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{enums as api_enums, payments};
+use api_models::{enums as api_enums, payments, routing::ConnectorSelection};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -8,14 +8,15 @@ use common_utils::{
     pii,
 };
 use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
+use euclid::enums as dsl_enums;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
     core::errors,
     services::authentication::get_header_value_by_key,
-    types::{api as api_types, storage},
+    types::{api as api_types, api::routing as routing_types, storage},
 };
 
 pub trait ForeignInto<T> {
@@ -165,6 +166,154 @@ impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::Manda
             storage_enums::MandateDataType::MultiUse(inner) => {
                 Self::MultiUse(inner.map(ForeignInto::foreign_into))
             }
+        }
+    }
+}
+
+impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
+        Ok(match from {
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+            api_enums::Connector::Aci => Self::Aci,
+            api_enums::Connector::Adyen => Self::Adyen,
+            api_enums::Connector::Airwallex => Self::Airwallex,
+            api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
+            api_enums::Connector::Bitpay => Self::Bitpay,
+            api_enums::Connector::Bambora => Self::Bambora,
+            api_enums::Connector::Bluesnap => Self::Bluesnap,
+            api_enums::Connector::Boku => Self::Boku,
+            api_enums::Connector::Braintree => Self::Braintree,
+            api_enums::Connector::Cashtocode => Self::Cashtocode,
+            api_enums::Connector::Checkout => Self::Checkout,
+            api_enums::Connector::Coinbase => Self::Coinbase,
+            api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::Cybersource => Self::Cybersource,
+            api_enums::Connector::Dlocal => Self::Dlocal,
+            api_enums::Connector::Fiserv => Self::Fiserv,
+            api_enums::Connector::Forte => Self::Forte,
+            api_enums::Connector::Globalpay => Self::Globalpay,
+            api_enums::Connector::Globepay => Self::Globepay,
+            api_enums::Connector::Gocardless => Self::Gocardless,
+            api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::Iatapay => Self::Iatapay,
+            api_enums::Connector::Klarna => Self::Klarna,
+            api_enums::Connector::Mollie => Self::Mollie,
+            api_enums::Connector::Multisafepay => Self::Multisafepay,
+            api_enums::Connector::Nexinets => Self::Nexinets,
+            api_enums::Connector::Nmi => Self::Nmi,
+            api_enums::Connector::Noon => Self::Noon,
+            api_enums::Connector::Nuvei => Self::Nuvei,
+            api_enums::Connector::Opennode => Self::Opennode,
+            api_enums::Connector::Payme => Self::Payme,
+            api_enums::Connector::Paypal => Self::Paypal,
+            api_enums::Connector::Payu => Self::Payu,
+            api_enums::Connector::Plaid => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "plaid is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Powertranz => Self::Powertranz,
+            api_enums::Connector::Rapyd => Self::Rapyd,
+            api_enums::Connector::Shift4 => Self::Shift4,
+            api_enums::Connector::Signifyd => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "signifyd is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Square => Self::Square,
+            api_enums::Connector::Stax => Self::Stax,
+            api_enums::Connector::Stripe => Self::Stripe,
+            api_enums::Connector::Trustpay => Self::Trustpay,
+            api_enums::Connector::Tsys => Self::Tsys,
+            api_enums::Connector::Volt => Self::Volt,
+            api_enums::Connector::Wise => Self::Wise,
+            api_enums::Connector::Worldline => Self::Worldline,
+            api_enums::Connector::Worldpay => Self::Worldpay,
+            api_enums::Connector::Zen => Self::Zen,
+        })
+    }
+}
+
+impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
+    fn foreign_from(from: dsl_enums::Connector) -> Self {
+        match from {
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            dsl_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+            dsl_enums::Connector::Aci => Self::Aci,
+            dsl_enums::Connector::Adyen => Self::Adyen,
+            dsl_enums::Connector::Airwallex => Self::Airwallex,
+            dsl_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
+            dsl_enums::Connector::Bitpay => Self::Bitpay,
+            dsl_enums::Connector::Bambora => Self::Bambora,
+            dsl_enums::Connector::Bluesnap => Self::Bluesnap,
+            dsl_enums::Connector::Boku => Self::Boku,
+            dsl_enums::Connector::Braintree => Self::Braintree,
+            dsl_enums::Connector::Cashtocode => Self::Cashtocode,
+            dsl_enums::Connector::Checkout => Self::Checkout,
+            dsl_enums::Connector::Coinbase => Self::Coinbase,
+            dsl_enums::Connector::Cryptopay => Self::Cryptopay,
+            dsl_enums::Connector::Cybersource => Self::Cybersource,
+            dsl_enums::Connector::Dlocal => Self::Dlocal,
+            dsl_enums::Connector::Fiserv => Self::Fiserv,
+            dsl_enums::Connector::Forte => Self::Forte,
+            dsl_enums::Connector::Globalpay => Self::Globalpay,
+            dsl_enums::Connector::Globepay => Self::Globepay,
+            dsl_enums::Connector::Gocardless => Self::Gocardless,
+            dsl_enums::Connector::Helcim => Self::Helcim,
+            dsl_enums::Connector::Iatapay => Self::Iatapay,
+            dsl_enums::Connector::Klarna => Self::Klarna,
+            dsl_enums::Connector::Mollie => Self::Mollie,
+            dsl_enums::Connector::Multisafepay => Self::Multisafepay,
+            dsl_enums::Connector::Nexinets => Self::Nexinets,
+            dsl_enums::Connector::Nmi => Self::Nmi,
+            dsl_enums::Connector::Noon => Self::Noon,
+            dsl_enums::Connector::Nuvei => Self::Nuvei,
+            dsl_enums::Connector::Opennode => Self::Opennode,
+            dsl_enums::Connector::Payme => Self::Payme,
+            dsl_enums::Connector::Paypal => Self::Paypal,
+            dsl_enums::Connector::Payu => Self::Payu,
+            dsl_enums::Connector::Powertranz => Self::Powertranz,
+            dsl_enums::Connector::Rapyd => Self::Rapyd,
+            dsl_enums::Connector::Shift4 => Self::Shift4,
+            dsl_enums::Connector::Square => Self::Square,
+            dsl_enums::Connector::Stax => Self::Stax,
+            dsl_enums::Connector::Stripe => Self::Stripe,
+            dsl_enums::Connector::Trustpay => Self::Trustpay,
+            dsl_enums::Connector::Tsys => Self::Tsys,
+            dsl_enums::Connector::Volt => Self::Volt,
+            dsl_enums::Connector::Wise => Self::Wise,
+            dsl_enums::Connector::Worldline => Self::Worldline,
+            dsl_enums::Connector::Worldpay => Self::Worldpay,
+            dsl_enums::Connector::Zen => Self::Zen,
         }
     }
 }
@@ -858,6 +1007,27 @@ impl From<domain::Address> for payments::AddressDetails {
             state: addr.state.map(Encryptable::into_inner),
             first_name: addr.first_name.map(Encryptable::into_inner),
             last_name: addr.last_name.map(Encryptable::into_inner),
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
+    fn foreign_from(value: ConnectorSelection) -> Self {
+        match value {
+            ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
+
+            ConnectorSelection::VolumeSplit(splits) => Self::VolumeSplit(splits),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::organization::OrganizationNew>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
+        Self {
+            org_id: item.org_id,
+            org_name: item.org_name,
         }
     }
 }
