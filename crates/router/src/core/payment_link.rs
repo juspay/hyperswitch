@@ -1,6 +1,8 @@
 use api_models::admin as admin_types;
 use common_utils::{
-    consts::{DEFAULT_BACKGROUND_COLOR, DEFAULT_SDK_THEME},
+    consts::{
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
+    },
     ext_traits::ValueExt,
 };
 use error_stack::{IntoReport, ResultExt};
@@ -121,7 +123,7 @@ pub async fn intiate_payment_link_flow(
             .map(|pl_config| {
                 pl_config
                     .merchant_logo
-                    .unwrap_or("https://i.imgur.com/RfxPFQo.png".to_string())
+                    .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string())
             })
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
@@ -226,7 +228,7 @@ fn validate_order_details(
     let updated_order_details = order_details.map(|mut order_details| {
         for order in order_details.iter_mut() {
             if order.product_img_link.is_none() {
-                order.product_img_link = Some("https://i.imgur.com/On3VtKF.png".to_string());
+                order.product_img_link = Some(DEFAULT_PRODUCT_IMG.to_string());
             }
         }
         order_details
