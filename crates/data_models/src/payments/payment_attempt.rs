@@ -224,6 +224,8 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UpdateTrackers {

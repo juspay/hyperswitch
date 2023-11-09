@@ -141,6 +141,8 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -370,6 +372,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self {
                 amount: Some(amount),
@@ -386,6 +390,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 ..Default::default()
             },

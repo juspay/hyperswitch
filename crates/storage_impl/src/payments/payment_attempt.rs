@@ -1139,6 +1139,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => DieselPaymentAttemptUpdate::Update {
                 amount,
@@ -1153,6 +1155,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
             Self::UpdateTrackers {
@@ -1380,6 +1384,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self::Update {
                 amount,
@@ -1394,6 +1400,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::UpdateTrackers {
