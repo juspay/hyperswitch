@@ -134,6 +134,7 @@ pub struct BitpayPaymentResponseData {
     pub expiration_time: Option<i64>,
     pub current_time: Option<i64>,
     pub id: String,
+    pub order_id: Option<String>,
     pub low_fee_detected: Option<bool>,
     pub display_amount_paid: Option<String>,
     pub exception_status: ExceptionStatus,
@@ -162,7 +163,7 @@ impl<F, T>
             .data
             .url
             .map(|x| services::RedirectForm::from((x, services::Method::Get)));
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = item.response.data.status;
         Ok(Self {
             status: enums::AttemptStatus::from(attempt_status),
@@ -172,7 +173,11 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .data
+                    .order_id
+                    .or(Some(item.response.data.id)),
             }),
             ..item.data
         })
