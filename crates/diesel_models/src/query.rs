@@ -4,7 +4,7 @@ pub mod business_profile;
 mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
+
 pub mod customers;
 pub mod dispute;
 pub mod events;

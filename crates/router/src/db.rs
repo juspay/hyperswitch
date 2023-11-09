@@ -5,7 +5,6 @@ pub mod cache;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
 pub mod customers;
 pub mod dispute;
 pub mod ephemeral_key;
@@ -54,7 +53,6 @@ pub trait StorageInterface:
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
