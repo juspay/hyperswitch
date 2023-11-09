@@ -1087,35 +1087,37 @@ pub async fn persist_individual_surcharge_details_in_redis(
     merchant_account: &domain::MerchantAccount,
     surcharge_metadata: &SurchargeMetadata,
 ) -> RouterResult<()> {
-    let redis_conn = state
-        .store
-        .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get redis connection")?;
-    let redis_key =
-        SurchargeMetadata::get_surcharge_metadata_redis_key(&surcharge_metadata.payment_attempt_id);
+    if !surcharge_metadata.is_empty_result() {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = SurchargeMetadata::get_surcharge_metadata_redis_key(
+            &surcharge_metadata.payment_attempt_id,
+        );
 
-    let mut value_list = Vec::with_capacity(surcharge_metadata.get_surcharge_results_size());
-    for (key, value) in surcharge_metadata
-        .get_individual_surcharge_key_value_pairs()
-        .into_iter()
-    {
-        value_list.push((
-            key,
-            Encode::<SurchargeDetailsResponse>::encode_to_string_of_json(&value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode to string of json")?,
-        ));
+        let mut value_list = Vec::with_capacity(surcharge_metadata.get_surcharge_results_size());
+        for (key, value) in surcharge_metadata
+            .get_individual_surcharge_key_value_pairs()
+            .into_iter()
+        {
+            value_list.push((
+                key,
+                Encode::<SurchargeDetailsResponse>::encode_to_string_of_json(&value)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode to string of json")?,
+            ));
+        }
+        let intent_fulfillment_time = merchant_account
+            .intent_fulfillment_time
+            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+        redis_conn
+            .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to write to redis")?;
     }
-    let intent_fulfillment_time = merchant_account
-        .intent_fulfillment_time
-        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
-
-    redis_conn
-        .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to write to redis")?;
     Ok(())
 }
 
