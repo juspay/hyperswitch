@@ -298,11 +298,12 @@ where
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 
     async fn get_connector<'a>(
@@ -402,6 +403,7 @@ impl PaymentMethodValidate {
             profile_id: Default::default(),
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
+            surcharge_applicable: Default::default(),
             payment_link_id: Default::default(),
             updated_by: storage_scheme.to_string(),
         }

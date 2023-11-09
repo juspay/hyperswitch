@@ -69,6 +69,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             mandate_type.clone(),
             merchant_account,
+            key_store,
         );
 
         let (mut payment_intent, mandate_details) =
@@ -284,8 +285,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         amount = payment_attempt.amount.into();
 
         helpers::validate_customer_id_mandatory_cases(
-            request.shipping.is_some(),
-            request.billing.is_some(),
             request.setup_future_usage.is_some(),
             &payment_intent
                 .customer_id
@@ -426,12 +425,13 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data).await?;
+            helpers::make_pm_data(Box::new(self), state, payment_data, key_store).await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -515,6 +515,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         };
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+
         let straight_through_algorithm = payment_data
             .payment_attempt
             .straight_through_algorithm
@@ -593,6 +595,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     surcharge_amount,
                     tax_amount,
                     updated_by: storage_scheme.to_string(),
+                    merchant_connector_id,
                 },
                 storage_scheme,
             )

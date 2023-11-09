@@ -347,7 +347,7 @@ pub fn payments_to_payments_response<R, Op, F: Clone>(
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
     external_latency: Option<u128>,
-    is_latency_header_enabled: Option<bool>,
+    _is_latency_header_enabled: Option<bool>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -452,13 +452,13 @@ where
             payment_confirm_source.to_string(),
         ))
     }
-    if Some(true) == is_latency_header_enabled {
-        headers.extend(
-            external_latency
-                .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
-                .unwrap_or_default(),
-        );
-    }
+
+    headers.extend(
+        external_latency
+            .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+            .unwrap_or_default(),
+    );
+
     let output = Ok(match payment_request {
         Some(_request) => {
             if payments::is_start_pay(&operation)
@@ -692,6 +692,7 @@ where
                         .set_payment_link(payment_link_data)
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
+                        .set_merchant_connector_id(payment_attempt.merchant_connector_id)
                         .to_owned(),
                     headers,
                 ))
@@ -1108,6 +1109,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let amount_to_capture: i64 = payment_data
             .payment_attempt
@@ -1156,6 +1158,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt

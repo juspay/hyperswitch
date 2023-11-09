@@ -763,7 +763,8 @@ impl AddressInterface for MockDb {
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == customer_id && address.merchant_id == merchant_id
+                address.customer_id == Some(customer_id.to_string())
+                    && address.merchant_id == merchant_id
             })
             .map(|a| {
                 let address_updated =

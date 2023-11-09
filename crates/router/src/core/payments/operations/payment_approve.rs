@@ -88,6 +88,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             mandate_type.clone(),
             merchant_account,
+            key_store,
         )
         .await?;
 
@@ -130,8 +131,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         amount = payment_attempt.amount.into();
 
         helpers::validate_customer_id_mandatory_cases(
-            request.shipping.is_some(),
-            request.billing.is_some(),
             request.setup_future_usage.is_some(),
             &payment_intent
                 .customer_id
@@ -302,12 +301,13 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data).await?;
+            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)

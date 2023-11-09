@@ -51,7 +51,6 @@ impl Default for super::settings::Locker {
             mock_locker: true,
             basilisk_host: "localhost".into(),
             locker_signing_key_id: "1".into(),
-            redis_temp_locker_encryption_key: "".into(),
         }
     }
 }
@@ -101,6 +100,13 @@ impl Default for super::settings::DrainerSettings {
             shutdown_interval: 1000,
             loop_interval: 500,
         }
+    }
+}
+
+#[cfg(feature = "kv_store")]
+impl Default for super::settings::KvConfig {
+    fn default() -> Self {
+        Self { ttl: 900 }
     }
 }
 

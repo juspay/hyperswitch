@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use error_stack::{self, IntoReport, ResultExt};
+use error_stack;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -106,21 +106,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     key_store,
                 )
                 .await?;
-                Ok(
-                    mandate::mandate_procedure(state, resp, maybe_customer, payment_method_id)
-                        .await?,
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    payment_method_id,
+                    connector.merchant_connector_id.clone(),
                 )
+                .await?)
             } else {
-                let arbiter = actix::Arbiter::try_current()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("arbiter retrieval failure")
-                    .map_err(|err| {
-                        logger::error!(?err);
-                        err
-                    })
-                    .ok();
-
                 let connector = connector.clone();
                 let response = resp.clone();
                 let maybe_customer = maybe_customer.clone();
@@ -130,28 +124,23 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 logger::info!("Initiating async call to save_payment_method in locker");
 
-                arbiter.map(|arb| {
-                    arb.spawn(async move {
-                        logger::info!("Starting async call to save_payment_method in locker");
+                tokio::spawn(async move {
+                    logger::info!("Starting async call to save_payment_method in locker");
 
-                        let result = tokenization::save_payment_method(
-                            &state,
-                            &connector,
-                            response,
-                            &maybe_customer,
-                            &merchant_account,
-                            self.request.payment_method_type,
-                            &key_store,
-                        )
-                        .await;
+                    let result = tokenization::save_payment_method(
+                        &state,
+                        &connector,
+                        response,
+                        &maybe_customer,
+                        &merchant_account,
+                        self.request.payment_method_type,
+                        &key_store,
+                    )
+                    .await;
 
-                        if let Err(err) = result {
-                            logger::error!(
-                                "Asynchronously saving card in locker failed : {:?}",
-                                err
-                            );
-                        }
-                    })
+                    if let Err(err) = result {
+                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                    }
                 });
 
                 Ok(resp)

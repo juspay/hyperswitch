@@ -836,10 +836,12 @@ pub struct DefendDisputeResponse {
     pub connector_status: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct UploadFileRequestData {
     pub file_key: String,
+    #[serde(skip)]
     pub file: Vec<u8>,
+    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
     pub file_type: mime::Mime,
     pub file_size: i32,
 }
@@ -923,6 +925,7 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
+    pub attempt_status: Option<storage_enums::AttemptStatus>,
 }
 
 impl ErrorResponse {
@@ -938,6 +941,7 @@ impl ErrorResponse {
             .error_message(),
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            attempt_status: None,
         }
     }
 }
@@ -958,6 +962,11 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: Some(key1),
             }),
+            ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
             }),
@@ -975,6 +984,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
                 _ => 500,
             },
+            attempt_status: None,
         }
     }
 }

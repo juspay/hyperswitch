@@ -78,7 +78,7 @@ pub trait RefundInterface {
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &str,
-        refund_details: &api_models::refunds::TimeRange,
+        refund_details: &api_models::payments::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
 
@@ -232,7 +232,7 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
-            refund_details: &api_models::refunds::TimeRange,
+            refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -368,6 +368,7 @@ mod storage {
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
                         updated_by: new.updated_by.clone(),
+                        merchant_connector_id: new.merchant_connector_id.clone(),
                     };
 
                     let field = format!(
@@ -706,7 +707,7 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
-            refund_details: &api_models::refunds::TimeRange,
+            refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -796,6 +797,7 @@ impl RefundInterface for MockDb {
             refund_reason: new.refund_reason.clone(),
             profile_id: new.profile_id,
             updated_by: new.updated_by,
+            merchant_connector_id: new.merchant_connector_id,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -977,7 +979,7 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_meta_constraints(
         &self,
         _merchant_id: &str,
-        refund_details: &api_models::refunds::TimeRange,
+        refund_details: &api_models::payments::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         let refunds = self.refunds.lock().await;

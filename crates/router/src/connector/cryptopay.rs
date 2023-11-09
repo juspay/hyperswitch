@@ -69,7 +69,7 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let api_method;
-        let payload = match self.get_request_body(req)? {
+        let payload = match self.get_request_body(req, connectors)? {
             Some(val) => {
                 let body = types::RequestBody::get_inner_value(val).peek().to_owned();
                 api_method = "POST".to_string();
@@ -167,11 +167,10 @@ impl ConnectorCommon for Cryptopay {
             code: response.error.code,
             message: response.error.message,
             reason: response.error.reason,
+            attempt_status: None,
         })
     }
 }
-
-impl ConnectorValidation for Cryptopay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Cryptopay
@@ -218,6 +217,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = cryptopay::CryptopayRouterData::try_from((
             &self.get_currency_unit(),
@@ -250,7 +250,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -276,6 +278,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
+    }
+}
+
+impl ConnectorValidation for Cryptopay {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
     }
 }
 

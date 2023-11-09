@@ -63,6 +63,7 @@ pub async fn get_mca_for_payout<'a>(
                 key_store,
                 &profile_id,
                 connector_id,
+                payout_attempt.merchant_connector_id.as_ref(),
             )
             .await?;
             Ok((merchant_connector_account, profile_id))
@@ -223,6 +224,7 @@ pub async fn construct_refund_router_data<'a, F>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -510,6 +512,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         key_store,
         &profile_id,
         &dispute.connector,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -600,6 +603,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -688,8 +692,10 @@ pub async fn construct_upload_file_router_data<'a>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -779,6 +785,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         key_store,
         &profile_id,
         connector_id,
+        payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
 
@@ -864,6 +871,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         key_store,
         profile_id,
         connector_id,
+        file_metadata.merchant_connector_id.as_ref(),
     )
     .await?;
 
