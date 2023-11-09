@@ -305,7 +305,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::RequiredFieldInfo,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
-        api_models::refunds::TimeRange,
+        api_models::payments::TimeRange,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,

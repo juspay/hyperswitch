@@ -12,7 +12,9 @@ use utoipa::ToSchema;
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, enums as api_enums,
+    admin,
+    customers::CustomerId,
+    enums as api_enums,
     payments::{self, BankCodeResponse},
 };
 
@@ -167,6 +169,8 @@ pub struct CardDetailsPaymentMethod {
 pub struct PaymentMethodDataBankCreds {
     pub mask: String,
     pub hash: String,
+    pub account_type: Option<String>,
+    pub account_name: Option<String>,
     pub payment_method_type: api_enums::PaymentMethodType,
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
@@ -474,6 +478,8 @@ pub struct RequestPaymentMethodTypes {
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
+    #[serde(skip_deserializing)]
+    pub customer_id: Option<CustomerId>,
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893ein2d")]
     pub client_secret: Option<String>,

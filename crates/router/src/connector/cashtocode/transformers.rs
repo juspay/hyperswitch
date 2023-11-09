@@ -217,6 +217,7 @@ impl<F, T>
                     status_code: item.http_code,
                     message: error_data.error_description,
                     reason: None,
+                    attempt_status: None,
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
