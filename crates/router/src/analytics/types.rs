@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use common_utils::errors::{CustomResult, ErrorSwitch, ParsingError};
+use common_utils::{errors::{CustomResult, ErrorSwitch, ParsingError}, events::ApiEventMetric};
 use error_stack::{report, Report, ResultExt};
 
 use super::query::QueryBuildingError;
@@ -11,6 +11,8 @@ pub enum AnalyticsDomain {
     Payments,
     Refunds,
 }
+
+impl ApiEventMetric for AnalyticsDomain {}
 
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
 pub enum AnalyticsCollection {

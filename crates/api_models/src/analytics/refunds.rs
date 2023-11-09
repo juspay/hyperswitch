@@ -2,8 +2,9 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-
+use common_utils::events::ApiEventMetric;
 use common_enums::enums::{Currency, RefundStatus};
+use crate::analytics::MetricsResponse;
 
 #[derive(
     Clone,
@@ -175,3 +176,6 @@ pub struct RefundMetricsBucketResponse {
     #[serde(flatten)]
     pub dimensions: RefundMetricsBucketIdentifier,
 }
+
+impl ApiEventMetric for RefundMetricsBucketResponse {}
+impl ApiEventMetric for MetricsResponse<RefundMetricsBucketResponse> {}

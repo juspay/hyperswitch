@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use time::PrimitiveDateTime;
 
+use common_utils::events::ApiEventMetric;
 use self::{
     payments::{PaymentDimensions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
@@ -23,6 +24,8 @@ pub struct GetInfoResponse {
     pub download_dimensions: Option<Vec<NameDescription>>,
     pub dimensions: Vec<NameDescription>,
 }
+
+impl ApiEventMetric for GetInfoResponse {}
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +71,8 @@ pub struct GetPaymentMetricRequest {
     pub delta: bool,
 }
 
+impl ApiEventMetric for GetPaymentMetricRequest {}
+
 #[derive(Clone, Debug, serde::Deserialize, masking::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetRefundMetricRequest {
@@ -82,6 +87,8 @@ pub struct GetRefundMetricRequest {
     pub delta: bool,
 }
 
+impl ApiEventMetric for GetRefundMetricRequest {}
+
 #[derive(Debug, serde::Serialize)]
 pub struct AnalyticsMetadata {
     pub current_time_range: TimeRange,
@@ -95,11 +102,15 @@ pub struct GetPaymentFiltersRequest {
     pub group_by_names: Vec<PaymentDimensions>,
 }
 
+impl ApiEventMetric for GetPaymentFiltersRequest {}
+
 #[derive(Debug, Default, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentFiltersResponse {
     pub query_data: Vec<FilterValue>,
 }
+
+impl ApiEventMetric for PaymentFiltersResponse {}
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,11 +127,15 @@ pub struct GetRefundFilterRequest {
     pub group_by_names: Vec<RefundDimensions>,
 }
 
+impl ApiEventMetric for GetRefundFilterRequest {}
+
 #[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundFiltersResponse {
     pub query_data: Vec<RefundFilterValue>,
 }
+
+impl ApiEventMetric for RefundFiltersResponse {}
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
