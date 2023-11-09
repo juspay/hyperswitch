@@ -1,7 +1,7 @@
 pub mod helpers;
 pub mod transformers;
 
-use api_models::routing as routing_types;
+use api_models::routing::{self as routing_types, RoutingAlgorithmId};
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
 #[cfg(not(feature = "business_profile_routing"))]
@@ -319,14 +319,14 @@ pub async fn link_routing_config(
 pub async fn retrieve_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    algorithm_id: String,
+    algorithm_id: RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
         let routing_algorithm = db
             .find_routing_algorithm_by_algorithm_id_merchant_id(
-                &algorithm_id,
+                &algorithm_id.0,
                 &merchant_account.merchant_id,
             )
             .await
@@ -356,13 +356,13 @@ pub async fn retrieve_routing_config(
         let record = merchant_dictionary
             .records
             .into_iter()
-            .find(|rec| rec.id == algorithm_id)
+            .find(|rec| rec.id == algorithm_id.0)
             .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
             .into_report()
             .attach_printable("Algorithm with the given ID not found in the merchant dictionary")?;
 
         let algorithm_config = db
-            .find_config_by_key(&algorithm_id)
+            .find_config_by_key(&algorithm_id.0)
             .await
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
             .attach_printable("Routing config not found in DB")?;

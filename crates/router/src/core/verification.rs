@@ -1,5 +1,4 @@
 pub mod utils;
-use actix_web::web;
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::{errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
@@ -18,7 +17,7 @@ const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: web::Json<verifications::ApplepayMerchantVerificationRequest>,
+    body: verifications::ApplepayMerchantVerificationRequest,
     kms_config: &kms::KmsConfig,
     merchant_id: String,
 ) -> CustomResult<
