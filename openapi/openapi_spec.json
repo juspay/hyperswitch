@@ -7866,6 +7866,11 @@
           "merchant_custom_domain_name": {
             "type": "string",
             "nullable": true
+          },
+          "custom_merchant_name": {
+            "type": "string",
+            "description": "Custom merchant name for payment link",
+            "nullable": true
           }
         }
       },
