@@ -8,6 +8,7 @@ pub mod customers;
 pub mod disputes;
 pub mod errors;
 pub mod files;
+pub mod gsm;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_link;
