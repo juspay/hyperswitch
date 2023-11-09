@@ -691,6 +691,8 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         fulfilment_time -> Nullable<Timestamp>,
+        #[max_length = 64]
+        custom_merchant_name -> Nullable<Varchar>,
     }
 }
 
