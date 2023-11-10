@@ -9,6 +9,7 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
+use super::jwt;
 use crate::{
     configs::settings,
     consts,
@@ -22,8 +23,6 @@ use crate::{
     types::domain,
     utils::OptionExt,
 };
-
-use super::jwt;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {

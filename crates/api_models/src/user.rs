@@ -9,6 +9,7 @@ pub struct SignInRequest {
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct SignInResponse {
+    pub token: Secret<String>,
     pub merchant_id: String,
     pub name: Secret<String>,
     pub email: pii::Email,

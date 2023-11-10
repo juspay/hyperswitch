@@ -37,7 +37,7 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -88,7 +88,7 @@ pub async fn refunds_retrieve(
                 refund_retrieve_core,
             )
         },
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -202,7 +202,7 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_list(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -235,7 +235,7 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_filter_list(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await

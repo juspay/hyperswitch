@@ -1,7 +1,7 @@
 use api_models::user as api;
 use diesel_models::enums::UserStatus;
 use error_stack::IntoReport;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use router_env::env;
 
 use super::errors::{UserErrors, UserResponse};
@@ -22,9 +22,21 @@ pub async fn connect_account(
         let user_from_db: domain::UserFromStorage = found_user.into();
 
         user_from_db.compare_password(request.password)?;
-        return Ok(ApplicationResponse::Json(
-            user_from_db.get_signin_response_from_db(state).await?,
-        ));
+
+        let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+        let jwt_token = user_from_db
+            .get_jwt_auth_token(state.clone(), user_role.org_id)
+            .await?;
+
+        return Ok(ApplicationResponse::Json(api::SignInResponse {
+            token: Secret::new(jwt_token),
+            merchant_id: user_role.merchant_id,
+            name: user_from_db.get_name(),
+            email: user_from_db.get_email(),
+            verification_days_left: None,
+            user_role: user_role.role_id,
+            user_id: user_from_db.get_user_id().to_string(),
+        }));
     } else if find_user
         .map_err(|e| e.current_context().is_db_not_found())
         .err()
@@ -50,8 +62,12 @@ pub async fn connect_account(
                 UserStatus::Active,
             )
             .await?;
+        let jwt_token = user_from_db
+            .get_jwt_auth_token(state.clone(), user_role.org_id)
+            .await?;
 
         return Ok(ApplicationResponse::Json(api::SignInResponse {
+            token: Secret::new(jwt_token),
             merchant_id: user_role.merchant_id,
             name: user_from_db.get_name(),
             email: user_from_db.get_email(),

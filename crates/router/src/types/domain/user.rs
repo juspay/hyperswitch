@@ -22,6 +22,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services::authentication::AuthToken,
     types::transformers::ForeignFrom,
     utils::user::password,
 };
@@ -454,20 +455,22 @@ impl UserFromStorage {
         self.0.email.clone()
     }
 
-    pub async fn get_signin_response_from_db(
-        &self,
-        state: AppState,
-    ) -> UserResult<user_api::SignInResponse> {
-        let user_role = self.get_role_from_db(state.clone()).await?;
-
-        Ok(user_api::SignInResponse {
-            merchant_id: user_role.merchant_id,
-            name: self.get_name(),
-            email: self.get_email(),
-            verification_days_left: None,
-            user_role: user_role.role_id,
-            user_id: self.get_user_id().to_string(),
-        })
+    pub async fn get_jwt_auth_token(&self, state: AppState, org_id: String) -> UserResult<String> {
+        let role_id = self.get_role_from_db(state.clone()).await?.role_id;
+        let merchant_id = state
+            .store
+            .find_user_role_by_user_id(self.get_user_id())
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .merchant_id;
+        AuthToken::new_token(
+            self.0.user_id.clone(),
+            merchant_id,
+            role_id,
+            &state.conf,
+            org_id,
+        )
+        .await
     }
 
     pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
