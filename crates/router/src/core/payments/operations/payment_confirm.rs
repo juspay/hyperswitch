@@ -74,7 +74,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .map(|x| x.change_context(errors::ApiErrorResponse::PaymentNotFound))
                     .await
             }
-            .in_current_span()
+            .in_current_span(),
         );
 
         let m_state = state.clone();
@@ -230,114 +230,49 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .in_current_span(),
         );
 
-        let (mut payment_attempt, shipping_address, billing_address, connector_response) =
-            match payment_intent.status {
-                api_models::enums::IntentStatus::RequiresCustomerAction
-                | api_models::enums::IntentStatus::RequiresMerchantAction
-                | api_models::enums::IntentStatus::RequiresPaymentMethod
-                | api_models::enums::IntentStatus::RequiresConfirmation => {
-                    let attempt_type = helpers::AttemptType::SameOld;
+        let (mut payment_attempt, shipping_address, billing_address) = match payment_intent.status {
+            api_models::enums::IntentStatus::RequiresCustomerAction
+            | api_models::enums::IntentStatus::RequiresMerchantAction
+            | api_models::enums::IntentStatus::RequiresPaymentMethod
+            | api_models::enums::IntentStatus::RequiresConfirmation => {
+                let (payment_attempt, shipping_address, billing_address, _) = tokio::try_join!(
+                    utils::flatten_join_error(payment_attempt_fut),
+                    utils::flatten_join_error(shipping_address_fut),
+                    utils::flatten_join_error(billing_address_fut),
+                    utils::flatten_join_error(config_update_fut)
+                )?;
 
-                    let attempt_id = payment_intent.active_attempt.get_id();
-                    let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-                    let m_merchant_id = merchant_id.clone();
-                    let store = state.clone().store;
-                    let connector_response_fut = tokio::spawn(
-                        async move {
-                            attempt_type
-                                .get_connector_response(
-                                    store.as_ref(),
-                                    m_payment_intent_payment_id.as_str(),
-                                    m_merchant_id.as_str(),
-                                    attempt_id.as_str(),
-                                    storage_scheme,
-                                )
-                                .await
-                        }
-                        .in_current_span(),
-                    );
+                (payment_attempt, shipping_address, billing_address)
+            }
+            _ => {
+                let (mut payment_attempt, shipping_address, billing_address, _) = tokio::try_join!(
+                    utils::flatten_join_error(payment_attempt_fut),
+                    utils::flatten_join_error(shipping_address_fut),
+                    utils::flatten_join_error(billing_address_fut),
+                    utils::flatten_join_error(config_update_fut)
+                )?;
 
-                    let (payment_attempt, shipping_address, billing_address, connector_response, _) =
-                        tokio::try_join!(
-                            utils::flatten_join_error(payment_attempt_fut),
-                            utils::flatten_join_error(shipping_address_fut),
-                            utils::flatten_join_error(billing_address_fut),
-                            utils::flatten_join_error(connector_response_fut),
-                            utils::flatten_join_error(config_update_fut)
-                        )?;
+                let attempt_type = helpers::get_attempt_type(
+                    &payment_intent,
+                    &payment_attempt,
+                    request,
+                    "confirm",
+                )?;
 
-                    (
-                        payment_attempt,
-                        shipping_address,
-                        billing_address,
-                        connector_response,
-                    )
-                }
-                _ => {
-                    let (payment_attempt, shipping_address, billing_address, _) = tokio::try_join!(
-                        utils::flatten_join_error(payment_attempt_fut),
-                        utils::flatten_join_error(shipping_address_fut),
-                        utils::flatten_join_error(billing_address_fut),
-                        utils::flatten_join_error(config_update_fut)
-                    )?;
 
-                    let attempt_type = helpers::get_attempt_type(
-                        &payment_intent,
-                        &payment_attempt,
+                (payment_intent, payment_attempt) = attempt_type
+                    .modify_payment_intent_and_payment_attempt(
                         request,
-                        "confirm",
-                    )?;
-
-                    let m_request = request.clone();
-                    let store = state.clone().store;
-                    let m_payment_intent = payment_intent.clone();
-                    let m_attempt_type = attempt_type.clone();
-                    let m_payment_attempt = payment_attempt.clone();
-
-                    let modified_pi_pa_fut = tokio::spawn(
-                        async move {
-                            m_attempt_type
-                                .modify_payment_intent_and_payment_attempt(
-                                    &m_request,
-                                    m_payment_intent,
-                                    m_payment_attempt,
-                                    store.as_ref(),
-                                    storage_scheme,
-                                )
-                                .await
-                        }
-                        .in_current_span(),
-                    );
-
-                    let store = state.clone().store;
-                    let m_attempt_type = attempt_type.clone();
-                    let m_payment_attempt = payment_attempt.clone();
-                    let connector_response_fut = tokio::spawn(
-                        async move {
-                            m_attempt_type
-                                .get_or_insert_connector_response(
-                                    &m_payment_attempt,
-                                    store.as_ref(),
-                                    storage_scheme,
-                                )
-                                .await
-                        }
-                        .in_current_span(),
-                    );
-
-                    let ((_, payment_attempt), connector_response) = tokio::try_join!(
-                        utils::flatten_join_error(modified_pi_pa_fut),
-                        utils::flatten_join_error(connector_response_fut)
-                    )?;
-
-                    (
+                        payment_intent,
                         payment_attempt,
-                        shipping_address,
-                        billing_address,
-                        connector_response,
+                        &*state.store,
+                        storage_scheme,
                     )
-                }
-            };
+                    .await?;
+
+                (payment_attempt, shipping_address, billing_address)
+            }
+        };
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -464,7 +399,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_intent,
                 payment_attempt,
                 currency,
-                connector_response,
                 amount,
                 email: request.email.clone(),
                 mandate_id: None,

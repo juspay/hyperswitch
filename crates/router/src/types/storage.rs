@@ -4,7 +4,6 @@ pub mod business_profile;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
 pub mod customers;
 pub mod dispute;
 pub mod enums;
@@ -41,11 +40,11 @@ pub use data_models::payments::{
 };
 
 pub use self::{
-    address::*, api_keys::*, capture::*, cards_info::*, configs::*, connector_response::*,
-    customers::*, dispute::*, ephemeral_key::*, events::*, file::*, gsm::*, locker_mock_up::*,
-    mandate::*, merchant_account::*, merchant_connector_account::*, merchant_key_store::*,
-    payment_link::*, payment_method::*, payout_attempt::*, payouts::*, process_tracker::*,
-    refund::*, reverse_lookup::*, routing_algorithm::*,
+    address::*, api_keys::*, capture::*, cards_info::*, configs::*, customers::*, dispute::*,
+    ephemeral_key::*, events::*, file::*, gsm::*, locker_mock_up::*, mandate::*,
+    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
+    payment_method::*, payout_attempt::*, payouts::*, process_tracker::*, refund::*,
+    reverse_lookup::*, routing_algorithm::*,
 };
 use crate::types::api::routing;
 

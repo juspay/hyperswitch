@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.75.0 (2023-11-09)
+
+### Features
+
+- **events:** Add extracted fields based on req/res types ([#2795](https://github.com/juspay/hyperswitch/pull/2795)) ([`8985794`](https://github.com/juspay/hyperswitch/commit/89857941b09c5fbe0f3e7d5b4f908bb144ae162d))
+- **router:**
+  - Added merchant custom name support for payment link ([#2685](https://github.com/juspay/hyperswitch/pull/2685)) ([`8b15189`](https://github.com/juspay/hyperswitch/commit/8b151898dc0d8eefe5ed2bbdafe59e8f58b4698c))
+  - Add `gateway_status_map` CRUD APIs ([#2809](https://github.com/juspay/hyperswitch/pull/2809)) ([`5c9e235`](https://github.com/juspay/hyperswitch/commit/5c9e235bd30dd3e03d086a83613edfcc62b2ead2))
+
+### Bug Fixes
+
+- **analytics:** Added hs latency to api event for paymentconfirm call ([#2787](https://github.com/juspay/hyperswitch/pull/2787)) ([`aab8f60`](https://github.com/juspay/hyperswitch/commit/aab8f6035c16ca19009f8f1e0db688c17bc0b2b6))
+- [mollie] locale validation irrespective of auth type ([#2814](https://github.com/juspay/hyperswitch/pull/2814)) ([`25a73c2`](https://github.com/juspay/hyperswitch/commit/25a73c29a4c4715a54862dd6a28c875fd3752f63))
+
+**Full Changelog:** [`v1.74.0...v1.75.0`](https://github.com/juspay/hyperswitch/compare/v1.74.0...v1.75.0)
+
+- - -
+
+
 ## 1.74.0 (2023-11-08)
 
 ### Features
