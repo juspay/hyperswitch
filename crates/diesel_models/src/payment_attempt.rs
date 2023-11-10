@@ -203,6 +203,8 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -478,6 +480,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
             } => Self {
                 status: Some(status),
                 connector,
@@ -494,6 +498,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

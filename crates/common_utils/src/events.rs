@@ -41,6 +41,7 @@ pub enum ApiEventsType {
     Routing,
     ResourceListAPI,
     PaymentRedirectionResponse,
+    Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
 }

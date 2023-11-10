@@ -286,6 +286,8 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,

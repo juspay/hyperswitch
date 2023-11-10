@@ -11,6 +11,7 @@ pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
 pub mod files;
+pub mod gsm;
 pub mod mandates;
 pub mod organization;
 pub mod payment_methods;
