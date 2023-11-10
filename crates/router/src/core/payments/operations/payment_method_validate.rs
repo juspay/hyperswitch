@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, PaymentCreate, UpdateTracker, ValidateRequest};
+use super::{BoxedOperation, Domain, GetTracker, UpdateTracker, ValidateRequest};
 use crate::{
     consts,
     core::{
@@ -89,7 +89,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
-        let (payment_intent, payment_attempt, connector_response);
+        let (payment_intent, payment_attempt);
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -135,19 +135,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
         }?;
 
-        connector_response = match db
-            .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt),
-                storage_scheme,
-            )
-            .await
-        {
-            Ok(connector_resp) => Ok(connector_resp),
-            Err(err) => {
-                Err(err.change_context(errors::ApiErrorResponse::VerificationFailed { data: None }))
-            }
-        }?;
-
         let creds_identifier = request
             .merchant_connector_details
             .as_ref()
@@ -180,7 +167,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 mandate_connector: None,
                 setup_mandate: request.mandate_data.clone().map(Into::into),
                 token: request.payment_token.clone(),
-                connector_response,
                 payment_method_data: request.payment_method_data.clone(),
                 confirm: Some(true),
                 address: types::PaymentAddress::default(),
@@ -297,11 +283,12 @@ where
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 
     async fn get_connector<'a>(
