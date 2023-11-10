@@ -1583,7 +1583,6 @@ where
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub multiple_capture_data: Option<types::MultipleCaptureData>,
-    pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub mandate_connector: Option<MandateConnectorDetails>,
@@ -1676,10 +1675,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             !matches!(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::Failed | storage_enums::IntentStatus::Succeeded
-            ) && payment_data
-                .connector_response
-                .authentication_data
-                .is_none()
+            ) && payment_data.payment_attempt.authentication_data.is_none()
         }
         "PaymentStatus" => {
             matches!(

@@ -169,55 +169,40 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })
             .map(|x| x.transpose());
 
-        let (
-            mut payment_attempt,
-            shipping_address,
-            billing_address,
-            connector_response,
-            business_profile,
-        ) = match payment_intent.status {
-            api_models::enums::IntentStatus::RequiresCustomerAction
-            | api_models::enums::IntentStatus::RequiresMerchantAction
-            | api_models::enums::IntentStatus::RequiresPaymentMethod
-            | api_models::enums::IntentStatus::RequiresConfirmation => {
-                let attempt_type = helpers::AttemptType::SameOld;
+        let (mut payment_attempt, shipping_address, billing_address, business_profile) =
+            match payment_intent.status {
+                api_models::enums::IntentStatus::RequiresCustomerAction
+                | api_models::enums::IntentStatus::RequiresMerchantAction
+                | api_models::enums::IntentStatus::RequiresPaymentMethod
+                | api_models::enums::IntentStatus::RequiresConfirmation => {
+                    let attempt_type = helpers::AttemptType::SameOld;
 
-                let attempt_id = payment_intent.active_attempt.get_id();
-                let connector_response_fut = attempt_type.get_connector_response(
-                    db,
-                    &payment_intent.payment_id,
-                    &payment_intent.merchant_id,
-                    attempt_id.as_str(),
-                    storage_scheme,
-                );
+                    let attempt_id = payment_intent.active_attempt.get_id();
 
-                let (
-                    payment_attempt,
-                    shipping_address,
-                    billing_address,
-                    connector_response,
-                    business_profile,
-                    _,
-                ) = futures::try_join!(
-                    payment_attempt_fut,
-                    shipping_address_fut,
-                    billing_address_fut,
-                    connector_response_fut,
-                    business_profile_fut,
-                    config_update_fut
-                )?;
+                    let (payment_attempt, shipping_address, billing_address, business_profile, _) =
+                        futures::try_join!(
+                            payment_attempt_fut,
+                            shipping_address_fut,
+                            billing_address_fut,
+                            business_profile_fut,
+                            config_update_fut
+                        )?;
 
-                (
-                    payment_attempt,
-                    shipping_address,
-                    billing_address,
-                    connector_response,
-                    business_profile,
-                )
-            }
-            _ => {
-                let (mut payment_attempt, shipping_address, billing_address, business_profile, _) =
-                    futures::try_join!(
+                    (
+                        payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        business_profile,
+                    )
+                }
+                _ => {
+                    let (
+                        mut payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        business_profile,
+                        _,
+                    ) = futures::try_join!(
                         payment_attempt_fut,
                         shipping_address_fut,
                         billing_address_fut,
@@ -225,37 +210,27 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         config_update_fut,
                     )?;
 
-                let attempt_type = helpers::get_attempt_type(
-                    &payment_intent,
-                    &payment_attempt,
-                    request,
-                    "confirm",
-                )?;
-
-                (payment_intent, payment_attempt) = attempt_type
-                    .modify_payment_intent_and_payment_attempt(
-                        // 3
+                    let attempt_type = helpers::get_attempt_type(
+                        &payment_intent,
+                        &payment_attempt,
                         request,
-                        payment_intent,
-                        payment_attempt,
-                        db,
-                        storage_scheme,
-                    )
-                    .await?;
+                        "confirm",
+                    )?;
 
-                let connector_response = attempt_type
-                    .get_or_insert_connector_response(&payment_attempt, db, storage_scheme)
-                    .await?;
+                    (payment_intent, payment_attempt) = attempt_type
+                        .modify_payment_intent_and_payment_attempt(
+                            // 3
+                            request,
+                            payment_intent,
+                            payment_attempt,
+                            db,
+                            storage_scheme,
+                        )
+                        .await?;
 
-                (
-                    payment_attempt,
-                    shipping_address,
-                    billing_address,
-                    connector_response,
-                    business_profile,
-                )
-            }
-        };
+                    (payment_attempt, shipping_address, billing_address)
+                }
+            };
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -380,7 +355,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_intent,
             payment_attempt,
             currency,
-            connector_response,
             amount,
             email: request.email.clone(),
             mandate_id: None,

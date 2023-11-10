@@ -20,8 +20,8 @@ pub struct PaymentLink {
     pub last_modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
+    pub custom_merchant_name: Option<String>,
 }
-
 #[derive(
     Clone,
     Debug,
@@ -47,4 +47,5 @@ pub struct PaymentLinkNew {
     pub last_modified_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
+    pub custom_merchant_name: Option<String>,
 }

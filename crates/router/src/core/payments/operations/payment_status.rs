@@ -243,18 +243,7 @@ async fn get_tracker_for_sync<
 
     let payment_id_str = payment_attempt.payment_id.clone();
 
-    let mut connector_response = db
-        .find_connector_response_by_payment_id_merchant_id_attempt_id(
-            &payment_intent.payment_id,
-            &payment_intent.merchant_id,
-            &payment_attempt.attempt_id,
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable("Database error when finding connector response")?;
-
-    connector_response.encoded_data = request.param.clone();
+    payment_attempt.encoded_data = request.param.clone();
     currency = payment_attempt.currency.get_required_value("currency")?;
     amount = payment_attempt.amount.into();
 
@@ -342,7 +331,7 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {payment_id_str}", &merchant_account.merchant_id)
         });
 
-    let contains_encoded_data = connector_response.encoded_data.is_some();
+    let contains_encoded_data = payment_attempt.encoded_data.is_some();
 
     let creds_identifier = request
         .merchant_connector_details
@@ -379,7 +368,6 @@ async fn get_tracker_for_sync<
     let payment_data = PaymentData {
         flow: PhantomData,
         payment_intent,
-        connector_response,
         currency,
         amount,
         email: None,

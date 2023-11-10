@@ -1062,7 +1062,6 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
             amount_capturable: self.amount_capturable,
-
             updated_by: self.updated_by,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
@@ -1244,6 +1243,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1259,6 +1260,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1481,6 +1484,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -1496,6 +1501,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,

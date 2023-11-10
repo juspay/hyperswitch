@@ -158,7 +158,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             email: None,
             mandate_id: None,
             mandate_connector: None,
-            connector_response,
             setup_mandate: None,
             token: payment_attempt.payment_token.clone(),
             address: PaymentAddress {
