@@ -294,10 +294,10 @@ pub async fn retrieve_api_key(
 #[instrument(skip_all)]
 pub async fn update_api_key(
     state: AppState,
-    merchant_id: &str,
-    key_id: &str,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    let merchant_id = api_key.merchant_id.clone();
+    let key_id = api_key.key_id.clone();
     let store = state.store.as_ref();
 
     let api_key = store
@@ -313,7 +313,7 @@ pub async fn update_api_key(
     {
         let expiry_reminder_days = state.conf.api_keys.expiry_reminder_days.clone();
 
-        let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
+        let task_id = generate_task_id_for_api_key_expiry_workflow(&key_id);
         // In order to determine how to update the existing process in the process_tracker table,
         // we need access to the current entry in the table.
         let existing_process_tracker_task = store
@@ -339,7 +339,7 @@ pub async fn update_api_key(
             // If an expiry is set to 'never'
             else {
                 // Process exist in process, revoke it
-                revoke_api_key_expiry_task(store, key_id)
+                revoke_api_key_expiry_task(store, &key_id)
                     .await
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
