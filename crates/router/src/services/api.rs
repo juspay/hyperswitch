@@ -846,9 +846,7 @@ where
             metrics::request::track_response_status_code(res)
         }
         Err(err) => {
-            error.replace(
-                (&err.current_context()).to_string()
-            );
+            error.replace((&err.current_context()).to_string());
             err.current_context().status_code().as_u16().into()
         }
     };
