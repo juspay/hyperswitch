@@ -23,6 +23,7 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
+    RustLockerMigration,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -129,6 +130,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::Verification => Self::Verification,
 
             Flow::PaymentLinkInitiate | Flow::PaymentLinkRetrieve => Self::PaymentLink,
+            Flow::RustLockerMigration => Self::RustLockerMigration,
         }
     }
 }

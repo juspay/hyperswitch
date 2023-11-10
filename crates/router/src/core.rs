@@ -21,3 +21,4 @@ pub mod utils;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
 pub mod webhooks;
+pub mod locker_migration;

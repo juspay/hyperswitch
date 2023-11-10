@@ -19,4 +19,5 @@ pub mod payouts;
 pub mod refunds;
 pub mod routing;
 pub mod verifications;
+pub mod locker_migration;
 pub mod webhooks;

@@ -26,6 +26,7 @@ pub mod routing;
 pub mod verification;
 pub mod webhooks;
 
+pub mod locker_migration;
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "payouts")]
@@ -37,7 +38,7 @@ pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
     Files, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
-    PaymentMethods, Payments, Refunds, Webhooks,
+    PaymentMethods, Payments, Refunds, Webhooks, LockerMigrate,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

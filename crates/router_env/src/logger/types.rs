@@ -235,6 +235,8 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Rust locker migration
+    RustLockerMigration,
 }
 
 ///
