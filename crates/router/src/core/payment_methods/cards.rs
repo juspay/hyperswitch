@@ -406,7 +406,7 @@ pub async fn call_to_locker_hs<'a>(
     let jwekey = &state.kms_secrets;
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        let request = payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, &locker_choice).await?;
+        let request = payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, locker_choice).await?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::SaveCardFailed);

@@ -28,21 +28,21 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let domain_customers = db
-        .list_customers_by_merchant_id(&merchant_id, &key_store)
+        .list_customers_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     for customer in domain_customers {
-        let _resp = db
+        db
             .find_payment_method_by_customer_id_merchant_id_list(
                 &customer.customer_id,
-                &merchant_id,
+                merchant_id,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
@@ -50,7 +50,7 @@ pub async fn rust_locker_migration(
                     &state,
                     pm,
                     &customer.customer_id,
-                    &merchant_id,
+                    merchant_id,
                     &merchant_account,
                 )
             })
@@ -75,7 +75,7 @@ pub async fn call_to_locker(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     for pm in payment_methods {
         let card =
-            cards::get_card_from_locker(&state, &customer_id, &merchant_id, &pm.payment_method_id)
+            cards::get_card_from_locker(state, customer_id, merchant_id, &pm.payment_method_id)
                 .await?;
 
         let card_details = api::CardDetail {
@@ -85,7 +85,7 @@ pub async fn call_to_locker(
             card_holder_name: card.name_on_card,
             nick_name: card
                 .nick_name
-                .map(|nick_name| masking::Secret::new(nick_name)),
+                .map(masking::Secret::new),
         };
 
         let pm_create = api::PaymentMethodCreate {

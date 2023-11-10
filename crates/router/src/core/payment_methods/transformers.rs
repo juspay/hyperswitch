@@ -245,7 +245,10 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)?;
 
     #[cfg(feature = "kms")]
-    let public_key = jwekey.jwekey.peek().vault_encryption_key.as_bytes();
+    let public_key = match locker_choice {
+        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes(),
+    };
 
     #[cfg(not(feature = "kms"))]
     let public_key = match locker_choice {
@@ -294,7 +297,7 @@ pub async fn mk_add_locker_request_hs<'a>(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, &locker_choice).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
