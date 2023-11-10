@@ -1,6 +1,7 @@
 pub mod api;
 pub mod authentication;
 pub mod encryption;
+pub mod jwt;
 pub mod logger;
 
 #[cfg(feature = "kms")]

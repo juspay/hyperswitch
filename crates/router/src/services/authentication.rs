@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::{
     configs::settings,
+    consts,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -21,6 +22,8 @@ use crate::{
     types::domain,
     utils::OptionExt,
 };
+
+use super::jwt;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
@@ -64,6 +67,37 @@ impl AuthenticationType {
             } => Some(merchant_id.as_ref()),
             Self::AdminApiKey | Self::NoAuth => None,
         }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct AuthToken {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub exp: u64,
+    pub org_id: String,
+}
+
+#[cfg(feature = "olap")]
+impl AuthToken {
+    pub async fn new_token(
+        user_id: String,
+        merchant_id: String,
+        role_id: String,
+        settings: &settings::Settings,
+        org_id: String,
+    ) -> errors::UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let token_payload = Self {
+            user_id,
+            merchant_id,
+            role_id,
+            exp,
+            org_id,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
     }
 }
 
@@ -362,12 +396,56 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
-        let mut token = get_jwt(request_headers)?;
-        token = strip_jwt_token(token)?;
-        decode_jwt::<JwtAuthPayloadFetchUnit>(token, state)
-            .await
-            .map(|_| ((), AuthenticationType::NoAuth))
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        Ok((
+            (),
+            AuthenticationType::MerchantJWT {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
+}
+
+pub struct JWTAuthMerchantFromRoute {
+    pub merchant_id: String,
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantFromRoute
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        // Check if token has access to merchantID that has been requested through query param
+        if payload.merchant_id != self.merchant_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+        Ok((
+            (),
+            AuthenticationType::MerchantJWT {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
+where
+    T: serde::de::DeserializeOwned,
+    A: AppStateInfo + Sync,
+{
+    let token = get_jwt(headers)?;
+    let payload = decode_jwt(token, state).await?;
+
+    Ok(payload)
 }
 
 #[derive(serde::Deserialize)]
@@ -385,8 +463,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let mut token = get_jwt(request_headers)?;
-        token = strip_jwt_token(token)?;
+        let token = get_jwt(request_headers)?;
         let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state).await?;
         let key_store = state
             .store()
@@ -598,7 +675,9 @@ pub fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
         .to_str()
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert JWT token to string")
+        .attach_printable("Failed to convert JWT token to string")?
+        .strip_prefix("Bearer ")
+        .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {

@@ -1,3 +1,8 @@
+[server]
+port = 8000
+host = "0.0.0.0"
+request_body_limit = 16_384 # Post request body is limited to 16k.
+
 [log.file]
 enabled = false
 
@@ -30,9 +35,9 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 
-[server]
-# HTTP Request body limit. Defaults to 32kB
-request_body_limit = 32768
+# [server]
+# # HTTP Request body limit. Defaults to 32kB
+# request_body_limit = 32768
 
 [secrets]
 admin_api_key = "test_admin"

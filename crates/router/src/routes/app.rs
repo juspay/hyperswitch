@@ -20,7 +20,7 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*};
-use super::{cache::*, health::*, payment_link::*};
+use super::{cache::*, health::*, payment_link::*, user::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -696,5 +696,19 @@ impl Verify {
                 web::resource("/applepay_verified_domains")
                     .route(web::get().to(retrieve_apple_pay_verified_domains)),
             )
+    }
+}
+
+pub struct User;
+
+#[cfg(feature = "olap")]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/user")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/signin").route(web::post().to(user_connect_account)))
+            .service(web::resource("/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
+            .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
     }
 }
