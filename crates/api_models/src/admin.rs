@@ -463,9 +463,8 @@ pub struct PaymentLinkConfig {
 #[serde(deny_unknown_fields)]
 
 pub struct PaymentLinkColorSchema {
-    pub primary_color: Option<String>,
-    pub primary_accent_color: Option<String>,
-    pub secondary_color: Option<String>,
+    pub background_primary_color: Option<String>,
+    pub sdk_theme: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

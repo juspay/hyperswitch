@@ -41,6 +41,8 @@ pub struct MockDb {
     pub reverse_lookups: Arc<Mutex<Vec<store::ReverseLookup>>>,
     pub payment_link: Arc<Mutex<Vec<store::payment_link::PaymentLink>>>,
     pub organizations: Arc<Mutex<Vec<store::organization::Organization>>>,
+    pub users: Arc<Mutex<Vec<store::user::User>>>,
+    pub user_roles: Arc<Mutex<Vec<store::user_role::UserRole>>>,
 }
 
 impl MockDb {
@@ -74,6 +76,8 @@ impl MockDb {
             reverse_lookups: Default::default(),
             payment_link: Default::default(),
             organizations: Default::default(),
+            users: Default::default(),
+            user_roles: Default::default(),
         })
     }
 }
