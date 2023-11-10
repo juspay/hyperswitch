@@ -388,15 +388,15 @@ pub async fn merchant_account_toggle_kv(
     json_payload: web::Json<admin::ToggleKVRequest>,
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyUpdate;
-    let payload = json_payload.into_inner();
-    let merchant_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.merchant_id = path.into_inner();
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (merchant_id, payload),
-        |state, _, (merchant_id, payload)| kv_for_merchant(state, merchant_id, payload.kv_enabled),
+        payload,
+        |state, _, payload| kv_for_merchant(state, payload.merchant_id, payload.kv_enabled),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

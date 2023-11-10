@@ -63,7 +63,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let store = state.clone().store;
         let m_merchant_id = merchant_id.clone();
-
         let payment_intent_fut = tokio::spawn(
             async move {
                 store
@@ -75,13 +74,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .map(|x| x.change_context(errors::ApiErrorResponse::PaymentNotFound))
                     .await
             }
-            .in_current_span(),
+            .in_current_span()
         );
 
         let m_state = state.clone();
         let m_mandate_type = mandate_type.clone();
         let m_merchant_account = merchant_account.clone();
         let m_request = request.clone();
+        let m_key_store = key_store.clone();
 
         let mandate_details_fut = tokio::spawn(
             async move {
@@ -90,6 +90,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     &m_request,
                     m_mandate_type,
                     &m_merchant_account,
+                    &m_key_store,
                 )
                 .await
             }
@@ -533,12 +534,13 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data).await?;
+            helpers::make_pm_data(Box::new(self), state, payment_data, key_store).await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)

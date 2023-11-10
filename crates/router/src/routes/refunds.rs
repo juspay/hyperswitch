@@ -161,13 +161,14 @@ pub async fn refunds_update(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::RefundsUpdate;
-    let refund_id = path.into_inner();
+    let mut refund_update_req = json_payload.into_inner();
+    refund_update_req.refund_id = path.into_inner();
     api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth, req| refund_update_core(state, auth.merchant_account, &refund_id, req),
+        refund_update_req,
+        |state, auth, req| refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -225,7 +226,7 @@ pub async fn refunds_list(
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<api_models::refunds::TimeRange>,
+    payload: web::Json<api_models::payments::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
     api::server_wrap(

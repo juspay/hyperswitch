@@ -11218,12 +11218,12 @@
           "start_time": {
             "type": "string",
             "format": "date-time",
-            "description": "The start time to filter refunds list or to get list of filters. To get list of filters start time is needed to be passed"
+            "description": "The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
-            "description": "The end time to filter refunds list or to get list of filters. If not passed the default time is now",
+            "description": "The end time to filter payments list or to get list of filters. If not passed the default time is now",
             "nullable": true
           }
         }

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
+use super::payments::TimeRange;
 use crate::{admin, enums};
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -75,6 +76,8 @@ pub struct RefundsRetrieveRequest {
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundUpdateRequest {
+    #[serde(skip)]
+    pub refund_id: String,
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
@@ -150,16 +153,6 @@ pub struct RefundListRequest {
     /// The list of refund statuses to filter refunds list
     #[schema(value_type = Option<Vec<RefundStatus>>)]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
-pub struct TimeRange {
-    /// The start time to filter refunds list or to get list of filters. To get list of filters start time is needed to be passed
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub start_time: PrimitiveDateTime,
-    /// The end time to filter refunds list or to get list of filters. If not passed the default time is now
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

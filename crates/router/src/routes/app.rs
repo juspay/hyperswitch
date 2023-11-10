@@ -110,6 +110,8 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
+
+        Box::pin(async move {
         #[cfg(feature = "kms")]
         let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
@@ -150,6 +152,7 @@ impl AppState {
             api_client,
             event_handler: Box::<EventLogger>::default(),
         }
+        }).await
     }
 
     pub async fn new(

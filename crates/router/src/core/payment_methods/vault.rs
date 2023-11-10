@@ -1,34 +1,30 @@
-use common_utils::generate_id_with_default_len;
-#[cfg(feature = "basilisk")]
-use error_stack::report;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{
+    crypto::{DecodeMessage, EncodeMessage, GcmAes256},
+    ext_traits::BytesExt,
+    generate_id_with_default_len,
+};
+use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
 use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-#[cfg(feature = "basilisk")]
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
-#[cfg(feature = "basilisk")]
-use crate::routes::metrics;
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;
 use crate::{
-    configs::settings,
+    consts,
     core::errors::{self, CustomResult, RouterResult},
-    logger, routes,
+    db, logger, routes,
+    routes::metrics,
     types::{
-        api,
-        storage::{self, enums},
+        api, domain,
+        storage::{self, enums, ProcessTrackerExt},
     },
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
-use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
-#[cfg(feature = "basilisk")]
-use crate::{db, types::storage::ProcessTrackerExt};
-
-#[cfg(feature = "basilisk")]
+use crate::{core::payment_methods::transformers as payment_methods, services, settings};
 const VAULT_SERVICE_NAME: &str = "CARD";
 #[cfg(feature = "basilisk")]
 const VAULT_VERSION: &str = "0";
@@ -622,196 +618,15 @@ pub struct MockTokenizeDBValue {
 
 pub struct Vault;
 
-#[cfg(not(feature = "basilisk"))]
 impl Vault {
     #[instrument(skip_all)]
     pub async fn get_payment_method_data_from_locker(
         state: &routes::AppState,
         lookup_key: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
-        let config = state
-            .store
-            .find_config_by_key(lookup_key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not find payment method in vault")?;
-
-        let tokenize_value: MockTokenizeDBValue = config
-            .config
-            .parse_struct("MockTokenizeDBValue")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize Mock tokenize db value")?;
-
-        let (payment_method, supp_data) =
-            api::PaymentMethodData::from_values(tokenize_value.value1, tokenize_value.value2)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error parsing Payment Method from Values")?;
-
-        Ok((Some(payment_method), supp_data))
-    }
-
-    #[cfg(feature = "payouts")]
-    #[instrument(skip_all)]
-    pub async fn get_payout_method_data_from_temporary_locker(
-        state: &routes::AppState,
-        lookup_key: &str,
-    ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
-        let config = state
-            .store
-            .find_config_by_key(lookup_key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not find payment method in vault")?;
-
-        let tokenize_value: MockTokenizeDBValue = config
-            .config
-            .parse_struct("MockTokenizeDBValue")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize Mock tokenize db value")?;
-
-        let (payout_method, supp_data) =
-            api::PayoutMethodData::from_values(tokenize_value.value1, tokenize_value.value2)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error parsing Payout Method from Values")?;
-
-        Ok((Some(payout_method), supp_data))
-    }
-
-    #[cfg(feature = "payouts")]
-    #[instrument(skip_all)]
-    pub async fn store_payout_method_data_in_locker(
-        state: &routes::AppState,
-        token_id: Option<String>,
-        payout_method: &api::PayoutMethodData,
-        customer_id: Option<String>,
-    ) -> RouterResult<String> {
-        let value1 = payout_method
-            .get_value1(customer_id.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value1 for locker")?;
-
-        let value2 = payout_method
-            .get_value2(customer_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value2 for locker")?;
-
-        let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
-
-        let db_value = MockTokenizeDBValue { value1, value2 };
-
-        let value_string =
-            utils::Encode::<MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode payout method as mock tokenize db value")?;
-
-        let already_present = state.store.find_config_by_key(&lookup_key).await;
-
-        if already_present.is_err() {
-            let config = storage::ConfigNew {
-                key: lookup_key.clone(),
-                config: value_string,
-            };
-
-            state
-                .store
-                .insert_config(config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed insert")?;
-        } else {
-            let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string),
-            };
-            state
-                .store
-                .update_config_by_key(&lookup_key, config_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed update")?;
-        }
-
-        Ok(lookup_key)
-    }
-
-    #[instrument(skip_all)]
-    pub async fn store_payment_method_data_in_locker(
-        state: &routes::AppState,
-        token_id: Option<String>,
-        payment_method: &api::PaymentMethodData,
-        customer_id: Option<String>,
-        _pm: enums::PaymentMethod,
-    ) -> RouterResult<String> {
-        let value1 = payment_method
-            .get_value1(customer_id.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value1 for locker")?;
-
-        let value2 = payment_method
-            .get_value2(customer_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value12 for locker")?;
-
-        let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
-
-        let db_value = MockTokenizeDBValue { value1, value2 };
-
-        let value_string =
-            utils::Encode::<MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode payment method as mock tokenize db value")?;
-
-        let already_present = state.store.find_config_by_key(&lookup_key).await;
-
-        if already_present.is_err() {
-            let config = storage::ConfigNew {
-                key: lookup_key.clone(),
-                config: value_string,
-            };
-
-            state
-                .store
-                .insert_config(config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed insert")?;
-        } else {
-            let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string),
-            };
-            state
-                .store
-                .update_config_by_key(&lookup_key, config_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed update")?;
-        }
-
-        Ok(lookup_key)
-    }
-
-    #[instrument(skip_all)]
-    pub async fn delete_locker_payment_method_by_lookup_key(
-        state: &routes::AppState,
-        lookup_key: &Option<String>,
-    ) {
-        let db = &*state.store;
-        if let Some(id) = lookup_key {
-            match db.delete_config_by_key(id).await {
-                Ok(_) => logger::info!("Card Deleted from locker mock up"),
-                Err(err) => logger::error!("Err: Card Delete from locker Failed : {}", err),
-            }
-        }
-    }
-}
-
-#[cfg(feature = "basilisk")]
-impl Vault {
-    #[instrument(skip_all)]
-    pub async fn get_payment_method_data_from_locker(
-        state: &routes::AppState,
-        lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
-        let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
+        let de_tokenize =
+            get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payment_method, customer_id) =
             api::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -827,6 +642,7 @@ impl Vault {
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
         pm: enums::PaymentMethod,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -840,7 +656,14 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        let lookup_key = create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            lookup_key,
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
@@ -851,8 +674,10 @@ impl Vault {
     pub async fn get_payout_method_data_from_temporary_locker(
         state: &routes::AppState,
         lookup_key: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
-        let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
+        let de_tokenize =
+            get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payout_method, supp_data) =
             api::PayoutMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -868,6 +693,7 @@ impl Vault {
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
         customer_id: Option<String>,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
@@ -881,7 +707,14 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        let lookup_key = create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            lookup_key,
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         // scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
@@ -893,30 +726,333 @@ impl Vault {
         lookup_key: &Option<String>,
     ) {
         if let Some(lookup_key) = lookup_key {
-            let delete_resp = delete_tokenized_data(state, lookup_key).await;
-            match delete_resp {
-                Ok(resp) => {
-                    if resp == "Ok" {
-                        logger::info!("Card From locker deleted Successfully")
-                    } else {
-                        logger::error!("Error: Deleting Card From Locker : {:?}", resp)
-                    }
-                }
-                Err(err) => logger::error!("Err: Deleting Card From Locker : {:?}", err),
-            }
+            delete_tokenized_data(state, lookup_key)
+                .await
+                .map(|_| logger::info!("Card From locker deleted Successfully"))
+                .map_err(|err| logger::error!("Error: Deleting Card From Redis Locker : {:?}", err))
+                .ok();
         }
     }
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
-pub fn get_key_id(keys: &settings::Jwekey) -> &str {
-    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
-    if key_identifier == "1" {
-        &keys.locker_key_identifier1
-    } else {
-        &keys.locker_key_identifier2
+
+#[inline(always)]
+fn get_redis_locker_key(lookup_key: &str) -> String {
+    format!("{}_{}", consts::LOCKER_REDIS_PREFIX, lookup_key)
+}
+
+#[instrument(skip(state, value1, value2))]
+pub async fn create_tokenize(
+    state: &routes::AppState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<String> {
+    let redis_key = get_redis_locker_key(lookup_key.as_str());
+    let func = || async {
+        metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+
+        let payload_to_be_encrypted = api::TokenizePayloadRequest {
+            value1: value1.clone(),
+            value2: value2.clone().unwrap_or_default(),
+            lookup_key: lookup_key.clone(),
+            service_name: VAULT_SERVICE_NAME.to_string(),
+        };
+
+        let payload = utils::Encode::<api::TokenizePayloadRequest>::encode_to_string_of_json(
+            &payload_to_be_encrypted,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let encrypted_payload = GcmAes256
+            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode redis temp locker data")?;
+
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        redis_conn
+            .set_key_if_not_exists_with_expiry(
+                redis_key.as_str(),
+                bytes::Bytes::from(encrypted_payload),
+                Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
+            )
+            .await
+            .map(|_| lookup_key.clone())
+            .map_err(|err| {
+                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                err
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error from redis locker")
+    };
+
+    match func().await {
+        Ok(s) => {
+            logger::info!(
+                "Insert payload in redis locker successful with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
+        Err(err) => {
+            logger::error!("Redis Temp locker Failed: {:?}", err);
+
+            #[cfg(feature = "basilisk")]
+            return old_create_tokenize(state, value1, value2, lookup_key).await;
+
+            #[cfg(not(feature = "basilisk"))]
+            Err(err)
+        }
     }
 }
+
+#[instrument(skip(state))]
+pub async fn get_tokenized_data(
+    state: &routes::AppState,
+    lookup_key: &str,
+    _should_get_value2: bool,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<api::TokenizePayloadRequest> {
+    let redis_key = get_redis_locker_key(lookup_key);
+    let func = || async {
+        metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let response = redis_conn.get_key::<bytes::Bytes>(redis_key.as_str()).await;
+
+        match response {
+            Ok(resp) => {
+                let decrypted_payload = GcmAes256
+                    .decode_message(
+                        encryption_key.peek().as_ref(),
+                        masking::Secret::new(resp.into()),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to decode redis temp locker data")?;
+
+                let get_response: api::TokenizePayloadRequest =
+                    bytes::Bytes::from(decrypted_payload)
+                        .parse_struct("TokenizePayloadRequest")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Error getting TokenizePayloadRequest from tokenize response",
+                        )?;
+
+                Ok(get_response)
+            }
+            Err(err) => {
+                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Token is invalid or expired".into(),
+                })
+            }
+        }
+    };
+
+    match func().await {
+        Ok(s) => {
+            logger::info!(
+                "Fetch payload in redis locker successful with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
+        Err(err) => {
+            logger::error!("Redis Temp locker Failed: {:?}", err);
+
+            #[cfg(feature = "basilisk")]
+            return old_get_tokenized_data(state, lookup_key, _should_get_value2).await;
+
+            #[cfg(not(feature = "basilisk"))]
+            Err(err)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -> RouterResult<()> {
+    let redis_key = get_redis_locker_key(lookup_key);
+    let func = || async {
+        metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let response = redis_conn.delete_key(redis_key.as_str()).await;
+
+        match response {
+            Ok(redis_interface::DelReply::KeyDeleted) => Ok(()),
+            Ok(redis_interface::DelReply::KeyNotDeleted) => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("Token invalid or expired")
+            }
+            Err(err) => {
+                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable_lazy(|| {
+                        format!("Failed to delete from redis locker: {err:?}")
+                    })
+            }
+        }
+    };
+    match func().await {
+        Ok(s) => {
+            logger::info!(
+                "Delete payload in redis locker successful with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
+        Err(err) => {
+            logger::error!("Redis Temp locker Failed: {:?}", err);
+
+            #[cfg(feature = "basilisk")]
+            return old_delete_tokenized_data(state, lookup_key).await;
+
+            #[cfg(not(feature = "basilisk"))]
+            Err(err)
+        }
+    }
+}
+
+// ********************************************** PROCESS TRACKER **********************************************
+
+pub async fn add_delete_tokenized_data_task(
+    db: &dyn db::StorageInterface,
+    lookup_key: &str,
+    pm: enums::PaymentMethod,
+) -> RouterResult<()> {
+    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
+    let current_time = common_utils::date_time::now();
+    let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
+        lookup_key: lookup_key.to_owned(),
+        pm,
+    })
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
+
+    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
+
+    let process_tracker_entry = storage::ProcessTrackerNew {
+        id: format!("{runner}_{lookup_key}"),
+        name: Some(String::from(runner)),
+        tag: vec![String::from("BASILISK-V3")],
+        runner: Some(String::from(runner)),
+        retry_count: 0,
+        schedule_time,
+        rule: String::new(),
+        tracking_data,
+        business_status: String::from("Pending"),
+        status: enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: current_time,
+        updated_at: current_time,
+    };
+    let response = db.insert_process(process_tracker_entry).await;
+    response.map(|_| ()).or_else(|err| {
+        if err.current_context().is_db_unique_violation() {
+            Ok(())
+        } else {
+            Err(report!(errors::ApiErrorResponse::InternalServerError))
+        }
+    })
+}
+
+pub async fn start_tokenize_data_workflow(
+    state: &routes::AppState,
+    tokenize_tracker: &storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let db = &*state.store;
+    let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
+        tokenize_tracker.tracking_data.clone(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "unable to convert into DeleteTokenizeByTokenRequest {:?}",
+            tokenize_tracker.tracking_data
+        )
+    })?;
+
+    match delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await {
+        Ok(()) => {
+            logger::info!("Card From locker deleted Successfully");
+            //mark task as finished
+            let id = tokenize_tracker.id.clone();
+            tokenize_tracker
+                .clone()
+                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+                .await?;
+        }
+        Err(err) => {
+            logger::error!("Err: Deleting Card From Locker : {:?}", err);
+            retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
+                .await?;
+            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        }
+    }
+    Ok(())
+}
+
+pub async fn get_delete_tokenize_schedule_time(
+    db: &dyn db::StorageInterface,
+    pm: &enums::PaymentMethod,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let redis_mapping = db::get_and_deserialize_key(
+        db,
+        &format!("pt_mapping_delete_{pm}_tokenize_data"),
+        "PaymentMethodsPTMapping",
+    )
+    .await;
+    let mapping = match redis_mapping {
+        Ok(x) => x,
+        Err(err) => {
+            logger::info!("Redis Mapping Error: {}", err);
+            process_data::PaymentMethodsPTMapping::default()
+        }
+    };
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+
+    process_tracker_utils::get_time_from_delta(time_delta)
+}
+
+pub async fn retry_delete_tokenize(
+    db: &dyn db::StorageInterface,
+    pm: &enums::PaymentMethod,
+    pt: storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+
+    match schedule_time {
+        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
+        None => {
+            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
+                .await
+        }
+    }
+}
+
+// Fallback logic of old temp locker needs to be removed later
 
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
@@ -936,13 +1072,13 @@ async fn get_locker_jwe_keys(
 }
 
 #[cfg(feature = "basilisk")]
-pub async fn create_tokenize(
+#[instrument(skip(state, value1, value2))]
+pub async fn old_create_tokenize(
     state: &routes::AppState,
     value1: String,
     value2: Option<String>,
     lookup_key: String,
 ) -> RouterResult<String> {
-    metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::TokenizePayloadRequest {
         value1,
         value2: value2.unwrap_or_default(),
@@ -1017,7 +1153,7 @@ pub async fn create_tokenize(
 }
 
 #[cfg(feature = "basilisk")]
-pub async fn get_tokenized_data(
+pub async fn old_get_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
     should_get_value2: bool,
@@ -1096,10 +1232,10 @@ pub async fn get_tokenized_data(
 }
 
 #[cfg(feature = "basilisk")]
-pub async fn delete_tokenized_data(
+pub async fn old_delete_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
-) -> RouterResult<String> {
+) -> RouterResult<()> {
     metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
@@ -1136,11 +1272,11 @@ pub async fn delete_tokenized_data(
         .attach_printable("Error while making /tokenize/delete/token call to the locker")?;
     match response {
         Ok(r) => {
-            let delete_response = std::str::from_utf8(&r.response)
+            let _delete_response = std::str::from_utf8(&r.response)
                 .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for basilisk delete response")?;
-            Ok(delete_response.to_string())
+            Ok(())
         }
         Err(err) => {
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
@@ -1151,133 +1287,12 @@ pub async fn delete_tokenized_data(
     }
 }
 
-// ********************************************** PROCESS TRACKER **********************************************
 #[cfg(feature = "basilisk")]
-pub async fn add_delete_tokenized_data_task(
-    db: &dyn db::StorageInterface,
-    lookup_key: &str,
-    pm: enums::PaymentMethod,
-) -> RouterResult<()> {
-    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
-    let current_time = common_utils::date_time::now();
-    let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
-        lookup_key: lookup_key.to_owned(),
-        pm,
-    })
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
-
-    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
-
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{runner}_{lookup_key}"),
-        name: Some(String::from(runner)),
-        tag: vec![String::from("BASILISK-V3")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time,
-        rule: String::new(),
-        tracking_data,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
-    };
-    let response = db.insert_process(process_tracker_entry).await;
-    response.map(|_| ()).or_else(|err| {
-        if err.current_context().is_db_unique_violation() {
-            Ok(())
-        } else {
-            Err(report!(errors::ApiErrorResponse::InternalServerError))
-        }
-    })
-}
-
-#[cfg(feature = "basilisk")]
-pub async fn start_tokenize_data_workflow(
-    state: &routes::AppState,
-    tokenize_tracker: &storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
-    let db = &*state.store;
-    let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
-        tokenize_tracker.tracking_data.clone(),
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| {
-        format!(
-            "unable to convert into DeleteTokenizeByTokenRequest {:?}",
-            tokenize_tracker.tracking_data
-        )
-    })?;
-
-    let delete_resp = delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await;
-    match delete_resp {
-        Ok(resp) => {
-            if resp == "Ok" {
-                logger::info!("Card From locker deleted Successfully");
-                //mark task as finished
-                let id = tokenize_tracker.id.clone();
-                tokenize_tracker
-                    .clone()
-                    .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
-                    .await?;
-            } else {
-                logger::error!("Error: Deleting Card From Locker : {:?}", resp);
-                retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
-                    .await?;
-                metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
-            }
-        }
-        Err(err) => {
-            logger::error!("Err: Deleting Card From Locker : {:?}", err);
-            retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
-                .await?;
-            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
-        }
-    }
-    Ok(())
-}
-
-#[cfg(feature = "basilisk")]
-pub async fn get_delete_tokenize_schedule_time(
-    db: &dyn db::StorageInterface,
-    pm: &enums::PaymentMethod,
-    retry_count: i32,
-) -> Option<time::PrimitiveDateTime> {
-    let redis_mapping = db::get_and_deserialize_key(
-        db,
-        &format!("pt_mapping_delete_{pm}_tokenize_data"),
-        "PaymentMethodsPTMapping",
-    )
-    .await;
-    let mapping = match redis_mapping {
-        Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
-            process_data::PaymentMethodsPTMapping::default()
-        }
-    };
-    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
-
-    process_tracker_utils::get_time_from_delta(time_delta)
-}
-
-#[cfg(feature = "basilisk")]
-pub async fn retry_delete_tokenize(
-    db: &dyn db::StorageInterface,
-    pm: &enums::PaymentMethod,
-    pt: storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
-
-    match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
-        None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
-                .await
-        }
+pub fn get_key_id(keys: &settings::Jwekey) -> &str {
+    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
+    if key_identifier == "1" {
+        &keys.locker_key_identifier1
+    } else {
+        &keys.locker_key_identifier2
     }
 }

@@ -105,12 +105,12 @@ mod tests {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let api_client = Box::new(services::MockApiClient);
-        let state = Box::pin(routes::AppState::with_storage(
+        let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
-        ))
+        )
         .await;
 
         let payment_id = Uuid::new_v4().to_string();
@@ -144,12 +144,12 @@ mod tests {
 
         let api_client = Box::new(services::MockApiClient);
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
-        ))
+        )
         .await;
 
         let current_time = common_utils::date_time::now();
@@ -200,12 +200,12 @@ mod tests {
 
         let api_client = Box::new(services::MockApiClient);
 
-        let state = Box::pin(routes::AppState::with_storage(
+        let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
-        ))
+        )
         .await;
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
