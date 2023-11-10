@@ -1,10 +1,10 @@
 use error_stack::IntoReport;
 
-#[cfg(feature = "olap")]
-use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    db::MockDb,
+    services::Store,
     types::storage::{self, PaymentLinkDbExt},
 };
 
@@ -20,7 +20,6 @@ pub trait PaymentLinkInterface {
         _payment_link: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError>;
 
-    #[cfg(feature = "olap")]
     async fn find_payment_link_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -53,7 +52,6 @@ impl PaymentLinkInterface for Store {
             .into_report()
     }
 
-    #[cfg(feature = "olap")]
     async fn find_payment_link_by_merchant_id(
         &self,
         merchant_id: &str,

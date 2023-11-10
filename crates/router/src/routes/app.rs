@@ -20,9 +20,9 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*};
-use super::{cache::*, health::*, payment_link::*};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payment_link::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -630,7 +630,7 @@ impl Cache {
 }
 
 pub struct PaymentLink;
-
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_link").app_data(web::Data::new(state));
@@ -638,6 +638,7 @@ impl PaymentLink {
         {
             route = route.service(web::resource("/list").route(web::get().to(payments_link_list)));
         }
+        #[cfg(feature = "oltp")]
         route
             .service(
                 web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
