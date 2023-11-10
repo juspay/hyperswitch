@@ -24,7 +24,7 @@ pub trait PaymentLinkInterface {
     async fn find_payment_link_by_merchant_id(
         &self,
         merchant_id: &str,
-        payment_link_contraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError>;
 }
 
@@ -88,7 +88,7 @@ impl PaymentLinkInterface for MockDb {
     async fn find_payment_link_by_merchant_id(
         &self,
         _merchant_id: &str,
-        _payment_link_contraints: api_models::payments::PaymentLinkListConstraints,
+        _payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         // TODO: Implement function for `MockDb`x
         Err(errors::StorageError::MockDbError)?
