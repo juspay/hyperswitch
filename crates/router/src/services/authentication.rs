@@ -46,6 +46,9 @@ pub enum AuthenticationType {
     PublishableKey {
         merchant_id: String,
     },
+    WebhookAuth {
+        merchant_id: String,
+    },
     NoAuth,
 }
 
@@ -61,7 +64,8 @@ impl AuthenticationType {
             | Self::MerchantJWT {
                 merchant_id,
                 user_id: _,
-            } => Some(merchant_id.as_ref()),
+            }
+            | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
             Self::AdminApiKey | Self::NoAuth => None,
         }
     }

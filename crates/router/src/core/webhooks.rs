@@ -1,16 +1,17 @@
 pub mod types;
 pub mod utils;
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 
+use actix_web::FromRequest;
 use api_models::{
     payments::HeaderPayload,
     webhooks::{self, WebhookResponseTracker},
 };
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
@@ -24,9 +25,10 @@ use crate::{
         payments, refunds,
     },
     db::StorageInterface,
+    events::api_logs::ApiEvent,
     logger,
-    routes::{lock_utils, metrics::request::add_attributes, AppState},
-    services,
+    routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
+    services::{self, authentication as auth},
     types::{
         self as router_types,
         api::{self, mandates::MandateResponseExt},
@@ -847,6 +849,7 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
 }
 
 pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
+    flow: &impl router_env::types::FlowMetric,
     state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
@@ -854,15 +857,63 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let (application_response, _webhooks_response_tracker) = webhooks_core::<W, Ctx>(
-        state,
+    let start_instant = Instant::now();
+    let (application_response, webhooks_response_tracker) = webhooks_core::<W, Ctx>(
+        state.clone(),
         req,
-        merchant_account,
+        merchant_account.clone(),
         key_store,
         connector_name_or_mca_id,
-        body,
+        body.clone(),
     )
     .await?;
+
+    let request_duration = Instant::now()
+        .saturating_duration_since(start_instant)
+        .as_millis();
+
+    let body_vec: Vec<u8> = body.to_vec();
+    let serialized_request: serde_json::Value = serde_json::from_slice(&body_vec)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
+
+    let request_id = RequestId::extract(req)
+        .await
+        .into_report()
+        .attach_printable("Unable to extract request id from request")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type = auth::AuthenticationType::WebhookAuth {
+        merchant_id: merchant_account.merchant_id.clone(),
+    };
+    let status_code = 200;
+    let api_event = ApiEventsType::Webhooks {
+        connector: connector_name_or_mca_id.to_string(),
+        payment_id: webhooks_response_tracker.get_payment_id(),
+    };
+    let response_value = serde_json::to_value(&webhooks_response_tracker)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not convert webhook effect to string")?;
+
+    let api_event = ApiEvent::new(
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+        serialized_request,
+        Some(response_value),
+        auth_type,
+        api_event,
+        req,
+    );
+    match api_event.clone().try_into() {
+        Ok(event) => {
+            state.event_handler().log_event(event);
+        }
+        Err(err) => {
+            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
+        }
+    }
 
     Ok(application_response)
 }
