@@ -397,7 +397,10 @@ pub enum RoutingAlgorithmKind {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 
-pub struct RoutingPayloadWrapper(pub Vec<RoutableConnectorChoice>, pub String);
+pub struct RoutingPayloadWrapper {
+    pub updated_config: Vec<RoutableConnectorChoice>,
+    pub profile_id: String,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(
