@@ -22,6 +22,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
     api_flow: String,
     created_at_timestamp: i128,
