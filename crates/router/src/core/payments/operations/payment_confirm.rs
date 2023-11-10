@@ -259,7 +259,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     "confirm",
                 )?;
 
-
                 (payment_intent, payment_attempt) = attempt_type
                     .modify_payment_intent_and_payment_attempt(
                         request,
