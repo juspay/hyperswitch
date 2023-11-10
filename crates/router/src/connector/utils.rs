@@ -292,6 +292,18 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
 }
 
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {

@@ -10,6 +10,7 @@ pub mod disputes;
 pub mod dummy_connector;
 pub mod ephemeral_key;
 pub mod files;
+pub mod gsm;
 pub mod health;
 pub mod lock_utils;
 pub mod mandates;
@@ -36,7 +37,7 @@ pub use self::app::Routing;
 pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
-    Files, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
+    Files, Gsm, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
     PaymentMethods, Payments, Refunds, Webhooks,
 };
 #[cfg(feature = "stripe")]

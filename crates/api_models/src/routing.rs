@@ -593,3 +593,8 @@ pub enum RoutingKind {
     Config(RoutingDictionary),
     RoutingAlgorithm(Vec<RoutingDictionaryRecord>),
 }
+
+#[repr(transparent)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[serde(transparent)]
+pub struct RoutingAlgorithmId(pub String);
