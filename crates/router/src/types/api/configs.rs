@@ -32,7 +32,7 @@ where
     Ok(value.into())
 }
 
-pub fn vec_to_string_serialize<S>(value: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn vec_to_string_serialize<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
