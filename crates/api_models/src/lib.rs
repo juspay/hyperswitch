@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 pub mod admin;
+pub mod analytics;
 pub mod api_keys;
 pub mod bank_accounts;
 pub mod cards_info;
