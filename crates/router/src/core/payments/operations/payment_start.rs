@@ -122,20 +122,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             ..CustomerDetails::default()
         };
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &payment_intent.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Database error when finding connector response")
-            })?;
-
         let profile_id = payment_intent
             .profile_id
             .as_ref()

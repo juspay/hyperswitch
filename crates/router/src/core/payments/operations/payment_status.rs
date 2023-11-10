@@ -243,7 +243,6 @@ async fn get_tracker_for_sync<
 
     let payment_id_str = payment_attempt.payment_id.clone();
 
-    payment_attempt.encoded_data = request.param.clone();
     currency = payment_attempt.currency.get_required_value("currency")?;
     amount = payment_attempt.amount.into();
 

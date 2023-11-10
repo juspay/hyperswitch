@@ -175,10 +175,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 | api_models::enums::IntentStatus::RequiresMerchantAction
                 | api_models::enums::IntentStatus::RequiresPaymentMethod
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
-                    let attempt_type = helpers::AttemptType::SameOld;
-
-                    let attempt_id = payment_intent.active_attempt.get_id();
-
                     let (payment_attempt, shipping_address, billing_address, business_profile, _) =
                         futures::try_join!(
                             payment_attempt_fut,
@@ -228,7 +224,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         )
                         .await?;
 
-                    (payment_attempt, shipping_address, billing_address)
+                    (
+                        payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        business_profile,
+                    )
                 }
             };
 
