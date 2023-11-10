@@ -847,10 +847,7 @@ where
         }
         Err(err) => {
             error.replace(
-                masking::masked_serialize(&err.current_context().to_string())
-                .into_report()
-                .attach_printable("Failed to serialize json response")
-                .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                (&err.current_context()).to_string()
             );
             err.current_context().status_code().as_u16().into()
         }
