@@ -23,6 +23,7 @@ pub mod payouts;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
+#[cfg(feature = "olap")]
 pub mod user;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;

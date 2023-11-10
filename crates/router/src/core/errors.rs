@@ -2,6 +2,7 @@ pub mod api_error_response;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
+#[cfg(feature = "olap")]
 pub mod user;
 pub mod utils;
 
@@ -14,6 +15,7 @@ use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
+#[cfg(feature = "olap")]
 pub use user::*;
 
 pub use self::{
