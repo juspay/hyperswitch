@@ -1,7 +1,3 @@
-#[cfg(feature = "olap")]
-use super::jwt;
-#[cfg(feature = "olap")]
-use crate::consts;
 use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
@@ -13,6 +9,10 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
+#[cfg(feature = "olap")]
+use super::jwt;
+#[cfg(feature = "olap")]
+use crate::consts;
 use crate::{
     configs::settings,
     core::{
