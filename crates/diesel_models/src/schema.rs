@@ -161,31 +161,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    connector_response (id) {
-        id -> Int4,
-        #[max_length = 64]
-        payment_id -> Varchar,
-        #[max_length = 64]
-        merchant_id -> Varchar,
-        #[max_length = 64]
-        attempt_id -> Varchar,
-        created_at -> Timestamp,
-        modified_at -> Timestamp,
-        #[max_length = 64]
-        connector_name -> Nullable<Varchar>,
-        #[max_length = 128]
-        connector_transaction_id -> Nullable<Varchar>,
-        authentication_data -> Nullable<Json>,
-        encoded_data -> Nullable<Text>,
-        #[max_length = 32]
-        updated_by -> Varchar,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     customers (customer_id, merchant_id) {
         id -> Int4,
         #[max_length = 64]
@@ -932,7 +907,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     captures,
     cards_info,
     configs,
-    connector_response,
     customers,
     dispute,
     events,

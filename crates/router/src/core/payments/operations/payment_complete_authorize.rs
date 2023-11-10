@@ -170,16 +170,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
         let redirect_response = request
             .feature_metadata
             .as_ref()
@@ -219,7 +209,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_intent,
                 payment_attempt,
                 currency,
-                connector_response,
                 amount,
                 email: request.email.clone(),
                 mandate_id: None,
