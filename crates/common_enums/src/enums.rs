@@ -1010,7 +1010,7 @@ pub enum CurrencySymbol {
     JPY,
     #[serde(rename = "KSh")]
     KES,
-    #[serde(rename = "som")]
+    #[serde(rename = "⃀")]
     KGS,
     #[serde(rename = "៛")]
     KHR,
