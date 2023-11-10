@@ -31,7 +31,7 @@ pub trait ConfigInterface {
         &self,
         key: &str,
         // If the config is not found it will be created with the default value.
-        default_config: Option<String>,
+        default_config: Option<Vec<u8>>,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
     async fn find_config_by_key_from_db(
@@ -119,7 +119,7 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
         // If the config is not found it will be created with the default value.
-        default_config: Option<String>,
+        default_config: Option<Vec<u8>>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let find_else_unwrap_or = || async {
             let conn = connection::pg_connection_write(self).await?;
@@ -258,7 +258,7 @@ impl ConfigInterface for MockDb {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        _default_config: Option<String>,
+        _default_config: Option<Vec<u8>>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.find_config_by_key(key).await
     }

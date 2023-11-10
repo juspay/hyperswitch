@@ -1,4 +1,4 @@
-use common_utils::generate_id_with_default_len;
+use common_utils::{ext_traits::ByteSliceExt, generate_id_with_default_len};
 #[cfg(feature = "basilisk")]
 use error_stack::report;
 use error_stack::{IntoReport, ResultExt};
@@ -24,7 +24,7 @@ use crate::{
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
-use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
+use crate::{core::payment_methods::transformers as payment_methods, services};
 #[cfg(feature = "basilisk")]
 use crate::{db, types::storage::ProcessTrackerExt};
 
@@ -699,10 +699,9 @@ impl Vault {
 
         let db_value = MockTokenizeDBValue { value1, value2 };
 
-        let value_string =
-            utils::Encode::<MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode payout method as mock tokenize db value")?;
+        let value_string = utils::Encode::<MockTokenizeDBValue>::encode_to_vec(&db_value)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode payout method as mock tokenize db value")?;
 
         let already_present = state.store.find_config_by_key(&lookup_key).await;
 
@@ -755,10 +754,9 @@ impl Vault {
 
         let db_value = MockTokenizeDBValue { value1, value2 };
 
-        let value_string =
-            utils::Encode::<MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode payment method as mock tokenize db value")?;
+        let value_string = utils::Encode::<MockTokenizeDBValue>::encode_to_vec(&db_value)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode payment method as mock tokenize db value")?;
 
         let already_present = state.store.find_config_by_key(&lookup_key).await;
 

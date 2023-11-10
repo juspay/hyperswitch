@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{ByteSliceExt, ValueExt},
+};
 use error_stack::ResultExt;
 
 use crate::{
@@ -42,7 +45,10 @@ pub async fn is_webhook_event_disabled(
             db.find_config_by_key(&redis_key)
                 .await
                 .map(|config| {
-                    match serde_json::from_str::<api::MerchantWebhookConfig>(&config.config) {
+                    match config
+                        .config
+                        .parse_struct::<api::MerchantWebhookConfig>("MerchantWebhookConfig")
+                    {
                         Ok(set) => set.contains(event),
                         Err(err) => {
                             logger::warn!(?err, "error while parsing merchant webhook config");

@@ -1987,13 +1987,13 @@ pub async fn list_customer_payment_method(
     let is_requires_cvv = db
         .find_config_by_key_unwrap_or(
             format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
-            Some("true".to_string()),
+            Some("true".to_string().into()),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch requires_cvv config")?;
 
-    let requires_cvv = is_requires_cvv.config != "false";
+    let requires_cvv = is_requires_cvv.config != Vec::from("false");
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
@@ -2250,12 +2250,11 @@ impl BasiliskCardSupport {
 
         let db_value = vault::MockTokenizeDBValue { value1, value2 };
 
-        let value_string =
-            utils::Encode::<vault::MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Mock tokenize value construction failed when saving card to locker",
-                )?;
+        let value_string = utils::Encode::<vault::MockTokenizeDBValue>::encode_to_vec(&db_value)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Mock tokenize value construction failed when saving card to locker",
+            )?;
 
         let db = &*state.store;
 
