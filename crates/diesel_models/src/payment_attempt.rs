@@ -207,6 +207,8 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -484,6 +486,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                authentication_data,
+                encoded_data,
             } => Self {
                 status: Some(status),
                 connector,
@@ -502,6 +506,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 surcharge_amount,
                 tax_amount,
+                authentication_data,
+                encoded_data,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

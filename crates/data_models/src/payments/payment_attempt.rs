@@ -290,6 +290,8 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,

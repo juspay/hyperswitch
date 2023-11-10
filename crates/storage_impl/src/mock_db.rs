@@ -27,7 +27,6 @@ pub struct MockDb {
     pub customers: Arc<Mutex<Vec<store::Customer>>>,
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
     pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
-    pub connector_response: Arc<Mutex<Vec<store::ConnectorResponse>>>,
     pub redis: Arc<RedisStore>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
@@ -57,7 +56,6 @@ impl MockDb {
             customers: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),
-            connector_response: Default::default(),
             redis: Arc::new(
                 RedisStore::new(redis)
                     .await
