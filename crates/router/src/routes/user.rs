@@ -14,7 +14,7 @@ use crate::{
 pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    json_payload: web::Json<user_api::SignInRequest>,
+    json_payload: web::Json<user_api::ConnectAccountRequest>,
 ) -> HttpResponse {
     let flow = Flow::UserConnectAccount;
     let req_payload = json_payload.into_inner();

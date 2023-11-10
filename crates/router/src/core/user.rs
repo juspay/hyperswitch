@@ -11,8 +11,8 @@ use crate::{
 
 pub async fn connect_account(
     state: AppState,
-    request: api::SignInRequest,
-) -> UserResponse<api::SignInResponse> {
+    request: api::ConnectAccountRequest,
+) -> UserResponse<api::ConnectAccountResponse> {
     let find_user = state
         .store
         .find_user_by_email(request.email.clone().expose().expose().as_str())
@@ -28,7 +28,7 @@ pub async fn connect_account(
             .get_jwt_auth_token(state.clone(), user_role.org_id)
             .await?;
 
-        return Ok(ApplicationResponse::Json(api::SignInResponse {
+        return Ok(ApplicationResponse::Json(api::ConnectAccountResponse {
             token: Secret::new(jwt_token),
             merchant_id: user_role.merchant_id,
             name: user_from_db.get_name(),
@@ -66,7 +66,7 @@ pub async fn connect_account(
             .get_jwt_auth_token(state.clone(), user_role.org_id)
             .await?;
 
-        return Ok(ApplicationResponse::Json(api::SignInResponse {
+        return Ok(ApplicationResponse::Json(api::ConnectAccountResponse {
             token: Secret::new(jwt_token),
             merchant_id: user_role.merchant_id,
             name: user_from_db.get_name(),

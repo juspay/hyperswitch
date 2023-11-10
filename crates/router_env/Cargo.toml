@@ -30,9 +30,6 @@ tracing-opentelemetry = { version = "0.19.0" }
 tracing-subscriber = { version = "0.3.17", default-features = true, features = ["env-filter", "json", "registry"] }
 vergen = { version = "8.2.1", optional = true, features = ["cargo", "git", "git2", "rustc"] }
 
-[dev-dependencies]
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
-
 [build-dependencies]
 cargo_metadata = "0.15.4"
 vergen = { version = "8.2.1", features = ["cargo", "git", "git2", "rustc"], optional = true }

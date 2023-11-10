@@ -441,7 +441,7 @@ where
     T: serde::de::DeserializeOwned,
     A: AppStateInfo + Sync,
 {
-    let token = get_jwt(headers)?;
+    let token = get_jwt_from_authorization_header(headers)?;
     let payload = decode_jwt(token, state).await?;
 
     Ok(payload)
@@ -462,8 +462,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let token = get_jwt(request_headers)?;
-        let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state).await?;
+        let payload =
+            parse_jwt_payload::<A, JwtAuthPayloadFetchMerchantAccount>(request_headers, state)
+                .await?;
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
@@ -667,7 +668,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .transpose()
 }
 
-pub fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
+pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
