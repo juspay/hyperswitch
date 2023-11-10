@@ -692,33 +692,33 @@ impl PaymentConfirm {
                         {
                             return invalid_surcharge_details_error;
                         }
+                    } else {
+                        // if not sent in payment create
+                        // verify that any calculated surcharge sent in session flow is same as the one sent in confirm
+                        return match get_individual_surcharge_detail_from_redis(
+                            state,
+                            &payment_method_type.into(),
+                            &payment_method_type,
+                            None,
+                            &payment_attempt.attempt_id,
+                        )
+                        .await
+                        {
+                            Ok(surcharge_details) => utils::when(
+                                !surcharge_details
+                                    .is_request_surcharge_matching(request_surcharge_details),
+                                || invalid_surcharge_details_error,
+                            ),
+                            Err(err) if err.current_context() == &RedisError::NotFound => {
+                                utils::when(!request_surcharge_details.is_surcharge_zero(), || {
+                                    invalid_surcharge_details_error
+                                })
+                            }
+                            Err(err) => Err(err)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to fetch redis value"),
+                        };
                     }
-                    // is not sent in payment create
-                    // verify that any calculated surcharge sent in session flow is same as the one sent in confirm
-                    let result = match get_individual_surcharge_detail_from_redis(
-                        state,
-                        &payment_method_type.into(),
-                        &payment_method_type,
-                        None,
-                        &payment_attempt.attempt_id,
-                    )
-                    .await
-                    {
-                        Ok(surcharge_details) => utils::when(
-                            !surcharge_details
-                                .is_request_surcharge_matching(request_surcharge_details),
-                            || invalid_surcharge_details_error,
-                        ),
-                        Err(err) if err.current_context() == &RedisError::NotFound => {
-                            utils::when(!request_surcharge_details.is_surcharge_zero(), || {
-                                invalid_surcharge_details_error
-                            })
-                        }
-                        Err(err) => Err(err)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to fetch redis value"),
-                    };
-                    return result;
                 }
                 Ok(())
             }
