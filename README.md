@@ -68,10 +68,6 @@ The fastest and easiest way to try hyperswitch is via our CDK scripts
 
 &emsp;&emsp; <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=Hyperswitch&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/deployment.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
 
-2. Sign-in to your AWS console.
-
-3. Follow the instructions provided on the console to successfully deploy Hyperswitch
-
 For an early access to the production-ready setup fill this <a href="https://forms.gle/v6ru55XDZFufVPnu9">Early Access Form</a> 
 2. Sign-in to your AWS console.
 
