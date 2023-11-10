@@ -102,19 +102,10 @@ for resource_id in $ALL_DB_RESOURCES; do
                 --filters "Name=db-instance-id,Values=$resource_id" \
                 --query 'DBInstances[*].DBInstanceIdentifier' --output text)
 
-
-            echo -n "Create a snapshot before deleting ( $DB_INSTANCE_ID ) the database (Y/n)? "
-            if yes_or_no; then
-                echo `aws rds delete-db-instance \
-                    --db-instance-identifier $DB_INSTANCE_ID \
-   --region $REGION \
-                    --final-db-snapshot-identifier hyperswitch-db-snapshot-`date +%s``
-            else
                 echo `aws rds delete-db-instance \
          --region $REGION \
                     --db-instance-identifier $DB_INSTANCE_ID \
                     --skip-final-snapshot`
-            fi
         fi
     fi
 done
