@@ -630,7 +630,7 @@ impl Cache {
 }
 
 pub struct PaymentLink;
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "olap")]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_link").app_data(web::Data::new(state));
@@ -638,7 +638,6 @@ impl PaymentLink {
         {
             route = route.service(web::resource("/list").route(web::get().to(payments_link_list)));
         }
-        #[cfg(feature = "oltp")]
         route
             .service(
                 web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
