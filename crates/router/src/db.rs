@@ -25,6 +25,8 @@ pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
+pub mod user;
+pub mod user_role;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -80,6 +82,8 @@ pub trait StorageInterface:
     + organization::OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
+    + user::UserInterface
+    + user_role::UserRoleInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

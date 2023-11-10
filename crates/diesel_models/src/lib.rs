@@ -38,6 +38,8 @@ pub mod reverse_lookup;
 pub mod routing_algorithm;
 #[allow(unused_qualifications)]
 pub mod schema;
+pub mod user;
+pub mod user_role;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
 
