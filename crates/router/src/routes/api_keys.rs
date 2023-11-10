@@ -124,16 +124,16 @@ pub async fn api_key_update(
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
     let (merchant_id, key_id) = path.into_inner();
-    let payload = json_payload.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.key_id = key_id;
+    payload.merchant_id = merchant_id;
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (&merchant_id, &key_id, payload),
-        |state, _, (merchant_id, key_id, payload)| {
-            api_keys::update_api_key(state, merchant_id, key_id, payload)
-        },
+        payload,
+        |state, _, payload| api_keys::update_api_key(state, payload),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

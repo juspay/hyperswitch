@@ -292,6 +292,18 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
 }
 
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
@@ -1077,7 +1089,7 @@ pub fn get_amount_as_string(
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => to_currency_lower_unit(amount.to_string(), currency)?,
+        types::api::CurrencyUnit::Minor => amount.to_string(),
         types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)

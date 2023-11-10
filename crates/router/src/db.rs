@@ -5,13 +5,13 @@ pub mod cache;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
 pub mod customers;
 pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod gsm;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -24,6 +24,9 @@ pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod routing_algorithm;
+pub mod user;
+pub mod user_role;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -50,7 +53,6 @@ pub trait StorageInterface:
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
@@ -75,8 +77,13 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + RequestIdStore
     + business_profile::BusinessProfileInterface
     + organization::OrganizationInterface
+    + routing_algorithm::RoutingAlgorithmInterface
+    + gsm::GsmInterface
+    + user::UserInterface
+    + user_role::UserRoleInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -113,6 +120,25 @@ impl StorageInterface for Store {
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
+    }
+}
+
+pub trait RequestIdStore {
+    fn add_request_id(&mut self, _request_id: String) {}
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
+}
+
+impl RequestIdStore for MockDb {}
+
+impl RequestIdStore for Store {
+    fn add_request_id(&mut self, request_id: String) {
+        self.request_id = Some(request_id)
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
     }
 }
 
