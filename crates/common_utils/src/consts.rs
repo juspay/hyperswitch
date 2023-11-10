@@ -38,3 +38,9 @@ pub const DEFAULT_SDK_THEME: &str = "#7EA8F6";
 
 /// Default Payment Link Background color
 pub const DEFAULT_BACKGROUND_COLOR: &str = "#E5E5E5";
+
+/// Default product Img Link
+pub const DEFAULT_PRODUCT_IMG: &str = "https://i.imgur.com/On3VtKF.png";
+
+/// Default Merchant Logo Link
+pub const DEFAULT_MERCHANT_LOGO: &str = "https://i.imgur.com/RfxPFQo.png";

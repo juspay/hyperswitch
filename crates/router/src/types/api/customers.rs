@@ -10,6 +10,12 @@ newtype!(
     derives = (Debug, Clone, Serialize)
 );
 
+impl common_utils::events::ApiEventMetric for CustomerResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        self.0.get_api_event_type()
+    }
+}
+
 pub(crate) trait CustomerRequestExt: Sized {
     fn validate(self) -> RouterResult<Self>;
 }

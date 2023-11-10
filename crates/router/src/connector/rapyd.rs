@@ -98,6 +98,7 @@ impl ConnectorCommon for Rapyd {
                 code: response_data.status.error_code,
                 message: response_data.status.status.unwrap_or_default(),
                 reason: response_data.status.message,
+                attempt_status: None,
             }),
             Err(error_msg) => {
                 logger::error!(deserialization_error =? error_msg);
@@ -182,6 +183,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
@@ -211,7 +213,7 @@ impl
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
-        let body = types::PaymentsAuthorizeType::get_request_body(self, req)?
+        let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
@@ -232,7 +234,9 @@ impl
                 self, req, connectors,
             )?)
             .headers(headers)
-            .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+            .body(types::PaymentsAuthorizeType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -492,6 +496,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
@@ -521,7 +526,7 @@ impl
             "/v1/payments/{}/capture",
             req.request.connector_transaction_id
         );
-        let body = types::PaymentsCaptureType::get_request_body(self, req)?
+        let body = types::PaymentsCaptureType::get_request_body(self, req, connectors)?
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
@@ -540,7 +545,9 @@ impl
                 self, req, connectors,
             )?)
             .headers(headers)
-            .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+            .body(types::PaymentsCaptureType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -630,6 +637,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
@@ -655,7 +663,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let body = types::RefundExecuteType::get_request_body(self, req)?
+        let body = types::RefundExecuteType::get_request_body(self, req, connectors)?
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let req_body = types::RequestBody::get_inner_value(body).expose();
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
@@ -672,7 +680,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(headers)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }

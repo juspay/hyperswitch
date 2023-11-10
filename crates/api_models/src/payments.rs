@@ -2232,7 +2232,9 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -3147,7 +3149,7 @@ pub struct PaymentLinkDetails {
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
-    pub order_details: Vec<OrderDetailsWithAmount>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub sdk_theme: Option<String>,
 }
