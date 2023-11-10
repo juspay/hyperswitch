@@ -2998,60 +2998,6 @@ impl AttemptType {
             }
         }
     }
-
-    #[instrument(skip_all)]
-    pub async fn get_or_insert_connector_response(
-        &self,
-        payment_attempt: &PaymentAttempt,
-        db: &dyn StorageInterface,
-        storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> RouterResult<storage::ConnectorResponse> {
-        match self {
-            Self::New => db
-                .insert_connector_response(
-                    payments::PaymentCreate::make_connector_response(payment_attempt),
-                    storage_scheme,
-                )
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_attempt.payment_id.clone(),
-                }),
-            Self::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    &payment_attempt.payment_id,
-                    &payment_attempt.merchant_id,
-                    &payment_attempt.attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn get_connector_response(
-        &self,
-        db: &dyn StorageInterface,
-        payment_id: &str,
-        merchant_id: &str,
-        attempt_id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<storage::ConnectorResponse> {
-        match self {
-            Self::New => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("Precondition failed, the attempt type should not be `New`"),
-            Self::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    payment_id,
-                    merchant_id,
-                    attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
-        }
-    }
 }
 
 #[inline(always)]

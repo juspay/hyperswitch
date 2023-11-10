@@ -132,6 +132,7 @@ impl From<Flow> for ApiIdentifier {
             }
 
             Flow::Verification => Self::Verification,
+
             Flow::GsmRuleCreate
             | Flow::GsmRuleRetrieve
             | Flow::GsmRuleUpdate

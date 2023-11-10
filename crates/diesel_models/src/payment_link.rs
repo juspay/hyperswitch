@@ -24,7 +24,6 @@ pub struct PaymentLink {
     pub description: Option<String>,
     pub custom_merchant_name: Option<String>,
 }
-
 #[derive(
     Clone,
     Debug,

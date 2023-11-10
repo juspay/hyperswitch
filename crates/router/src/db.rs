@@ -5,7 +5,6 @@ pub mod cache;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
 pub mod customers;
 pub mod dispute;
 pub mod ephemeral_key;
@@ -26,6 +25,8 @@ pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
+pub mod user;
+pub mod user_role;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -52,7 +53,6 @@ pub trait StorageInterface:
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
