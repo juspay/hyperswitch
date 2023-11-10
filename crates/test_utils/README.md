@@ -28,9 +28,16 @@ Required fields:
 
 Optional fields:
 
+- `--delay` -- To add a delay between requests in milliseconds.
+  - Maximum delay is 4294967295 milliseconds or 4294967.295 seconds or 71616 minutes or 1193.6 hours or 49.733 days
+  - Example: `--delay 1000` (for 1 second delay)
 - `--folder` -- To run individual folders in the collection
   - Use double quotes to specify folder name. If you wish to run multiple folders, separate them with a comma (`,`)
   - Example: `--folder "QuickStart"` or `--folder "Health check,QuickStart"`
+- `--header` -- If you wish to add custom headers to the requests, you can pass them as a string
+  - Example: `--header "key:value"`
+  - If you want to pass multiple custom headers, you can pass multiple `--header` flags
+    - Example: `--header "key1:value1" --header "key2:value2"`
 - `--verbose` -- A boolean to print detailed logs (requests and responses)
 
 **Note:** Passing `--verbose` will also print the connector as well as admin API keys in the logs. So, make sure you don't push the commands with `--verbose` to any public repository.
