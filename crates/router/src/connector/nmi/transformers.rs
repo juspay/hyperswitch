@@ -380,7 +380,7 @@ pub struct StandardResponse {
     pub transactionid: String,
     pub avsresponse: Option<String>,
     pub cvvresponse: Option<String>,
-    pub orderid: String,
+    pub orderid: Option<String>,
     pub response_code: String,
 }
 
