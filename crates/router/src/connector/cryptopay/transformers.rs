@@ -81,9 +81,10 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("CryptoPay"),
-                ))
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "CryptoPay",
+                })
             }
         }?;
         Ok(cryptopay_request)

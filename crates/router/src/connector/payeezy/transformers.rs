@@ -70,9 +70,10 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             utils::CardIssuer::Visa => Ok(Self::Visa),
 
             utils::CardIssuer::Maestro | utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Payeezy"),
-                )
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Payeezy",
+                }
                 .into())
             }
         }
@@ -260,9 +261,10 @@ fn get_payment_method_data(
         | api::PaymentMethodData::Reward
         | api::PaymentMethodData::Upi(_)
         | api::PaymentMethodData::Voucher(_)
-        | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("Payeezy"),
-        )
+        | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+            message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "Payeezy",
+        }
         .into()),
     }
 }

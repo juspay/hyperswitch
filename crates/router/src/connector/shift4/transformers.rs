@@ -166,9 +166,10 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
+            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
             .into()),
         }
     }
@@ -208,9 +209,10 @@ impl TryFrom<&api_models::payments::WalletData> for Shift4PaymentMethod {
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::WeChatPayQr(_)
             | payments::WalletData::CashappQr(_)
-            | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
+            | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
             .into()),
         }
     }
@@ -239,9 +241,10 @@ impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
             | payments::BankTransferData::DanamonVaBankTransfer { .. }
             | payments::BankTransferData::MandiriVaBankTransfer { .. }
             | payments::BankTransferData::Pix {}
-            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
+            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
             .into()),
         }
     }
@@ -251,8 +254,11 @@ impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto(_)
-            | payments::VoucherData::Efecty
+            payments::VoucherData::Boleto(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
+            payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
             | payments::VoucherData::RedPagos
@@ -264,9 +270,10 @@ impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
             | payments::VoucherData::MiniStop(_)
             | payments::VoucherData::FamilyMart(_)
             | payments::VoucherData::Seicomart(_)
-            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
+            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
             .into()),
         }
     }
@@ -276,12 +283,15 @@ impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
     type Error = Error;
     fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
+            payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
             }
+            .into()),
+            payments::GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
         }
     }
 }
@@ -407,8 +417,13 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             payments::BankRedirectData::BancontactCard { .. }
             | payments::BankRedirectData::Blik { .. }
             | payments::BankRedirectData::Trustly { .. }
-            | payments::BankRedirectData::Przelewy24 { .. }
-            | payments::BankRedirectData::Bizum {}
+            | payments::BankRedirectData::Przelewy24 { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
+                )
+                .into())
+            }
+            payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Interac { .. }
             | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | payments::BankRedirectData::OnlineBankingFinland { .. }
@@ -417,9 +432,10 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::OnlineBankingFpx { .. }
             | payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Shift4",
+                }
                 .into())
             }
         }

@@ -113,9 +113,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Forte"),
-                ))?
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Forte",
+                })?
             }
         }
     }
