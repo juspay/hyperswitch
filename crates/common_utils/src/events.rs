@@ -8,7 +8,7 @@ pub trait ApiEventMetric {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-#[serde(tag = "flow_type")]
+#[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum ApiEventsType {
     Payout,
     Payment {
@@ -41,6 +41,7 @@ pub enum ApiEventsType {
     Routing,
     ResourceListAPI,
     PaymentRedirectionResponse,
+    Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
 }
