@@ -261,10 +261,9 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: issuer.to_string(),
-                    connector: "Multisafe pay",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Multisafe pay"),
+                )
                 .into())
             }
         }
