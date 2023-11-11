@@ -678,10 +678,9 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::FamilyMart
             | enums::PaymentMethodType::Seicomart
             | enums::PaymentMethodType::PayEasy
-            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into()),
         }
     }
@@ -913,10 +912,9 @@ impl TryFrom<&api_models::payments::PayLaterData> for StripePaymentMethodType {
             | payments::PayLaterData::WalleyRedirect {}
             | payments::PayLaterData::AlmaRedirect {}
             | payments::PayLaterData::AtomeRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -933,12 +931,8 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodType {
             payments::BankRedirectData::Przelewy24 { .. } => Ok(Self::Przelewy24),
             payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
             payments::BankRedirectData::Blik { .. } => Ok(Self::Blik),
-            payments::BankRedirectData::OnlineBankingFpx { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                ))
-            }
-            payments::BankRedirectData::Bizum {}
+            payments::BankRedirectData::OnlineBankingFpx { .. }
+            | payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Interac { .. }
             | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | payments::BankRedirectData::OnlineBankingFinland { .. }
@@ -947,10 +941,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodType {
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::Trustly { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -965,12 +958,8 @@ impl ForeignTryFrom<&payments::WalletData> for Option<StripePaymentMethodType> {
             payments::WalletData::GooglePay(_) => Ok(Some(StripePaymentMethodType::Card)),
             payments::WalletData::WeChatPayQr(_) => Ok(Some(StripePaymentMethodType::Wechatpay)),
             payments::WalletData::CashappQr(_) => Ok(Some(StripePaymentMethodType::Cashapp)),
-            payments::WalletData::MobilePayRedirect(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                ))
-            }
-            payments::WalletData::PaypalRedirect(_)
+            payments::WalletData::MobilePayRedirect(_)
+            | payments::WalletData::PaypalRedirect(_)
             | payments::WalletData::AliPayQr(_)
             | payments::WalletData::AliPayHkRedirect(_)
             | payments::WalletData::MomoRedirect(_)
@@ -990,10 +979,9 @@ impl ForeignTryFrom<&payments::WalletData> for Option<StripePaymentMethodType> {
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                ))
             }
         }
     }
@@ -1353,11 +1341,8 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                )
-                .into()),
-                payments::BankTransferData::Pse {}
+                payments::BankTransferData::Pix {}
+                | payments::BankTransferData::Pse {}
                 | payments::BankTransferData::PermataBankTransfer { .. }
                 | payments::BankTransferData::BcaBankTransfer { .. }
                 | payments::BankTransferData::BniVaBankTransfer { .. }
@@ -1365,10 +1350,9 @@ fn create_stripe_payment_method(
                 | payments::BankTransferData::CimbVaBankTransfer { .. }
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "stripe",
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
                     .into())
                 }
             }
@@ -1380,10 +1364,9 @@ fn create_stripe_payment_method(
 
         payments::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
             payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         },
@@ -1391,11 +1374,12 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
             payments::CardRedirectData::Knet {}
             | payments::CardRedirectData::Benefit {}
-            | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
+            | payments::CardRedirectData::MomoAtm {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
+                .into())
             }
-            .into()),
         },
         payments::PaymentMethodData::Reward => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1420,18 +1404,16 @@ fn create_stripe_payment_method(
             | payments::VoucherData::MiniStop(_)
             | payments::VoucherData::FamilyMart(_)
             | payments::VoucherData::Seicomart(_)
-            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into()),
         },
 
         payments::PaymentMethodData::Upi(_) | payments::PaymentMethodData::MandatePayment => {
-            Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
+            Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
             .into())
         }
     }
@@ -1568,10 +1550,9 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
             | payments::WalletData::TouchNGoRedirect(_)
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         }
@@ -1644,13 +1625,8 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                     preferred_language: preferred_language.to_owned(),
                 }),
             ))),
-            payments::BankRedirectData::OnlineBankingFpx { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                )
-                .into())
-            }
-            payments::BankRedirectData::Bizum {}
+            payments::BankRedirectData::OnlineBankingFpx { .. }
+            | payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Interac { .. }
             | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | payments::BankRedirectData::OnlineBankingFinland { .. }
@@ -1659,10 +1635,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
             | payments::BankRedirectData::Trustly { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "stripe",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
                 .into())
             }
         }
