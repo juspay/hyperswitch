@@ -255,7 +255,7 @@ where
 
                     if config_bool && router_data.should_call_gsm() {
                         router_data = retry::do_gsm_actions(
-                            &state,
+                            state,
                             &mut payment_data,
                             connectors,
                             connector_data,
