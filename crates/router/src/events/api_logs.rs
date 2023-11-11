@@ -1,21 +1,47 @@
+use actix_web::HttpRequest;
+pub use common_utils::events::{ApiEventMetric, ApiEventsType};
+use common_utils::impl_misc_api_event_type;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::OffsetDateTime;
 
 use super::{EventType, RawEvent};
+#[cfg(feature = "dummy_connector")]
+use crate::routes::dummy_connector::types::{
+    DummyConnectorPaymentCompleteRequest, DummyConnectorPaymentConfirmRequest,
+    DummyConnectorPaymentRequest, DummyConnectorPaymentResponse,
+    DummyConnectorPaymentRetrieveRequest, DummyConnectorRefundRequest,
+    DummyConnectorRefundResponse, DummyConnectorRefundRetrieveRequest,
+};
+use crate::{
+    core::payments::PaymentsRedirectResponseData,
+    services::{authentication::AuthenticationType, ApplicationResponse, PaymentLinkFormData},
+    types::api::{
+        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
+    },
+};
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
     api_flow: String,
     created_at_timestamp: i128,
     request_id: String,
     latency: u128,
     status_code: i64,
+    #[serde(flatten)]
+    auth_type: AuthenticationType,
     request: serde_json::Value,
+    user_agent: Option<String>,
+    ip_addr: Option<String>,
+    url_path: String,
     response: Option<serde_json::Value>,
+    #[serde(flatten)]
+    event_type: ApiEventsType,
 }
 
 impl ApiEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         api_flow: &impl FlowMetric,
         request_id: &RequestId,
@@ -23,6 +49,9 @@ impl ApiEvent {
         status_code: i64,
         request: serde_json::Value,
         response: Option<serde_json::Value>,
+        auth_type: AuthenticationType,
+        event_type: ApiEventsType,
+        http_req: &HttpRequest,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
@@ -32,6 +61,17 @@ impl ApiEvent {
             status_code,
             request,
             response,
+            auth_type,
+            ip_addr: http_req
+                .connection_info()
+                .realip_remote_addr()
+                .map(ToOwned::to_owned),
+            user_agent: http_req
+                .headers()
+                .get("user-agent")
+                .and_then(|user_agent_value| user_agent_value.to_str().ok().map(ToOwned::to_owned)),
+            url_path: http_req.path().to_string(),
+            event_type,
         }
     }
 }
@@ -47,3 +87,35 @@ impl TryFrom<ApiEvent> for RawEvent {
         })
     }
 }
+
+impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        match self {
+            Self::Json(r) => r.get_api_event_type(),
+            Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
+            _ => None,
+        }
+    }
+}
+impl_misc_api_event_type!(
+    Config,
+    CreateFileRequest,
+    FileId,
+    AttachEvidenceRequest,
+    DisputeId,
+    PaymentLinkFormData,
+    PaymentsRedirectResponseData,
+    ConfigUpdate
+);
+
+#[cfg(feature = "dummy_connector")]
+impl_misc_api_event_type!(
+    DummyConnectorPaymentCompleteRequest,
+    DummyConnectorPaymentRequest,
+    DummyConnectorPaymentResponse,
+    DummyConnectorPaymentRetrieveRequest,
+    DummyConnectorPaymentConfirmRequest,
+    DummyConnectorRefundRetrieveRequest,
+    DummyConnectorRefundResponse,
+    DummyConnectorRefundRequest
+);

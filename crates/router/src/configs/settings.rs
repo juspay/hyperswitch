@@ -16,6 +16,8 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
@@ -101,6 +103,15 @@ pub struct Settings {
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
+    #[cfg(feature = "olap")]
+    pub analytics: AnalyticsConfig,
+    #[cfg(feature = "kv_store")]
+    pub kv_config: KvConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KvConfig {
+    pub ttl: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -524,6 +535,7 @@ pub struct Connectors {
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
+    pub bankofamerica: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,

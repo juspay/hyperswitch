@@ -173,6 +173,7 @@ pub async fn refresh_connector_auth(
                     message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
+                    attempt_status: None,
                 };
 
                 Ok(Err(error_response))

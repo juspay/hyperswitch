@@ -22,6 +22,8 @@ pub enum ApiIdentifier {
     Verification,
     ApiKeys,
     PaymentLink,
+    Routing,
+    Gsm,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -32,6 +34,17 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
             | Flow::MerchantAccountList => Self::MerchantAccount,
+
+            Flow::RoutingCreateConfig
+            | Flow::RoutingLinkConfig
+            | Flow::RoutingUnlinkConfig
+            | Flow::RoutingRetrieveConfig
+            | Flow::RoutingRetrieveActiveConfig
+            | Flow::RoutingRetrieveDefaultConfig
+            | Flow::RoutingRetrieveDictionary
+            | Flow::RoutingUpdateConfig
+            | Flow::RoutingUpdateDefaultConfig
+            | Flow::RoutingDeleteConfig => Self::Routing,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
@@ -117,6 +130,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::Verification => Self::Verification,
 
             Flow::PaymentLinkInitiate | Flow::PaymentLinkRetrieve => Self::PaymentLink,
+            Flow::GsmRuleCreate
+            | Flow::GsmRuleRetrieve
+            | Flow::GsmRuleUpdate
+            | Flow::GsmRuleDelete => Self::Gsm,
         }
     }
 }
