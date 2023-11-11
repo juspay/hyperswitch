@@ -11,6 +11,7 @@ mod adyen;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+mod bankofamerica;
 mod bitpay;
 mod bluesnap;
 mod boku;

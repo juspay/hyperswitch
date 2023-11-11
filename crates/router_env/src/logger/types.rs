@@ -163,6 +163,26 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Routing create flow,
+    RoutingCreateConfig,
+    /// Routing link config
+    RoutingLinkConfig,
+    /// Routing link config
+    RoutingUnlinkConfig,
+    /// Routing retrieve config
+    RoutingRetrieveConfig,
+    /// Routing retrieve active config
+    RoutingRetrieveActiveConfig,
+    /// Routing retrieve default config
+    RoutingRetrieveDefaultConfig,
+    /// Routing retrieve dictionary
+    RoutingRetrieveDictionary,
+    /// Routing update config
+    RoutingUpdateConfig,
+    /// Routing update default config
+    RoutingUpdateDefaultConfig,
+    /// Routing delete config
+    RoutingDeleteConfig,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -215,6 +235,14 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Gsm Rule Creation flow
+    GsmRuleCreate,
+    /// Gsm Rule Retrieve flow
+    GsmRuleRetrieve,
+    /// Gsm Rule Update flow
+    GsmRuleUpdate,
+    /// Gsm Rule Delete flow
+    GsmRuleDelete,
 }
 
 ///

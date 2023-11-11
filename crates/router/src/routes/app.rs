@@ -14,10 +14,12 @@ use tokio::sync::oneshot;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "olap")]
+use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*};
 use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
@@ -42,6 +44,8 @@ pub struct AppState {
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
+    #[cfg(feature = "olap")]
+    pub pool: crate::analytics::AnalyticsProvider,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -78,7 +82,9 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
+        self.store.add_request_id(request_id.to_string())
     }
+
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
         self.api_client.add_merchant_id(merchant_id);
     }
@@ -124,6 +130,14 @@ impl AppState {
             ),
         };
 
+        #[cfg(feature = "olap")]
+        let pool = crate::analytics::AnalyticsProvider::from_conf(
+            &conf.analytics,
+            #[cfg(feature = "kms")]
+            kms_client,
+        )
+        .await;
+
         #[cfg(feature = "kms")]
         #[allow(clippy::expect_used)]
         let kms_secrets = settings::ActiveKmsSecrets {
@@ -145,6 +159,8 @@ impl AppState {
             kms_secrets: Arc::new(kms_secrets),
             api_client,
             event_handler: Box::<EventLogger>::default(),
+            #[cfg(feature = "olap")]
+            pool,
         }
     }
 
@@ -271,6 +287,43 @@ impl Payments {
                 );
         }
         route
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Routing;
+
+#[cfg(feature = "olap")]
+impl Routing {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/routing")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("/active")
+                    .route(web::get().to(cloud_routing::routing_retrieve_linked_config)),
+            )
+            .service(
+                web::resource("")
+                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
+                    .route(web::post().to(cloud_routing::routing_create_config)),
+            )
+            .service(
+                web::resource("/default")
+                    .route(web::get().to(cloud_routing::routing_retrieve_default_config))
+                    .route(web::post().to(cloud_routing::routing_update_default_config)),
+            )
+            .service(
+                web::resource("/deactivate")
+                    .route(web::post().to(cloud_routing::routing_unlink_config)),
+            )
+            .service(
+                web::resource("/{algorithm_id}")
+                    .route(web::get().to(cloud_routing::routing_retrieve_config)),
+            )
+            .service(
+                web::resource("/{algorithm_id}/activate")
+                    .route(web::post().to(cloud_routing::routing_link_config)),
+            )
     }
 }
 
@@ -622,6 +675,20 @@ impl BusinessProfile {
                     .route(web::post().to(business_profile_update))
                     .route(web::delete().to(business_profile_delete)),
             )
+    }
+}
+
+pub struct Gsm;
+
+#[cfg(feature = "olap")]
+impl Gsm {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/gsm")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(create_gsm_rule)))
+            .service(web::resource("/get").route(web::post().to(get_gsm_rule)))
+            .service(web::resource("/update").route(web::post().to(update_gsm_rule)))
+            .service(web::resource("/delete").route(web::post().to(delete_gsm_rule)))
     }
 }
 

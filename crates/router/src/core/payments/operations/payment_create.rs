@@ -62,7 +62,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-        let (payment_intent, payment_attempt, connector_response);
+        let (payment_intent, payment_attempt);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -107,6 +107,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             mandate_type,
             merchant_account,
+            merchant_key_store,
         )
         .await?;
 
@@ -190,16 +191,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                payment_id: payment_id.clone(),
-            })?;
-
-        connector_response = db
-            .insert_connector_response(
-                Self::make_connector_response(&payment_attempt),
-                storage_scheme,
-            )
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
@@ -299,7 +290,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 disputes: vec![],
                 attempts: None,
                 force_sync: None,
-                connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
@@ -353,11 +343,12 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 
     #[instrument(skip_all)]
@@ -538,8 +529,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             )?;
 
             helpers::validate_customer_id_mandatory_cases(
-                request.shipping.is_some(),
-                request.billing.is_some(),
                 request.setup_future_usage.is_some(),
                 &request
                     .customer
@@ -728,24 +717,6 @@ impl PaymentCreate {
     }
 
     #[instrument(skip_all)]
-    pub fn make_connector_response(
-        payment_attempt: &PaymentAttempt,
-    ) -> storage::ConnectorResponseNew {
-        storage::ConnectorResponseNew {
-            payment_id: payment_attempt.payment_id.clone(),
-            merchant_id: payment_attempt.merchant_id.clone(),
-            attempt_id: payment_attempt.attempt_id.clone(),
-            created_at: payment_attempt.created_at,
-            modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.connector.clone(),
-            connector_transaction_id: None,
-            authentication_data: None,
-            encoded_data: None,
-            updated_by: payment_attempt.updated_by.clone(),
-        }
-    }
-
-    #[instrument(skip_all)]
     pub async fn get_ephemeral_key(
         request: &api::PaymentsRequest,
         state: &AppState,
@@ -813,6 +784,7 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
+        custom_merchant_name: payment_link_object.custom_merchant_name,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
