@@ -325,8 +325,13 @@ impl From<CybersourcePaymentStatus> for enums::RefundStatus {
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Success
             }
-            CybersourcePaymentStatus::Failed => Self::Failure,
-            CybersourcePaymentStatus::Pending => Self::Pending,
+            CybersourcePaymentStatus::Failed | CybersourcePaymentStatus::Declined => Self::Failure,
+            CybersourcePaymentStatus::Pending
+            | CybersourcePaymentStatus::Processing
+            | CybersourcePaymentStatus::Voided
+            | CybersourcePaymentStatus::Reversed
+            | CybersourcePaymentStatus::Authorized
+            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Pending,
         }
     }
 }
