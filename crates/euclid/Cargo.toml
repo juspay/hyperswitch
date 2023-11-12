@@ -24,10 +24,8 @@ euclid_macros = { version = "0.1.0", path = "../euclid_macros" }
 [features]
 ast_parser = ["dep:nom"]
 valued_jit = []
-connector_choice_bcompat = []
 connector_choice_mca_id = []
 dummy_connector = []
-backwards_compatibility = ["connector_choice_bcompat"]
 
 [dev-dependencies]
 criterion = "0.5"

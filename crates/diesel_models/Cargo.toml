@@ -9,10 +9,7 @@ license.workspace = true
 
 [features]
 default = ["kv_store"]
-email = []
-kms = []
 kv_store = []
-s3 = []
 
 [dependencies]
 async-bb8-diesel = "0.1.0"

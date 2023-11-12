@@ -8,8 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["olap", "oltp"]
-oltp = []
+default = ["olap"]
 olap = []
 
 [dependencies]
