@@ -106,15 +106,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.amount.into();
 
@@ -161,7 +152,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 refunds: vec![],
                 disputes: vec![],
                 attempts: None,
-                connector_response,
+
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier,
