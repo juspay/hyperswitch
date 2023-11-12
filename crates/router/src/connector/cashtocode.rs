@@ -391,16 +391,16 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn erased_serde::Serialize>, errors::ConnectorError> {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json =
-            utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        // let res_json =
+        //     utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
+        //         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(res_json)
+        Ok(Box::new(webhook))
     }
 
     fn get_webhook_api_response(
