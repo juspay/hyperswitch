@@ -237,6 +237,14 @@ pub enum Flow {
     Verification,
     /// Rust locker migration
     RustLockerMigration,
+    /// Gsm Rule Creation flow
+    GsmRuleCreate,
+    /// Gsm Rule Retrieve flow
+    GsmRuleRetrieve,
+    /// Gsm Rule Update flow
+    GsmRuleUpdate,
+    /// Gsm Rule Delete flow
+    GsmRuleDelete,
 }
 
 ///

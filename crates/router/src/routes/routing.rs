@@ -47,7 +47,7 @@ pub async fn routing_create_config(
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<routing_types::RoutingAlgorithmId>,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -61,7 +61,7 @@ pub async fn routing_link_config(
                 auth.merchant_account,
                 #[cfg(not(feature = "business_profile_routing"))]
                 auth.key_store,
-                algorithm_id,
+                algorithm_id.0,
             )
         },
         #[cfg(not(feature = "release"))]
@@ -78,7 +78,7 @@ pub async fn routing_link_config(
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<routing_types::RoutingAlgorithmId>,
 ) -> impl Responder {
     let algorithm_id = path.into_inner();
     let flow = Flow::RoutingRetrieveConfig;

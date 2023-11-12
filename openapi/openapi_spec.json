@@ -7809,15 +7809,11 @@
       "PaymentLinkColorSchema": {
         "type": "object",
         "properties": {
-          "primary_color": {
+          "background_primary_color": {
             "type": "string",
             "nullable": true
           },
-          "primary_accent_color": {
-            "type": "string",
-            "nullable": true
-          },
-          "secondary_color": {
+          "sdk_theme": {
             "type": "string",
             "nullable": true
           }
@@ -7865,6 +7861,11 @@
           },
           "merchant_custom_domain_name": {
             "type": "string",
+            "nullable": true
+          },
+          "custom_merchant_name": {
+            "type": "string",
+            "description": "Custom merchant name for payment link",
             "nullable": true
           }
         }
@@ -11218,12 +11219,12 @@
           "start_time": {
             "type": "string",
             "format": "date-time",
-            "description": "The start time to filter refunds list or to get list of filters. To get list of filters start time is needed to be passed"
+            "description": "The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
-            "description": "The end time to filter refunds list or to get list of filters. If not passed the default time is now",
+            "description": "The end time to filter payments list or to get list of filters. If not passed the default time is now",
             "nullable": true
           }
         }

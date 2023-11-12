@@ -21,7 +21,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 
 use super::locker_migration::rust_locker_migration;
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*};
 use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
@@ -46,6 +46,8 @@ pub struct AppState {
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
+    #[cfg(feature = "olap")]
+    pub pool: crate::analytics::AnalyticsProvider,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -130,6 +132,14 @@ impl AppState {
             ),
         };
 
+        #[cfg(feature = "olap")]
+        let pool = crate::analytics::AnalyticsProvider::from_conf(
+            &conf.analytics,
+            #[cfg(feature = "kms")]
+            kms_client,
+        )
+        .await;
+
         #[cfg(feature = "kms")]
         #[allow(clippy::expect_used)]
         let kms_secrets = settings::ActiveKmsSecrets {
@@ -151,6 +161,8 @@ impl AppState {
             kms_secrets: Arc::new(kms_secrets),
             api_client,
             event_handler: Box::<EventLogger>::default(),
+            #[cfg(feature = "olap")]
+            pool,
         }
     }
 
@@ -665,6 +677,20 @@ impl BusinessProfile {
                     .route(web::post().to(business_profile_update))
                     .route(web::delete().to(business_profile_delete)),
             )
+    }
+}
+
+pub struct Gsm;
+
+#[cfg(feature = "olap")]
+impl Gsm {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/gsm")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(create_gsm_rule)))
+            .service(web::resource("/get").route(web::post().to(get_gsm_rule)))
+            .service(web::resource("/update").route(web::post().to(update_gsm_rule)))
+            .service(web::resource("/delete").route(web::post().to(delete_gsm_rule)))
     }
 }
 
