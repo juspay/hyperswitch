@@ -16,16 +16,16 @@ payouts = []
 async-trait = "0.1.68"
 base64 = "0.21.2"
 clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-toml = "0.7.4"
-serial_test = "2.0.0"
-serde_urlencoded = "0.7.1"
 rand = "0.8.5"
 reqwest = { version = "0.11.18", features = ["native-tls"] }
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
+serde_urlencoded = "0.7.1"
+serial_test = "2.0.0"
 thirtyfour = "0.31.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
+toml = "0.7.4"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
