@@ -1579,6 +1579,7 @@ fn get_error_response<T>(
             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: None,
         status_code: http_code,
+        attempt_status: None,
     })
 }
 

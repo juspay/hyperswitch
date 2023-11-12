@@ -401,6 +401,7 @@ pub fn handle_json_response_deserialization_failure(
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
+                attempt_status: None,
             })
         }
     }
@@ -566,7 +567,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: customer_id.to_string(),
+                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
                 payment_id: None,

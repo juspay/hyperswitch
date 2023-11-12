@@ -126,20 +126,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &payment_intent.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Database error when finding connector response")
-            })?;
-
         let customer_details = payments::CustomerDetails {
             customer_id: payment_intent.customer_id.clone(),
             name: None,
@@ -190,7 +176,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 disputes: vec![],
                 attempts: None,
                 sessions_token: vec![],
-                connector_response,
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
@@ -318,6 +303,7 @@ where
         _state: &'b AppState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         Option<api::PaymentMethodData>,

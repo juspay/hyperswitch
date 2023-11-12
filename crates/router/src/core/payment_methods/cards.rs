@@ -31,7 +31,10 @@ use crate::{
             transformers::{self as payment_methods},
             vault,
         },
-        payments::helpers,
+        payments::{
+            helpers,
+            routing::{self, SessionFlowRoutingInput},
+        },
     },
     db, logger,
     pii::prelude::*,
@@ -42,7 +45,7 @@ use crate::{
     },
     services,
     types::{
-        api::{self, PaymentMethodCreateExt},
+        api::{self, routing as routing_types, PaymentMethodCreateExt},
         domain::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
@@ -931,6 +934,135 @@ pub async fn list_payment_methods(
             &state.conf.mandates.supported_payment_methods,
         )
         .await?;
+    }
+
+    if let Some((payment_attempt, payment_intent)) =
+        payment_attempt.as_ref().zip(payment_intent.as_ref())
+    {
+        let routing_enabled_pms = HashSet::from([
+            api_enums::PaymentMethod::BankTransfer,
+            api_enums::PaymentMethod::BankDebit,
+            api_enums::PaymentMethod::BankRedirect,
+        ]);
+
+        let routing_enabled_pm_types = HashSet::from([
+            api_enums::PaymentMethodType::GooglePay,
+            api_enums::PaymentMethodType::ApplePay,
+            api_enums::PaymentMethodType::Klarna,
+            api_enums::PaymentMethodType::Paypal,
+        ]);
+
+        let mut chosen = Vec::<api::SessionConnectorData>::new();
+        for intermediate in &response {
+            if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
+                || routing_enabled_pms.contains(&intermediate.payment_method)
+            {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.clone().conf.connectors,
+                    &intermediate.connector,
+                    api::GetToken::from(intermediate.payment_method_type),
+                    None,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("invalid connector name received")?;
+
+                chosen.push(api::SessionConnectorData {
+                    payment_method_type: intermediate.payment_method_type,
+                    connector: connector_data,
+                    business_sub_label: None,
+                });
+            }
+        }
+        let sfr = SessionFlowRoutingInput {
+            state: &state,
+            country: shipping_address.clone().and_then(|ad| ad.country),
+            key_store: &key_store,
+            merchant_account: &merchant_account,
+            payment_attempt,
+            payment_intent,
+            chosen,
+        };
+        let result = routing::perform_session_flow_routing(sfr)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing session flow routing")?;
+
+        response.retain(|intermediate| {
+            if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
+                && !routing_enabled_pms.contains(&intermediate.payment_method)
+            {
+                return true;
+            }
+
+            if let Some(choice) = result.get(&intermediate.payment_method_type) {
+                intermediate.connector == choice.connector.connector_name.to_string()
+            } else {
+                false
+            }
+        });
+
+        let mut routing_info: storage::PaymentRoutingInfo = payment_attempt
+            .straight_through_algorithm
+            .clone()
+            .map(|val| val.parse_value("PaymentRoutingInfo"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid PaymentRoutingInfo format found in payment attempt")?
+            .unwrap_or_else(|| storage::PaymentRoutingInfo {
+                algorithm: None,
+                pre_routing_results: None,
+            });
+
+        let mut pre_routing_results: HashMap<
+            api_enums::PaymentMethodType,
+            routing_types::RoutableConnectorChoice,
+        > = HashMap::new();
+
+        for (pm_type, choice) in result {
+            let routable_choice = routing_types::RoutableConnectorChoice {
+                #[cfg(feature = "backwards_compatibility")]
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: choice
+                    .connector
+                    .connector_name
+                    .to_string()
+                    .parse()
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("")?,
+                #[cfg(feature = "connector_choice_mca_id")]
+                merchant_connector_id: choice.connector.merchant_connector_id,
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                sub_label: choice.sub_label,
+            };
+
+            pre_routing_results.insert(pm_type, routable_choice);
+        }
+
+        routing_info.pre_routing_results = Some(pre_routing_results);
+
+        let encoded = utils::Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_info)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to serialize payment routing info to value")?;
+
+        let attempt_update = storage::PaymentAttemptUpdate::UpdateTrackers {
+            payment_token: None,
+            connector: None,
+            straight_through_algorithm: Some(encoded),
+            amount_capturable: None,
+            updated_by: merchant_account.storage_scheme.to_string(),
+            merchant_connector_id: None,
+        };
+
+        state
+            .store
+            .update_payment_attempt_with_attempt_id(
+                payment_attempt.clone(),
+                attempt_update,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     }
 
     let req = api_models::payments::PaymentsRequest::foreign_from((
@@ -1877,7 +2009,7 @@ pub async fn list_customer_payment_method(
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
         let card = if pm.payment_method == enums::PaymentMethod::Card {
-            get_card_details(&pm, key, state, &hyperswitch_token).await?
+            get_card_details(&pm, key, state, &hyperswitch_token, &key_store).await?
         } else {
             None
         };
@@ -1972,6 +2104,7 @@ async fn get_card_details(
     key: &[u8],
     state: &routes::AppState,
     hyperswitch_token: &str,
+    key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let mut _card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
@@ -1988,7 +2121,7 @@ async fn get_card_details(
             });
 
     Ok(Some(
-        get_lookup_key_from_locker(state, hyperswitch_token, pm).await?,
+        get_lookup_key_from_locker(state, hyperswitch_token, pm, key_store).await?,
     ))
 }
 
@@ -1996,6 +2129,7 @@ pub async fn get_lookup_key_from_locker(
     state: &routes::AppState,
     payment_token: &str,
     pm: &storage::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card = get_card_from_locker(
         state,
@@ -2010,9 +2144,15 @@ pub async fn get_lookup_key_from_locker(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Get Card Details Failed")?;
     let card = card_detail.clone();
-    let resp =
-        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
-            .await?;
+
+    let resp = TempLockerCardSupport::create_payment_method_data_in_temp_locker(
+        state,
+        payment_token,
+        card,
+        pm,
+        merchant_key_store,
+    )
+    .await?;
     Ok(resp)
 }
 
@@ -2045,6 +2185,7 @@ pub async fn get_lookup_key_for_payout_method(
                 Some(payout_token.to_string()),
                 &pm_parsed,
                 Some(pm.customer_id.to_owned()),
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2058,110 +2199,16 @@ pub async fn get_lookup_key_for_payout_method(
     }
 }
 
-pub struct BasiliskCardSupport;
+pub struct TempLockerCardSupport;
 
-#[cfg(not(feature = "basilisk"))]
-impl BasiliskCardSupport {
-    async fn create_payment_method_data_in_locker(
-        state: &routes::AppState,
-        payment_token: &str,
-        card: api::CardDetailFromLocker,
-        pm: &storage::PaymentMethod,
-    ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card.card_number.clone().get_required_value("card_number")?;
-        let card_exp_month = card
-            .expiry_month
-            .clone()
-            .expose_option()
-            .get_required_value("expiry_month")?;
-        let card_exp_year = card
-            .expiry_year
-            .clone()
-            .expose_option()
-            .get_required_value("expiry_year")?;
-        let card_holder_name = card
-            .card_holder_name
-            .clone()
-            .expose_option()
-            .unwrap_or_default();
-        let value1 = payment_methods::mk_card_value1(
-            card_number,
-            card_exp_year,
-            card_exp_month,
-            Some(card_holder_name),
-            None,
-            None,
-            None,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Value1 for locker")?;
-        let value2 = payment_methods::mk_card_value2(
-            None,
-            None,
-            None,
-            Some(pm.customer_id.to_string()),
-            Some(pm.payment_method_id.to_string()),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Value2 for locker")?;
-
-        let value1 = vault::VaultPaymentMethod::Card(value1);
-        let value2 = vault::VaultPaymentMethod::Card(value2);
-
-        let value1 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value1)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
-
-        let value2 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value2)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
-
-        let db_value = vault::MockTokenizeDBValue { value1, value2 };
-
-        let value_string =
-            utils::Encode::<vault::MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Mock tokenize value construction failed when saving card to locker",
-                )?;
-
-        let db = &*state.store;
-
-        let already_present = db.find_config_by_key(payment_token).await;
-
-        if already_present.is_err() {
-            let config = storage::ConfigNew {
-                key: payment_token.to_string(),
-                config: value_string,
-            };
-
-            db.insert_config(config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed")?;
-        } else {
-            let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string),
-            };
-
-            db.update_config_by_key(payment_token, config_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization db update failed")?;
-        }
-
-        Ok(card)
-    }
-}
-
-#[cfg(feature = "basilisk")]
-impl BasiliskCardSupport {
+impl TempLockerCardSupport {
     #[instrument(skip_all)]
-    async fn create_payment_method_data_in_locker(
+    async fn create_payment_method_data_in_temp_locker(
         state: &routes::AppState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
@@ -2211,8 +2258,14 @@ impl BasiliskCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        let lookup_key =
-            vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        let lookup_key = vault::create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            payment_token.to_string(),
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         vault::add_delete_tokenized_data_task(
             &*state.store,
             &lookup_key,
