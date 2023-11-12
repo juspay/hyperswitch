@@ -1,9 +1,3 @@
-use crate::{
-    errors,
-    routes::AppState,
-    services::{self, logger},
-    types::{api, domain},
-};
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
 use common_utils::errors::CustomResult;
 use diesel_models::PaymentMethod;
@@ -11,6 +5,12 @@ use error_stack::{FutureExt, ResultExt};
 use futures::TryFutureExt;
 
 use super::{errors::StorageErrorExt, payment_methods::cards};
+use crate::{
+    errors,
+    routes::AppState,
+    services::{self, logger},
+    types::{api, domain},
+};
 
 pub async fn rust_locker_migration(
     state: AppState,
@@ -39,11 +39,7 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     for customer in domain_customers {
-        db
-            .find_payment_method_by_customer_id_merchant_id_list(
-                &customer.customer_id,
-                merchant_id,
-            )
+        db.find_payment_method_by_customer_id_merchant_id_list(&customer.customer_id, merchant_id)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
                 call_to_locker(
@@ -56,7 +52,6 @@ pub async fn rust_locker_migration(
             })
             .await?;
     }
-    
 
     Ok(services::api::ApplicationResponse::Json(
         MigrateCardResponse {
@@ -83,9 +78,7 @@ pub async fn call_to_locker(
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.name_on_card,
-            nick_name: card
-                .nick_name
-                .map(masking::Secret::new),
+            nick_name: card.nick_name.map(masking::Secret::new),
         };
 
         let pm_create = api::PaymentMethodCreate {

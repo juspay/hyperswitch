@@ -9,6 +9,7 @@ pub mod disputes;
 pub mod errors;
 pub mod files;
 pub mod gsm;
+pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_link;
@@ -22,4 +23,3 @@ pub mod utils;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
 pub mod webhooks;
-pub mod locker_migration;

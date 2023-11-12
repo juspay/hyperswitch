@@ -38,8 +38,8 @@ pub use self::app::Routing;
 pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
-    Files, Gsm, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
-    PaymentMethods, Payments, Refunds, Webhooks, LockerMigrate,
+    Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount, MerchantConnectorAccount,
+    PaymentLink, PaymentMethods, Payments, Refunds, Webhooks,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;
