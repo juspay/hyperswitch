@@ -1,5 +1,5 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, redis::RedisKey};
 use data_models::{
     errors,
     mandates::{MandateAmountData, MandateDataType},
@@ -585,7 +585,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let key = RedisKey::MerchantPaymentId {
+                    merchant_id,
+                    payment_id,
+                }
+                .to_string();
                 let pattern = "pa_*";
 
                 let redis_fut = async {
@@ -680,7 +684,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let key = RedisKey::MerchantPaymentId {
+                    merchant_id,
+                    payment_id,
+                }
+                .to_string();
                 let field = format!("pa_{attempt_id}");
                 try_redis_get_else_try_database_get(
                     async {
@@ -816,7 +824,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let key = RedisKey::MerchantPaymentId {
+                    merchant_id,
+                    payment_id,
+                }
+                .to_string();
 
                 kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
                     .await

@@ -4,6 +4,7 @@ use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
+    redis::RedisKey,
 };
 use data_models::{
     mandates::MandateData,
@@ -2544,10 +2545,11 @@ pub async fn insert_merchant_connector_creds_to_config(
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         match db
             .insert_config(storage::ConfigNew {
-                key: format!(
-                    "mcd_{merchant_id}_{}",
-                    merchant_connector_details.creds_identifier
-                ),
+                key: RedisKey::McdCredsId {
+                    merchant_id,
+                    creds_identifier: &merchant_connector_details.creds_identifier,
+                }
+                .to_string(),
                 config: encoded_data.peek().to_owned(),
             })
             .await
@@ -2629,11 +2631,22 @@ pub async fn get_merchant_connector_account(
     match creds_identifier {
         Some(creds_identifier) => {
             let mca_config = db
-                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                .find_config_by_key(
+                    RedisKey::McdCredsId {
+                        merchant_id,
+                        creds_identifier: &creds_identifier,
+                    }
+                    .to_string()
+                    .as_str(),
+                )
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
+                        id: RedisKey::McdCredsId {
+                            merchant_id,
+                            creds_identifier: &creds_identifier,
+                        }
+                        .to_string(),
                     },
                 )?;
 

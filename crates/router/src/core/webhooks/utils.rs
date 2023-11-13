@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, redis::RedisKey};
 use error_stack::ResultExt;
 
 use crate::{
@@ -29,7 +29,11 @@ pub async fn is_webhook_event_disabled(
     merchant_id: &str,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_disabled_events_{merchant_id}_{connector_id}");
+    let redis_key = RedisKey::WhConfDisabledEvents {
+        merchant_id,
+        connector_id,
+    }
+    .to_string();
     let merchant_webhook_disable_config_result: CustomResult<
         api::MerchantWebhookConfig,
         redis_interface::errors::RedisError,
