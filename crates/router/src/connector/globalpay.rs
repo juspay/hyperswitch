@@ -936,10 +936,11 @@ impl api::IncomingWebhook for Globalpay {
         let details = std::str::from_utf8(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json = serde_json::from_str(details)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(Box::new(res_json))
+        Ok(Box::new(
+            serde_json::from_str(details)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+        ))
     }
 }
 

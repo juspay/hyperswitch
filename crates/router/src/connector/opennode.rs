@@ -424,8 +424,7 @@ impl api::IncomingWebhook for Opennode {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status)
-        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
         Ok(Box::new(notif.status))
     }
 }

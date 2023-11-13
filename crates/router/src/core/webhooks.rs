@@ -873,11 +873,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         .saturating_duration_since(start_instant)
         .as_millis();
 
-    // let body_vec: Vec<u8> = body.to_vec();
-    // let serialized_request: serde_json::Value = serde_json::from_slice(&body_vec)
-    //     .into_report()
-    //     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
-    let serialized_request = serde_json::to_value(&serialized_req)
+    let serialized_request = masking::masked_serialize(&serialized_req)
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
@@ -1127,7 +1123,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             resource_object: serde_json::to_vec(&event_object)
                 .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
-                .attach_printable_lazy(|| format!("Unable to convert webhook paylaod to a value"))
+                .attach_printable_lazy(|| {
+                    "Unable to convert webhook paylaod to a value".to_string()
+                })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "There was an issue when encoding the incoming webhook body to bytes",

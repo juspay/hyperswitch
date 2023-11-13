@@ -697,8 +697,7 @@ impl api::IncomingWebhook for Iatapay {
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // Encode::<IatapayPaymentsResponse>::encode_to_value(&notif)
-        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
         Ok(Box::new(notif))
     }
 }

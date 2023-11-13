@@ -760,9 +760,6 @@ impl api::IncomingWebhook for Worldpay {
             .parse_struct("WorldpayWebhookEventType")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let psync_body = WorldpayEventResponse::try_from(body)?;
-        // let res_json = serde_json::to_value(psync_body)
-        //     .into_report()
-        //     .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
         Ok(Box::new(psync_body))
     }
 }

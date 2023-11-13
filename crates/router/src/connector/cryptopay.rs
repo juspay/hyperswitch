@@ -461,8 +461,7 @@ impl api::IncomingWebhook for Cryptopay {
                 .body
                 .parse_struct("CryptopayWebhookDetails")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // Encode::<CryptopayWebhookDetails>::encode_to_value(&notif)
-        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
         Ok(Box::new(notif))
     }
 }

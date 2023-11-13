@@ -396,9 +396,6 @@ impl api::IncomingWebhook for Cashtocode {
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // let res_json =
-        //     utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
-        //         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(Box::new(webhook))
     }

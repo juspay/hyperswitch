@@ -742,10 +742,6 @@ impl api::IncomingWebhook for Noon {
             .parse_struct("NoonWebhookObject")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        // let res_json = serde_json::to_value(noon::NoonPaymentsResponse::from(resource))
-        //     .into_report()
-        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
         Ok(Box::new(noon::NoonPaymentsResponse::from(resource)))
     }
 }

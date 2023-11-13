@@ -968,7 +968,7 @@ impl api::IncomingWebhook for Nuvei {
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_response = nuvei::NuveiPaymentsResponse::from(body);
-        // Encode::<nuvei::NuveiPaymentsResponse>::encode_to_value(&payment_response).switch()
+
         Ok(Box::new(payment_response))
     }
 }

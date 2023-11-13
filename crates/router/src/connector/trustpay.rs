@@ -911,10 +911,6 @@ impl api::IncomingWebhook for Trustpay {
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
-        // let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
-        //     &details.payment_information,
-        // )
-        // .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(details.payment_information))
     }
 

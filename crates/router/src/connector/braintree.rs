@@ -1424,10 +1424,6 @@ impl api::IncomingWebhook for Braintree {
 
         let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
-        // let res_json = serde_json::to_value(response)
-        //     .into_report()
-        //     .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
         Ok(Box::new(response))
     }
 

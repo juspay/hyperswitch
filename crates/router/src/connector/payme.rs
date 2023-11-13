@@ -1087,27 +1087,13 @@ impl api::IncomingWebhook for Payme {
             transformers::NotifyType::SaleComplete
             | transformers::NotifyType::SaleAuthorized
             | transformers::NotifyType::SaleFailure => {
-                // serde_json::to_value(payme::PaymePaySaleResponse::from(resource))
-                //     .into_report()
-                //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
                 Ok(Box::new(payme::PaymePaySaleResponse::from(resource)))
             }
-            transformers::NotifyType::Refund => {
-                // serde_json::to_value(payme::PaymeQueryTransactionResponse::from(resource))
-                //     .into_report()
-                //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
-                Ok(Box::new(payme::PaymeQueryTransactionResponse::from(
-                    resource,
-                )))
-            }
+            transformers::NotifyType::Refund => Ok(Box::new(
+                payme::PaymeQueryTransactionResponse::from(resource),
+            )),
             transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund =>
-            // serde_json::to_value(resource)
-            //     .into_report()
-            //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            {
-                Ok(Box::new(resource))
-            }
+            | transformers::NotifyType::SaleChargebackRefund => Ok(Box::new(resource)),
         }
     }
 

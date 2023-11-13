@@ -431,8 +431,7 @@ impl api::IncomingWebhook for Coinbase {
             .body
             .parse_struct("CoinbaseWebhookDetails")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event)
-        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
         Ok(Box::new(notif.event))
     }
 }
