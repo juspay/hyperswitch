@@ -5,6 +5,8 @@ pub mod payment;
 pub mod payouts;
 pub mod refund;
 pub mod routing;
+pub mod user;
+mod locker_migration;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},

@@ -25,6 +25,7 @@ pub enum ApiIdentifier {
     Routing,
     RustLockerMigration,
     Gsm,
+    User,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -136,6 +137,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleRetrieve
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
+
+            Flow::UserConnectAccount => Self::User,
         }
     }
 }
