@@ -319,5 +319,16 @@ supported_connectors = "braintree"
 redis_lock_expiry_seconds = 180 # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
 
+[analytics]
+source = "sqlx"
+
+[analytics.sqlx]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+
 [kv_config]
 ttl = 900 # 15 * 60 seconds
