@@ -114,6 +114,7 @@ scheduler = { version = "0.1.0", path = "../scheduler", default-features = false
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+erased-serde = "0.3.31"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
