@@ -324,6 +324,16 @@ impl Routing {
                 web::resource("/{algorithm_id}/activate")
                     .route(web::post().to(cloud_routing::routing_link_config)),
             )
+            .service(
+                web::resource("/default/profile/{profile_id}").route(
+                    web::post().to(cloud_routing::routing_update_default_config_for_profile),
+                ),
+            )
+            .service(
+                web::resource("/default/profile").route(
+                    web::get().to(cloud_routing::routing_retrieve_default_config_for_profiles),
+                ),
+            )
     }
 }
 
