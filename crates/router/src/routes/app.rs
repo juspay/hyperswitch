@@ -139,14 +139,14 @@ impl AppState {
             )
             .await;
 
-        #[cfg(feature = "kms")]
-        #[allow(clippy::expect_used)]
-        let kms_secrets = settings::ActiveKmsSecrets {
-            jwekey: conf.jwekey.clone().into(),
-        }
-        .decrypt_inner(kms_client)
-        .await
-        .expect("Failed while performing KMS decryption");
+            #[cfg(feature = "kms")]
+            #[allow(clippy::expect_used)]
+            let kms_secrets = settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
+            }
+            .decrypt_inner(kms_client)
+            .await
+            .expect("Failed while performing KMS decryption");
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(AwsSes::new(&conf.email).await);
