@@ -9,13 +9,13 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "profile_specific_fallback_routing"]
 s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 email = ["external_services/email", "dep:aws-config"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
-release = ["kms", "stripe", "basilisk", "s3", "email", "business_profile_routing", "accounts_cache", "kv_store", "olap"]
+release = ["kms", "stripe", "basilisk", "s3", "email", "business_profile_routing", "accounts_cache", "kv_store", "profile_specific_fallback_routing"]
 olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap"]
 oltp = ["data_models/oltp", "storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
@@ -24,6 +24,7 @@ openapi = ["olap", "oltp", "payouts"]
 vergen = ["router_env/vergen"]
 backwards_compatibility = ["api_models/backwards_compatibility", "euclid/backwards_compatibility", "kgraph_utils/backwards_compatibility"]
 business_profile_routing=["api_models/business_profile_routing"]
+profile_specific_fallback_routing = []
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgraph_utils/dummy_connector"]
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
@@ -38,6 +39,7 @@ actix-cors = "0.6.4"
 actix-multipart = "0.6.0"
 actix-rt = "2.8.0"
 actix-web = "4.3.1"
+argon2 = { version = "0.5.0", features = ["std"] }
 async-bb8-diesel = "0.1.0"
 async-trait = "0.1.68"
 aws-config = { version = "0.55.3", optional = true }
@@ -89,10 +91,12 @@ thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
 tera = "1.19.1"
+unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
 utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
+validator = "0.16.0"
 openssl = "0.10.55"
 x509-parser = "0.15.0"
 sha-1 = { version = "0.9"}

@@ -40,4 +40,5 @@ afe = "afe" # Commit id
 extend-exclude = [
     "config/redis.conf", # `typos` also checked "AKE" in the file, which is present as a quoted string
     "openapi/open_api_spec.yaml", # no longer updated
+    "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
 ]
