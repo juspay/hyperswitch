@@ -1,9 +1,3 @@
-use crate::{
-    errors,
-    routes::AppState,
-    services::{self, logger},
-    types::{api, domain},
-};
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
 use common_utils::errors::CustomResult;
 use diesel_models::PaymentMethod;
@@ -11,6 +5,12 @@ use error_stack::{FutureExt, ResultExt};
 use futures::TryFutureExt;
 
 use super::{errors::StorageErrorExt, payment_methods::cards};
+use crate::{
+    errors,
+    routes::AppState,
+    services::{self, logger},
+    types::{api, domain},
+};
 
 pub async fn rust_locker_migration(
     state: AppState,
@@ -38,12 +38,12 @@ pub async fn rust_locker_migration(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let mut customers_moved = 0;
+    let mut cards_moved = 0;
+
     for customer in domain_customers {
-        db
-            .find_payment_method_by_customer_id_merchant_id_list(
-                &customer.customer_id,
-                merchant_id,
-            )
+        let result = db
+            .find_payment_method_by_customer_id_merchant_id_list(&customer.customer_id, merchant_id)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
                 call_to_locker(
@@ -54,14 +54,19 @@ pub async fn rust_locker_migration(
                     &merchant_account,
                 )
             })
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        customers_moved += 1;
+        cards_moved += result;
     }
-    
 
     Ok(services::api::ApplicationResponse::Json(
         MigrateCardResponse {
             status_code: "200".to_string(),
             status_message: "Card migration completed".to_string(),
+            customers_moved,
+            cards_moved,
         },
     ))
 }
@@ -72,7 +77,9 @@ pub async fn call_to_locker(
     customer_id: &String,
     merchant_id: &String,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<usize, errors::ApiErrorResponse> {
+    let mut cards_moved = 0;
+
     for pm in payment_methods {
         let card =
             cards::get_card_from_locker(state, customer_id, merchant_id, &pm.payment_method_id)
@@ -83,9 +90,7 @@ pub async fn call_to_locker(
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.name_on_card,
-            nick_name: card
-                .nick_name
-                .map(masking::Secret::new),
+            nick_name: card.nick_name.map(masking::Secret::new),
         };
 
         let pm_create = api::PaymentMethodCreate {
@@ -110,9 +115,18 @@ pub async fn call_to_locker(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!("Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ", pm.payment_method_id))?;
+        .attach_printable(format!(
+            "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+            pm.payment_method_id
+        ))?;
 
-        logger::info!("Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ", pm.payment_method_id);
+        cards_moved += 1;
+
+        logger::info!(
+            "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+            pm.payment_method_id
+        );
     }
-    Ok(())
+
+    Ok(cards_moved)
 }

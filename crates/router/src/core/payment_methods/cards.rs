@@ -214,12 +214,20 @@ pub async fn add_card_to_locker(
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
     request::record_operation_time(
         async {
-            add_card_hs(state, req, card, customer_id, merchant_account, &api_enums::LockerChoice::Basilisk, None)
-                .await
-                .map_err(|error| {
-                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    error
-                })
+            add_card_hs(
+                state,
+                req,
+                card,
+                customer_id,
+                merchant_account,
+                &api_enums::LockerChoice::Basilisk,
+                None,
+            )
+            .await
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
         },
         &metrics::CARD_ADD_TIME,
         &[],
@@ -299,7 +307,8 @@ pub async fn add_card_hs(
             nick_name: card.nick_name.as_ref().map(masking::Secret::peek).cloned(),
         },
     });
-    let store_card_payload = call_to_locker_hs(state, &payload, &customer_id, locker_choice).await?;
+    let store_card_payload =
+        call_to_locker_hs(state, &payload, &customer_id, locker_choice).await?;
 
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         card,
@@ -406,7 +415,9 @@ pub async fn call_to_locker_hs<'a>(
     let jwekey = &state.kms_secrets;
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        let request = payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, locker_choice).await?;
+        let request =
+            payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, locker_choice)
+                .await?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::SaveCardFailed);

@@ -247,7 +247,9 @@ pub async fn mk_basilisk_req(
     #[cfg(feature = "kms")]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => {
+            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        }
     };
 
     #[cfg(not(feature = "kms"))]

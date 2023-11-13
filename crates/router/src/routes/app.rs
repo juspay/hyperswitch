@@ -18,11 +18,9 @@ use super::payouts::*;
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-
-use super::locker_migration::rust_locker_migration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, user::*};
-use super::{cache::*, health::*, payment_link::*};
+use super::{cache::*, health::*, locker_migration::rust_locker_migration, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -734,9 +732,6 @@ impl LockerMigrate {
     pub fn server(state: AppState) -> Scope {
         web::scope("locker_migration/{merchant_id}")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("")
-                    .route(web::post().to(rust_locker_migration)),
-            )
+            .service(web::resource("").route(web::post().to(rust_locker_migration)))
     }
 }
