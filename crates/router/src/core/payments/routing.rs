@@ -71,7 +71,10 @@ pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
-    #[cfg(feature = "business_profile_routing")]
+    #[cfg(any(
+        feature = "business_profile_routing",
+        feature = "profile_specific_fallback_routing"
+    ))]
     profile_id: Option<String>,
 }
 static ROUTING_CACHE: StaticCache<CachedAlgorithm> = StaticCache::new();
@@ -207,10 +210,22 @@ pub async fn perform_static_routing_v1<F: Clone>(
     let algorithm_id = if let Some(id) = algorithm_ref.algorithm_id {
         id
     } else {
-        let fallback_config =
-            routing_helpers::get_merchant_default_config(&*state.clone().store, merchant_id)
-                .await
-                .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+        let fallback_config = routing_helpers::get_merchant_default_config(
+            &*state.clone().store,
+            #[cfg(not(feature = "profile_specific_fallback_routing"))]
+            merchant_id,
+            #[cfg(feature = "profile_specific_fallback_routing")]
+            {
+                payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::RoutingError::ProfileIdMissing)?
+            },
+        )
+        .await
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
         return Ok(fallback_config);
     };
@@ -616,10 +631,22 @@ pub async fn perform_fallback_routing<F: Clone>(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let fallback_config =
-        routing_helpers::get_merchant_default_config(&*state.store, &key_store.merchant_id)
-            .await
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.store,
+        #[cfg(not(feature = "profile_specific_fallback_routing"))]
+        &key_store.merchant_id,
+        #[cfg(feature = "profile_specific_fallback_routing")]
+        {
+            payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
+                .change_context(errors::RoutingError::ProfileIdMissing)?
+        },
+    )
+    .await
+    .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
     let backend_input = make_dsl_input(payment_data)?;
 
     perform_kgraph_filtering(
@@ -819,8 +846,11 @@ pub async fn perform_session_flow_routing(
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
-            #[cfg(feature = "business_profile_routing")]
-            profile_id: session_input.payment_intent.clone().profile_id,
+            #[cfg(any(
+                feature = "business_profile_routing",
+                feature = "profile_specific_fallback_routing"
+            ))]
+            profile_id: session_input.payment_intent.profile_id.clone(),
         };
         let maybe_choice = perform_session_routing_for_pm_type(session_pm_input).await?;
 
@@ -880,7 +910,16 @@ async fn perform_session_routing_for_pm_type(
             } else {
                 routing_helpers::get_merchant_default_config(
                     &*session_pm_input.state.clone().store,
+                    #[cfg(not(feature = "profile_specific_fallback_routing"))]
                     merchant_id,
+                    #[cfg(feature = "profile_specific_fallback_routing")]
+                    {
+                        session_pm_input
+                            .profile_id
+                            .as_ref()
+                            .get_required_value("profile_id")
+                            .change_context(errors::RoutingError::ProfileIdMissing)?
+                    },
                 )
                 .await
                 .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
@@ -903,7 +942,16 @@ async fn perform_session_routing_for_pm_type(
     if final_selection.is_empty() {
         let fallback = routing_helpers::get_merchant_default_config(
             &*session_pm_input.state.clone().store,
+            #[cfg(not(feature = "profile_specific_fallback_routing"))]
             merchant_id,
+            #[cfg(feature = "profile_specific_fallback_routing")]
+            {
+                session_pm_input
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::RoutingError::ProfileIdMissing)?
+            },
         )
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
