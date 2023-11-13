@@ -4,7 +4,7 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
-use router_env::{instrument, tracing, types, Flow};
+use router_env::{env, instrument, tracing, types, Flow};
 
 use crate::{
     self as app,
@@ -118,7 +118,10 @@ pub async fn payments_create(
                 api::AuthFlow::Merchant,
             )
         },
-        &auth::ApiKeyAuth,
+        match env::which() {
+            env::Env::Production => &auth::ApiKeyAuth,
+            _ => auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        },
         locking_action,
     )
     .await
@@ -249,7 +252,11 @@ pub async fn payments_retrieve(
                 HeaderPayload::default(),
             )
         },
-        &*auth_type,
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth,
+            req.headers(),
+        ),
         locking_action,
     )
     .await
@@ -828,7 +835,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -848,7 +855,7 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth, req| payments::apply_filters_on_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -868,7 +875,7 @@ pub async fn get_filters_for_payments(
         &req,
         payload,
         |state, auth, req| payments::get_filters_for_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
