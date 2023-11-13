@@ -13,7 +13,7 @@
       systems = nixpkgs.lib.systems.flakeExposed;
       perSystem = { self', pkgs, system, ... }:
         let
-          rustVersion = "1.68.0";
+          rustVersion = "1.65.0";
           rustPkgs = pkgs.rustBuilder.makePackageSet {
             inherit rustVersion;
             packageFun = import ./Cargo.nix;
