@@ -112,31 +112,32 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        #[cfg(feature = "kms")]
-        let kms_client = kms::get_kms_client(&conf.kms).await;
-        let testable = storage_impl == StorageImpl::PostgresqlTest;
-        let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
-                #[allow(clippy::expect_used)]
-                get_store(&conf, shut_down_signal, testable)
-                    .await
-                    .expect("Failed to create store"),
-            ),
-            #[allow(clippy::expect_used)]
-            StorageImpl::Mock => Box::new(
-                MockDb::new(&conf.redis)
-                    .await
-                    .expect("Failed to create mock store"),
-            ),
-        };
-
-        #[cfg(feature = "olap")]
-        let pool = crate::analytics::AnalyticsProvider::from_conf(
-            &conf.analytics,
+        Box::pin(async move {
             #[cfg(feature = "kms")]
-            kms_client,
-        )
-        .await;
+            let kms_client = kms::get_kms_client(&conf.kms).await;
+            let testable = storage_impl == StorageImpl::PostgresqlTest;
+            let store: Box<dyn StorageInterface> = match storage_impl {
+                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(&conf, shut_down_signal, testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+                #[allow(clippy::expect_used)]
+                StorageImpl::Mock => Box::new(
+                    MockDb::new(&conf.redis)
+                        .await
+                        .expect("Failed to create mock store"),
+                ),
+            };
+
+            #[cfg(feature = "olap")]
+            let pool = crate::analytics::AnalyticsProvider::from_conf(
+                &conf.analytics,
+                #[cfg(feature = "kms")]
+                kms_client,
+            )
+            .await;
 
             #[cfg(feature = "kms")]
             #[allow(clippy::expect_used)]
@@ -147,21 +148,23 @@ impl AppState {
             .await
             .expect("Failed while performing KMS decryption");
 
-        #[cfg(feature = "email")]
-        let email_client = Arc::new(AwsSes::new(&conf.email).await);
-        Self {
-            flow_name: String::from("default"),
-            store,
-            conf: Arc::new(conf),
             #[cfg(feature = "email")]
-            email_client,
-            #[cfg(feature = "kms")]
-            kms_secrets: Arc::new(kms_secrets),
-            api_client,
-            event_handler: Box::<EventLogger>::default(),
-            #[cfg(feature = "olap")]
-            pool,
-        }
+            let email_client = Arc::new(AwsSes::new(&conf.email).await);
+            Self {
+                flow_name: String::from("default"),
+                store,
+                conf: Arc::new(conf),
+                #[cfg(feature = "email")]
+                email_client,
+                #[cfg(feature = "kms")]
+                kms_secrets: Arc::new(kms_secrets),
+                api_client,
+                event_handler: Box::<EventLogger>::default(),
+                #[cfg(feature = "olap")]
+                pool,
+            }
+        })
+        .await
     }
 
     pub async fn new(
