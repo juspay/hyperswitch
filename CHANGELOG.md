@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.77.0 (2023-11-13)
+
+### Features
+
+- **apievent:** Added hs latency to api event ([#2734](https://github.com/juspay/hyperswitch/pull/2734)) ([`c124511`](https://github.com/juspay/hyperswitch/commit/c124511052ed8911a2ccfcf648c0793b5c1ca690))
+- **router:**
+  - Add new JWT authentication variants and use them ([#2835](https://github.com/juspay/hyperswitch/pull/2835)) ([`f88eee7`](https://github.com/juspay/hyperswitch/commit/f88eee7362be2cc3e8e8dc2bb7bfd263892ff01e))
+  - Profile specific fallback derivation while routing payments ([#2806](https://github.com/juspay/hyperswitch/pull/2806)) ([`8e538db`](https://github.com/juspay/hyperswitch/commit/8e538dbd5c189047d0a0b24fa752b9a1c67554f5))
+
+### Build System / Dependencies
+
+- **deps:** Remove unused dependencies and features ([#2854](https://github.com/juspay/hyperswitch/pull/2854)) ([`0553587`](https://github.com/juspay/hyperswitch/commit/05535871152f4a6ac24ce6b5b5390da13cc29b96))
+
+**Full Changelog:** [`v1.76.0...v1.77.0`](https://github.com/juspay/hyperswitch/compare/v1.76.0...v1.77.0)
+
+- - -
+
+
 ## 1.76.0 (2023-11-12)
 
 ### Features
