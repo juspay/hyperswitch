@@ -4,7 +4,6 @@ pub mod payment_capture;
 pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
-// pub mod payment_method_validate;
 pub mod payment_reject;
 pub mod payment_response;
 pub mod payment_session;

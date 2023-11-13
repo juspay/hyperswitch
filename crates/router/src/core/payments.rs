@@ -1946,6 +1946,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_connector_choice<F, Req, Ctx>(
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     state: &AppState,
@@ -2094,6 +2095,7 @@ where
     Ok(decided_connector)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn decide_connector<F>(
     state: AppState,
     merchant_account: &domain::MerchantAccount,
@@ -2456,9 +2458,6 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode merchant routing algorithm ref")?
         .unwrap_or_default();
-
-    #[cfg(feature = "business_profile_routing")]
-    {};
 
     let connectors = routing::perform_static_routing_v1(
         state,

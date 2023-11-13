@@ -259,7 +259,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operation: Box::new(self),
             customer_details,
             payment_data,
-            business_profile: business_profile,
+            business_profile,
         };
 
         Ok(get_trackers_response)

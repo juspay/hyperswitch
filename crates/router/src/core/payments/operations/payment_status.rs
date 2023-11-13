@@ -413,7 +413,7 @@ async fn get_tracker_for_sync<
         operation: Box::new(operation),
         customer_details: None,
         payment_data,
-        business_profile: business_profile,
+        business_profile,
     };
 
     Ok(get_trackers_response)

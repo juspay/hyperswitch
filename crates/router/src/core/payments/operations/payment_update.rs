@@ -353,7 +353,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             operation: next_operation,
             customer_details: Some(customer_details),
             payment_data,
-            business_profile: business_profile,
+            business_profile,
         };
 
         Ok(get_trackers_response)
