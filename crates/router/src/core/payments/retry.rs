@@ -20,7 +20,7 @@ use crate::{
     db::StorageInterface,
     routes,
     routes::{app, metrics},
-    services::{self, Authenticate, RedirectForm},
+    services::{self, RedirectForm},
     types,
     types::{api, domain, storage},
     utils,
@@ -28,7 +28,7 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn do_gsm_actions<F, Req, FData, Ctx>(
+pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     state: &app::AppState,
     payment_data: &mut payments::PaymentData<F>,
     mut connectors: IntoIter<api::ConnectorData>,
@@ -36,7 +36,7 @@ pub async fn do_gsm_actions<F, Req, FData, Ctx>(
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    operation: &operations::BoxedOperation<'_, F, Req, Ctx>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -45,7 +45,6 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
-    Req: Authenticate,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -294,10 +293,10 @@ fn get_flow_name<F>() -> RouterResult<String> {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, Req, FData, Ctx>(
+pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     state: &routes::AppState,
     connector: api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, Req, Ctx>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest, Ctx>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -311,7 +310,6 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData, Ctx>,
-    Req: Authenticate,
 
     payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
