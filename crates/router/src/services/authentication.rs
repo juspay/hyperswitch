@@ -29,7 +29,11 @@ pub struct AuthenticationData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-#[serde(tag = "api_auth_type")]
+#[serde(
+    tag = "api_auth_type",
+    content = "authentication_data",
+    rename_all = "snake_case"
+)]
 pub enum AuthenticationType {
     ApiKey {
         merchant_id: String,
