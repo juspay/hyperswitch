@@ -38,6 +38,7 @@ pub struct ApiEvent {
     response: Option<serde_json::Value>,
     #[serde(flatten)]
     event_type: ApiEventsType,
+    hs_latency: Option<u128>,
 }
 
 impl ApiEvent {
@@ -49,6 +50,7 @@ impl ApiEvent {
         status_code: i64,
         request: serde_json::Value,
         response: Option<serde_json::Value>,
+        hs_latency: Option<u128>,
         auth_type: AuthenticationType,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
@@ -72,6 +74,7 @@ impl ApiEvent {
                 .and_then(|user_agent_value| user_agent_value.to_str().ok().map(ToOwned::to_owned)),
             url_path: http_req.path().to_string(),
             event_type,
+            hs_latency,
         }
     }
 }
