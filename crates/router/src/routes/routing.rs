@@ -308,11 +308,11 @@ pub async fn routing_retrieve_default_config_for_profiles(
         state,
         &req,
         (),
-        |state, auth: oss_auth::AuthenticationData, _| {
+        |state, auth: auth::AuthenticationData, _| {
             routing::retrieve_default_routing_config_for_profiles(state, auth.merchant_account)
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         #[cfg(feature = "release")]
         &auth::JWTAuth,
         api_locking::LockAction::NotApplicable,
@@ -337,7 +337,7 @@ pub async fn routing_update_default_config_for_profile(
         state,
         &req,
         routing_payload_wrapper,
-        |state, auth: oss_auth::AuthenticationData, wrapper| {
+        |state, auth: auth::AuthenticationData, wrapper| {
             routing::update_default_routing_config_for_profile(
                 state,
                 auth.merchant_account,
@@ -346,7 +346,7 @@ pub async fn routing_update_default_config_for_profile(
             )
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&oss_auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         #[cfg(feature = "release")]
         &auth::JWTAuth,
         api_locking::LockAction::NotApplicable,
