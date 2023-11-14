@@ -329,16 +329,15 @@ fn get_payment_source(
 }
 
 fn get_payee(auth_type: &PaypalAuthType) -> Option<Payee> {
-    match auth_type {
-        PaypalAuthType {
-            payer_id: Some(merchant_id),
-            ..
-        } => Some(Payee {
-            merchant_id: merchant_id.clone(),
-        }),
-
-        PaypalAuthType { payer_id: None, .. } => None,
-    }
+    auth_type
+        .get_credentails()
+        .ok()
+        .and_then(|credentials| credentials.payer_id.to_owned())
+        .and_then(|payer_id| {
+            Some(Payee {
+                merchant_id: payer_id,
+            })
+        })
 }
 
 impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalPaymentsRequest {
@@ -790,30 +789,52 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, typ
 }
 
 #[derive(Debug)]
-pub struct PaypalAuthType {
+pub enum PaypalAuthType {
+    TemporaryAuth,
+    AuthWithDetails(PaypalConnectorCredentials),
+}
+
+#[derive(Debug)]
+pub struct PaypalConnectorCredentials {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
     pub(super) payer_id: Option<Secret<String>>,
+}
+
+impl PaypalAuthType {
+    pub fn get_credentails(
+        &self,
+    ) -> CustomResult<&PaypalConnectorCredentials, errors::ConnectorError> {
+        match self {
+            Self::TemporaryAuth => {
+                Err(errors::ConnectorError::TemporaryConnectorCredentails.into())
+            }
+            Self::AuthWithDetails(credentials) => Ok(credentials),
+        }
+    }
 }
 
 impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                client_id: key1.to_owned(),
-                client_secret: api_key.to_owned(),
-                payer_id: None,
-            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Ok(Self::AuthWithDetails(PaypalConnectorCredentials {
+                    client_id: key1.to_owned(),
+                    client_secret: api_key.to_owned(),
+                    payer_id: None,
+                }))
+            }
             types::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
-            } => Ok(Self {
+            } => Ok(Self::AuthWithDetails(PaypalConnectorCredentials {
                 client_id: key1.to_owned(),
                 client_secret: api_key.to_owned(),
                 payer_id: Some(api_secret.to_owned()),
-            }),
+            })),
+            types::ConnectorAuthType::TemporaryAuth => Ok(Self::TemporaryAuth),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }

@@ -110,79 +110,74 @@ where
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let key = &req.attempt_id;
-        let auth: paypal::PaypalAuthType = match req.connector_auth_type {
-            ConnectorAuthType::BodyKey { .. } => (&req.connector_auth_type)
-                .try_into()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?,
-            ConnectorAuthType::SignatureKey { .. } => (&req.connector_auth_type)
-                .try_into()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?,
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
-        };
-        let headers = if auth.payer_id.is_none() {
-            let result = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.get_content_type().to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", access_token.token.peek()).into_masked(),
-                ),
-                (
-                    auth_headers::PREFER.to_string(),
-                    "return=representation".to_string().into(),
-                ),
-                (
-                    auth_headers::PAYPAL_REQUEST_ID.to_string(),
-                    key.to_string().into_masked(),
-                ),
-                (
-                    auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
-                    "HyperSwitchlegacy_Ecom".to_string().into(),
-                ),
-            ];
-            result
-        } else {
-            let auth_header1 = consts::BASE64_ENGINE
-                .encode("{\"alg\":\"none\"}")
-                .to_string();
-            let keys = format!(
-                "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
-                auth.client_id.clone().expose(),
-                auth.payer_id
-                    .clone()
-                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
-                    .expose()
-            );
-            let encode = consts::BASE64_ENGINE.encode(keys).to_string();
-            let auth_headers = format!("{}.{}.", auth_header1, encode);
-            vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.get_content_type().to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", access_token.token.peek()).into_masked(),
-                ),
-                (
-                    auth_headers::PREFER.to_string(),
-                    "return=representation".to_string().into(),
-                ),
-                (
-                    auth_headers::PAYPAL_REQUEST_ID.to_string(),
-                    key.to_string().into_masked(),
-                ),
-                (
-                    auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
-                    auth_headers.to_string().into_masked(),
-                ),
-                (
-                    auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
-                    "HyperSwitchPPCP_SP".to_string().into(),
-                ),
-            ]
+        let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
+        let headers = match auth {
+            paypal::PaypalAuthType::AuthWithDetails(paypal::PaypalConnectorCredentials {
+                payer_id: Some(payer_id),
+                client_id,
+                ..
+            }) => {
+                let auth_header1 = consts::BASE64_ENGINE
+                    .encode("{\"alg\":\"none\"}")
+                    .to_string();
+                let keys = format!(
+                    "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
+                    client_id.clone().expose(),
+                    payer_id.expose()
+                );
+                let encode = consts::BASE64_ENGINE.encode(keys).to_string();
+                let auth_headers = format!("{}.{}.", auth_header1, encode);
+                vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        self.get_content_type().to_string().into(),
+                    ),
+                    (
+                        headers::AUTHORIZATION.to_string(),
+                        format!("Bearer {}", access_token.token.peek()).into_masked(),
+                    ),
+                    (
+                        auth_headers::PREFER.to_string(),
+                        "return=representation".to_string().into(),
+                    ),
+                    (
+                        auth_headers::PAYPAL_REQUEST_ID.to_string(),
+                        key.to_string().into_masked(),
+                    ),
+                    (
+                        auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
+                        auth_headers.to_string().into_masked(),
+                    ),
+                    (
+                        auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
+                        "HyperSwitchPPCP_SP".to_string().into(),
+                    ),
+                ]
+            }
+            _ => {
+                vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        self.get_content_type().to_string().into(),
+                    ),
+                    (
+                        headers::AUTHORIZATION.to_string(),
+                        format!("Bearer {}", access_token.token.peek()).into_masked(),
+                    ),
+                    (
+                        auth_headers::PREFER.to_string(),
+                        "return=representation".to_string().into(),
+                    ),
+                    (
+                        auth_headers::PAYPAL_REQUEST_ID.to_string(),
+                        key.to_string().into_masked(),
+                    ),
+                    (
+                        auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
+                        "HyperSwitchlegacy_Ecom".to_string().into(),
+                    ),
+                ]
+            }
         };
         Ok(headers)
     }
@@ -209,12 +204,12 @@ impl ConnectorCommon for Paypal {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: paypal::PaypalAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = paypal::PaypalAuthType::try_from(auth_type)?;
+        let credentials = auth.get_credentails()?;
+
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.client_secret.into_masked(),
+            credentials.client_secret.clone().into_masked(),
         )])
     }
 
@@ -316,13 +311,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: paypal::PaypalAuthType = (&req.connector_auth_type)
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
+        let credentails = auth.get_credentails()?;
 
-        let auth_id = auth
+        let auth_id = credentails
             .client_id
-            .zip(auth.client_secret)
+            .clone()
+            .zip(credentails.client_secret.clone())
             .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
 
@@ -1054,13 +1049,13 @@ impl
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: paypal::PaypalAuthType = (&req.connector_auth_type)
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
+        let credentails = auth.get_credentails()?;
 
-        let auth_id = auth
+        let auth_id = credentails
             .client_id
-            .zip(auth.client_secret)
+            .clone()
+            .zip(credentails.client_secret.clone())
             .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
 
