@@ -7863,6 +7863,14 @@
             "type": "string",
             "nullable": true
           },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.PaymentLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
           "custom_merchant_name": {
             "type": "string",
             "description": "Custom merchant name for payment link",
