@@ -3,30 +3,6 @@
 version = 3
 
 [[package]]
-name = "actix"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f728064aca1c318585bf4bb04ffcfac9e75e508ab4e8b1bd9ba5dfe04e2cbed5"
-dependencies = [
- "actix-rt",
- "actix_derive",
- "bitflags 1.3.2",
- "bytes",
- "crossbeam-channel",
- "futures-core",
- "futures-sink",
- "futures-task",
- "futures-util",
- "log",
- "once_cell",
- "parking_lot 0.12.1",
- "pin-project-lite",
- "smallvec",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "actix-codec"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -283,17 +259,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix_derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d44b8fee1ced9671ba043476deddef739dd0959bf77030b26b738cc591737a7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -418,7 +383,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "strum 0.24.1",
- "thiserror",
  "time",
  "url",
  "utoipa",
@@ -1561,7 +1525,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.25.0",
- "time",
  "utoipa",
 ]
 
@@ -1924,7 +1887,6 @@ dependencies = [
  "masking",
  "serde",
  "serde_json",
- "strum 0.25.0",
  "thiserror",
  "time",
 ]
@@ -2035,13 +1997,10 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
- "aws-config",
- "aws-sdk-s3",
  "common_enums",
  "common_utils",
  "diesel",
  "error-stack",
- "external_services",
  "frunk",
  "frunk_core",
  "masking",
@@ -3270,12 +3229,6 @@ name = "linux-raw-sys"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3852614a3bd9ca9804678ba6be5e3b8ce76dfc902cae004e3e0c44051b6e88db"
-
-[[package]]
-name = "literally"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d2be3f5a0d4d5c983d1f8ecc2a87676a0875a14feb9eebf0675f7c3e2f3c35"
 
 [[package]]
 name = "local-channel"
@@ -4593,7 +4546,6 @@ dependencies = [
 name = "router"
 version = "0.2.0"
 dependencies = [
- "actix",
  "actix-cors",
  "actix-http",
  "actix-multipart",
@@ -4635,7 +4587,6 @@ dependencies = [
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
- "literally",
  "masking",
  "maud",
  "mimalloc",
@@ -4664,18 +4615,14 @@ dependencies = [
  "serde_with",
  "serial_test",
  "sha-1 0.9.8",
- "signal-hook",
- "signal-hook-tokio",
  "sqlx",
  "storage_impl",
  "strum 0.24.1",
  "tera",
  "test_utils",
- "thirtyfour",
  "thiserror",
  "time",
  "tokio",
- "toml 0.7.4",
  "unicode-segmentation",
  "url",
  "utoipa",
@@ -4962,7 +4909,6 @@ dependencies = [
  "router_env",
  "serde",
  "serde_json",
- "signal-hook-tokio",
  "storage_impl",
  "strum 0.24.1",
  "thiserror",
@@ -5496,7 +5442,6 @@ dependencies = [
  "diesel_models",
  "dyn-clone",
  "error-stack",
- "external_services",
  "futures",
  "http",
  "masking",
@@ -5730,27 +5675,20 @@ dependencies = [
 name = "test_utils"
 version = "0.1.0"
 dependencies = [
- "actix-http",
- "actix-web",
- "api_models",
  "async-trait",
- "awc",
  "base64 0.21.4",
  "clap",
- "derive_deref",
  "masking",
  "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",
- "serde_path_to_error",
  "serde_urlencoded",
  "serial_test",
  "thirtyfour",
  "time",
  "tokio",
  "toml 0.7.4",
- "uuid",
 ]
 
 [[package]]

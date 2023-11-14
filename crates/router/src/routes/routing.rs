@@ -296,3 +296,60 @@ pub async fn routing_retrieve_linked_config(
         .await
     }
 }
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn routing_retrieve_default_config_for_profiles(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    oss_api::server_wrap(
+        Flow::RoutingRetrieveDefaultConfig,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _| {
+            routing::retrieve_default_routing_config_for_profiles(state, auth.merchant_account)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn routing_update_default_config_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
+) -> impl Responder {
+    let routing_payload_wrapper = routing_types::RoutingPayloadWrapper {
+        updated_config: json_payload.into_inner(),
+        profile_id: path.into_inner(),
+    };
+    oss_api::server_wrap(
+        Flow::RoutingUpdateDefaultConfig,
+        state,
+        &req,
+        routing_payload_wrapper,
+        |state, auth: auth::AuthenticationData, wrapper| {
+            routing::update_default_routing_config_for_profile(
+                state,
+                auth.merchant_account,
+                wrapper.updated_config,
+                wrapper.profile_id,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
