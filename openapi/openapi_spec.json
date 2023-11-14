@@ -745,6 +745,166 @@
         ]
       }
     },
+    "/gsm": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Create",
+        "description": "Gsm - Create\n\nTo create a Gsm Rule",
+        "operationId": "Create Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/delete": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Delete",
+        "description": "Gsm - Delete\n\nTo delete a Gsm Rule",
+        "operationId": "Delete Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmDeleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/get": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Get",
+        "description": "Gsm - Get\n\nTo get a Gsm Rule",
+        "operationId": "Retrieve Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmRetrieveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/update": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Update",
+        "description": "Gsm - Update\n\nTo update a Gsm Rule",
+        "operationId": "Update Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/mandates/revoke/{mandate_id}": {
       "post": {
         "tags": [
@@ -5710,6 +5870,228 @@
           "total_price": {
             "type": "string",
             "description": "The total price"
+          }
+        }
+      },
+      "GsmCreateRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message",
+          "status",
+          "decision",
+          "step_up_possible"
+        ],
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "router_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          },
+          "step_up_possible": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GsmDecision": {
+        "type": "string",
+        "enum": [
+          "retry",
+          "requeue",
+          "do_default"
+        ]
+      },
+      "GsmDeleteRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "GsmDeleteResponse": {
+        "type": "object",
+        "required": [
+          "gsm_rule_delete",
+          "connector",
+          "flow",
+          "sub_flow",
+          "code"
+        ],
+        "properties": {
+          "gsm_rule_delete": {
+            "type": "boolean"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "GsmResponse": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message",
+          "status",
+          "decision",
+          "step_up_possible"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "router_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "decision": {
+            "type": "string"
+          },
+          "step_up_possible": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GsmRetrieveRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "GsmUpdateRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "router_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "decision": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmDecision"
+              }
+            ],
+            "nullable": true
+          },
+          "step_up_possible": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
