@@ -173,7 +173,7 @@ impl From<CardIssuer> for String {
             CardIssuer::CarteBlanche => "006",
             CardIssuer::JCB => "007",
         };
-        return card_type.to_string();
+        card_type.to_string()
     }
 }
 
