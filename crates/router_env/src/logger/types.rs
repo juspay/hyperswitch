@@ -245,6 +245,12 @@ pub enum Flow {
     GsmRuleDelete,
     /// User connect account
     UserConnectAccount,
+    /// Upsert Decision Manager Config
+    DecisionManagerUpsertConfig,
+    /// Delete Decision Manager Config
+    DecisionManagerDeleteConfig,
+    /// Retrive Decision Manager Config
+    DecisionManagerRetrieveConfig,
 }
 
 ///

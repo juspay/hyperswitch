@@ -1,4 +1,5 @@
 pub mod cards;
+pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod vault;
 

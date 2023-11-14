@@ -45,7 +45,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingRetrieveDictionary
             | Flow::RoutingUpdateConfig
             | Flow::RoutingUpdateDefaultConfig
-            | Flow::RoutingDeleteConfig => Self::Routing,
+            | Flow::RoutingDeleteConfig
+            | Flow::DecisionManagerDeleteConfig
+            | Flow::DecisionManagerRetrieveConfig
+            | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve

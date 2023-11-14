@@ -1,4 +1,5 @@
 pub mod access_token;
+pub mod conditional_configs;
 pub mod customers;
 pub mod flows;
 pub mod helpers;
@@ -34,6 +35,7 @@ pub use self::operations::{
     PaymentUpdate,
 };
 use self::{
+    conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
@@ -55,7 +57,7 @@ use crate::{
         api::{self, ConnectorCallType},
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignTryInto,
+        transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{
         add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
@@ -134,6 +136,8 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    call_decision_manager(state, &merchant_account, &mut payment_data).await?;
 
     let connector = get_connector_choice(
         &operation,
@@ -313,6 +317,40 @@ where
         connector_http_status_code,
         external_latency,
     ))
+}
+
+pub async fn call_decision_manager<O>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<O>,
+) -> RouterResult<()>
+where
+    O: Send + Clone,
+{
+    let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
+        .routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("routing algorithm"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the routing algorithm")?
+        .unwrap_or_default();
+
+    let output = perform_decision_management(
+        state,
+        algorithm_ref,
+        merchant_account.merchant_id.as_str(),
+        payment_data,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Could not decode the conditional config")?;
+    payment_data.payment_attempt.authentication_type = payment_data
+        .payment_attempt
+        .authentication_type
+        .or(output.override_3ds.map(ForeignInto::foreign_into))
+        .or(Some(storage_enums::AuthenticationType::NoThreeDs));
+    Ok(())
 }
 
 #[inline]
