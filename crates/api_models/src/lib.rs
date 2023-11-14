@@ -21,5 +21,6 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod routing;
+pub mod user;
 pub mod verifications;
 pub mod webhooks;

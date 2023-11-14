@@ -3,30 +3,6 @@
 version = 3
 
 [[package]]
-name = "actix"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f728064aca1c318585bf4bb04ffcfac9e75e508ab4e8b1bd9ba5dfe04e2cbed5"
-dependencies = [
- "actix-rt",
- "actix_derive",
- "bitflags 1.3.2",
- "bytes",
- "crossbeam-channel",
- "futures-core",
- "futures-sink",
- "futures-task",
- "futures-util",
- "log",
- "once_cell",
- "parking_lot 0.12.1",
- "pin-project-lite",
- "smallvec",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "actix-codec"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -283,17 +259,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix_derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d44b8fee1ced9671ba043476deddef739dd0959bf77030b26b738cc591737a7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -418,7 +383,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "strum 0.24.1",
- "thiserror",
  "time",
  "url",
  "utoipa",
@@ -435,6 +399,18 @@ name = "arcstr"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f907281554a3d0312bb7aab855a8e0ef6cbf1614d06de54105039ca8b34460e"
+
+[[package]]
+name = "argon2"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17ba4cac0a46bc1d2912652a751c47f2a9f3a7fe89bcae2275d418f5270402f9"
+dependencies = [
+ "base64ct",
+ "blake2",
+ "cpufeatures",
+ "password-hash",
+]
 
 [[package]]
 name = "arrayref"
@@ -1146,6 +1122,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64ct"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+
+[[package]]
 name = "bb8"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1204,6 +1186,15 @@ name = "bitflags"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
+
+[[package]]
+name = "blake2"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
+dependencies = [
+ "digest 0.10.7",
+]
 
 [[package]]
 name = "blake3"
@@ -1534,7 +1525,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.25.0",
- "time",
  "utoipa",
 ]
 
@@ -1897,7 +1887,6 @@ dependencies = [
  "masking",
  "serde",
  "serde_json",
- "strum 0.25.0",
  "thiserror",
  "time",
 ]
@@ -2008,13 +1997,10 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
- "aws-config",
- "aws-sdk-s3",
  "common_enums",
  "common_utils",
  "diesel",
  "error-stack",
- "external_services",
  "frunk",
  "frunk_core",
  "masking",
@@ -3245,12 +3231,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3852614a3bd9ca9804678ba6be5e3b8ce76dfc902cae004e3e0c44051b6e88db"
 
 [[package]]
-name = "literally"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d2be3f5a0d4d5c983d1f8ecc2a87676a0875a14feb9eebf0675f7c3e2f3c35"
-
-[[package]]
 name = "local-channel"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3852,6 +3832,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c705f256449c60da65e11ff6626e0c16a0a0b96aaa348de61376b249bc340f41"
 dependencies = [
  "regex",
+]
+
+[[package]]
+name = "password-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
+dependencies = [
+ "base64ct",
+ "rand_core 0.6.4",
+ "subtle",
 ]
 
 [[package]]
@@ -4555,13 +4546,13 @@ dependencies = [
 name = "router"
 version = "0.2.0"
 dependencies = [
- "actix",
  "actix-cors",
  "actix-http",
  "actix-multipart",
  "actix-rt",
  "actix-web",
  "api_models",
+ "argon2",
  "async-bb8-diesel",
  "async-trait",
  "awc",
@@ -4596,7 +4587,6 @@ dependencies = [
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
- "literally",
  "masking",
  "maud",
  "mimalloc",
@@ -4625,22 +4615,20 @@ dependencies = [
  "serde_with",
  "serial_test",
  "sha-1 0.9.8",
- "signal-hook",
- "signal-hook-tokio",
  "sqlx",
  "storage_impl",
  "strum 0.24.1",
  "tera",
  "test_utils",
- "thirtyfour",
  "thiserror",
  "time",
  "tokio",
- "toml 0.7.4",
+ "unicode-segmentation",
  "url",
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
+ "validator",
  "wiremock",
  "x509-parser",
 ]
@@ -4921,7 +4909,6 @@ dependencies = [
  "router_env",
  "serde",
  "serde_json",
- "signal-hook-tokio",
  "storage_impl",
  "strum 0.24.1",
  "thiserror",
@@ -5455,7 +5442,6 @@ dependencies = [
  "diesel_models",
  "dyn-clone",
  "error-stack",
- "external_services",
  "futures",
  "http",
  "masking",
@@ -5689,27 +5675,20 @@ dependencies = [
 name = "test_utils"
 version = "0.1.0"
 dependencies = [
- "actix-http",
- "actix-web",
- "api_models",
  "async-trait",
- "awc",
  "base64 0.21.4",
  "clap",
- "derive_deref",
  "masking",
  "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",
- "serde_path_to_error",
  "serde_urlencoded",
  "serial_test",
  "thirtyfour",
  "time",
  "tokio",
  "toml 0.7.4",
- "uuid",
 ]
 
 [[package]]
@@ -6374,6 +6353,21 @@ dependencies = [
  "atomic",
  "getrandom 0.2.10",
  "serde",
+]
+
+[[package]]
+name = "validator"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b92f40481c04ff1f4f61f304d61793c7b56ff76ac1469f1beb199b1445b253bd"
+dependencies = [
+ "idna",
+ "lazy_static",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
