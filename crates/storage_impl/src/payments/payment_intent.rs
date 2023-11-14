@@ -1,5 +1,5 @@
 #[cfg(feature = "olap")]
-use async_bb8_diesel::AsyncRunQueryDsl;
+use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
 use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
@@ -34,6 +34,8 @@ use redis_interface::HsetnxReply;
 use router_env::logger;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "olap")]
+use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     redis::kv_store::{kv_wrapper, KvOperation},
@@ -94,6 +96,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
                     updated_by: storage_scheme.to_string(),
+                    surcharge_applicable: new.surcharge_applicable,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -143,8 +146,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
-                let updated_intent = payment_intent_update.clone().apply_changeset(this.clone());
-                let diesel_intent = updated_intent.clone().to_storage_model();
+                let diesel_intent_update = payment_intent_update.to_storage_model();
+                let origin_diesel_intent = this.to_storage_model();
+
+                let diesel_intent = diesel_intent_update
+                    .clone()
+                    .apply_changeset(origin_diesel_intent.clone());
                 // Check for database presence as well Maybe use a read replica here ?
 
                 let redis_value =
@@ -155,8 +162,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     op: kv::DBOperation::Update {
                         updatable: kv::Updateable::PaymentIntentUpdate(
                             kv::PaymentIntentUpdateMems {
-                                orig: this.to_storage_model(),
-                                update_data: payment_intent_update.to_storage_model(),
+                                orig: origin_diesel_intent,
+                                update_data: diesel_intent_update,
                             },
                         ),
                     },
@@ -172,7 +179,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(updated_intent)
+                Ok(PaymentIntent::from_storage_model(diesel_intent))
             }
         }
     }
@@ -387,7 +394,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        let conn = self.get_replica_pool();
+        use common_utils::errors::ReportSwitchExt;
+
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -509,8 +519,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        let conn = self.get_replica_pool();
+        use common_utils::errors::ReportSwitchExt;
 
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .inner_join(
                 diesel_models::schema::payment_attempt::table
@@ -646,8 +658,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        let conn = self.get_replica_pool();
+        use common_utils::errors::ReportSwitchExt;
 
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -743,6 +757,7 @@ impl DataModelExt for PaymentIntentNew {
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
         }
     }
 
@@ -782,6 +797,7 @@ impl DataModelExt for PaymentIntentNew {
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
+            surcharge_applicable: storage_model.surcharge_applicable,
         }
     }
 }
@@ -826,6 +842,7 @@ impl DataModelExt for PaymentIntent {
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
         }
     }
 
@@ -866,6 +883,7 @@ impl DataModelExt for PaymentIntent {
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
+            surcharge_applicable: storage_model.surcharge_applicable,
         }
     }
 }
@@ -993,6 +1011,13 @@ impl DataModelExt for PaymentIntentUpdate {
             } => DieselPaymentIntentUpdate::RejectUpdate {
                 status,
                 merchant_decision,
+                updated_by,
+            },
+            Self::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
             },
         }
