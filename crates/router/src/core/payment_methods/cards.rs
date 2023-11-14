@@ -220,7 +220,7 @@ pub async fn add_card_to_locker(
                 card,
                 customer_id,
                 merchant_account,
-                &api_enums::LockerChoice::Basilisk,
+                api_enums::LockerChoice::Basilisk,
                 None,
             )
             .await
@@ -290,7 +290,7 @@ pub async fn add_card_hs(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &domain::MerchantAccount,
-    locker_choice: &api_enums::LockerChoice,
+    locker_choice: api_enums::LockerChoice,
     card_reference: Option<&String>,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let payload = payment_methods::StoreLockerReq::LockerCard(payment_methods::StoreCardReq {
@@ -406,7 +406,7 @@ pub async fn call_to_locker_hs<'a>(
     state: &routes::AppState,
     payload: &payment_methods::StoreLockerReq<'a>,
     customer_id: &str,
-    locker_choice: &api_enums::LockerChoice,
+    locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
     #[cfg(not(feature = "kms"))]

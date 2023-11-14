@@ -14,7 +14,7 @@ use crate::{
 
 pub async fn rust_locker_migration(
     state: AppState,
-    merchant_id: &String,
+    merchant_id: &str,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
 
@@ -54,8 +54,7 @@ pub async fn rust_locker_migration(
                     &merchant_account,
                 )
             })
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .await?;
 
         customers_moved += 1;
         cards_moved += result;
@@ -75,7 +74,7 @@ pub async fn call_to_locker(
     state: &AppState,
     payment_methods: Vec<PaymentMethod>,
     customer_id: &String,
-    merchant_id: &String,
+    merchant_id: &str,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
@@ -110,7 +109,7 @@ pub async fn call_to_locker(
             card_details,
             customer_id.to_string(),
             merchant_account,
-            &api_enums::LockerChoice::Tartarus,
+            api_enums::LockerChoice::Tartarus,
             Some(&pm.payment_method_id),
         )
         .await

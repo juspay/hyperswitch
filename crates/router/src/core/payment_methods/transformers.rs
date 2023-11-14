@@ -227,7 +227,7 @@ pub async fn mk_basilisk_req(
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
     jws: &str,
-    locker_choice: &api_enums::LockerChoice,
+    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
 
@@ -247,15 +247,27 @@ pub async fn mk_basilisk_req(
     #[cfg(feature = "kms")]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => {
-            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
-        }
+        api_enums::LockerChoice::Tartarus => jwekey
+            .jwekey
+            .peek()
+            .rust_locker_encryption_key
+            .as_ref()
+            .map(|encryption_key| encryption_key.as_bytes())
+            .ok_or(errors::VaultError::MissingRequiredField {
+                field_name: "rust locker encryption key",
+            })?,
     };
 
     #[cfg(not(feature = "kms"))]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => jwekey
+            .rust_locker_encryption_key
+            .as_ref()
+            .map(|encryption_key| encryption_key.as_bytes())
+            .ok_or(errors::VaultError::MissingRequiredField {
+                field_name: "rust locker encryption key",
+            })?,
     };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
@@ -284,7 +296,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     payload: &StoreLockerReq<'a>,
-    locker_choice: &api_enums::LockerChoice,
+    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -299,7 +311,7 @@ pub async fn mk_add_locker_request_hs<'a>(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice.clone()).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -448,7 +460,7 @@ pub async fn mk_get_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, &api_enums::LockerChoice::Basilisk).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -528,7 +540,7 @@ pub async fn mk_delete_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, &api_enums::LockerChoice::Basilisk).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
