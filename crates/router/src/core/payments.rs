@@ -3,6 +3,8 @@ pub mod customers;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+#[cfg(feature = "retry")]
+pub mod retry;
 pub mod routing;
 pub mod tokenization;
 pub mod transformers;
@@ -231,7 +233,7 @@ where
                     state,
                     &merchant_account,
                     &key_store,
-                    connector_data,
+                    connector_data.clone(),
                     &operation,
                     &mut payment_data,
                     &customer,
@@ -241,6 +243,33 @@ where
                     header_payload,
                 )
                 .await?;
+
+                #[cfg(feature = "retry")]
+                let mut router_data = router_data;
+                #[cfg(feature = "retry")]
+                {
+                    use crate::core::payments::retry::{self, GsmValidation};
+                    let config_bool =
+                        retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id)
+                            .await;
+
+                    if config_bool && router_data.should_call_gsm() {
+                        router_data = retry::do_gsm_actions(
+                            state,
+                            &mut payment_data,
+                            connectors,
+                            connector_data,
+                            router_data,
+                            &merchant_account,
+                            &key_store,
+                            &operation,
+                            &customer,
+                            &validate_result,
+                            schedule_time,
+                        )
+                        .await?;
+                    };
+                }
 
                 let operation = Box::new(PaymentResponse);
                 let db = &*state.store;
