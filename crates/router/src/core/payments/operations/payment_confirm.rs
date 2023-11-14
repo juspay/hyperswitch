@@ -17,7 +17,10 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
+            PaymentData,
+        },
         utils::get_individual_surcharge_detail_from_redis,
     },
     db::StorageInterface,
@@ -435,6 +438,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
         helpers::get_connector_default(state, request.routing.clone()).await
+    }
+
+    async fn populate_payment_data<'a>(
+        &'a self,
+        state: &AppState,
+        payment_data: &mut PaymentData<F>,
+        request: &api::PaymentsRequest,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        populate_surcharge_details(state, payment_data, request).await
     }
 }
 
