@@ -1,7 +1,12 @@
-use api_models::{admin as admin_types, payments::OrderDetailsWithAmount};
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use api_models::admin as admin_types;
+use common_utils::{
+    consts::{
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
+    },
+    ext_traits::{OptionExt, ValueExt},
+};
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
@@ -43,6 +48,11 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let payment_link_id = payment_intent
+        .payment_link_id
+        .get_required_value("payment_link_id")
+        .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
     helpers::validate_payment_status_against_not_allowed_statuses(
         &payment_intent.status,
         &[
@@ -55,17 +65,10 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let payment_link = payment_intent
-        .payment_link_id
-        .as_ref()
-        .async_and_then(|pli| async {
-            db.find_payment_link_by_payment_link_id(pli)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)
-                .ok()
-        })
+    let payment_link = db
+        .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
-        .ok_or(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
         Some(
@@ -108,14 +111,18 @@ pub async fn intiate_payment_link_flow(
     )?;
 
     let (default_sdk_theme, default_background_color) =
-        ("#7EA8F6".to_string(), "#E5E5E5".to_string());
+        (DEFAULT_SDK_THEME, DEFAULT_BACKGROUND_COLOR);
 
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency,
-        currency_symbol: currency.to_currency_symbol(),
         payment_id: payment_intent.payment_id,
-        merchant_name: merchant_account.merchant_name,
+        merchant_name: payment_link.custom_merchant_name.unwrap_or(
+            merchant_account
+                .merchant_name
+                .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
+                .unwrap_or_default(),
+        ),
         order_details,
         return_url,
         expiry: payment_link.fulfilment_time,
@@ -126,19 +133,22 @@ pub async fn intiate_payment_link_flow(
             .map(|pl_config| {
                 pl_config
                     .merchant_logo
-                    .unwrap_or("https://i.imgur.com/RfxPFQo.png".to_string())
+                    .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string())
             })
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
         sdk_theme: payment_link_config.clone().and_then(|pl_config| {
             pl_config
                 .color_scheme
-                .map(|color| color.sdk_theme.unwrap_or(default_sdk_theme.clone()))
+                .map(|color| color.sdk_theme.unwrap_or(default_sdk_theme.to_string()))
         }),
     };
 
     let js_script = get_js_script(payment_details)?;
-    let css_script = get_color_scheme_css(payment_link_config.clone(), default_background_color);
+    let css_script = get_color_scheme_css(
+        payment_link_config.clone(),
+        default_background_color.to_string(),
+    );
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
@@ -205,7 +215,10 @@ fn validate_sdk_requirements(
 
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
-) -> Result<Vec<OrderDetailsWithAmount>, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<
+    Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
     let order_details = order_details
         .map(|order_details| {
             order_details
@@ -218,18 +231,17 @@ fn validate_order_details(
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
-                .collect::<Result<Vec<OrderDetailsWithAmount>, _>>()
+                .collect::<Result<Vec<api_models::payments::OrderDetailsWithAmount>, _>>()
         })
         .transpose()?;
 
-    if let Some(mut order_details) = order_details.clone() {
+    let updated_order_details = order_details.map(|mut order_details| {
         for order in order_details.iter_mut() {
             if order.product_img_link.is_none() {
-                order.product_img_link = Some("https://i.imgur.com/On3VtKF.png".to_string());
+                order.product_img_link = Some(DEFAULT_PRODUCT_IMG.to_string());
             }
         }
-        return Ok(order_details);
-    }
-
-    Ok(Vec::new())
+        order_details
+    });
+    Ok(updated_order_details)
 }

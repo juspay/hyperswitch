@@ -4,7 +4,7 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
-use router_env::{instrument, tracing, types, Flow};
+use router_env::{env, instrument, tracing, types, Flow};
 
 use crate::{
     self as app,
@@ -118,7 +118,10 @@ pub async fn payments_create(
                 api::AuthFlow::Merchant,
             )
         },
-        &auth::ApiKeyAuth,
+        match env::which() {
+            env::Env::Production => &auth::ApiKeyAuth,
+            _ => auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        },
         locking_action,
     )
     .await
@@ -178,6 +181,7 @@ pub async fn payments_start(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -244,10 +248,15 @@ pub async fn payments_retrieve(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
-        &*auth_type,
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth,
+            req.headers(),
+        ),
         locking_action,
     )
     .await
@@ -305,6 +314,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -509,6 +519,7 @@ pub async fn payments_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -564,6 +575,7 @@ pub async fn payments_connector_session(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -774,6 +786,7 @@ pub async fn payments_cancel(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -822,7 +835,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -842,7 +855,7 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth, req| payments::apply_filters_on_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -862,7 +875,7 @@ pub async fn get_filters_for_payments(
         &req,
         payload,
         |state, auth, req| payments::get_filters_for_payments(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -897,6 +910,7 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
+    let eligible_connectors = req.connector.clone();
     match req.payment_type.unwrap_or_default() {
         api_models::enums::PaymentType::Normal
         | api_models::enums::PaymentType::RecurringMandate
@@ -916,6 +930,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 header_payload,
             )
             .await
@@ -936,6 +951,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                eligible_connectors,
                 header_payload,
             )
             .await
