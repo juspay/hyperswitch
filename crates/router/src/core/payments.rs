@@ -480,7 +480,7 @@ pub fn get_connector_data(
         .into_report()
         .attach_printable("Connector not found in connectors iterator")
 }
-async fn call_surcharge_decision_management_for_session_flow<O>(
+pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<O>,
