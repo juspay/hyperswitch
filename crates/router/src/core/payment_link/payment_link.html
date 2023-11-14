@@ -1038,8 +1038,7 @@
         // Status specific information
         switch (status) {
           case "succeeded":
-            statusDetails.imageSource =
-              "https://i.imgur.com/5BOmYVl.img";
+            statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.img";
             statusDetails.message =
               "We have successfully received your payment";
             statusDetails.status = "Paid successfully";
@@ -1049,16 +1048,14 @@
             break;
 
           case "processing":
-            statusDetails.imageSource =
-              "https://i.imgur.com/Yb79Qt4.png";
+            statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
             statusDetails.message =
               "Sorry! Your payment is taking longer than expected. Please check back again in sometime.";
             statusDetails.status = "Payment Pending";
             break;
 
           case "failed":
-            statusDetails.imageSource =
-              "https://i.imgur.com/UD8CEuY.png";
+            statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
             statusDetails.status = "Payment Failed!";
             var errorCodeNode = createItem(
               "Error code",
@@ -1073,20 +1070,17 @@
             break;
 
           case "cancelled":
-            statusDetails.imageSource =
-              "https://i.imgur.com/UD8CEuY.png";
+            statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
             statusDetails.status = "Payment Cancelled";
             break;
 
           case "requires_merchant_action":
-            statusDetails.imageSource =
-              "https://i.imgur.com/Yb79Qt4.png";
+            statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
             statusDetails.status = "Payment under review";
             break;
 
           default:
-            statusDetails.imageSource =
-              "https://i.imgur.com/UD8CEuY.png";
+            statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
             statusDetails.status = "Something went wrong";
             // Error details
             if (typeof paymentDetails.error === "object") {
@@ -1183,7 +1177,7 @@
         var priceNode = document.createElement("div");
         priceNode.className = "hyper-checkout-payment-price";
         priceNode.innerText =
-          paymentDetails.currency_symbol + " " + paymentDetails.amount;
+          paymentDetails.currency + " " + paymentDetails.amount;
 
         // Create merchant name's node
         var merchantNameNode = document.createElement("div");
@@ -1296,8 +1290,7 @@
         // Product price
         var priceNode = document.createElement("div");
         priceNode.className = "hyper-checkout-card-item-price";
-        priceNode.innerText =
-          paymentDetails.currency_symbol + " " + item.amount;
+        priceNode.innerText = paymentDetails.currency + " " + item.amount;
         // Append items
         nameAndQuantityWrapperNode.append(productNameNode, quantityNode);
         itemWrapperNode.append(
@@ -1407,7 +1400,7 @@
         var sdkHeaderAmountNode = document.createElement("div");
         sdkHeaderAmountNode.className = "hyper-checkout-sdk-header-amount";
         sdkHeaderAmountNode.innerText =
-          paymentDetails.currency_symbol + " " + paymentDetails.amount;
+          paymentDetails.currency + " " + paymentDetails.amount;
         sdkHeaderItemNode.append(sdkHeaderMerchantNameNode);
         sdkHeaderItemNode.append(sdkHeaderAmountNode);
 
