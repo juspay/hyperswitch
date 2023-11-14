@@ -412,6 +412,8 @@ where
                     } else {
                         None
                     },
+                    surcharge_amount: None,
+                    tax_amount: None,
                     updated_by: storage_scheme.to_string(),
                     authentication_data,
                     encoded_data,

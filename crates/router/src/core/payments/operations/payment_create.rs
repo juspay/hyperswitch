@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payment_methods};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
@@ -267,6 +267,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate: Option<MandateData> = setup_mandate.map(Into::into);
 
+        // populate payment_data.surcharge_details from request
+        let surcharge_details = request.surcharge_details.map(|surcharge_details| {
+            payment_methods::SurchargeDetailsResponse {
+                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
+                tax_on_surcharge: None,
+                surcharge_amount: surcharge_details.surcharge_amount,
+                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
+                final_amount: payment_attempt.amount
+                    + surcharge_details.surcharge_amount
+                    + surcharge_details.tax_amount.unwrap_or(0),
+            }
+        });
+
         Ok((
             operation,
             PaymentData {
@@ -299,7 +312,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key,
                 multiple_capture_data: None,
                 redirect_response: None,
-                surcharge_details: None,
+                surcharge_details,
                 frm_message: None,
                 payment_link_data,
             },
@@ -421,6 +434,15 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let authorized_amount = payment_data.payment_attempt.amount;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -432,6 +454,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         true => Some(authorized_amount),
                         false => None,
                     },
+                    surcharge_amount,
+                    tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                 },
