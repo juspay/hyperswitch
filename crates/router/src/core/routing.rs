@@ -19,7 +19,7 @@ use crate::{
     consts,
     core::{
         errors::{RouterResponse, StorageErrorExt},
-        utils as core_utils,
+        metrics, utils as core_utils,
     },
     routes::AppState,
     types::domain,
@@ -35,6 +35,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveQuery,
 ) -> RouterResponse<routing_types::RoutingKind> {
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(feature = "business_profile_routing")]
     {
         let routing_metadata = state
@@ -73,6 +74,7 @@ pub async fn create_routing_config(
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let name = request
@@ -223,6 +225,7 @@ pub async fn link_routing_config(
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     algorithm_id: String,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -326,6 +329,7 @@ pub async fn retrieve_routing_config(
     merchant_account: domain::MerchantAccount,
     algorithm_id: RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
+    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -396,6 +400,7 @@ pub async fn unlink_routing_config(
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] request: routing_types::RoutingConfigRequest,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -568,6 +573,7 @@ pub async fn update_default_routing_config(
     merchant_account: domain::MerchantAccount,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     let default_config =
         helpers::get_merchant_default_config(db, &merchant_account.merchant_id).await?;
@@ -613,6 +619,7 @@ pub async fn retrieve_default_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     helpers::get_merchant_default_config(db, &merchant_account.merchant_id)
@@ -625,6 +632,7 @@ pub async fn retrieve_linked_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveLinkQuery,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     #[cfg(feature = "business_profile_routing")]
@@ -726,6 +734,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
     state: AppState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let all_profiles = db
@@ -764,6 +773,7 @@ pub async fn update_default_routing_config_for_profile(
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: String,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let business_profile = core_utils::validate_and_get_business_profile(
