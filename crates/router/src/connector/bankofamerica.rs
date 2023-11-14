@@ -549,7 +549,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}pts/v2/payments/{connector_payment_id}/voids",
+            "{}pts/v2/payments/{connector_payment_id}/reversals",
             self.base_url(connectors)
         ))
     }
@@ -563,7 +563,23 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = bankofamerica::BankOfAmericaVoidRequest::try_from(req)?;
+        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Currency",
+                })?,
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?,
+            req,
+        ))?;
+        let connector_request =
+            bankofamerica::BankOfAmericaVoidRequest::try_from(&connector_router_data)?;
+
         let bankofamerica_void_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
