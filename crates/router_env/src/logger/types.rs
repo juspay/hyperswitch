@@ -249,7 +249,7 @@ pub enum Flow {
     DecisionManagerUpsertConfig,
     /// Delete Decision Manager Config
     DecisionManagerDeleteConfig,
-    /// Retrive Decision Manager Config
+    /// Retrieve Decision Manager Config
     DecisionManagerRetrieveConfig,
 }
 
