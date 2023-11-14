@@ -7824,7 +7824,9 @@
         "properties": {
           "merchant_logo": {
             "type": "string",
-            "nullable": true
+            "example": "https://i.imgur.com/RfxPFQo.png",
+            "nullable": true,
+            "maxLength": 255
           },
           "color_scheme": {
             "allOf": [
