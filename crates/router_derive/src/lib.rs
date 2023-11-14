@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+use quote::quote;
+
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -66,7 +68,7 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 ///     Blue,
 /// }
 /// ```
-#[proc_macro_derive(DieselEnum)]
+#[proc_macro_derive(DieselEnum, attributes(storage_type))]
 pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let tokens =
@@ -138,12 +140,13 @@ pub fn diesel_enum(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
-    let item = syn::parse_macro_input!(item as syn::ItemEnum);
+    // let args = syn::parse_macro_input!(args as syn::AttributeArgs);
+    // let item = syn::parse_macro_input!(item as syn::ItemEnum);
 
-    let tokens = macros::diesel_enum_attribute_inner(&args, &item)
-        .unwrap_or_else(|error| error.to_compile_error());
-    tokens.into()
+    // let tokens = macros::diesel_enum_attribute_inner(&args, &item)
+    //     .unwrap_or_else(|error| error.to_compile_error());
+    // tokens.into()
+    quote!().into()
 }
 
 /// A derive macro which generates the setter functions for any struct with fields
@@ -226,7 +229,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[inline]
 fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
     for i in f.attrs.iter() {
-        if i.path.is_ident(ident) {
+        if i.path().is_ident(ident) {
             return true;
         }
     }
@@ -459,8 +462,9 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// used by `diesel`.
 #[proc_macro_derive(PaymentOperation, attributes(operation))]
 pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
+    // let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    // macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
+    quote!().into()
 }
 
 /// Generates different schemas with the ability to mark few fields as mandatory for certain schema
@@ -570,9 +574,10 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// }
 #[proc_macro_derive(TryGetEnumVariant, attributes(error))]
 pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    // let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-    macros::try_get_enum::try_get_enum_variant(input)
-        .unwrap_or_else(|error| error.into_compile_error())
-        .into()
+    // macros::try_get_enum::try_get_enum_variant(input)
+    //     .unwrap_or_else(|error| error.into_compile_error())
+    //     .into()
+    quote!().into()
 }

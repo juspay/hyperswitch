@@ -28,8 +28,9 @@ pub mod diesel_exports {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AttemptStatus {
@@ -104,8 +105,9 @@ impl AttemptStatus {
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
@@ -129,8 +131,9 @@ pub enum AuthenticationType {
     strum::EnumString,
     ToSchema,
     Hash,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureStatus {
@@ -160,8 +163,9 @@ pub enum CaptureStatus {
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureMethod {
@@ -187,8 +191,9 @@ pub enum CaptureMethod {
     serde::Deserialize,
     serde::Serialize,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorType {
@@ -228,8 +233,9 @@ pub enum ConnectorType {
     strum::EnumIter,
     strum::EnumVariantNames,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 pub enum Currency {
     AED,
     ALL,
@@ -786,8 +792,9 @@ impl Currency {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
@@ -822,8 +829,9 @@ pub enum EventType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantStorageScheme {
@@ -845,8 +853,9 @@ pub enum MerchantStorageScheme {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum IntentStatus {
@@ -878,8 +887,9 @@ pub enum IntentStatus {
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FutureUsage {
@@ -900,8 +910,9 @@ pub enum FutureUsage {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodIssuerCode {
@@ -930,8 +941,9 @@ pub enum PaymentMethodIssuerCode {
     strum::Display,
     ToSchema,
     Default,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentExperience {
@@ -966,8 +978,9 @@ pub enum PaymentExperience {
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
@@ -1071,8 +1084,9 @@ pub enum PaymentMethodType {
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethod {
@@ -1103,8 +1117,9 @@ pub enum PaymentMethod {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentType {
@@ -1127,8 +1142,9 @@ pub enum PaymentType {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
@@ -1152,8 +1168,9 @@ pub enum RefundStatus {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MandateStatus {
@@ -1177,8 +1194,9 @@ pub enum MandateStatus {
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 pub enum CardNetwork {
     Visa,
     Mastercard,
@@ -1206,8 +1224,9 @@ pub enum CardNetwork {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum DisputeStage {
@@ -1230,8 +1249,9 @@ pub enum DisputeStage {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum DisputeStatus {
@@ -1259,9 +1279,10 @@ pub enum DisputeStatus {
     strum::Display,
     strum::EnumString,
     utoipa::ToSchema,
+    router_derive::DieselEnum,
     Copy
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[rustfmt::skip]
 pub enum CountryAlpha2 {
     AF, AX, AL, DZ, AS, AD, AO, AI, AQ, AG, AR, AM, AW, AU, AT,
@@ -1584,8 +1605,9 @@ pub enum Country {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FileUploadProvider {
@@ -1687,8 +1709,9 @@ pub enum CanadaStatesAbbreviation {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutStatus {
@@ -1715,8 +1738,9 @@ pub enum PayoutStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutType {
@@ -1738,8 +1762,9 @@ pub enum PayoutType {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 #[serde(rename_all = "PascalCase")]
 #[strum(serialize_all = "PascalCase")]
 pub enum PayoutEntityType {
@@ -1770,8 +1795,9 @@ pub enum PayoutEntityType {
     strum::EnumString,
     ToSchema,
     Hash,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentSource {
@@ -1792,8 +1818,9 @@ pub enum PaymentSource {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[storage_type(db_type = text)]
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantDecision {
     Approved,
@@ -1837,8 +1864,9 @@ pub enum FrmSuggestion {
     strum::EnumString,
     utoipa::ToSchema,
     Copy,
+    router_derive::DieselEnum,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[storage_type(db_type = db_enum)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ReconStatus {

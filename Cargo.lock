@@ -4645,7 +4645,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.24.1",
- "syn 1.0.109",
+ "syn 2.0.38",
 ]
 
 [[package]]
