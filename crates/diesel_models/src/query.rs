@@ -4,7 +4,7 @@ pub mod business_profile;
 mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
+
 pub mod customers;
 pub mod dispute;
 pub mod events;
@@ -28,3 +28,5 @@ pub mod process_tracker;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
+pub mod user;
+pub mod user_role;
