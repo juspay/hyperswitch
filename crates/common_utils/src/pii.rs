@@ -27,7 +27,7 @@ pub type SecretSerdeValue = Secret<serde_json::Value>;
 
 /// Strategy for masking a PhoneNumber
 #[derive(Debug)]
-pub struct PhoneNumberStrategy;
+pub enum PhoneNumberStrategy {}
 
 /// Phone Number
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -144,7 +144,7 @@ where
 
 /// Strategy for Encryption
 #[derive(Debug)]
-pub struct EncryptionStratergy;
+pub enum EncryptionStratergy {}
 
 impl<T> Strategy<T> for EncryptionStratergy
 where
@@ -157,7 +157,7 @@ where
 
 /// Client secret
 #[derive(Debug)]
-pub struct ClientSecret;
+pub enum ClientSecret {}
 
 impl<T> Strategy<T> for ClientSecret
 where
@@ -189,7 +189,7 @@ where
 
 /// Strategy for masking Email
 #[derive(Debug)]
-pub struct EmailStrategy;
+pub enum EmailStrategy {}
 
 impl<T> Strategy<T> for EmailStrategy
 where
@@ -305,7 +305,7 @@ impl FromStr for Email {
 
 /// IP address
 #[derive(Debug)]
-pub struct IpAddress;
+pub enum IpAddress {}
 
 impl<T> Strategy<T> for IpAddress
 where
@@ -332,7 +332,7 @@ where
 /// Strategy for masking UPI VPA's
 
 #[derive(Debug)]
-pub struct UpiVpaMaskingStrategy;
+pub enum UpiVpaMaskingStrategy {}
 
 impl<T> Strategy<T> for UpiVpaMaskingStrategy
 where
