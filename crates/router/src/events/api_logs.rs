@@ -25,6 +25,7 @@ use crate::{
 #[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
     api_flow: String,
+    #[serde(rename = "created_at")]
     created_at_timestamp: i128,
     request_id: String,
     latency: u128,

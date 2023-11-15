@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 pub mod api_logs;
+pub mod connector_logs;
 pub mod event_logger;
 
 pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
@@ -23,4 +24,5 @@ pub enum EventType {
     PaymentAttempt,
     Refund,
     ApiLogs,
+    ConnectorLogs,
 }
