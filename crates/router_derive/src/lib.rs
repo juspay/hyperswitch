@@ -3,6 +3,9 @@
 #![warn(missing_docs)]
 
 use quote::quote;
+use syn::parse_macro_input;
+
+use crate::macros::diesel::DieselEnumMeta;
 
 mod macros;
 
@@ -140,13 +143,12 @@ pub fn diesel_enum(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    // let args = syn::parse_macro_input!(args as syn::AttributeArgs);
-    // let item = syn::parse_macro_input!(item as syn::ItemEnum);
+    let args_parsed = parse_macro_input!(args as DieselEnumMeta);
+    let item = syn::parse_macro_input!(item as syn::ItemEnum);
 
-    // let tokens = macros::diesel_enum_attribute_inner(&args, &item)
-    //     .unwrap_or_else(|error| error.to_compile_error());
-    // tokens.into()
-    quote!().into()
+    macros::diesel::diesel_enum_attribute_macro(args_parsed, &item)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
 }
 
 /// A derive macro which generates the setter functions for any struct with fields
