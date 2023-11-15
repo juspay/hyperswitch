@@ -91,6 +91,33 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
     })
 }
 
+struct MaskWrapper<T>(pub T)
+
+pub trait MaskedSerialize
+where Self: Serialize {
+    fn masked_serialize(&self) -> Result<Value, serde_json::Error> {
+        self.serialize(PIISerializer {
+            inner: JsonValueSerializer,
+        })
+    }
+    fn raw_serialize(&self) -> Result<Value, serde_json::Error> {
+        self.serialize(JsonValueSerializer)
+    }
+}
+
+impl<T: Serialize> MaskedSerialize for T
+{
+    fn masked_serialize(&self) -> Result<Value, serde_json::Error> {
+        self.serialize(PIISerializer {
+            inner: JsonValueSerializer,
+        })
+    }
+
+    fn raw_serialize(&self) -> Result<Value, serde_json::Error> {
+        self.serialize(JsonValueSerializer)
+    }
+}
+
 use pii_serializer::PIISerializer;
 
 mod pii_serializer {
