@@ -1052,6 +1052,8 @@ pub async fn list_payment_methods(
             amount_capturable: None,
             updated_by: merchant_account.storage_scheme.to_string(),
             merchant_connector_id: None,
+            surcharge_amount: None,
+            tax_amount: None,
         };
 
         state

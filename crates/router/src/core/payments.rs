@@ -3,6 +3,8 @@ pub mod customers;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+#[cfg(feature = "retry")]
+pub mod retry;
 pub mod routing;
 pub mod tokenization;
 pub mod transformers;
@@ -12,7 +14,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoI
 
 use api_models::{
     enums,
-    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+    payment_methods::{Surcharge, SurchargeDetailsResponse},
     payments::HeaderPayload,
 };
 use common_utils::{ext_traits::AsyncExt, pii};
@@ -231,7 +233,7 @@ where
                     state,
                     &merchant_account,
                     &key_store,
-                    connector_data,
+                    connector_data.clone(),
                     &operation,
                     &mut payment_data,
                     &customer,
@@ -241,6 +243,33 @@ where
                     header_payload,
                 )
                 .await?;
+
+                #[cfg(feature = "retry")]
+                let mut router_data = router_data;
+                #[cfg(feature = "retry")]
+                {
+                    use crate::core::payments::retry::{self, GsmValidation};
+                    let config_bool =
+                        retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id)
+                            .await;
+
+                    if config_bool && router_data.should_call_gsm() {
+                        router_data = retry::do_gsm_actions(
+                            state,
+                            &mut payment_data,
+                            connectors,
+                            connector_data,
+                            router_data,
+                            &merchant_account,
+                            &key_store,
+                            &operation,
+                            &customer,
+                            &validate_result,
+                            schedule_time,
+                        )
+                        .await?;
+                    };
+                }
 
                 let operation = Box::new(PaymentResponse);
                 connector_http_status_code = router_data.connector_http_status_code;
@@ -260,6 +289,8 @@ where
             }
 
             api::ConnectorCallType::SessionMultiple(connectors) => {
+                let session_surcharge_data =
+                    get_session_surcharge_data(&payment_data.payment_attempt);
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -268,7 +299,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                    None,
+                    session_surcharge_data,
                 )
                 .await?
             }
@@ -323,6 +354,21 @@ pub fn get_connector_data(
         .attach_printable("Connector not found in connectors iterator")
 }
 
+pub fn get_session_surcharge_data(
+    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+) -> Option<api::SessionSurchargeDetails> {
+    payment_attempt.surcharge_amount.map(|surcharge_amount| {
+        let tax_on_surcharge_amount = payment_attempt.tax_amount.unwrap_or(0);
+        let final_amount = payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+        api::SessionSurchargeDetails::PreDetermined(SurchargeDetailsResponse {
+            surcharge: Surcharge::Fixed(surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+            final_amount,
+        })
+    })
+}
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
     state: AppState,
@@ -904,7 +950,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
-    session_surcharge_metadata: Option<SurchargeMetadata>,
+    session_surcharge_details: Option<api::SessionSurchargeDetails>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -941,18 +987,16 @@ where
         )
         .await?;
 
-        payment_data.surcharge_details = session_surcharge_metadata
-            .as_ref()
-            .and_then(|surcharge_metadata| {
-                surcharge_metadata.surcharge_results.get(
-                    &SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+        payment_data.surcharge_details =
+            session_surcharge_details
+                .as_ref()
+                .and_then(|session_surcharge_details| {
+                    session_surcharge_details.fetch_surcharge_details(
                         &session_connector_data.payment_method_type.into(),
                         &session_connector_data.payment_method_type,
                         None,
-                    ),
-                )
-            })
-            .cloned();
+                    )
+                });
 
         let router_data = payment_data
             .construct_router_data(

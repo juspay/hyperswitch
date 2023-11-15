@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.78.0 (2023-11-14)
+
+### Features
+
+- **router:** Add automatic retries and step up 3ds flow ([#2834](https://github.com/juspay/hyperswitch/pull/2834)) ([`d2968c9`](https://github.com/juspay/hyperswitch/commit/d2968c94978a57422fa46a8195d906736a95b864))
+- Payment link status page UI ([#2740](https://github.com/juspay/hyperswitch/pull/2740)) ([`856c7af`](https://github.com/juspay/hyperswitch/commit/856c7af77e17599ca0d4d119744ac582e9c3c971))
+
+### Bug Fixes
+
+- Handle session and confirm flow discrepancy in surcharge details ([#2696](https://github.com/juspay/hyperswitch/pull/2696)) ([`cafea45`](https://github.com/juspay/hyperswitch/commit/cafea45982d7b520fe68fde967984ce88f68c6c0))
+
+**Full Changelog:** [`v1.77.0...v1.78.0`](https://github.com/juspay/hyperswitch/compare/v1.77.0...v1.78.0)
+
+- - -
+
+
+## 1.77.0 (2023-11-13)
+
+### Features
+
+- **apievent:** Added hs latency to api event ([#2734](https://github.com/juspay/hyperswitch/pull/2734)) ([`c124511`](https://github.com/juspay/hyperswitch/commit/c124511052ed8911a2ccfcf648c0793b5c1ca690))
+- **router:**
+  - Add new JWT authentication variants and use them ([#2835](https://github.com/juspay/hyperswitch/pull/2835)) ([`f88eee7`](https://github.com/juspay/hyperswitch/commit/f88eee7362be2cc3e8e8dc2bb7bfd263892ff01e))
+  - Profile specific fallback derivation while routing payments ([#2806](https://github.com/juspay/hyperswitch/pull/2806)) ([`8e538db`](https://github.com/juspay/hyperswitch/commit/8e538dbd5c189047d0a0b24fa752b9a1c67554f5))
+
+### Build System / Dependencies
+
+- **deps:** Remove unused dependencies and features ([#2854](https://github.com/juspay/hyperswitch/pull/2854)) ([`0553587`](https://github.com/juspay/hyperswitch/commit/05535871152f4a6ac24ce6b5b5390da13cc29b96))
+
+**Full Changelog:** [`v1.76.0...v1.77.0`](https://github.com/juspay/hyperswitch/compare/v1.76.0...v1.77.0)
+
+- - -
+
+
 ## 1.76.0 (2023-11-12)
 
 ### Features
