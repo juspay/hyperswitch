@@ -873,11 +873,6 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         .saturating_duration_since(start_instant)
         .as_millis();
 
-    let serialized_request = masking::masked_serialize(&serialized_req)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-
     let request_id = RequestId::extract(req)
         .await
         .into_report()
@@ -901,8 +896,9 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         &request_id,
         request_duration,
         status_code,
-        serialized_request,
+        serialized_req,
         Some(response_value),
+        None,
         auth_type,
         api_event,
         req,
@@ -919,8 +915,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
     Ok(application_response)
 }
 
-// #[instrument(skip_all)]
-
+#[instrument(skip_all)]
 pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     state: AppState,
     req: &actix_web::HttpRequest,
@@ -931,7 +926,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
-    Box<dyn erased_serde::Serialize>,
+    serde_json::Value,
 )> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
@@ -1013,7 +1008,11 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
-            return Ok((response, WebhookResponseTracker::NoEffect, Box::new(())));
+            return Ok((
+                response,
+                WebhookResponseTracker::NoEffect,
+                serde_json::Value::Null,
+            ));
         }
     };
     logger::info!(event_type=?event_type);
@@ -1036,7 +1035,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     logger::info!(process_webhook=?process_webhook_further);
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
-    let mut event_object: Box<dyn erased_serde::Serialize> = Box::new(());
+    let mut event_object: Box<dyn erased_serde::Serialize> = Box::new(serde_json::Value::Null);
     let webhook_effect = if process_webhook_further
         && !matches!(flow_type, api::WebhookFlow::ReturnResponse)
     {
@@ -1230,7 +1229,11 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
-    Ok((response, webhook_effect, event_object))
+    let serialized_request = masking::masked_serialize(&event_object)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not convert webhook effect to string")?;
+    Ok((response, webhook_effect, serialized_request))
 }
 
 #[inline]
