@@ -291,12 +291,12 @@ pub async fn add_card_hs(
     customer_id: String,
     merchant_account: &domain::MerchantAccount,
     locker_choice: api_enums::LockerChoice,
-    card_reference: Option<&String>,
+    card_reference: Option<&str>,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let payload = payment_methods::StoreLockerReq::LockerCard(payment_methods::StoreCardReq {
         merchant_id: &merchant_account.merchant_id,
         merchant_customer_id: customer_id.to_owned(),
-        card_reference: card_reference.cloned(),
+        card_reference: card_reference.map(str::to_string),
         card: payment_methods::Card {
             card_number: card.card_number.to_owned(),
             name_on_card: card.card_holder_name.to_owned(),

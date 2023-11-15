@@ -311,7 +311,7 @@ pub async fn mk_add_locker_request_hs<'a>(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice.clone()).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;

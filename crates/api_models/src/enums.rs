@@ -563,7 +563,7 @@ pub enum RetryAction {
     Requeue,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum LockerChoice {
     Basilisk,
     Tartarus,
