@@ -9,6 +9,7 @@ pub mod disputes;
 pub mod errors;
 pub mod files;
 pub mod gsm;
+pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_link;

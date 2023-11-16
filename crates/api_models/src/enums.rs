@@ -76,7 +76,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
-    // Bankofamerica, Added as template code for future usage
+    Bankofamerica,
     Bitpay,
     Bluesnap,
     Boku,
@@ -196,7 +196,7 @@ pub enum RoutableConnectors {
     Adyen,
     Airwallex,
     Authorizedotnet,
-    // Bankofamerica, Added as template code for future usage
+    Bankofamerica,
     Bitpay,
     Bambora,
     Bluesnap,
@@ -561,4 +561,10 @@ pub enum RetryAction {
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
+}
+
+#[derive(Clone, Copy)]
+pub enum LockerChoice {
+    Basilisk,
+    Tartarus,
 }

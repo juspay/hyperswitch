@@ -638,6 +638,7 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::JCB,
         Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
     );
+    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
     map
 });
 
@@ -650,6 +651,7 @@ pub enum CardIssuer {
     Discover,
     DinersClub,
     JCB,
+    CarteBlanche,
 }
 
 pub trait CardData {

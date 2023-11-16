@@ -98,11 +98,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     }
 
     fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(format!(
-            "Surcharge not implemented for {}",
-            self.id()
-        ))
-        .into())
+        Err(errors::ConnectorError::NotImplemented(format!("Surcharge for {}", self.id())).into())
     }
 }
 
