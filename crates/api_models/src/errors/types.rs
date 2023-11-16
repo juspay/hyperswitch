@@ -101,21 +101,21 @@ impl serde::ser::Serialize for ApiErrorResponse {
     {
         use serde::ser::SerializeStruct;
         match self {
-            Self::Unauthorized(i)
-            | Self::ForbiddenCommonResource(i)
-            | Self::ForbiddenPrivateResource(i)
-            | Self::Conflict(i)
-            | Self::Gone(i)
-            | Self::Unprocessable(i)
-            | Self::InternalServerError(i)
-            | Self::NotImplemented(i)
-            | Self::NotFound(i)
-            | Self::MethodNotAllowed(i)
-            | Self::BadRequest(i)
-            | Self::ConnectorError(i, _) => {
+            Self::Unauthorized(api_error)
+            | Self::ForbiddenCommonResource(api_error)
+            | Self::ForbiddenPrivateResource(api_error)
+            | Self::Conflict(api_error)
+            | Self::Gone(api_error)
+            | Self::Unprocessable(api_error)
+            | Self::InternalServerError(api_error)
+            | Self::NotImplemented(api_error)
+            | Self::NotFound(api_error)
+            | Self::MethodNotAllowed(api_error)
+            | Self::BadRequest(api_error)
+            | Self::ConnectorError(api_error, _) => {
                 let mut state = serializer.serialize_struct("ApiErrorResponse", 2)?;
-                state.serialize_field("type", &self.error_type_name())?;
-                state.serialize_field("value", i)?;
+                state.serialize_field("type", &self.to_string())?;
+                state.serialize_field("value", api_error)?;
                 state.end()
 
                 // serializer.serialize_newtype_variant("ApiErrorResponse", 0, "xyz", i)
