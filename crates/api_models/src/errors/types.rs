@@ -114,7 +114,7 @@ impl serde::ser::Serialize for ApiErrorResponse {
             | Self::BadRequest(api_error)
             | Self::ConnectorError(api_error, _) => {
                 let mut state = serializer.serialize_struct("ApiErrorResponse", 2)?;
-                state.serialize_field("type", &self.to_string())?;
+                state.serialize_field("type", &self.error_type_name())?;
                 state.serialize_field("value", api_error)?;
                 state.end()
 
