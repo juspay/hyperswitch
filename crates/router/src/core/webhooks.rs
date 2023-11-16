@@ -1035,7 +1035,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     logger::info!(process_webhook=?process_webhook_further);
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
-    let mut event_object: Box<dyn erased_serde::Serialize> = Box::new(serde_json::Value::Null);
+    let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
     let webhook_effect = if process_webhook_further
         && !matches!(flow_type, api::WebhookFlow::ReturnResponse)
     {
@@ -1119,7 +1119,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
         let webhook_details = api::IncomingWebhookDetails {
             object_reference_id: object_ref_id,
-            resource_object: serde_json::to_vec(&event_object)
+            resource_object: event_object
+                .raw_serialize()
+                .and_then(|ref val| serde_json::to_vec(val))
                 .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
                 .attach_printable_lazy(|| {
@@ -1229,7 +1231,8 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
-    let serialized_request = masking::masked_serialize(&event_object)
+    let serialized_request = event_object
+        .masked_serialize()
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;

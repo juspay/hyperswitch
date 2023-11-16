@@ -100,7 +100,9 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
 /// In particular, the trait contains generic methods which cannot be made into a trait object.
 /// In this case we remove the generic for assuming the serialization to be of 2 types only raw json or masked json
 pub trait ErasedMaskSerialize {
+    /// Masked serialization.
     fn masked_serialize(&self) -> Result<Value, serde_json::Error>;
+    /// Normal serialization.
     fn raw_serialize(&self) -> Result<Value, serde_json::Error>;
 }
 

@@ -886,7 +886,7 @@ impl api::IncomingWebhook for Stax {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn erased_serde::Serialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
