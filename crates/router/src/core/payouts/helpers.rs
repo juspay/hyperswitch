@@ -152,7 +152,7 @@ pub async fn save_payout_data_to_locker(
                     card_isin: None,
                     nick_name: None,
                 },
-                card_reference: None,
+                requestor_card_reference: None,
             });
             (
                 payload,

@@ -229,29 +229,31 @@ pub async fn add_card_to_locker(
         &[],
     )
     .await?;
+    logger::debug!("card added to basilisk locker");
 
-    let add_card_to_rs_resp: (api_models::payment_methods::PaymentMethodResponse, bool) =
-        request::record_operation_time(
-            async {
-                add_card_hs(
-                    state,
-                    req,
-                    card,
-                    customer_id.to_string(),
-                    merchant_account,
-                    api_enums::LockerChoice::Tartarus,
-                    Some(&add_card_to_hs_resp.0.payment_method_id),
-                )
-                .await
-                .map_err(|error| {
-                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    error
-                })
-            },
-            &metrics::CARD_ADD_TIME,
-            &[],
-        )
-        .await?;
+    let add_card_to_rs_resp = request::record_operation_time(
+        async {
+            add_card_hs(
+                state,
+                req,
+                card,
+                customer_id.to_string(),
+                merchant_account,
+                api_enums::LockerChoice::Tartarus,
+                Some(&add_card_to_hs_resp.0.payment_method_id),
+            )
+            .await
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_ADD_TIME,
+        &[],
+    )
+    .await?;
+
+    logger::debug!("card added to rust locker");
 
     Ok(add_card_to_rs_resp)
 }
@@ -287,30 +289,35 @@ pub async fn get_card_from_locker(
     .await;
 
     match get_card_from_rs_locker_resp {
-        Err(_) => {
-            request::record_operation_time(
-                async {
-                    get_card_from_hs_locker(
-                        state,
-                        customer_id,
-                        merchant_id,
-                        card_reference,
-                        api_enums::LockerChoice::Basilisk,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while getting card from basilisk_hs")
-                    .map_err(|error| {
-                        metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                        error
-                    })
-                },
-                &metrics::CARD_GET_TIME,
-                &[],
-            )
-            .await
+        Err(_) => request::record_operation_time(
+            async {
+                get_card_from_hs_locker(
+                    state,
+                    customer_id,
+                    merchant_id,
+                    card_reference,
+                    api_enums::LockerChoice::Basilisk,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card from basilisk_hs")
+                .map_err(|error| {
+                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                    error
+                })
+            },
+            &metrics::CARD_GET_TIME,
+            &[],
+        )
+        .await
+        .map(|inner_card| {
+            logger::debug!("card retrieved from basilisk locker");
+            inner_card
+        }),
+        Ok(_) => {
+            logger::debug!("card retrieved from rust locker");
+            get_card_from_rs_locker_resp
         }
-        Ok(_) => get_card_from_rs_locker_resp,
     }
 }
 
@@ -350,7 +357,7 @@ pub async fn add_card_hs(
     let payload = payment_methods::StoreLockerReq::LockerCard(payment_methods::StoreCardReq {
         merchant_id: &merchant_account.merchant_id,
         merchant_customer_id: customer_id.to_owned(),
-        card_reference: card_reference.map(str::to_string),
+        requestor_card_reference: card_reference.map(str::to_string),
         card: payment_methods::Card {
             card_number: card.card_number.to_owned(),
             name_on_card: card.card_holder_name.to_owned(),

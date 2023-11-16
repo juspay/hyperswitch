@@ -28,7 +28,7 @@ pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_reference: Option<String>,
+    pub requestor_card_reference: Option<String>,
     pub card: Card,
 }
 
@@ -467,7 +467,10 @@ pub async fn mk_get_card_request_hs(
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
-    let mut url = locker.host.to_owned();
+    let mut url = match target_locker {
+        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
+        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+    };
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
