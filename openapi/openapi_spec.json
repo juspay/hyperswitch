@@ -6844,7 +6844,7 @@
             "nullable": true
           },
           "status": {
-            "$ref": "#/components/schemas/common_enums.ConnectorStatus"
+            "$ref": "#/components/schemas/api_enums.ConnectorStatus"
           }
         }
       },
