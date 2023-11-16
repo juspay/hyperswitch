@@ -1490,7 +1490,7 @@ pub async fn list_payment_methods(
     ))
 }
 
-async fn call_surcharge_decision_management(
+pub async fn call_surcharge_decision_management(
     state: routes::AppState,
     merchant_account: &domain::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
