@@ -152,6 +152,7 @@ pub async fn save_payout_data_to_locker(
                     card_isin: None,
                     nick_name: None,
                 },
+                card_reference: None,
             });
             (
                 payload,
@@ -195,9 +196,14 @@ pub async fn save_payout_data_to_locker(
         }
     };
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(state, &locker_req, &payout_attempt.customer_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let stored_resp = cards::call_to_locker_hs(
+        state,
+        &locker_req,
+        &payout_attempt.customer_id,
+        api_enums::LockerChoice::Basilisk,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Store card_reference in payouts table
     let db = &*state.store;

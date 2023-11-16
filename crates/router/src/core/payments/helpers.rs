@@ -1817,6 +1817,7 @@ pub fn validate_payment_method_type_against_payment_method(
             api_enums::PaymentMethodType::Knet
                 | api_enums::PaymentMethodType::Benefit
                 | api_enums::PaymentMethodType::MomoAtm
+                | api_enums::PaymentMethodType::CardRedirect
         ),
     }
 }
