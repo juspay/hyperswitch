@@ -1063,7 +1063,7 @@
         // Status specific information
         switch (status) {
           case "succeeded":
-            statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.img";
+            statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.png";
             statusDetails.message =
               "We have successfully received your payment";
             statusDetails.status = "Paid successfully";
@@ -1102,6 +1102,17 @@
           case "requires_merchant_action":
             statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
             statusDetails.status = "Payment under review";
+            break;
+
+          case "requires_capture":
+            statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+            statusDetails.status = "Payment Pending";
+            break;
+
+          case "partially_captured":
+            statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+            statusDetails.message = "Partial payment was captured.";
+            statusDetails.status = "Partial Payment Pending";
             break;
 
           default:
