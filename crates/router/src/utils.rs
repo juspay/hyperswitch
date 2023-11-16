@@ -1,6 +1,8 @@
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
+#[cfg(feature = "olap")]
+pub mod user;
 
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
@@ -401,6 +403,7 @@ pub fn handle_json_response_deserialization_failure(
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
+                attempt_status: None,
             })
         }
     }
@@ -566,7 +569,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: customer_id.to_string(),
+                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
                 payment_id: None,
@@ -699,6 +702,7 @@ impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
 
 pub async fn trigger_payments_webhook<F, Req, Op>(
     merchant_account: domain::MerchantAccount,
+    business_profile: diesel_models::business_profile::BusinessProfile,
     payment_data: crate::core::payments::PaymentData<F>,
     req: Option<Req>,
     customer: Option<domain::Customer>,
@@ -749,10 +753,13 @@ where
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
         {
+            let m_state = state.clone();
+
             Box::pin(
                 webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                    state.clone(),
+                    m_state,
                     merchant_account,
+                    business_profile,
                     event_type,
                     diesel_models::enums::EventClass::Payments,
                     None,
@@ -766,4 +773,17 @@ where
     }
 
     Ok(())
+}
+
+type Handle<T> = tokio::task::JoinHandle<RouterResult<T>>;
+
+pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
+    match handle.await {
+        Ok(Ok(t)) => Ok(t),
+        Ok(Err(err)) => Err(err),
+        Err(err) => Err(err)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Join Error"),
+    }
 }

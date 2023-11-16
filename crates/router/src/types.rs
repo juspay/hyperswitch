@@ -548,11 +548,31 @@ pub trait Capturable {
     fn get_capture_amount(&self) -> Option<i64> {
         Some(0)
     }
+    fn get_surcharge_amount(&self) -> Option<i64> {
+        None
+    }
+    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
+        None
+    }
 }
 
 impl Capturable for PaymentsAuthorizeData {
     fn get_capture_amount(&self) -> Option<i64> {
-        Some(self.amount)
+        let final_amount = self
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount);
+        final_amount.or(Some(self.amount))
+    }
+    fn get_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount)
+    }
+    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
     }
 }
 
@@ -924,6 +944,7 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
+    pub attempt_status: Option<storage_enums::AttemptStatus>,
 }
 
 impl ErrorResponse {
@@ -939,6 +960,7 @@ impl ErrorResponse {
             .error_message(),
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            attempt_status: None,
         }
     }
 }
@@ -981,6 +1003,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
                 _ => 500,
             },
+            attempt_status: None,
         }
     }
 }
@@ -1191,3 +1214,5 @@ impl<F1, F2>
         }
     }
 }
+
+pub type GsmResponse = storage::GatewayStatusMap;

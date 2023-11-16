@@ -35,7 +35,7 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        transformers::construct_payment_router_data::<
+        Box::pin(transformers::construct_payment_router_data::<
             api::CompleteAuthorize,
             types::CompleteAuthorizeData,
         >(
@@ -46,7 +46,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }

@@ -339,7 +339,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", address_id);
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -350,7 +350,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }?;
@@ -763,7 +763,8 @@ impl AddressInterface for MockDb {
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == customer_id && address.merchant_id == merchant_id
+                address.customer_id == Some(customer_id.to_string())
+                    && address.merchant_id == merchant_id
             })
             .map(|a| {
                 let address_updated =

@@ -36,7 +36,7 @@ pub async fn api_key_create(
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -53,9 +53,15 @@ pub async fn api_key_create(
             )
             .await
         },
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// API Key - Retrieve
@@ -91,7 +97,13 @@ pub async fn api_key_retrieve(
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| api_keys::retrieve_api_key(state, merchant_id, key_id),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -124,16 +136,16 @@ pub async fn api_key_update(
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
     let (merchant_id, key_id) = path.into_inner();
-    let payload = json_payload.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.key_id = key_id;
+    payload.merchant_id = merchant_id;
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (&merchant_id, &key_id, payload),
-        |state, _, (merchant_id, key_id, payload)| {
-            api_keys::update_api_key(state, merchant_id, key_id, payload)
-        },
+        payload,
+        |state, _, payload| api_keys::update_api_key(state, payload),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -173,7 +185,13 @@ pub async fn api_key_revoke(
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| api_keys::revoke_api_key(state, merchant_id, key_id),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -213,11 +231,15 @@ pub async fn api_key_list(
         flow,
         state,
         &req,
-        (limit, offset, merchant_id),
+        (limit, offset, merchant_id.clone()),
         |state, _, (limit, offset, merchant_id)| async move {
             api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await

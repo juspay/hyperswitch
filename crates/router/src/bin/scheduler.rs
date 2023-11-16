@@ -40,7 +40,12 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, redis_shutdown_signal_tx, api_client).await;
+    let state = Box::pin(routes::AppState::new(
+        conf,
+        redis_shutdown_signal_tx,
+        api_client,
+    ))
+    .await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
     tokio::spawn(router::receiver_for_error(

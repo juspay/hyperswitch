@@ -221,8 +221,6 @@ pub async fn create_or_update_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let customer_id = customer_id.get_required_value("customer_id")?;
-
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
                     db.insert_address_for_payments(
@@ -282,7 +280,6 @@ pub async fn create_or_find_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let customer_id = customer_id.get_required_value("customer_id")?;
 
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
@@ -317,7 +314,7 @@ pub async fn get_domain_address_for_payments(
     address_details: api_models::payments::AddressDetails,
     address: &api_models::payments::Address,
     merchant_id: &str,
-    customer_id: &str,
+    customer_id: Option<&String>,
     payment_id: &str,
     key: &[u8],
     storage_scheme: enums::MerchantStorageScheme,
@@ -332,7 +329,7 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-            customer_id: customer_id.to_string(),
+            customer_id: customer_id.cloned(),
             merchant_id: merchant_id.to_string(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.city,
@@ -402,6 +399,7 @@ pub async fn get_token_pm_type_mandate_details(
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
@@ -430,7 +428,13 @@ pub async fn get_token_pm_type_mandate_details(
                 recurring_mandate_payment_data,
                 payment_method_type_,
                 mandate_connector,
-            ) = get_token_for_recurring_mandate(state, request, merchant_account).await?;
+            ) = get_token_for_recurring_mandate(
+                state,
+                request,
+                merchant_account,
+                merchant_key_store,
+            )
+            .await?;
             Ok((
                 token_,
                 payment_method_,
@@ -455,6 +459,7 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
@@ -504,7 +509,9 @@ pub async fn get_token_for_recurring_mandate(
     };
 
     if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
-        let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
+        let _ =
+            cards::get_lookup_key_from_locker(state, &token, &payment_method, merchant_key_store)
+                .await?;
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if pm != payment_method.payment_method {
@@ -763,25 +770,14 @@ fn validate_new_mandate_request(
 }
 
 pub fn validate_customer_id_mandatory_cases(
-    has_shipping: bool,
-    has_billing: bool,
     has_setup_future_usage: bool,
     customer_id: &Option<String>,
 ) -> RouterResult<()> {
-    match (
-        has_shipping,
-        has_billing,
-        has_setup_future_usage,
-        customer_id,
-    ) {
-        (true, _, _, None) | (_, true, _, None) | (_, _, true, None) => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "customer_id is mandatory when shipping or billing \
-                address is given or when setup_future_usage is given"
-                    .to_string(),
-            })
-            .into_report()
-        }
+    match (has_setup_future_usage, customer_id) {
+        (true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "customer_id is mandatory when setup_future_usage is given".to_string(),
+        })
+        .into_report(),
         _ => Ok(()),
     }
 }
@@ -1334,6 +1330,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1387,6 +1384,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(
                 state,
                 &hyperswitch_token,
+                merchant_key_store,
             )
             .await
             .attach_printable(
@@ -1416,6 +1414,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                             &updated_pm,
                             payment_data.payment_intent.customer_id.to_owned(),
                             enums::PaymentMethod::Card,
+                            merchant_key_store,
                         )
                         .await?;
                         Some(updated_pm)
@@ -1456,6 +1455,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 state,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
+                merchant_key_store,
             )
             .await?;
 
@@ -1475,6 +1475,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -1482,6 +1483,7 @@ pub async fn store_in_vault_and_generate_ppmt(
         payment_method_data,
         payment_intent.customer_id.to_owned(),
         payment_method,
+        merchant_key_store,
     )
     .await?;
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
@@ -1505,6 +1507,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
     payment_method_data: &api::PaymentMethodData,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -1517,6 +1520,7 @@ pub async fn store_payment_method_data_in_vault(
             payment_intent,
             payment_attempt,
             payment_method,
+            merchant_key_store,
         )
         .await?;
 
@@ -1891,7 +1895,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -1900,7 +1904,7 @@ pub fn get_handle_response_url(
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
     let return_url = make_merchant_url_with_response(
-        merchant_account,
+        business_profile,
         redirection_response,
         payments_return_url,
         response.client_secret.as_ref(),
@@ -1908,11 +1912,11 @@ pub fn get_handle_response_url(
     )
     .attach_printable("Failed to make merchant url with response")?;
 
-    make_url_with_signature(&return_url, merchant_account)
+    make_url_with_signature(&return_url, business_profile)
 }
 
 pub fn make_merchant_url_with_response(
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -1920,7 +1924,7 @@ pub fn make_merchant_url_with_response(
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
-        .or(merchant_account.return_url.as_ref())
+        .or(business_profile.return_url.as_ref())
         .get_required_value("return_url")?;
 
     let status_check = redirection_response.status;
@@ -1930,7 +1934,7 @@ pub fn make_merchant_url_with_response(
         .into_report()
         .attach_printable("Expected client secret to be `Some`")?;
 
-    let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
+    let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
@@ -2024,7 +2028,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .into_report()
@@ -2034,8 +2038,8 @@ pub fn make_url_with_signature(
     let mut base_url = url.clone();
     base_url.query_pairs_mut().clear();
 
-    let url = if merchant_account.enable_payment_response_hash {
-        let key = merchant_account
+    let url = if business_profile.enable_payment_response_hash {
+        let key = business_profile
             .payment_response_hash_key
             .as_ref()
             .get_required_value("payment_response_hash_key")?;
@@ -2063,7 +2067,7 @@ pub fn make_url_with_signature(
         return_url: base_url.to_string(),
         params: parameters,
         return_url_with_query_params: url.to_string(),
-        http_method: if merchant_account.redirect_to_merchant_with_http_post {
+        http_method: if business_profile.redirect_to_merchant_with_http_post {
             services::Method::Post.to_string()
         } else {
             services::Method::Get.to_string()
@@ -2992,60 +2996,6 @@ impl AttemptType {
 
                 Ok((updated_payment_intent, new_payment_attempt))
             }
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn get_or_insert_connector_response(
-        &self,
-        payment_attempt: &PaymentAttempt,
-        db: &dyn StorageInterface,
-        storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> RouterResult<storage::ConnectorResponse> {
-        match self {
-            Self::New => db
-                .insert_connector_response(
-                    payments::PaymentCreate::make_connector_response(payment_attempt),
-                    storage_scheme,
-                )
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_attempt.payment_id.clone(),
-                }),
-            Self::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    &payment_attempt.payment_id,
-                    &payment_attempt.merchant_id,
-                    &payment_attempt.attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn get_connector_response(
-        &self,
-        db: &dyn StorageInterface,
-        payment_id: &str,
-        merchant_id: &str,
-        attempt_id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<storage::ConnectorResponse> {
-        match self {
-            Self::New => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("Precondition failed, the attempt type should not be `New`"),
-            Self::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    payment_id,
-                    merchant_id,
-                    attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         }
     }
 }

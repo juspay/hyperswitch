@@ -11,10 +11,12 @@ pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
+pub mod routing;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
+use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
@@ -36,6 +38,13 @@ pub struct AccessTokenAuth;
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
+}
+
+#[derive(Clone)]
+pub enum ConnectorCallType {
+    PreDetermined(ConnectorData),
+    Retryable(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
 }
 
 #[derive(Clone, Debug)]
@@ -103,6 +112,7 @@ pub trait ConnectorCommon {
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -205,6 +215,30 @@ pub struct SessionConnectorData {
     pub business_sub_label: Option<String>,
 }
 
+/// Session Surcharge type
+pub enum SessionSurchargeDetails {
+    /// Surcharge is calculated by hyperswitch
+    Calculated(SurchargeMetadata),
+    /// Surcharge is sent by merchant
+    PreDetermined(SurchargeDetailsResponse),
+}
+
+impl SessionSurchargeDetails {
+    pub fn fetch_surcharge_details(
+        &self,
+        payment_method: &enums::PaymentMethod,
+        payment_method_type: &enums::PaymentMethodType,
+        card_network: Option<&enums::CardNetwork>,
+    ) -> Option<SurchargeDetailsResponse> {
+        match self {
+            Self::Calculated(surcharge_metadata) => surcharge_metadata
+                .get_surcharge_details(payment_method, payment_method_type, card_network)
+                .cloned(),
+            Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
+        }
+    }
+}
+
 pub enum ConnectorChoice {
     SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
@@ -218,23 +252,11 @@ pub enum PayoutConnectorChoice {
     Decide,
 }
 
-#[derive(Clone)]
-pub enum ConnectorCallType {
-    Multiple(Vec<SessionConnectorData>),
-    Single(ConnectorData),
-}
-
 #[cfg(feature = "payouts")]
 #[derive(Clone)]
 pub enum PayoutConnectorCallType {
     Multiple(Vec<PayoutSessionConnectorData>),
     Single(PayoutConnectorData),
-}
-
-impl ConnectorCallType {
-    pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
-    }
 }
 
 #[cfg(feature = "payouts")]
@@ -307,6 +329,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                // enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)), Added as template code for future usage
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
