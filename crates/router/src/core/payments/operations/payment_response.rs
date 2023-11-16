@@ -466,6 +466,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 } else {
                                     None
                                 },
+                                surcharge_amount: router_data.request.get_surcharge_amount(),
+                                tax_amount: router_data.request.get_tax_on_surcharge_amount(),
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
