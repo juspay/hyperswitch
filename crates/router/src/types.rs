@@ -1214,5 +1214,3 @@ impl<F1, F2>
         }
     }
 }
-
-pub type GsmResponse = storage::GatewayStatusMap;
