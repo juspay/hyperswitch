@@ -21,7 +21,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &req,
@@ -39,6 +39,6 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

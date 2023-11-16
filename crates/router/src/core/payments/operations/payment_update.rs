@@ -422,7 +422,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -456,7 +456,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, db).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
             })
             .await
             .as_ref()
@@ -471,6 +471,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
+
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -479,7 +480,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
-        payment_data.payment_attempt = db
+        payment_data.payment_attempt = state
+            .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
@@ -540,7 +542,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
 
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::Update {

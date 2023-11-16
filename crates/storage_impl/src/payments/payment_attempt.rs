@@ -557,12 +557,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await?;
                 let key = &lookup.pk_id;
 
-                try_redis_get_else_try_database_get(
+                Box::pin(try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
                     },
                         || async {self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await},
-                    )
+                    ))
                     .await
             }
         }
@@ -607,7 +607,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             ))
                     })
                 };
-                try_redis_get_else_try_database_get(redis_fut, database_call).await
+                Box::pin(try_redis_get_else_try_database_get(
+                    redis_fut,
+                    database_call,
+                ))
+                .await
             }
         }
     }
@@ -635,7 +639,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await?;
 
                 let key = &lookup.pk_id;
-                try_redis_get_else_try_database_get(
+                Box::pin(try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(
                             self,
@@ -654,7 +658,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             )
                             .await
                     },
-                )
+                ))
                 .await
             }
         }
@@ -682,7 +686,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pa_{attempt_id}");
-                try_redis_get_else_try_database_get(
+                Box::pin(try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&field), key)
                             .await?
@@ -698,7 +702,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             )
                             .await
                     },
-                )
+                ))
                 .await
             }
         }
@@ -726,7 +730,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                     .await?;
                 let key = &lookup.pk_id;
-                try_redis_get_else_try_database_get(
+                Box::pin(try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(
                             self,
@@ -745,7 +749,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             )
                             .await
                     },
-                )
+                ))
                 .await
             }
         }
@@ -774,7 +778,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await?;
                 let key = &lookup.pk_id;
 
-                try_redis_get_else_try_database_get(
+                Box::pin(try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper(
                             self,
@@ -793,7 +797,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             )
                             .await
                     },
-                )
+                ))
                 .await
             }
         }

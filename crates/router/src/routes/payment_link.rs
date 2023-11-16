@@ -62,7 +62,7 @@ pub async fn initiate_payment_link(
         payment_id,
         merchant_id: merchant_id.clone(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -77,6 +77,6 @@ pub async fn initiate_payment_link(
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
