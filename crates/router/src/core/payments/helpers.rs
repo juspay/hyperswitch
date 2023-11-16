@@ -970,6 +970,7 @@ where
 
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
+    connector: &api::ConnectorData,
     payment_method_data: Option<&api::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -1017,14 +1018,36 @@ pub(crate) async fn get_payment_method_create_request(
                 }
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type"
+                field_name: "payment_method"
             })
-            .attach_printable("PaymentMethodType Required")),
+            .attach_printable("PaymentMethod Required")),
         },
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data"
-        })
-        .attach_printable("PaymentMethodData required Or Card is already saved")),
+        None => {
+            match connector.connector_name {
+                // paypal vaulting
+                api_models::enums::Connector::Paypal => {
+                    let payment_method_request = api::PaymentMethodCreate {
+                        payment_method: payment_method.ok_or(
+                            errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "payment_method",
+                            },
+                        )?,
+                        payment_method_type,
+                        payment_method_issuer: None,
+                        payment_method_issuer_code: None,
+                        card: None,
+                        metadata: None,
+                        customer_id: Some(customer.customer_id.to_owned()),
+                        card_network: None,
+                    };
+                    Ok(payment_method_request)
+                }
+                _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method"
+                })
+                .attach_printable("PaymentMethod Required")),
+            }
+        }
     }
 }
 

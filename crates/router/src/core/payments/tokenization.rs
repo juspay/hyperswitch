@@ -45,20 +45,23 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let connector_token = if token_store {
+            let connector_email = if token_store {
                 let tokens = resp
                     .payment_method_token
                     .to_owned()
                     .get_required_value("payment_token")?;
-                let token = match tokens {
-                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+
+                match tokens {
+                    types::PaymentMethodToken::TokenWithParameters(connector_token) => {
+                        connector_token.email
+                    }
+                    types::PaymentMethodToken::Token(_) => None,
                     types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ApiErrorResponse::NotSupported {
                             message: "Apple Pay Decrypt token is not supported".to_string(),
                         })?
                     }
-                };
-                Some((connector, token))
+                }
             } else {
                 None
             };
@@ -66,7 +69,8 @@ where
             let pm_id = if resp.request.get_setup_future_usage().is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
-                    Some(&resp.request.get_payment_method_data()),
+                    connector,
+                    resp.request.get_payment_method_data().as_ref(),
                     Some(resp.payment_method),
                     payment_method_type,
                     &customer,
@@ -103,7 +107,7 @@ where
                         Ok(pm) => {
                             let pm_metadata = create_payment_method_metadata(
                                 pm.metadata.as_ref(),
-                                connector_token,
+                                connector_email,
                             )?;
                             if let Some(metadata) = pm_metadata {
                                 payment_methods::cards::update_payment_method(db, pm, metadata)
@@ -119,7 +123,7 @@ where
                                 {
                                     diesel_models::errors::DatabaseError::NotFound => {
                                         let pm_metadata =
-                                            create_payment_method_metadata(None, connector_token)?;
+                                            create_payment_method_metadata(None, connector_email)?;
                                         payment_methods::cards::create_payment_method(
                                             db,
                                             &payment_method_create_request,
@@ -145,7 +149,7 @@ where
                         }
                     };
                 } else {
-                    let pm_metadata = create_payment_method_metadata(None, connector_token)?;
+                    let pm_metadata = create_payment_method_metadata(None, connector_email)?;
                     payment_methods::cards::create_payment_method(
                         db,
                         &payment_method_create_request,
@@ -212,7 +216,7 @@ pub async fn save_in_locker(
 
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
-    connector_token: Option<(&api::ConnectorData, String)>,
+    connector_email: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mut meta = match metadata {
         None => serde_json::Map::new(),
@@ -225,12 +229,12 @@ pub fn create_payment_method_metadata(
             existing_metadata
         }
     };
-    Ok(connector_token.and_then(|connector_and_token| {
-        meta.insert(
-            connector_and_token.0.connector_name.to_string(),
-            serde_json::Value::String(connector_and_token.1),
-        )
-    }))
+
+    if let Some(email) = connector_email {
+        meta.insert(String::from("email"), serde_json::Value::String(email));
+    }
+
+    Ok(Some(serde_json::Value::Object(meta)))
 }
 
 pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(

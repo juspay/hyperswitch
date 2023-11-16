@@ -81,7 +81,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        types::PaymentMethodToken::ApplePayDecrypt(_)
+                        | types::PaymentMethodToken::TokenWithParameters(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
@@ -100,7 +101,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        types::PaymentMethodToken::ApplePayDecrypt(_)
+                        | types::PaymentMethodToken::TokenWithParameters(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),

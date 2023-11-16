@@ -1787,7 +1787,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 let payment_method_token = match payment_method_token {
                     types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                    types::PaymentMethodToken::ApplePayDecrypt(_)
+                    | types::PaymentMethodToken::TokenWithParameters(_) => {
                         Err(errors::ConnectorError::InvalidWalletToken)?
                     }
                 };

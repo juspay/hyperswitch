@@ -120,15 +120,52 @@ pub struct RedirectRequest {
     experience_context: ContextStruct,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextStruct {
-    return_url: Option<String>,
-    cancel_url: Option<String>,
+    return_url: String,
+    cancel_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributesStruct {
+    vault: VaultRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultRequest {
+    permit_multiple_payment_tokens: bool,
+    store_in_vault: VaultMethod,
+    usage_type: UsageType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VaultMethod {
+    OnSuccess,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UsageType {
+    Merchant,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalRedirectionStruct {
+    experience_context: Option<ContextStruct>,
+    attributes: Option<AttributesStruct>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct PaypalRedirectionRequest {
-    experience_context: ContextStruct,
+pub struct PaypalVaultStruct {
+    vault_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaypalRedirectionRequest {
+    PaypalRedirectionStruct(PaypalRedirectionStruct),
+    PaypalVaultStruct(PaypalVaultStruct),
 }
 
 #[derive(Debug, Serialize)]
@@ -178,8 +215,16 @@ fn get_payment_source(
                 field_name: "eps.country",
             })?,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::Giropay {
@@ -192,8 +237,16 @@ fn get_payment_source(
                 field_name: "giropay.country",
             })?,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::Ideal {
@@ -206,8 +259,16 @@ fn get_payment_source(
                 field_name: "ideal.country",
             })?,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::Sofort {
@@ -218,8 +279,16 @@ fn get_payment_source(
             name: billing_details.get_billing_name()?,
             country_code: *country,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::BancontactCard { .. }
@@ -320,13 +389,42 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         invoice_id: Some(connector_req_reference_id),
                         amount,
                     }];
-                    let payment_source =
-                        Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
-                            experience_context: ContextStruct {
-                                return_url: item.router_data.request.complete_authorize_url.clone(),
-                                cancel_url: item.router_data.request.complete_authorize_url.clone(),
+                    let vault = VaultRequest {
+                        permit_multiple_payment_tokens: false,
+                        store_in_vault: VaultMethod::OnSuccess,
+                        usage_type: UsageType::Merchant,
+                    };
+                    let attributes = item
+                        .router_data
+                        .request
+                        .setup_future_usage
+                        .map(|_| AttributesStruct { vault });
+
+                    let payment_source = Some(PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalRedirectionStruct(
+                            PaypalRedirectionStruct {
+                                experience_context: Some(ContextStruct {
+                                    return_url: item
+                                        .router_data
+                                        .request
+                                        .complete_authorize_url
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                                            field_name: "complete_authorize_url",
+                                        })?,
+                                    cancel_url: item
+                                        .router_data
+                                        .request
+                                        .complete_authorize_url
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                                            field_name: "complete_authorize_url",
+                                        })?,
+                                }),
+                                attributes,
                             },
-                        }));
+                        ),
+                    ));
 
                     Ok(Self {
                         intent,
@@ -691,6 +789,35 @@ pub struct PaypalOrdersResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalVaultResponse {
+    id: String,
+    status: PaypalOrderStatus,
+    purchase_units: Vec<PurchaseUnitItem>,
+    payment_source: PaypalVaultSource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalVaultSource {
+    paypal: AttributeResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributeResponse {
+    email_address: String,
+    attributes: VaultData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultData {
+    vault: VaultResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultResponse {
+    id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalLinks {
     href: Option<Url>,
     rel: String,
@@ -727,6 +854,14 @@ pub enum PaypalSyncResponse {
     PaypalThreeDsSyncResponse(PaypalThreeDsSyncResponse),
     PaypalRedirectSyncResponse(PaypalRedirectResponse),
     PaypalPaymentsSyncResponse(PaypalPaymentsSyncResponse),
+}
+
+// Note: Don't change order of deserialization of variant, priority is in descending order
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalCompleteAuthResponse {
+    PaypalVaultResponse(PaypalVaultResponse),
+    PaypalOrdersResponse(PaypalOrdersResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -791,6 +926,58 @@ fn get_id_based_on_intent(
         }
     }()
     .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaypalVaultResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaypalVaultResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let vault_id = item.response.payment_source.paypal.attributes.vault.id;
+
+        //payment collection will always have only one element as we only make one transaction per order.
+        let payment_collection = &item
+            .response
+            .purchase_units
+            .first()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+            .payments;
+        //payment collection item will either have "authorizations" field or "capture" field, not both at a time.
+        let payment_collection_item = match (
+            &payment_collection.authorizations,
+            &payment_collection.captures,
+        ) {
+            (Some(authorizations), None) => authorizations.first(),
+            (None, Some(captures)) => captures.first(),
+            (Some(_), Some(captures)) => captures.first(),
+            _ => None,
+        }
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = payment_collection_item.status.clone();
+        let status = storage_enums::AttemptStatus::from(status);
+        Ok(Self {
+            status,
+            payment_method_token: Some(types::PaymentMethodToken::TokenWithParameters(
+                types::TokenWithParameters {
+                    token: vault_id,
+                    email: Some(item.response.payment_source.paypal.email_address),
+                    metadata: None,
+                },
+            )),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl<F, T>

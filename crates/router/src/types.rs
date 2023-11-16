@@ -297,7 +297,15 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum PaymentMethodToken {
     Token(String),
+    TokenWithParameters(TokenWithParameters),
     ApplePayDecrypt(Box<ApplePayPredecryptData>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct TokenWithParameters {
+    pub token: String,
+    pub email: Option<String>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -446,6 +454,7 @@ pub struct PaymentsPreProcessingData {
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
