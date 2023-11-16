@@ -7864,15 +7864,11 @@
       "PaymentLinkColorSchema": {
         "type": "object",
         "properties": {
-          "primary_color": {
+          "background_primary_color": {
             "type": "string",
             "nullable": true
           },
-          "primary_accent_color": {
-            "type": "string",
-            "nullable": true
-          },
-          "secondary_color": {
+          "sdk_theme": {
             "type": "string",
             "nullable": true
           }
