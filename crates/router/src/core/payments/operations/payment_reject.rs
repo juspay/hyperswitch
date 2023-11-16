@@ -13,7 +13,6 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
-    db::StorageInterface,
     routes::AppState,
     services,
     types::{
@@ -165,7 +164,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -202,7 +201,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             updated_by: storage_scheme.to_string(),
         };
 
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 intent_status_update,
@@ -211,7 +211,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.payment_attempt = db
+        payment_data.payment_attempt = state
+            .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 attempt_status_update,
