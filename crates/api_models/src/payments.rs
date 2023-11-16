@@ -16,6 +16,7 @@ use crate::{
     admin, disputes,
     enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
+    payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
 };
 
@@ -317,6 +318,23 @@ pub struct PaymentsRequest {
 pub struct RequestSurchargeDetails {
     pub surcharge_amount: i64,
     pub tax_amount: Option<i64>,
+}
+
+impl RequestSurchargeDetails {
+    pub fn is_surcharge_zero(&self) -> bool {
+        self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
+    }
+    pub fn get_surcharge_details_object(&self, original_amount: i64) -> SurchargeDetailsResponse {
+        let surcharge_amount = self.surcharge_amount;
+        let tax_on_surcharge_amount = self.tax_amount.unwrap_or(0);
+        SurchargeDetailsResponse {
+            surcharge: Surcharge::Fixed(self.surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+            final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -808,6 +826,36 @@ pub enum PaymentMethodData {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
+}
+
+impl PaymentMethodData {
+    pub fn get_payment_method_type_if_session_token_type(
+        &self,
+    ) -> Option<api_enums::PaymentMethodType> {
+        match self {
+            Self::Wallet(wallet) => match wallet {
+                WalletData::ApplePay(_) => Some(api_enums::PaymentMethodType::ApplePay),
+                WalletData::GooglePay(_) => Some(api_enums::PaymentMethodType::GooglePay),
+                WalletData::PaypalSdk(_) => Some(api_enums::PaymentMethodType::Paypal),
+                _ => None,
+            },
+            Self::PayLater(pay_later) => match pay_later {
+                PayLaterData::KlarnaSdk { .. } => Some(api_enums::PaymentMethodType::Klarna),
+                _ => None,
+            },
+            Self::Card(_)
+            | Self::CardRedirect(_)
+            | Self::BankRedirect(_)
+            | Self::BankDebit(_)
+            | Self::BankTransfer(_)
+            | Self::Crypto(_)
+            | Self::MandatePayment
+            | Self::Reward
+            | Self::Upi(_)
+            | Self::Voucher(_)
+            | Self::GiftCard(_) => None,
+        }
+    }
 }
 
 pub trait GetPaymentMethodType {
@@ -2232,7 +2280,9 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -3098,6 +3148,8 @@ pub struct PaymentLinkObject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
+    /// Custom merchant name for payment link
+    pub custom_merchant_name: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
@@ -3141,11 +3193,12 @@ pub struct PaymentLinkDetails {
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub merchant_logo: String,
     pub return_url: String,
-    pub merchant_name: crypto::OptionalEncryptableName,
-    pub order_details: Vec<pii::SecretSerdeValue>,
+    pub merchant_name: String,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
+    pub sdk_theme: Option<String>,
 }

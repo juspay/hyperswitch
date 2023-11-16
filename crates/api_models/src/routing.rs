@@ -40,6 +40,12 @@ pub struct RoutingConfigRequest {
     pub profile_id: Option<String>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct ProfileDefaultRoutingConfig {
+    pub profile_id: String,
+    pub connectors: Vec<RoutableConnectorChoice>,
+}
+
 #[cfg(feature = "business_profile_routing")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
@@ -390,6 +396,13 @@ pub enum RoutingAlgorithmKind {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+
+pub struct RoutingPayloadWrapper {
+    pub updated_config: Vec<RoutableConnectorChoice>,
+    pub profile_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(
     tag = "type",
     content = "data",
@@ -592,3 +605,8 @@ pub enum RoutingKind {
     Config(RoutingDictionary),
     RoutingAlgorithm(Vec<RoutingDictionaryRecord>),
 }
+
+#[repr(transparent)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[serde(transparent)]
+pub struct RoutingAlgorithmId(pub String);

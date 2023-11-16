@@ -106,6 +106,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             mandate_type.clone(),
             merchant_account,
+            key_store,
         )
         .await?;
 
@@ -218,20 +219,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             )?;
         }
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &payment_intent.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Database error when finding connector response")
-            })?;
-
         let mandate_id = request
             .mandate_id
             .as_ref()
@@ -317,6 +304,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
 
+        let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
+            request_surcharge_details.get_surcharge_details_object(payment_attempt.amount)
+        });
+
         Ok((
             next_operation,
             PaymentData {
@@ -340,7 +331,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 refunds: vec![],
                 disputes: vec![],
                 attempts: None,
-                connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
@@ -350,7 +340,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
-                surcharge_details: None,
+                surcharge_details,
                 frm_message: None,
                 payment_link_data: None,
             },
@@ -394,11 +384,12 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 
     #[instrument(skip_all)]
@@ -480,6 +471,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -496,6 +495,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     business_sub_label,
                     amount_to_capture,
                     capture_method,
+                    surcharge_amount,
+                    tax_amount,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,

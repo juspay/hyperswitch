@@ -1,10 +1,14 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payment_methods};
+use api_models::{
+    enums::FrmSuggestion,
+    payment_methods::{self, SurchargeDetailsResponse},
+};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use futures::FutureExt;
+use redis_interface::errors::RedisError;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -14,6 +18,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        utils::get_individual_surcharge_detail_from_redis,
     },
     db::StorageInterface,
     routes::AppState,
@@ -69,6 +74,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             mandate_type.clone(),
             merchant_account,
+            key_store,
         );
 
         let (mut payment_intent, mandate_details) =
@@ -156,77 +162,49 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })
             .map(|x| x.transpose());
 
-        let (mut payment_attempt, shipping_address, billing_address, connector_response) =
-            match payment_intent.status {
-                api_models::enums::IntentStatus::RequiresCustomerAction
-                | api_models::enums::IntentStatus::RequiresMerchantAction
-                | api_models::enums::IntentStatus::RequiresPaymentMethod
-                | api_models::enums::IntentStatus::RequiresConfirmation => {
-                    let attempt_type = helpers::AttemptType::SameOld;
+        let (mut payment_attempt, shipping_address, billing_address) = match payment_intent.status {
+            api_models::enums::IntentStatus::RequiresCustomerAction
+            | api_models::enums::IntentStatus::RequiresMerchantAction
+            | api_models::enums::IntentStatus::RequiresPaymentMethod
+            | api_models::enums::IntentStatus::RequiresConfirmation => {
+                let (payment_attempt, shipping_address, billing_address, _) = futures::try_join!(
+                    payment_attempt_fut,
+                    shipping_address_fut,
+                    billing_address_fut,
+                    config_update_fut
+                )?;
 
-                    let attempt_id = payment_intent.active_attempt.get_id();
-                    let connector_response_fut = attempt_type.get_connector_response(
-                        db,
-                        &payment_intent.payment_id,
-                        &payment_intent.merchant_id,
-                        attempt_id.as_str(),
-                        storage_scheme,
-                    );
+                (payment_attempt, shipping_address, billing_address)
+            }
+            _ => {
+                let (mut payment_attempt, shipping_address, billing_address, _) = futures::try_join!(
+                    payment_attempt_fut,
+                    shipping_address_fut,
+                    billing_address_fut,
+                    config_update_fut
+                )?;
 
-                    let (payment_attempt, shipping_address, billing_address, connector_response, _) =
-                        futures::try_join!(
-                            payment_attempt_fut,
-                            shipping_address_fut,
-                            billing_address_fut,
-                            connector_response_fut,
-                            config_update_fut
-                        )?;
+                let attempt_type = helpers::get_attempt_type(
+                    &payment_intent,
+                    &payment_attempt,
+                    request,
+                    "confirm",
+                )?;
 
-                    (
-                        payment_attempt,
-                        shipping_address,
-                        billing_address,
-                        connector_response,
-                    )
-                }
-                _ => {
-                    let (mut payment_attempt, shipping_address, billing_address, _) = futures::try_join!(
-                        payment_attempt_fut,
-                        shipping_address_fut,
-                        billing_address_fut,
-                        config_update_fut
-                    )?;
-
-                    let attempt_type = helpers::get_attempt_type(
-                        &payment_intent,
-                        &payment_attempt,
+                (payment_intent, payment_attempt) = attempt_type
+                    .modify_payment_intent_and_payment_attempt(
+                        // 3
                         request,
-                        "confirm",
-                    )?;
-
-                    (payment_intent, payment_attempt) = attempt_type
-                        .modify_payment_intent_and_payment_attempt(
-                            // 3
-                            request,
-                            payment_intent,
-                            payment_attempt,
-                            db,
-                            storage_scheme,
-                        )
-                        .await?;
-
-                    let connector_response = attempt_type
-                        .get_or_insert_connector_response(&payment_attempt, db, storage_scheme)
-                        .await?;
-
-                    (
+                        payment_intent,
                         payment_attempt,
-                        shipping_address,
-                        billing_address,
-                        connector_response,
+                        db,
+                        storage_scheme,
                     )
-                }
-            };
+                    .await?;
+
+                (payment_attempt, shipping_address, billing_address)
+            }
+        };
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -332,19 +310,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm
         });
+        Self::validate_request_surcharge_details_with_session_surcharge_details(
+            state,
+            &payment_attempt,
+            request,
+        )
+        .await?;
 
-        // populate payment_data.surcharge_details from request
-        let surcharge_details = request.surcharge_details.map(|surcharge_details| {
-            payment_methods::SurchargeDetailsResponse {
-                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
-                tax_on_surcharge: None,
-                surcharge_amount: surcharge_details.surcharge_amount,
-                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
-                final_amount: payment_attempt.amount
-                    + surcharge_details.surcharge_amount
-                    + surcharge_details.tax_amount.unwrap_or(0),
-            }
-        });
+        let surcharge_details = Self::get_surcharge_details_from_payment_request_or_payment_attempt(
+            request,
+            &payment_attempt,
+        );
 
         Ok((
             Box::new(self),
@@ -353,7 +329,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_intent,
                 payment_attempt,
                 currency,
-                connector_response,
                 amount,
                 email: request.email.clone(),
                 mandate_id: None,
@@ -423,12 +398,13 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data).await?;
+            helpers::make_pm_data(Box::new(self), state, payment_data, key_store).await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -556,14 +532,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
-        let tax_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         let authorized_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -589,8 +557,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     error_code,
                     error_message,
                     amount_capturable: Some(authorized_amount),
-                    surcharge_amount,
-                    tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                 },
@@ -697,5 +663,94 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
                 ),
             },
         ))
+    }
+}
+
+impl PaymentConfirm {
+    pub async fn validate_request_surcharge_details_with_session_surcharge_details(
+        state: &AppState,
+        payment_attempt: &storage::PaymentAttempt,
+        request: &api::PaymentsRequest,
+    ) -> RouterResult<()> {
+        match (
+            request.surcharge_details,
+            request.payment_method_data.as_ref(),
+        ) {
+            (Some(request_surcharge_details), Some(payment_method_data)) => {
+                if let Some(payment_method_type) =
+                    payment_method_data.get_payment_method_type_if_session_token_type()
+                {
+                    let invalid_surcharge_details_error = Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "surcharge_details sent in session token flow doesn't match with the one sent in confirm request".into(),
+                    }.into());
+                    if let Some(attempt_surcharge_amount) = payment_attempt.surcharge_amount {
+                        // payment_attempt.surcharge_amount will be Some if some surcharge was sent in payment create
+                        // if surcharge was sent in payment create call, the same would have been sent to the connector during session call
+                        // So verify the same
+                        if request_surcharge_details.surcharge_amount != attempt_surcharge_amount
+                            || request_surcharge_details.tax_amount != payment_attempt.tax_amount
+                        {
+                            return invalid_surcharge_details_error;
+                        }
+                    } else {
+                        // if not sent in payment create
+                        // verify that any calculated surcharge sent in session flow is same as the one sent in confirm
+                        return match get_individual_surcharge_detail_from_redis(
+                            state,
+                            &payment_method_type.into(),
+                            &payment_method_type,
+                            None,
+                            &payment_attempt.attempt_id,
+                        )
+                        .await
+                        {
+                            Ok(surcharge_details) => utils::when(
+                                !surcharge_details
+                                    .is_request_surcharge_matching(request_surcharge_details),
+                                || invalid_surcharge_details_error,
+                            ),
+                            Err(err) if err.current_context() == &RedisError::NotFound => {
+                                utils::when(!request_surcharge_details.is_surcharge_zero(), || {
+                                    invalid_surcharge_details_error
+                                })
+                            }
+                            Err(err) => Err(err)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to fetch redis value"),
+                        };
+                    }
+                }
+                Ok(())
+            }
+            (Some(_request_surcharge_details), None) => {
+                Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_data",
+                }
+                .into())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn get_surcharge_details_from_payment_request_or_payment_attempt(
+        payment_request: &api::PaymentsRequest,
+        payment_attempt: &storage::PaymentAttempt,
+    ) -> Option<SurchargeDetailsResponse> {
+        payment_request
+            .surcharge_details
+            .map(|surcharge_details| {
+                surcharge_details.get_surcharge_details_object(payment_attempt.amount)
+            }) // if not passed in confirm request, look inside payment_attempt
+            .or(payment_attempt
+                .surcharge_amount
+                .map(|surcharge_amount| SurchargeDetailsResponse {
+                    surcharge: payment_methods::Surcharge::Fixed(surcharge_amount),
+                    tax_on_surcharge: None,
+                    surcharge_amount,
+                    tax_on_surcharge_amount: payment_attempt.tax_amount.unwrap_or(0),
+                    final_amount: payment_attempt.amount
+                        + surcharge_amount
+                        + payment_attempt.tax_amount.unwrap_or(0),
+                }))
     }
 }
