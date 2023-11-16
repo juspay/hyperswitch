@@ -7853,6 +7853,9 @@
       },
       "PaymentLinkObject": {
         "type": "object",
+        "required": [
+          "payment_link_config"
+        ],
         "properties": {
           "link_expiry": {
             "type": "string",
@@ -7864,12 +7867,7 @@
             "nullable": true
           },
           "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/admin.PaymentLinkConfig"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentLinkConfig"
           },
           "custom_merchant_name": {
             "type": "string",
