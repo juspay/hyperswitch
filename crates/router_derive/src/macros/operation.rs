@@ -1,8 +1,8 @@
 use std::str::FromStr;
-use strum::IntoEnumIterator;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use strum::IntoEnumIterator;
 use syn::{self, parse::Parse, DeriveInput};
 
 use crate::macros::helpers::{self};
