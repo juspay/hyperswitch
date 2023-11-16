@@ -10474,6 +10474,17 @@
           }
         }
       },
+      "ProductType": {
+        "type": "string",
+        "enum": [
+          "physical",
+          "digital",
+          "travel",
+          "ride",
+          "event",
+          "accommodation"
+        ]
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
