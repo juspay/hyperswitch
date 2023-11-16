@@ -13,7 +13,7 @@ impl ProcessTrackerWorkflow<AppState> for RefundWorkflowRouter {
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        Ok(refund_flow::start_refund_workflow(state, &process).await?)
+        Ok(Box::pin(refund_flow::start_refund_workflow(state, &process)).await?)
     }
 
     async fn error_handler<'a>(

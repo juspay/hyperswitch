@@ -135,7 +135,11 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     .try_into_get()
                 };
 
-                try_redis_get_else_try_database_get(redis_fut, database_call).await
+                Box::pin(try_redis_get_else_try_database_get(
+                    redis_fut,
+                    database_call,
+                ))
+                .await
             }
         }
     }

@@ -942,13 +942,16 @@ pub async fn create_payment_connector(
     let mut default_routing_config =
         routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
 
+    let mut default_routing_config_for_profile =
+        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
+
     let mca = state
         .store
         .insert_merchant_connector_account(merchant_connector_account, &key_store)
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id,
+                profile_id: profile_id.clone(),
                 connector_name: req.connector_name.to_string(),
             },
         )?;
@@ -965,11 +968,20 @@ pub async fn create_payment_connector(
         };
 
         if !default_routing_config.contains(&choice) {
-            default_routing_config.push(choice);
+            default_routing_config.push(choice.clone());
             routing_helpers::update_merchant_default_config(
                 &*state.store,
                 merchant_id,
                 default_routing_config,
+            )
+            .await?;
+        }
+        if !default_routing_config_for_profile.contains(&choice.clone()) {
+            default_routing_config_for_profile.push(choice);
+            routing_helpers::update_merchant_default_config(
+                &*state.store,
+                &profile_id.clone(),
+                default_routing_config_for_profile,
             )
             .await?;
         }

@@ -243,6 +243,8 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// User connect account
+    UserConnectAccount,
 }
 
 ///
