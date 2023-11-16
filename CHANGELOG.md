@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.80.0 (2023-11-16)
+
+### Features
+
+- **router:** Add api to migrate card from basilisk to rust ([#2853](https://github.com/juspay/hyperswitch/pull/2853)) ([`b8b20c4`](https://github.com/juspay/hyperswitch/commit/b8b20c412df0485bf395f9aa21e6e34e90d97acd))
+- Spawn webhooks and async scheduling in background ([#2780](https://github.com/juspay/hyperswitch/pull/2780)) ([`f248fe2`](https://github.com/juspay/hyperswitch/commit/f248fe2889c9cb68af4464ab0db1735224ab5c8d))
+
+### Refactors
+
+- **router:** Add openapi spec support for gsm apis ([#2871](https://github.com/juspay/hyperswitch/pull/2871)) ([`62c9cca`](https://github.com/juspay/hyperswitch/commit/62c9ccae6ab0d128c54962675b88739ad7797fe6))
+
+**Full Changelog:** [`v1.79.0...v1.80.0`](https://github.com/juspay/hyperswitch/compare/v1.79.0...v1.80.0)
+
+- - -
+
+
 ## 1.79.0 (2023-11-16)
 
 ### Features
