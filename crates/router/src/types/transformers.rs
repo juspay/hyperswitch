@@ -1047,3 +1047,19 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
         }
     }
 }
+
+impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
+        }
+    }
+}
