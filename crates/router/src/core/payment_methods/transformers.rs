@@ -440,6 +440,7 @@ pub async fn mk_get_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
+    locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
@@ -460,7 +461,9 @@ pub async fn mk_get_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
