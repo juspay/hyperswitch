@@ -10849,7 +10849,8 @@
           "link_to_pay",
           "amount",
           "created_at",
-          "status"
+          "status",
+          "currency"
         ],
         "properties": {
           "payment_link_id": {
@@ -10882,12 +10883,7 @@
             "type": "string"
           },
           "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/storage_enums.Currency"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },

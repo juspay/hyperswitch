@@ -3176,6 +3176,7 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub status: String,
+    #[schema(value_type = Currency)]
     pub currency: Option<storage_enums::Currency>,
 }
 
