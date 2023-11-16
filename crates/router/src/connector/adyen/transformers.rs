@@ -666,10 +666,9 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
             api::enums::BankNames::KomercniBanka => Ok(Self::KB),
             api::enums::BankNames::CeskaSporitelna => Ok(Self::CS),
             api::enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -746,10 +745,9 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingPolandBanks {
             api_models::enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
             api_models::enums::BankNames::VeloBank => Ok(Self::VeloBank),
             api_models::enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -798,10 +796,9 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
             api::enums::BankNames::SporoPay => Ok(Self::Sporo),
             api::enums::BankNames::TatraPay => Ok(Self::Tatra),
             api::enums::BankNames::Viamo => Ok(Self::Viamo),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -828,10 +825,9 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingFpxIssuer {
             api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
             api::enums::BankNames::UobBank => Ok(Self::FpxUob),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -845,10 +841,9 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
             api::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
             api::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
             api::enums::BankNames::KasikornBank => Ok(Self::Kbank),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -879,10 +874,9 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
             api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
             api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -1303,10 +1297,9 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
             api_models::enums::BankNames::VolkskreditbankAg => {
                 Self("4a0a975b-0594-4b40-9068-39f77b3a91f9")
             }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Adyen",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         })
     }
 }
