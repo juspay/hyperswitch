@@ -108,16 +108,15 @@ pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::
 
 /// Derives the boilerplate code required for using an enum with `diesel` and a PostgreSQL database.
 ///
-/// Storage Type can either be "text" or "pg_enum"
-/// Choosing text will store the enum as text in the database, whereas pg_enum will map it to the
-/// database enum
+/// Storage Type can either be "text" or "db_enum"
+/// Choosing text will store the enum as text in the database, whereas db_enum will map it to the
+/// corresponding database enum
 ///
-/// Works in tandem with the [`DieselEnum`][DieselEnum] and [`DieselEnumText`][DieselEnumText] derive macro to achieve the desired results.
+/// Works in tandem with the [`DieselEnum`][DieselEnum] derive macro to achieve the desired results.
 /// The enum is required to implement (or derive) the [`ToString`][ToString] and the
 /// [`FromStr`][FromStr] traits for the [`DieselEnum`][DieselEnum] derive macro to be used.
 ///
 /// [DieselEnum]: crate::DieselEnum
-/// [DieselEnumText]: crate::DieselEnumText
 /// [FromStr]: ::core::str::FromStr
 /// [ToString]: ::std::string::ToString
 ///

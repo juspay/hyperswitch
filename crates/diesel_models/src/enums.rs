@@ -34,7 +34,7 @@ use time::PrimitiveDateTime;
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -55,7 +55,7 @@ pub enum RoutingAlgorithmKind {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventClass {
@@ -76,7 +76,7 @@ pub enum EventClass {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventObjectType {
@@ -97,7 +97,7 @@ pub enum EventObjectType {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ProcessTrackerStatus {
@@ -126,7 +126,7 @@ pub enum ProcessTrackerStatus {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
@@ -149,7 +149,7 @@ pub enum RefundType {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MandateType {
@@ -217,7 +217,7 @@ pub struct MandateAmountData {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "text")]
+#[diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum BankNames {
@@ -348,7 +348,7 @@ pub enum BankNames {
     strum::Display,
     strum::EnumString,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FraudCheckType {
@@ -369,7 +369,7 @@ pub enum FraudCheckType {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[diesel_enum(db_type = "db_enum")]
+#[diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
 pub enum FraudCheckStatus {
     Fraud,
@@ -393,7 +393,7 @@ pub enum FraudCheckStatus {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[diesel_enum(db_type = "text")]
+#[diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 pub enum FraudCheckLastStep {
     #[default]
@@ -416,7 +416,7 @@ pub enum FraudCheckLastStep {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[diesel_enum(db_type = "text")]
+#[diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum UserStatus {

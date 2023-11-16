@@ -1,4 +1,3 @@
-#![allow(clippy::use_self)]
 use std::str::FromStr;
 
 use proc_macro2::{Span, TokenStream};
@@ -92,7 +91,7 @@ pub(crate) fn diesel_enum_db_enum_derive_inner(ast: &DeriveInput) -> syn::Result
 mod diesel_keyword {
     use syn::custom_keyword;
 
-    custom_keyword!(db_type);
+    custom_keyword!(storage_type);
     custom_keyword!(db_enum);
     custom_keyword!(text);
 }
@@ -100,14 +99,17 @@ mod diesel_keyword {
 #[derive(Debug, strum::EnumString, strum::EnumIter, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum StorageType {
+    /// Store the Enum as Text value the database
     Text,
+    /// Store the Enum as Enum in the database. This requires a corresponding enum to be created
+    /// in the database with the same name
     DbEnum,
 }
 
 #[derive(Debug)]
 pub enum DieselEnumMeta {
     StorageTypeEnum {
-        keyword: diesel_keyword::db_type,
+        keyword: diesel_keyword::storage_type,
         value: StorageType,
     },
 }
@@ -144,7 +146,7 @@ impl DieselEnumMeta {
 impl Parse for DieselEnumMeta {
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
-        if lookahead.peek(diesel_keyword::db_type) {
+        if lookahead.peek(diesel_keyword::storage_type) {
             let keyword = input.parse()?;
             input.parse::<syn::Token![=]>()?;
             let value = input.parse()?;
@@ -191,28 +193,34 @@ pub(crate) fn diesel_enum_derive_inner(ast: &DeriveInput) -> syn::Result<TokenSt
 }
 
 /// Based on the storage type, derive appropriate diesel traits
+/// This will add the appropriate #[diesel(sql_type)]
+/// Since the `FromSql` and `ToSql` have to be derived for all the enums, this will add the
+/// `DieselEnum` derive trait.
 pub(crate) fn diesel_enum_attribute_macro(
     diesel_enum_meta: DieselEnumMeta,
     item: &ItemEnum,
 ) -> syn::Result<TokenStream> {
+    let diesel_derives =
+        quote!(#[derive(diesel::AsExpression, diesel::FromSqlRow, router_derive::DieselEnum) ]);
+
     match diesel_enum_meta {
         DieselEnumMeta::StorageTypeEnum {
             value: storage_type,
             ..
         } => match storage_type {
             StorageType::Text => Ok(quote! {
-                #[derive(diesel::AsExpression, diesel::FromSqlRow, router_derive::DieselEnum) ]
+                #diesel_derives
                 #[diesel(sql_type = ::diesel::sql_types::Text)]
-                #[storage_type(db_type = "text")]
+                #[storage_type(storage_type = "text")]
                 #item
             }),
             StorageType::DbEnum => {
                 let name = &item.ident;
                 let type_name = format_ident!("Db{name}");
                 Ok(quote! {
-                    #[derive(diesel::AsExpression, diesel::FromSqlRow, router_derive::DieselEnum) ]
+                    #diesel_derives
                     #[diesel(sql_type = #type_name)]
-                    #[storage_type(db_type = "db_enum")]
+                    #[storage_type(storage_type= "db_enum")]
                     #item
                 })
             }
