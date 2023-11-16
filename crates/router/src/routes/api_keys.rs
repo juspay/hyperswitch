@@ -36,7 +36,7 @@ pub async fn api_key_create(
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -61,7 +61,7 @@ pub async fn api_key_create(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// API Key - Retrieve
