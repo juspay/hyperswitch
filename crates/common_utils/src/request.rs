@@ -36,12 +36,18 @@ fn default_request_headers() -> [(String, Maskable<String>); 1] {
 pub struct Request {
     pub url: String,
     pub headers: Headers,
-    pub payload: Option<Secret<String>>,
     pub method: Method,
-    pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub form_data: Option<reqwest::multipart::Form>,
+    pub body: RequestContent,
+}
+
+#[derive(Debug)]
+pub enum RequestContent {
+    Json(serde_json::Value),
+    FormUrlEncoded(serde_json::Value),
+    FormData(reqwest::multipart::Form),
+    Empty,
 }
 
 impl Request {
@@ -50,16 +56,18 @@ impl Request {
             method,
             url: String::from(url),
             headers: std::collections::HashSet::new(),
-            payload: None,
-            content_type: None,
             certificate: None,
             certificate_key: None,
-            form_data: None,
+            body: RequestContent::Empty,
         }
     }
 
-    pub fn set_body(&mut self, body: String) {
-        self.payload = Some(body.into());
+    pub fn set_form_url_encoded_body(&mut self, body: serde_json::Value) {
+        self.body = RequestContent::FormUrlEncoded(body)
+    }
+
+    pub fn set_json_body(&mut self, body: serde_json::Value) {
+        self.body = RequestContent::Json(body);
     }
 
     pub fn add_default_headers(&mut self) {
@@ -68,10 +76,6 @@ impl Request {
 
     pub fn add_header(&mut self, header: &str, value: Maskable<String>) {
         self.headers.insert((String::from(header), value));
-    }
-
-    pub fn add_content_type(&mut self, content_type: ContentType) {
-        self.content_type = Some(content_type);
     }
 
     pub fn add_certificate(&mut self, certificate: Option<String>) {
@@ -83,7 +87,7 @@ impl Request {
     }
 
     pub fn set_form_data(&mut self, form_data: reqwest::multipart::Form) {
-        self.form_data = Some(form_data);
+        self.body = RequestContent::FormData(form_data);
     }
 }
 
@@ -91,12 +95,10 @@ impl Request {
 pub struct RequestBuilder {
     pub url: String,
     pub headers: Headers,
-    pub payload: Option<Secret<String>>,
     pub method: Method,
-    pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub form_data: Option<reqwest::multipart::Form>,
+    pub body: RequestContent,
 }
 
 impl RequestBuilder {
@@ -105,11 +107,9 @@ impl RequestBuilder {
             method: Method::Get,
             url: String::with_capacity(1024),
             headers: std::collections::HashSet::new(),
-            payload: None,
-            content_type: None,
             certificate: None,
             certificate_key: None,
-            form_data: None,
+            body: RequestContent::Empty,
         }
     }
 
@@ -139,18 +139,18 @@ impl RequestBuilder {
         self
     }
 
-    pub fn form_data(mut self, form_data: Option<reqwest::multipart::Form>) -> Self {
-        self.form_data = form_data;
+    pub fn form_data(mut self, form_data: reqwest::multipart::Form) -> Self {
+        self.body = RequestContent::FormData(form_data);
         self
     }
 
-    pub fn body(mut self, option_body: Option<RequestBody>) -> Self {
-        self.payload = option_body.map(RequestBody::get_inner_value);
+    pub fn json_body(mut self, json: serde_json::Value) -> Self {
+        self.body = RequestContent::Json(json);
         self
     }
 
-    pub fn content_type(mut self, content_type: ContentType) -> Self {
-        self.content_type = Some(content_type);
+    pub fn form_url_encoded(mut self, form_body: serde_json::Value) -> Self {
+        self.body = RequestContent::FormUrlEncoded(form_body);
         self
     }
 
@@ -169,11 +169,9 @@ impl RequestBuilder {
             method: self.method,
             url: self.url,
             headers: self.headers,
-            payload: self.payload,
-            content_type: self.content_type,
             certificate: self.certificate,
             certificate_key: self.certificate_key,
-            form_data: self.form_data,
+            body: self.body,
         }
     }
 }
