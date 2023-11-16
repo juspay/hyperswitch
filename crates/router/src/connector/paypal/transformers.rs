@@ -439,7 +439,8 @@ impl TryFrom<&api_models::payments::CardRedirectData> for PaypalPaymentsRequest 
         match value {
             api_models::payments::CardRedirectData::Knet {}
             | api_models::payments::CardRedirectData::Benefit {}
-            | api_models::payments::CardRedirectData::MomoAtm {} => {
+            | api_models::payments::CardRedirectData::MomoAtm {}
+            | api_models::payments::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Paypal",

@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.81.0 (2023-11-16)
+
+### Features
+
+- **connector:**
+  - [BANKOFAMERICA] Implement Cards for Bank of America ([#2765](https://github.com/juspay/hyperswitch/pull/2765)) ([`e8de3a7`](https://github.com/juspay/hyperswitch/commit/e8de3a710710b92f5c2351c5d67c22352c2b0a30))
+  - [ProphetPay] Implement Card Redirect PaymentMethodType and flows for Authorize, CompleteAuthorize, Psync, Refund, Rsync and Void ([#2641](https://github.com/juspay/hyperswitch/pull/2641)) ([`8d4adc5`](https://github.com/juspay/hyperswitch/commit/8d4adc52af57ed0994e6efbb5b2d0d3df3fb3150))
+
+### Testing
+
+- **postman:** Update postman collection files ([`f829197`](https://github.com/juspay/hyperswitch/commit/f8291973c38bde874c45ca15ff8d48c1f2de9781))
+
+**Full Changelog:** [`v1.80.0...v1.81.0`](https://github.com/juspay/hyperswitch/compare/v1.80.0...v1.81.0)
+
+- - -
+
+
 ## 1.80.0 (2023-11-16)
 
 ### Features
