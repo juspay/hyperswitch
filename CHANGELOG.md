@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.77.0+hotfix.1 (2023-11-16)
+
+### Bug Fixes
+
+- **connector:** [noon] add validate psync reference ([#2889](https://github.com/juspay/hyperswitch/pull/2889)) ([`506a05b`](https://github.com/juspay/hyperswitch/commit/506a05bfe822919aa1fd70ff4d4b60db40e8e3cd))
+
+**Full Changelog:** [`v1.77.0...v1.77.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.77.0...v1.77.0+hotfix.1)
+
+- - -
+
 ## 1.77.0 (2023-11-13)
 
 ### Features
