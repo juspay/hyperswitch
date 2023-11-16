@@ -16,6 +16,7 @@ pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
     errors::{ErrorSwitch, ReportSwitchExt},
+    request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -505,37 +506,11 @@ pub async fn send_request(
             Method::Get => client.get(url),
             Method::Post => {
                 let client = client.post(url);
-                match request.content_type {
-                    Some(ContentType::Json) => client.json(&request.payload),
-
-                    Some(ContentType::FormData) => {
-                        client.multipart(request.form_data.unwrap_or_default())
-                    }
-
-                    // Currently this is not used remove this if not required
-                    // If using this then handle the serde_part
-                    Some(ContentType::FormUrlEncoded) => {
-                        let payload = match request.payload.clone() {
-                            Some(req) => serde_json::from_str(req.peek())
-                                .into_report()
-                                .change_context(errors::ApiClientError::UrlEncodingFailed)?,
-                            _ => json!(r#""#),
-                        };
-                        let url_encoded_payload = serde_urlencoded::to_string(&payload)
-                            .into_report()
-                            .change_context(errors::ApiClientError::UrlEncodingFailed)
-                            .attach_printable_lazy(|| {
-                                format!(
-                                    "Unable to do url encoding on request: {:?}",
-                                    &request.payload
-                                )
-                            })?;
-
-                        logger::debug!(?url_encoded_payload);
-                        client.body(url_encoded_payload)
-                    }
-                    // If payload needs processing the body cannot have default
-                    None => client.body(request.payload.expose_option().unwrap_or_default()),
+                match request.body {
+                    RequestContent::Json(payload) => client.json(&payload),
+                    RequestContent::FormData(form) => client.multipart(form),
+                    RequestContent::FormUrlEncoded(payload) => client.form(&payload),
+                    RequestContent::Empty => client.body(""),
                 }
             }
 
