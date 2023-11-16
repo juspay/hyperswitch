@@ -95,7 +95,7 @@ pub enum ApiErrorResponse {
 }
 
 impl serde::ser::Serialize for ApiErrorResponse {
-    fn serialize<S>(&self, serializer: S) ->  Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::ser::Serializer,
     {
@@ -201,7 +201,7 @@ impl ApiErrorResponse {
             Self::NotFound(_) => "NotFound",
             Self::BadRequest(_) => "BadRequest",
             Self::InternalServerError(_) => "InternalServerError",
-            Self::ConnectorError(_, _) => "ConnectorError"
+            Self::ConnectorError(_, _) => "ConnectorError",
         }
     }
 }

@@ -859,9 +859,9 @@ where
         Err(err) => {
             error.replace(
                 masking::masked_serialize(&err.current_context())
-                .into_report()
-                .attach_printable("Failed to serialize json response")
-                .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                    .into_report()
+                    .attach_printable("Failed to serialize json response")
+                    .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
             );
             err.current_context().status_code().as_u16().into()
         }
