@@ -149,8 +149,8 @@ pub async fn refund_update(
     path: web::Path<String>,
     form_payload: web::Form<types::StripeUpdateRefundRequest>,
 ) -> HttpResponse {
-    let refund_id = path.into_inner();
-    let payload = form_payload.into_inner();
+    let mut payload = form_payload.into_inner();
+    payload.refund_id = path.into_inner();
     let create_refund_update_req: refund_types::RefundUpdateRequest = payload.into();
     let flow = Flow::RefundsUpdate;
 
@@ -169,9 +169,7 @@ pub async fn refund_update(
         state.into_inner(),
         &req,
         create_refund_update_req,
-        |state, auth, req| {
-            refunds::refund_update_core(state, auth.merchant_account, &refund_id, req)
-        },
+        |state, auth, req| refunds::refund_update_core(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))

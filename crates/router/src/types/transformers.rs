@@ -1,6 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{enums as api_enums, payments, routing::ConnectorSelection};
+use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -1028,6 +1028,22 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
         Self {
             org_id: item.org_id,
             org_name: item.org_name,
+        }
+    }
+}
+
+impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+    fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
         }
     }
 }

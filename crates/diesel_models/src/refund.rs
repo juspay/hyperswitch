@@ -227,3 +227,12 @@ pub struct RefundCoreWorkflow {
     pub merchant_id: String,
     pub payment_id: String,
 }
+
+impl common_utils::events::ApiEventMetric for Refund {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Refund {
+            payment_id: Some(self.payment_id.clone()),
+            refund_id: self.refund_id.clone(),
+        })
+    }
+}

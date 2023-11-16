@@ -160,12 +160,12 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = Box::pin(routes::AppState::with_storage(
+    let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    ))
+    )
     .await;
 
     static CV: aci::Aci = aci::Aci;
@@ -204,12 +204,12 @@ async fn payments_create_failure() {
         let conf = Settings::new().unwrap();
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = Box::pin(routes::AppState::with_storage(
+        let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-        ))
+        )
         .await;
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
@@ -265,12 +265,12 @@ async fn refund_for_successful_payments() {
         merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = Box::pin(routes::AppState::with_storage(
+    let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    ))
+    )
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -333,12 +333,12 @@ async fn refunds_create_failure() {
         merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = Box::pin(routes::AppState::with_storage(
+    let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-    ))
+    )
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
