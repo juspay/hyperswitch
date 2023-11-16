@@ -91,30 +91,26 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
     })
 }
 
-struct MaskWrapper<T>(pub T)
-
-pub trait MaskedSerialize
-where Self: Serialize {
-    fn masked_serialize(&self) -> Result<Value, serde_json::Error> {
-        self.serialize(PIISerializer {
-            inner: JsonValueSerializer,
-        })
-    }
-    fn raw_serialize(&self) -> Result<Value, serde_json::Error> {
-        self.serialize(JsonValueSerializer)
-    }
+///
+/// Masked serialization.
+///
+/// Trait object for supporting serialization to Value while accounting for masking
+/// The usual Serde Serialize trait cannot be used as trait objects
+/// like &dyn Serialize or boxed trait objects like Box<dyn Serialize> because of Rust's "object safety" rules.
+/// In particular, the trait contains generic methods which cannot be made into a trait object.
+/// In this case we remove the generic for assuming the serialization to be of 2 types only raw json or masked json
+pub trait ErasedMaskSerialize {
+    fn masked_serialize(&self) -> Result<Value, serde_json::Error>;
+    fn raw_serialize(&self) -> Result<Value, serde_json::Error>;
 }
 
-impl<T: Serialize> MaskedSerialize for T
-{
+impl<T: Serialize> ErasedMaskSerialize for T {
     fn masked_serialize(&self) -> Result<Value, serde_json::Error> {
-        self.serialize(PIISerializer {
-            inner: JsonValueSerializer,
-        })
+        masked_serialize(self)
     }
 
     fn raw_serialize(&self) -> Result<Value, serde_json::Error> {
-        self.serialize(JsonValueSerializer)
+        serde_json::to_value(self)
     }
 }
 
