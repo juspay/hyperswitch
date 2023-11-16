@@ -323,6 +323,7 @@ impl
                     | api_models::enums::PaymentMethodType::BcaBankTransfer
                     | api_models::enums::PaymentMethodType::BniVa
                     | api_models::enums::PaymentMethodType::BriVa
+                    | api_models::enums::PaymentMethodType::CardRedirect
                     | api_models::enums::PaymentMethodType::CimbVa
                     | api_models::enums::PaymentMethodType::ClassicReward
                     | api_models::enums::PaymentMethodType::Credit

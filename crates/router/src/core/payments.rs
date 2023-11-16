@@ -193,7 +193,7 @@ where
                 )
                 .await?;
                 let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
+
                 connector_http_status_code = router_data.connector_http_status_code;
                 external_latency = router_data.external_latency;
                 //add connector http status code metrics
@@ -201,7 +201,7 @@ where
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
-                        db,
+                        state,
                         &validate_result.payment_id,
                         payment_data,
                         router_data,
@@ -272,7 +272,6 @@ where
                 }
 
                 let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
                 connector_http_status_code = router_data.connector_http_status_code;
                 external_latency = router_data.external_latency;
                 //add connector http status code metrics
@@ -280,7 +279,7 @@ where
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
-                        db,
+                        state,
                         &validate_result.payment_id,
                         payment_data,
                         router_data,
@@ -323,7 +322,7 @@ where
         (_, payment_data) = operation
             .to_update_tracker()?
             .update_trackers(
-                &*state.store,
+                state,
                 payment_data.clone(),
                 customer.clone(),
                 validate_result.storage_scheme,
@@ -582,7 +581,14 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             }),
             ..Default::default()
         };
-        payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _, Ctx>(
+        Box::pin(payments_core::<
+            api::CompleteAuthorize,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
             state.clone(),
             merchant_account,
             merchant_key_store,
@@ -592,7 +598,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             connector_action,
             None,
             HeaderPayload::default(),
-        )
+        ))
         .await
     }
 
@@ -678,7 +684,14 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             expand_attempts: None,
             expand_captures: None,
         };
-        payments_core::<api::PSync, api::PaymentsResponse, _, _, _, Ctx>(
+        Box::pin(payments_core::<
+            api::PSync,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
             state.clone(),
             merchant_account,
             merchant_key_store,
@@ -688,7 +701,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             connector_action,
             None,
             HeaderPayload::default(),
-        )
+        ))
         .await
     }
     fn generate_response(
@@ -889,7 +902,7 @@ where
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
-            &*state.store,
+            state,
             payment_data.clone(),
             customer.clone(),
             merchant_account.storage_scheme,

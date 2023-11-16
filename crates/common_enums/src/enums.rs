@@ -990,6 +990,7 @@ pub enum PaymentMethodType {
     BcaBankTransfer,
     BniVa,
     BriVa,
+    CardRedirect,
     CimbVa,
     #[serde(rename = "classic")]
     ClassicReward,

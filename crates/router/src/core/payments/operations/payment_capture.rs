@@ -13,7 +13,6 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
-    db::StorageInterface,
     routes::AppState,
     services,
     types::{
@@ -222,7 +221,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &'b AppState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -239,6 +238,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     {
         payment_data.payment_attempt = match &payment_data.multiple_capture_data {
             Some(multiple_capture_data) => db
+                .store
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
