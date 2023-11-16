@@ -98,11 +98,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     }
 
     fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(format!(
-            "Surcharge not implemented for {}",
-            self.id()
-        ))
-        .into())
+        Err(errors::ConnectorError::NotImplemented(format!("Surcharge for {}", self.id())).into())
     }
 }
 
@@ -831,6 +827,8 @@ where
 
     let mut serialized_response = None;
     let mut error = None;
+    let mut overhead_latency = None;
+
     let status_code = match output.as_ref() {
         Ok(res) => {
             if let ApplicationResponse::Json(data) = res {
@@ -840,6 +838,19 @@ where
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
+            } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+
+                if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
+                    if let Ok(external_latency) = value.parse::<u128>() {
+                        overhead_latency.replace(external_latency);
+                    }
+                }
             }
             event_type = res.get_api_event_type().or(event_type);
 
@@ -858,6 +869,7 @@ where
         status_code,
         serialized_request,
         serialized_response,
+        overhead_latency,
         auth_type,
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),

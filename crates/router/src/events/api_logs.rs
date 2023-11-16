@@ -22,6 +22,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
     api_flow: String,
     created_at_timestamp: i128,
@@ -38,6 +39,7 @@ pub struct ApiEvent {
     error: Option<String>,
     #[serde(flatten)]
     event_type: ApiEventsType,
+    hs_latency: Option<u128>,
 }
 
 impl ApiEvent {
@@ -49,6 +51,7 @@ impl ApiEvent {
         status_code: i64,
         request: serde_json::Value,
         response: Option<serde_json::Value>,
+        hs_latency: Option<u128>,
         auth_type: AuthenticationType,
         error: Option<String>,
         event_type: ApiEventsType,
@@ -74,6 +77,7 @@ impl ApiEvent {
                 .and_then(|user_agent_value| user_agent_value.to_str().ok().map(ToOwned::to_owned)),
             url_path: http_req.path().to_string(),
             event_type,
+            hs_latency,
         }
     }
 }
