@@ -1,3 +1,4 @@
+use async_bb8_diesel::AsyncConnection;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
@@ -72,20 +73,36 @@ impl MerchantAccountInterface for Store {
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        merchant_account
-            .construct_new()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()?
-            .convert(merchant_key_store.key.get_inner())
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+
+        conn.transaction_async(|e| async move {
+            let key_store = merchant_key_store
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&e)
+                .await
+                .map_err(Into::into)
+                .into_report()?
+                .convert(&self.get_master_key().to_vec().into())
+                .await
+                .change_context(errors::StorageError::DecryptionError);
+
+            merchant_account
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&e)
+                .await
+                .map_err(Into::into)
+                .into_report()?
+                .convert(merchant_key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        })
+        .await
     }
 
     async fn find_merchant_account_by_merchant_id(

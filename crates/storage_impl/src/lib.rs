@@ -257,6 +257,9 @@ pub(crate) fn diesel_error_to_data_error(
         diesel_models::errors::DatabaseError::QueryGenerationFailed => {
             StorageError::DatabaseError("Query generation failed".to_string())
         }
+        store::errors::DatabaseError::TransactionFailed(e) => {
+            StorageError::DatabaseError(e.to_string())
+        }
         diesel_models::errors::DatabaseError::Others => {
             StorageError::DatabaseError("Others".to_string())
         }

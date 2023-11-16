@@ -98,6 +98,9 @@ impl Into<DataStorageError> for &StorageError {
                 storage_errors::DatabaseError::QueryGenerationFailed => {
                     DataStorageError::DatabaseError("Query generation failed".to_string())
                 }
+                storage_errors::DatabaseError::TransactionFailed(e) => {
+                    DataStorageError::DatabaseError(e.to_string())
+                }
                 storage_errors::DatabaseError::Others => {
                     DataStorageError::DatabaseError("Unknown database error".to_string())
                 }
