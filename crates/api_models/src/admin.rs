@@ -712,7 +712,7 @@ pub struct MerchantConnectorResponse {
 
     pub pm_auth_config: Option<serde_json::Value>,
 
-    pub status: Option<common_enums::ConnectorStatus>
+    pub status: Option<common_enums::ConnectorStatus>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
