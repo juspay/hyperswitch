@@ -271,10 +271,17 @@ pub enum BankofamericaPaymentStatus {
 }
 
 impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
-    fn foreign_from(item: (BankofamericaPaymentStatus, bool)) -> Self {
-        let status = match item.0 {
-            BankofamericaPaymentStatus::Authorized
-            | BankofamericaPaymentStatus::AuthorizedPendingReview => Self::Authorized,
+    fn foreign_from((status, auto_capture): (BankofamericaPaymentStatus, bool)) -> Self {
+        match status {
+            BankofamericaPaymentStatus::Authorized => {
+                if auto_capture {
+                    // Because BankOfAmerica will return Payment Status as Authorized even in AutoCapture Payment
+                    Self::Pending
+                } else {
+                    Self::Authorized
+                }
+            }
+            BankofamericaPaymentStatus::AuthorizedPendingReview => Self::Authorized,
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
                 Self::Charged
             }
@@ -285,11 +292,7 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
                 Self::Failure
             }
             BankofamericaPaymentStatus::Pending => Self::Pending,
-        };
-        if item.1 && status == Self::Authorized {
-            return Self::Pending;
         }
-        status
     }
 }
 
@@ -311,12 +314,13 @@ pub struct BankOfAmericaClientReferenceResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaErrorInformationResponse {
+    id: String,
     error_information: BankOfAmericaErrorInformation,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct BankOfAmericaErrorInformation {
-    reason: String,
+    reason: Option<String>,
     message: String,
 }
 
@@ -366,7 +370,7 @@ impl<F>
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: error_response.error_information.message,
-                    reason: Some(error_response.error_information.reason),
+                    reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
                 }),
@@ -419,7 +423,7 @@ impl<F>
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: error_response.error_information.message,
-                    reason: Some(error_response.error_information.reason),
+                    reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
                 }),
@@ -472,7 +476,7 @@ impl<F>
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: error_response.error_information.message,
-                    reason: Some(error_response.error_information.reason),
+                    reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
                 }),
@@ -483,8 +487,15 @@ impl<F>
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum BankOfAmericaTransactionResponse {
+    ApplicationInformation(BankOfAmericaApplicationInfoResponse),
+    ErrorInformation(BankOfAmericaErrorInformationResponse),
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaTransactionResponse {
+pub struct BankOfAmericaApplicationInfoResponse {
     id: String,
     application_information: ApplicationInformation,
     client_reference_information: Option<ClientReferenceInformation>,
@@ -515,25 +526,40 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.application_information.status,
-                item.data.request.is_auto_capture()?,
-            )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: item
-                    .response
-                    .client_reference_information
-                    .map(|cref| cref.code)
-                    .unwrap_or(Some(item.response.id)),
+        match item.response {
+            BankOfAmericaTransactionResponse::ApplicationInformation(app_response) => Ok(Self {
+                status: enums::AttemptStatus::foreign_from((
+                    app_response.application_information.status,
+                    item.data.request.is_auto_capture()?,
+                )),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(app_response.id.clone()),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: app_response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(app_response.id)),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            BankOfAmericaTransactionResponse::ErrorInformation(error_response) => Ok(Self {
+                status: item.data.status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        error_response.id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(error_response.id),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -646,58 +672,70 @@ impl<F> TryFrom<&BankOfAmericaRouterData<&types::RefundsRouterData<F>>>
     }
 }
 
-impl From<BankofamericaPaymentStatus> for enums::RefundStatus {
-    fn from(item: BankofamericaPaymentStatus) -> Self {
+impl From<BankofamericaRefundStatus> for enums::RefundStatus {
+    fn from(item: BankofamericaRefundStatus) -> Self {
         match item {
-            BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
+            BankofamericaRefundStatus::Succeeded | BankofamericaRefundStatus::Transmitted => {
                 Self::Success
             }
-            BankofamericaPaymentStatus::Failed => Self::Failure,
-            BankofamericaPaymentStatus::Authorized
-            | BankofamericaPaymentStatus::Voided
-            | BankofamericaPaymentStatus::Reversed
-            | BankofamericaPaymentStatus::Pending
-            | BankofamericaPaymentStatus::Declined
-            | BankofamericaPaymentStatus::AuthorizedPendingReview => Self::Pending,
+            BankofamericaRefundStatus::Failed => Self::Failure,
+            BankofamericaRefundStatus::Pending => Self::Pending,
         }
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaPaymentsResponse>>
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaRefundResponse {
+    id: String,
+    status: BankofamericaRefundStatus,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaPaymentsResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
-                response: Ok(types::RefundsResponseData {
-                    connector_refund_id: info_response.id,
-                    refund_status: enums::RefundStatus::from(info_response.status),
-                }),
-                ..item.data
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
-            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response.error_information.message,
-                    reason: Some(error_response.error_information.reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                }),
-                ..item.data
-            }),
-        }
+            ..item.data
+        })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaTransactionResponse>>
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BankofamericaRefundStatus {
+    Succeeded,
+    Transmitted,
+    Failed,
+    Pending,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RsyncApplicationInformation {
+    status: BankofamericaRefundStatus,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaRsyncResponse {
+    id: String,
+    application_information: RsyncApplicationInformation,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, BankOfAmericaTransactionResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {

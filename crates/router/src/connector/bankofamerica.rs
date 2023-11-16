@@ -701,7 +701,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: bankofamerica::BankOfAmericaPaymentsResponse = res
+        let response: bankofamerica::BankOfAmericaRefundResponse = res
             .response
             .parse_struct("bankofamerica RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -774,7 +774,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: bankofamerica::BankOfAmericaTransactionResponse = res
+        let response: bankofamerica::BankOfAmericaRsyncResponse = res
             .response
             .parse_struct("bankofamerica RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
