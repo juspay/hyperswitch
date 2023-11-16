@@ -6605,6 +6605,14 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_enums.ConnectorStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6833,6 +6841,14 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_enums.ConnectorStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6937,6 +6953,14 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_enums.ConnectorStatus"
+              }
+            ],
             "nullable": true
           }
         }
