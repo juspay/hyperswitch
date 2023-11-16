@@ -285,6 +285,9 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.stripe]
 cashapp = {country = "US", currency = "USD"}
 
+[pm_filters.prophetpay]
+card_redirect = { currency = "USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }

@@ -337,6 +337,7 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
                 RoutableConnectors::Paypal => euclid_enums::Connector::Paypal,
                 RoutableConnectors::Payu => euclid_enums::Connector::Payu,
                 RoutableConnectors::Powertranz => euclid_enums::Connector::Powertranz,
+                RoutableConnectors::Prophetpay => euclid_enums::Connector::Prophetpay,
                 RoutableConnectors::Rapyd => euclid_enums::Connector::Rapyd,
                 RoutableConnectors::Shift4 => euclid_enums::Connector::Shift4,
                 RoutableConnectors::Square => euclid_enums::Connector::Square,
