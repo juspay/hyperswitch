@@ -1944,7 +1944,14 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = state.store.as_ref();
     if let Some(customer_id) = customer_id {
-        list_customer_payment_method(&state, merchant_account, key_store, None, customer_id).await
+        Box::pin(list_customer_payment_method(
+            &state,
+            merchant_account,
+            key_store,
+            None,
+            customer_id,
+        ))
+        .await
     } else {
         let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
         let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
@@ -1957,13 +1964,13 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
             .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
-        list_customer_payment_method(
+        Box::pin(list_customer_payment_method(
             &state,
             merchant_account,
             key_store,
             payment_intent,
             &customer_id,
-        )
+        ))
         .await
     }
 }

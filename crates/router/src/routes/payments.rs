@@ -102,7 +102,7 @@ pub async fn payments_create(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -123,7 +123,7 @@ pub async fn payments_create(
             _ => auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         },
         locking_action,
-    )
+    ))
     .await
 }
 // /// Payments - Redirect
@@ -160,7 +160,7 @@ pub async fn payments_start(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -187,7 +187,7 @@ pub async fn payments_start(
         },
         &auth::MerchantIdAuth(merchant_id),
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - Retrieve
@@ -234,7 +234,7 @@ pub async fn payments_retrieve(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -258,7 +258,7 @@ pub async fn payments_retrieve(
             req.headers(),
         ),
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - Retrieve with gateway credentials
@@ -300,7 +300,7 @@ pub async fn payments_retrieve_with_gateway_creds(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -320,7 +320,7 @@ pub async fn payments_retrieve_with_gateway_creds(
         },
         &*auth_type,
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - Update
@@ -367,7 +367,7 @@ pub async fn payments_update(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -385,7 +385,7 @@ pub async fn payments_update(
         },
         &*auth_type,
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - Confirm
@@ -443,7 +443,7 @@ pub async fn payments_confirm(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -461,7 +461,7 @@ pub async fn payments_confirm(
         },
         &*auth_type,
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - Capture
@@ -498,7 +498,7 @@ pub async fn payments_capture(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -525,7 +525,7 @@ pub async fn payments_capture(
         },
         &auth::ApiKeyAuth,
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - Session token
@@ -554,7 +554,7 @@ pub async fn payments_connector_session(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -581,7 +581,7 @@ pub async fn payments_connector_session(
         },
         &auth::PublishableKeyAuth,
         locking_action,
-    )
+    ))
     .await
 }
 // /// Payments - Redirect response
@@ -772,7 +772,7 @@ pub async fn payments_cancel(
     let payment_id = path.into_inner();
     payload.payment_id = payment_id;
     let locking_action = payload.get_locking_input(flow.clone());
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -792,7 +792,7 @@ pub async fn payments_cancel(
         },
         &auth::ApiKeyAuth,
         locking_action,
-    )
+    ))
     .await
 }
 /// Payments - List

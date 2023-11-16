@@ -39,7 +39,10 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -47,7 +50,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }
@@ -96,7 +99,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
             if resp.request.setup_mandate_details.clone().is_some() {
-                let payment_method_id = tokenization::save_payment_method(
+                let payment_method_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
@@ -104,7 +107,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     merchant_account,
                     self.request.payment_method_type,
                     key_store,
-                )
+                ))
                 .await?;
                 Ok(mandate::mandate_procedure(
                     state,
@@ -127,7 +130,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 tokio::spawn(async move {
                     logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = tokenization::save_payment_method(
+                    let result = Box::pin(tokenization::save_payment_method(
                         &state,
                         &connector,
                         response,
@@ -135,7 +138,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
-                    )
+                    ))
                     .await;
 
                     if let Err(err) = result {
