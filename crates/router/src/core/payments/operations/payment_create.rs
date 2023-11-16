@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentCreate;
 
 /// The `get_trackers` function for `PaymentsCreate` is an entrypoint for new payments

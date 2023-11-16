@@ -2,7 +2,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use quote::quote;
 use syn::parse_macro_input;
 
 use crate::macros::diesel::DieselEnumMeta;
@@ -464,9 +463,9 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// used by `diesel`.
 #[proc_macro_derive(PaymentOperation, attributes(operation))]
 pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    // macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
-    quote!().into()
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    macros::operation::operation_derive_inner(input)
+        .unwrap_or_else(|err| err.to_compile_error().into())
 }
 
 /// Generates different schemas with the ability to mark few fields as mandatory for certain schema
@@ -576,10 +575,9 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// }
 #[proc_macro_derive(TryGetEnumVariant, attributes(error))]
 pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-    // macros::try_get_enum::try_get_enum_variant(input)
-    //     .unwrap_or_else(|error| error.into_compile_error())
-    //     .into()
-    quote!().into()
+    macros::try_get_enum::try_get_enum_variant(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
 }
