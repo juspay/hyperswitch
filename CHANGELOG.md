@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.79.0 (2023-11-16)
+
+### Features
+
+- Change async-bb8 fork and tokio spawn for concurrent database calls ([#2774](https://github.com/juspay/hyperswitch/pull/2774)) ([`d634fde`](https://github.com/juspay/hyperswitch/commit/d634fdeac349b92e3619234580299a6c6c38e6d4))
+
+### Bug Fixes
+
+- **connector:** [noon] add validate psync reference ([#2886](https://github.com/juspay/hyperswitch/pull/2886)) ([`b129023`](https://github.com/juspay/hyperswitch/commit/b1290234ba13de2dd8cc4210f63bae514c2988b4))
+- **payment_link:** Render SDK for status requires_payment_method ([#2887](https://github.com/juspay/hyperswitch/pull/2887)) ([`d4d2c2c`](https://github.com/juspay/hyperswitch/commit/d4d2c2c7076a46996aa0aa74d1df827169f73155))
+- Paypal postman collection changes for surcharge feature ([#2884](https://github.com/juspay/hyperswitch/pull/2884)) ([`5956242`](https://github.com/juspay/hyperswitch/commit/5956242588ef7bdbaa1804a952d48dc47c6e15f1))
+
+### Testing
+
+- **postman:** Update postman collection files ([`5c31365`](https://github.com/juspay/hyperswitch/commit/5c313656a129362b0e905e5fbf349dbbec57199c))
+
+**Full Changelog:** [`v1.78.0...v1.79.0`](https://github.com/juspay/hyperswitch/compare/v1.78.0...v1.79.0)
+
+- - -
+
+
 ## 1.78.0 (2023-11-14)
 
 ### Features
