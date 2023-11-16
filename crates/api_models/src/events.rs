@@ -1,9 +1,11 @@
 pub mod customer;
+pub mod gsm;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refund;
 pub mod routing;
+pub mod user;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},

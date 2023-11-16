@@ -4,6 +4,82 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.78.0 (2023-11-14)
+
+### Features
+
+- **router:** Add automatic retries and step up 3ds flow ([#2834](https://github.com/juspay/hyperswitch/pull/2834)) ([`d2968c9`](https://github.com/juspay/hyperswitch/commit/d2968c94978a57422fa46a8195d906736a95b864))
+- Payment link status page UI ([#2740](https://github.com/juspay/hyperswitch/pull/2740)) ([`856c7af`](https://github.com/juspay/hyperswitch/commit/856c7af77e17599ca0d4d119744ac582e9c3c971))
+
+### Bug Fixes
+
+- Handle session and confirm flow discrepancy in surcharge details ([#2696](https://github.com/juspay/hyperswitch/pull/2696)) ([`cafea45`](https://github.com/juspay/hyperswitch/commit/cafea45982d7b520fe68fde967984ce88f68c6c0))
+
+**Full Changelog:** [`v1.77.0...v1.78.0`](https://github.com/juspay/hyperswitch/compare/v1.77.0...v1.78.0)
+
+- - -
+
+
+## 1.77.0 (2023-11-13)
+
+### Features
+
+- **apievent:** Added hs latency to api event ([#2734](https://github.com/juspay/hyperswitch/pull/2734)) ([`c124511`](https://github.com/juspay/hyperswitch/commit/c124511052ed8911a2ccfcf648c0793b5c1ca690))
+- **router:**
+  - Add new JWT authentication variants and use them ([#2835](https://github.com/juspay/hyperswitch/pull/2835)) ([`f88eee7`](https://github.com/juspay/hyperswitch/commit/f88eee7362be2cc3e8e8dc2bb7bfd263892ff01e))
+  - Profile specific fallback derivation while routing payments ([#2806](https://github.com/juspay/hyperswitch/pull/2806)) ([`8e538db`](https://github.com/juspay/hyperswitch/commit/8e538dbd5c189047d0a0b24fa752b9a1c67554f5))
+
+### Build System / Dependencies
+
+- **deps:** Remove unused dependencies and features ([#2854](https://github.com/juspay/hyperswitch/pull/2854)) ([`0553587`](https://github.com/juspay/hyperswitch/commit/05535871152f4a6ac24ce6b5b5390da13cc29b96))
+
+**Full Changelog:** [`v1.76.0...v1.77.0`](https://github.com/juspay/hyperswitch/compare/v1.76.0...v1.77.0)
+
+- - -
+
+
+## 1.76.0 (2023-11-12)
+
+### Features
+
+- **analytics:** Analytics APIs  ([#2792](https://github.com/juspay/hyperswitch/pull/2792)) ([`f847802`](https://github.com/juspay/hyperswitch/commit/f847802339bfedb24cbaa47ad55e31d80cefddca))
+- **router:** Added Payment link new design ([#2731](https://github.com/juspay/hyperswitch/pull/2731)) ([`2a4f5d1`](https://github.com/juspay/hyperswitch/commit/2a4f5d13717a78dc2e2e4fc9a492a45b92151dbe))
+- **user:** Setup user tables ([#2803](https://github.com/juspay/hyperswitch/pull/2803)) ([`20c4226`](https://github.com/juspay/hyperswitch/commit/20c4226a36e4650a3ba8811b758ac5f7969bcfb3))
+
+### Refactors
+
+- **connector:** [Zen] change error message from NotSupported to NotImplemented ([#2831](https://github.com/juspay/hyperswitch/pull/2831)) ([`b5ea8db`](https://github.com/juspay/hyperswitch/commit/b5ea8db2d2b7e7544931704a7191b42d3a8299be))
+- **core:** Remove connector response table and use payment_attempt instead ([#2644](https://github.com/juspay/hyperswitch/pull/2644)) ([`966369b`](https://github.com/juspay/hyperswitch/commit/966369b6f2c205b59524c23ad3b21ebab547631f))
+- **events:** Update api events to follow snake case naming ([#2828](https://github.com/juspay/hyperswitch/pull/2828)) ([`b3d5062`](https://github.com/juspay/hyperswitch/commit/b3d5062dc07676ec12e903b1999fdd9138c0891d))
+
+### Documentation
+
+- **README:** Add bootstrap button for cloudformation deployment ([#2827](https://github.com/juspay/hyperswitch/pull/2827)) ([`e67e808`](https://github.com/juspay/hyperswitch/commit/e67e808d70d41c371fff168824e5a4dbb8b3a040))
+
+**Full Changelog:** [`v1.75.0...v1.76.0`](https://github.com/juspay/hyperswitch/compare/v1.75.0...v1.76.0)
+
+- - -
+
+
+## 1.75.0 (2023-11-09)
+
+### Features
+
+- **events:** Add extracted fields based on req/res types ([#2795](https://github.com/juspay/hyperswitch/pull/2795)) ([`8985794`](https://github.com/juspay/hyperswitch/commit/89857941b09c5fbe0f3e7d5b4f908bb144ae162d))
+- **router:**
+  - Added merchant custom name support for payment link ([#2685](https://github.com/juspay/hyperswitch/pull/2685)) ([`8b15189`](https://github.com/juspay/hyperswitch/commit/8b151898dc0d8eefe5ed2bbdafe59e8f58b4698c))
+  - Add `gateway_status_map` CRUD APIs ([#2809](https://github.com/juspay/hyperswitch/pull/2809)) ([`5c9e235`](https://github.com/juspay/hyperswitch/commit/5c9e235bd30dd3e03d086a83613edfcc62b2ead2))
+
+### Bug Fixes
+
+- **analytics:** Added hs latency to api event for paymentconfirm call ([#2787](https://github.com/juspay/hyperswitch/pull/2787)) ([`aab8f60`](https://github.com/juspay/hyperswitch/commit/aab8f6035c16ca19009f8f1e0db688c17bc0b2b6))
+- [mollie] locale validation irrespective of auth type ([#2814](https://github.com/juspay/hyperswitch/pull/2814)) ([`25a73c2`](https://github.com/juspay/hyperswitch/commit/25a73c29a4c4715a54862dd6a28c875fd3752f63))
+
+**Full Changelog:** [`v1.74.0...v1.75.0`](https://github.com/juspay/hyperswitch/compare/v1.74.0...v1.75.0)
+
+- - -
+
+
 ## 1.74.0 (2023-11-08)
 
 ### Features

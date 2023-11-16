@@ -19,7 +19,7 @@ use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, user::*};
 use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
@@ -44,6 +44,8 @@ pub struct AppState {
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
+    #[cfg(feature = "olap")]
+    pub pool: crate::analytics::AnalyticsProvider,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -110,46 +112,59 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        #[cfg(feature = "kms")]
-        let kms_client = kms::get_kms_client(&conf.kms).await;
-        let testable = storage_impl == StorageImpl::PostgresqlTest;
-        let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
-                #[allow(clippy::expect_used)]
-                get_store(&conf, shut_down_signal, testable)
-                    .await
-                    .expect("Failed to create store"),
-            ),
-            #[allow(clippy::expect_used)]
-            StorageImpl::Mock => Box::new(
-                MockDb::new(&conf.redis)
-                    .await
-                    .expect("Failed to create mock store"),
-            ),
-        };
-
-        #[cfg(feature = "kms")]
-        #[allow(clippy::expect_used)]
-        let kms_secrets = settings::ActiveKmsSecrets {
-            jwekey: conf.jwekey.clone().into(),
-        }
-        .decrypt_inner(kms_client)
-        .await
-        .expect("Failed while performing KMS decryption");
-
-        #[cfg(feature = "email")]
-        let email_client = Arc::new(AwsSes::new(&conf.email).await);
-        Self {
-            flow_name: String::from("default"),
-            store,
-            conf: Arc::new(conf),
-            #[cfg(feature = "email")]
-            email_client,
+        Box::pin(async move {
             #[cfg(feature = "kms")]
-            kms_secrets: Arc::new(kms_secrets),
-            api_client,
-            event_handler: Box::<EventLogger>::default(),
-        }
+            let kms_client = kms::get_kms_client(&conf.kms).await;
+            let testable = storage_impl == StorageImpl::PostgresqlTest;
+            let store: Box<dyn StorageInterface> = match storage_impl {
+                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(&conf, shut_down_signal, testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
+                #[allow(clippy::expect_used)]
+                StorageImpl::Mock => Box::new(
+                    MockDb::new(&conf.redis)
+                        .await
+                        .expect("Failed to create mock store"),
+                ),
+            };
+
+            #[cfg(feature = "olap")]
+            let pool = crate::analytics::AnalyticsProvider::from_conf(
+                &conf.analytics,
+                #[cfg(feature = "kms")]
+                kms_client,
+            )
+            .await;
+
+            #[cfg(feature = "kms")]
+            #[allow(clippy::expect_used)]
+            let kms_secrets = settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
+            }
+            .decrypt_inner(kms_client)
+            .await
+            .expect("Failed while performing KMS decryption");
+
+            #[cfg(feature = "email")]
+            let email_client = Arc::new(AwsSes::new(&conf.email).await);
+            Self {
+                flow_name: String::from("default"),
+                store,
+                conf: Arc::new(conf),
+                #[cfg(feature = "email")]
+                email_client,
+                #[cfg(feature = "kms")]
+                kms_secrets: Arc::new(kms_secrets),
+                api_client,
+                event_handler: Box::<EventLogger>::default(),
+                #[cfg(feature = "olap")]
+                pool,
+            }
+        })
+        .await
     }
 
     pub async fn new(
@@ -157,7 +172,13 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
+        Box::pin(Self::with_storage(
+            conf,
+            StorageImpl::Postgresql,
+            shut_down_signal,
+            api_client,
+        ))
+        .await
     }
 }
 
@@ -311,6 +332,16 @@ impl Routing {
             .service(
                 web::resource("/{algorithm_id}/activate")
                     .route(web::post().to(cloud_routing::routing_link_config)),
+            )
+            .service(
+                web::resource("/default/profile/{profile_id}").route(
+                    web::post().to(cloud_routing::routing_update_default_config_for_profile),
+                ),
+            )
+            .service(
+                web::resource("/default/profile").route(
+                    web::get().to(cloud_routing::routing_retrieve_default_config_for_profiles),
+                ),
             )
     }
 }
@@ -666,6 +697,20 @@ impl BusinessProfile {
     }
 }
 
+pub struct Gsm;
+
+#[cfg(feature = "olap")]
+impl Gsm {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/gsm")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(create_gsm_rule)))
+            .service(web::resource("/get").route(web::post().to(get_gsm_rule)))
+            .service(web::resource("/update").route(web::post().to(update_gsm_rule)))
+            .service(web::resource("/delete").route(web::post().to(delete_gsm_rule)))
+    }
+}
+
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub struct Verify;
 
@@ -682,5 +727,19 @@ impl Verify {
                 web::resource("/applepay_verified_domains")
                     .route(web::get().to(retrieve_apple_pay_verified_domains)),
             )
+    }
+}
+
+pub struct User;
+
+#[cfg(feature = "olap")]
+impl User {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/user")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/signin").route(web::post().to(user_connect_account)))
+            .service(web::resource("/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
+            .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
     }
 }

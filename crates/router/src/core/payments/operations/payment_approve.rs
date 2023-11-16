@@ -161,16 +161,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
         let redirect_response = request
             .feature_metadata
             .as_ref()
@@ -224,7 +214,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_intent,
                 payment_attempt,
                 currency,
-                connector_response,
                 amount,
                 email: request.email.clone(),
                 mandate_id: None,
@@ -347,7 +336,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -367,6 +356,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             updated_by: storage_scheme.to_string(),
         };
         payment_data.payment_intent = db
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 intent_status_update,

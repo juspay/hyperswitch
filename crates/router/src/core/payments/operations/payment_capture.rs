@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
-use diesel_models::connector_response::ConnectorResponse;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -14,13 +13,12 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
-    db::StorageInterface,
     routes::AppState,
     services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums, payment_attempt::PaymentAttemptExt, ConnectorResponseExt},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt},
     },
     utils::OptionExt,
 };
@@ -89,9 +87,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_capture_method(capture_method)?;
 
-        let (multiple_capture_data, connector_response) = if capture_method
-            == enums::CaptureMethod::ManualMultiple
-        {
+        let multiple_capture_data = if capture_method == enums::CaptureMethod::ManualMultiple {
             let amount_to_capture = request
                 .amount_to_capture
                 .get_required_value("amount_to_capture")?;
@@ -121,37 +117,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
                     payment_id: payment_id.clone(),
                 })?;
-            let new_connector_response = db
-                .insert_connector_response(
-                    ConnectorResponse::make_new_connector_response(
-                        capture.payment_id.clone(),
-                        capture.merchant_id.clone(),
-                        capture.capture_id.clone(),
-                        Some(capture.connector.clone()),
-                        storage_scheme.to_string(),
-                    ),
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment { payment_id })?;
-            (
-                Some(MultipleCaptureData::new_for_create(
-                    previous_captures,
-                    capture,
-                )),
-                new_connector_response,
-            )
+
+            Some(MultipleCaptureData::new_for_create(
+                previous_captures,
+                capture,
+            ))
         } else {
-            let connector_response = db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    &payment_attempt.payment_id,
-                    &payment_attempt.merchant_id,
-                    &payment_attempt.attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            (None, connector_response)
+            None
         };
 
         currency = payment_attempt.currency.get_required_value("currency")?;
@@ -223,7 +195,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 refunds: vec![],
                 disputes: vec![],
                 attempts: None,
-                connector_response,
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier,
@@ -250,7 +221,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &'b AppState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -267,6 +238,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     {
         payment_data.payment_attempt = match &payment_data.multiple_capture_data {
             Some(multiple_capture_data) => db
+                .store
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {

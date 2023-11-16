@@ -31,15 +31,15 @@ pub async fn refunds_create(
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - Retrieve (GET)
@@ -74,7 +74,7 @@ pub async fn refunds_retrieve(
     };
     let flow = Flow::RefundsRetrieve;
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -88,9 +88,9 @@ pub async fn refunds_retrieve(
                 refund_retrieve_core,
             )
         },
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - Retrieve (POST)
@@ -115,7 +115,7 @@ pub async fn refunds_retrieve_with_body(
     json_payload: web::Json<refunds::RefundsRetrieveRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsRetrieve;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -131,7 +131,7 @@ pub async fn refunds_retrieve_with_body(
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Refunds - Update
@@ -202,7 +202,7 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_list(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -235,7 +235,7 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_filter_list(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
     )
     .await
