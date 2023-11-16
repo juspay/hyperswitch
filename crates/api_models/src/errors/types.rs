@@ -94,6 +94,36 @@ pub enum ApiErrorResponse {
     BadRequest(ApiError),
 }
 
+impl serde::ser::Serialize for ApiErrorResponse {
+    fn serialize<S>(&self, serializer: S) ->  Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        match self {
+            Self::Unauthorized(i)
+            | Self::ForbiddenCommonResource(i)
+            | Self::ForbiddenPrivateResource(i)
+            | Self::Conflict(i)
+            | Self::Gone(i)
+            | Self::Unprocessable(i)
+            | Self::InternalServerError(i)
+            | Self::NotImplemented(i)
+            | Self::NotFound(i)
+            | Self::MethodNotAllowed(i)
+            | Self::BadRequest(i)
+            | Self::ConnectorError(i, _) => {
+                let mut state = serializer.serialize_struct("ApiErrorResponse", 2)?;
+                state.serialize_field("type", &self.error_type_name())?;
+                state.serialize_field("value", i)?;
+                state.end()
+
+                // serializer.serialize_newtype_variant("ApiErrorResponse", 0, "xyz", i)
+            }
+        }
+    }
+}
+
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error_response: ErrorResponse<'_> = self.into();
@@ -155,6 +185,23 @@ impl ApiErrorResponse {
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
             Self::ConnectorError(_, _) => "connector",
+        }
+    }
+
+    pub(crate) fn error_type_name(&self) -> &'static str {
+        match self {
+            Self::Unauthorized(_) => "Unauthorized",
+            Self::ForbiddenCommonResource(_) => "ForbiddenCommonResource",
+            Self::ForbiddenPrivateResource(_) => "ForbiddenPrivateResource",
+            Self::Conflict(_) => "Conflict",
+            Self::Gone(_) => "Gone",
+            Self::Unprocessable(_) => "Unprocessable",
+            Self::NotImplemented(_) => "NotImplemented",
+            Self::MethodNotAllowed(_) => "MethodNotAllowed",
+            Self::NotFound(_) => "NotFound",
+            Self::BadRequest(_) => "BadRequest",
+            Self::InternalServerError(_) => "InternalServerError",
+            Self::ConnectorError(_, _) => "ConnectorError"
         }
     }
 }

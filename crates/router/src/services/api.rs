@@ -769,7 +769,7 @@ where
     T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
-    OErr: ResponseError + error_stack::Context,
+    OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
@@ -857,7 +857,12 @@ where
             metrics::request::track_response_status_code(res)
         }
         Err(err) => {
-            error.replace((&err.current_context()).to_string());
+            error.replace(
+                masking::masked_serialize(&err.current_context())
+                .into_report()
+                .attach_printable("Failed to serialize json response")
+                .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+            );
             err.current_context().status_code().as_u16().into()
         }
     };
