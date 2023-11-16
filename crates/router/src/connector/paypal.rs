@@ -584,6 +584,7 @@ impl
             }
             _ => Ok(types::PaymentsPreProcessingRouterData {
                 response: Err(ErrorResponse {
+                    attempt_status: None,
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: consts::NO_ERROR_MESSAGE.to_string(),
                     reason: Some(format!("{} Connector Responsded with LiabilityShift {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
