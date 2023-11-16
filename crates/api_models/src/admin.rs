@@ -605,7 +605,8 @@ pub struct MerchantConnectorCreate {
 
     pub pm_auth_config: Option<serde_json::Value>,
 
-    pub status: Option<common_enums::ConnectorStatus>,
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -712,6 +713,7 @@ pub struct MerchantConnectorResponse {
 
     pub pm_auth_config: Option<serde_json::Value>,
 
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 }
 
@@ -788,7 +790,8 @@ pub struct MerchantConnectorUpdate {
 
     pub pm_auth_config: Option<serde_json::Value>,
 
-    pub status: Option<common_enums::ConnectorStatus>,
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
