@@ -840,7 +840,7 @@ mod merchant_connector_account_cache_tests {
             profile_id: Some(profile_id.to_string()),
             applepay_verified_domains: None,
             pm_auth_config: None,
-            status: None,
+            status: common_enums::ConnectorStatus::Inactive,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)

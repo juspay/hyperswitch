@@ -35,7 +35,7 @@ pub struct MerchantConnectorAccount {
     pub profile_id: Option<String>,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
-    pub status: Option<enums::ConnectorStatus>,
+    pub status: enums::ConnectorStatus,
 }
 
 #[derive(Debug)]

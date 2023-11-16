@@ -6698,7 +6698,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -6843,12 +6844,7 @@
             "nullable": true
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/common_enums.ConnectorStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/common_enums.ConnectorStatus"
           }
         }
       },

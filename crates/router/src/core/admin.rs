@@ -936,7 +936,7 @@ pub async fn create_payment_connector(
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
-        status: Some(connector_status),
+        status: connector_status,
     };
 
     let mut default_routing_config =
@@ -1133,8 +1133,8 @@ pub async fn update_payment_connector(
         (None, _) => None,
     };
 
-    let disabled = match (req.disabled, connector_status.or(mca.status)) {
-        (Some(true), Some(common_enums::ConnectorStatus::Inactive)) => {
+    let disabled = match (req.disabled, connector_status.unwrap_or(mca.status)) {
+        (Some(true), common_enums::ConnectorStatus::Inactive) => {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
                     .to_string(),
@@ -1142,7 +1142,7 @@ pub async fn update_payment_connector(
             .into());
         }
         (Some(disabled), _) => Some(disabled),
-        (None, Some(common_enums::ConnectorStatus::Inactive)) => Some(true),
+        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
         (None, _) => None,
     };
 
