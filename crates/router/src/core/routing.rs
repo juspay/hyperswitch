@@ -59,6 +59,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     }
     #[cfg(not(feature = "business_profile_routing"))]
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    #[cfg(not(feature = "business_profile_routing"))]
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::Config(
             helpers::get_merchant_routing_dictionary(
