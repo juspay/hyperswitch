@@ -562,3 +562,9 @@ pub enum RetryAction {
     /// Denotes that the payment is requeued
     Requeue,
 }
+
+#[derive(Clone, Copy)]
+pub enum LockerChoice {
+    Basilisk,
+    Tartarus,
+}
