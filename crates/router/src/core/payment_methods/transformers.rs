@@ -247,27 +247,15 @@ pub async fn mk_basilisk_req(
     #[cfg(feature = "kms")]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey
-            .jwekey
-            .peek()
-            .rust_locker_encryption_key
-            .as_ref()
-            .map(|encryption_key| encryption_key.as_bytes())
-            .ok_or(errors::VaultError::MissingRequiredField {
-                field_name: "rust locker encryption key",
-            })?,
+        api_enums::LockerChoice::Tartarus => {
+            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        }
     };
 
     #[cfg(not(feature = "kms"))]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey
-            .rust_locker_encryption_key
-            .as_ref()
-            .map(|encryption_key| encryption_key.as_bytes())
-            .ok_or(errors::VaultError::MissingRequiredField {
-                field_name: "rust locker encryption key",
-            })?,
+        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
     };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
