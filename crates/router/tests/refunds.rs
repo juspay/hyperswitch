@@ -11,7 +11,7 @@ mod utils;
 #[actix_web::test]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn refund_create_fail_stripe() {
-    let app = mk_service().await;
+    let app = Box::pin(mk_service()).await;
     let client = AppClient::guest();
 
     let user_client = client.user("321");
@@ -25,7 +25,7 @@ async fn refund_create_fail_stripe() {
 #[actix_web::test]
 // verify the API-KEY/merchant id has adyen as first choice
 async fn refund_create_fail_adyen() {
-    let app = mk_service().await;
+    let app = Box::pin(mk_service()).await;
     let client = AppClient::guest();
 
     let user_client = client.user("321");
@@ -39,7 +39,7 @@ async fn refund_create_fail_adyen() {
 #[actix_web::test]
 #[ignore]
 async fn refunds_todo() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let client = awc::Client::default();
     let mut response;

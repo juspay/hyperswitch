@@ -39,7 +39,7 @@ use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     redis::kv_store::{kv_wrapper, KvOperation},
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
@@ -206,7 +206,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
-                crate::utils::try_redis_get_else_try_database_get(
+                Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
@@ -217,7 +217,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         .try_into_hget()
                     },
                     database_call,
-                )
+                ))
                 .await
             }
         }
