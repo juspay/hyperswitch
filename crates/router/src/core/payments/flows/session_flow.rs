@@ -32,7 +32,10 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Session,
+            types::PaymentsSessionData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -40,7 +43,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }
