@@ -294,11 +294,24 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct BankOfAmericaPaymentsResponse {
+#[serde(untagged)]
+pub enum BankOfAmericaPaymentsResponse {
+    ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
+    ErrorInformation(BankOfAmericaErrorInformationResponse),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaClientReferenceResponse {
     id: String,
     status: BankofamericaPaymentStatus,
-    error_information: Option<BankOfAmericaErrorInformation>,
-    client_reference_information: Option<ClientReferenceInformation>,
+    client_reference_information: ClientReferenceInformation,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaErrorInformationResponse {
+    error_information: BankOfAmericaErrorInformation,
 }
 
 #[derive(Debug, Deserialize)]
@@ -326,36 +339,40 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.status,
-                item.data.request.is_auto_capture()?,
-            )),
-            response: match item.response.error_information {
-                Some(error) => Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error.message,
-                    reason: Some(error.reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+        match item.response {
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
+                status: enums::AttemptStatus::foreign_from((
+                    info_response.status,
+                    item.data.request.is_auto_capture()?,
+                )),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.id.clone(),
+                        info_response.id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: item
-                        .response
-                        .client_reference_information
-                        .map(|cref| cref.code)
-                        .unwrap_or(Some(item.response.id)),
+                    connector_response_reference_id: Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id),
+                    ),
                 }),
-            },
-            ..item.data
-        })
+                ..item.data
+            }),
+            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.error_information.message,
+                    reason: Some(error_response.error_information.reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -378,33 +395,37 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((item.response.status, true)),
-            response: match item.response.error_information {
-                Some(error) => Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error.message,
-                    reason: Some(error.reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+        match item.response {
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
+                status: enums::AttemptStatus::foreign_from((info_response.status, true)),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.id.clone(),
+                        info_response.id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: item
-                        .response
-                        .client_reference_information
-                        .map(|cref| cref.code)
-                        .unwrap_or(Some(item.response.id)),
+                    connector_response_reference_id: Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id),
+                    ),
                 }),
-            },
-            ..item.data
-        })
+                ..item.data
+            }),
+            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.error_information.message,
+                    reason: Some(error_response.error_information.reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -427,33 +448,37 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((item.response.status, false)),
-            response: match item.response.error_information {
-                Some(error) => Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error.message,
-                    reason: Some(error.reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+        match item.response {
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
+                status: enums::AttemptStatus::foreign_from((info_response.status, false)),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.id.clone(),
+                        info_response.id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: item
-                        .response
-                        .client_reference_information
-                        .map(|cref| cref.code)
-                        .unwrap_or(Some(item.response.id)),
+                    connector_response_reference_id: Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id),
+                    ),
                 }),
-            },
-            ..item.data
-        })
+                ..item.data
+            }),
+            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.error_information.message,
+                    reason: Some(error_response.error_information.reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -645,13 +670,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaPayment
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
+        match item.response {
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: info_response.id,
+                    refund_status: enums::RefundStatus::from(info_response.status),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.error_information.message,
+                    reason: Some(error_response.error_information.reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
