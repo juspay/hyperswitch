@@ -23,7 +23,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.21", default-features = false, features = ["formatting"] }
 tokio = { version = "1.28.2" }
 tracing = { version = "=0.1.36" }
-tracing-actix-web = { version = "0.7.5", features = ["opentelemetry_0_19"], optional = true }
+tracing-actix-web = { version = "0.7.8", features = ["opentelemetry_0_19", "uuid_v7"], optional = true }
 tracing-appender = { version = "0.2.2" }
 tracing-attributes = "=0.1.22"
 tracing-opentelemetry = { version = "0.19.0" }

@@ -1,9 +1,9 @@
 use api_models::enums as api_enums;
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse, GetTokenizePayloadRequest, GetTokenizePayloadResponse,
-    PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
+    CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
+    GetTokenizePayloadResponse, PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId,
+    PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
     PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };

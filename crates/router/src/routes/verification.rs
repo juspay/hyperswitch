@@ -18,11 +18,11 @@ pub async fn apple_pay_merchant_registration(
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();
     let kms_conf = &state.clone().conf.kms;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload,
+        json_payload.into_inner(),
         |state, _, body| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
@@ -34,7 +34,7 @@ pub async fn apple_pay_merchant_registration(
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

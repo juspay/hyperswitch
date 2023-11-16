@@ -2906,6 +2906,7 @@ pub fn get_adyen_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: response.refusal_reason,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -2997,6 +2998,7 @@ pub fn get_redirection_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -3058,6 +3060,7 @@ pub fn get_present_to_shopper_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -3107,6 +3110,7 @@ pub fn get_qr_code_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -3144,6 +3148,7 @@ pub fn get_redirection_error_response(
         message: response.refusal_reason.clone(),
         reason: Some(response.refusal_reason),
         status_code,
+        attempt_status: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {

@@ -16,6 +16,7 @@ impl utils::Connector for StaxTest {
             connector: Box::new(&Stax),
             connector_name: types::Connector::Stax,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

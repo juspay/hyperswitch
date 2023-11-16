@@ -21,6 +21,10 @@
       "amount": 6540,
       "currency": "USD",
       "confirm": true,
+      "routing": {
+        "type": "single",
+        "data": "forte"
+      },
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
       "amount_to_capture": 6540,

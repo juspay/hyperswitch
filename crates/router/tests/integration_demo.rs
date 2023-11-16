@@ -10,7 +10,7 @@ use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 /// 1) Create Merchant account
 #[actix_web::test]
 async fn create_merchant_account() {
-    let server = mk_service().await;
+    let server = Box::pin(mk_service()).await;
     let client = AppClient::guest();
     let admin_client = client.admin("test_admin");
 
@@ -59,7 +59,7 @@ async fn create_merchant_account() {
 #[actix_web::test]
 async fn partial_refund() {
     let authentication = ConnectorAuthentication::new();
-    let server = mk_service().await;
+    let server = Box::pin(mk_service()).await;
 
     let client = AppClient::guest();
     let admin_client = client.admin("test_admin");
@@ -125,7 +125,7 @@ async fn partial_refund() {
 #[actix_web::test]
 async fn exceed_refund() {
     let authentication = ConnectorAuthentication::new();
-    let server = mk_service().await;
+    let server = Box::pin(mk_service()).await;
 
     let client = AppClient::guest();
     let admin_client = client.admin("test_admin");
