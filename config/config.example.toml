@@ -111,11 +111,11 @@ kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) cipher
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""                   # Locker host
-host_rs = ""                # Rust Locker host
-mock_locker = true          # Emulate a locker locally using Postgres
-basilisk_host = ""          # Basilisk host
-locker_signing_key_id = "1" # Key_id to sign basilisk hs locker
+host = ""                      # Locker host
+host_rs = ""                   # Rust Locker host 
+mock_locker = true             # Emulate a locker locally using Postgres
+basilisk_host = ""             # Basilisk host
+locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response

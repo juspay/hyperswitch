@@ -871,8 +871,8 @@
 
       var widgets = null;
       var unifiedCheckout = null;
-      const pub_key = window.__PAYMENT_DETAILS.pub_key;
-      const hyper = Hyper(pub_key);
+      var pub_key = window.__PAYMENT_DETAILS.pub_key;
+      var hyper = Hyper(pub_key);
 
       function mountUnifiedCheckout(id) {
         if (unifiedCheckout !== null) {
@@ -881,9 +881,9 @@
       }
 
       async function initialize() {
-        const paymentDetails = window.__PAYMENT_DETAILS;
+        var paymentDetails = window.__PAYMENT_DETAILS;
         var client_secret = paymentDetails.client_secret;
-        const appearance = {
+        var appearance = {
           variables: {
             colorPrimary: paymentDetails.sdk_theme || "rgb(0, 109, 249)",
             fontFamily: "Work Sans, sans-serif",
@@ -902,7 +902,7 @@
           clientSecret: client_secret,
         });
 
-        const unifiedCheckoutOptions = {
+        var unifiedCheckoutOptions = {
           layout: "tabs",
           sdkHandleConfirmPayment: true,
           branding: "never",
@@ -930,16 +930,16 @@
       initialize();
 
       async function handleSubmit(e) {
-        const paymentDetails = window.__PAYMENT_DETAILS;
-        const { error, data, status } = await hyper.confirmPayment({
+        var paymentDetails = window.__PAYMENT_DETAILS;
+        var { error, data, status } = await hyper.confirmPayment({
           widgets,
           confirmParams: {
             // Make sure to change this to your payment completion page
             return_url: paymentDetails.return_url,
           },
         });
-        // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your `return_url`.
-        // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the `return_url`.
+        // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your 'return_url'.
+        // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the 'return_url'.
 
         if (error) {
           if (error.type === "validation_error") {
@@ -951,7 +951,7 @@
           // Re-initialize SDK
           mountUnifiedCheckout("#unified-checkout");
         } else {
-          const { paymentIntent } = await hyper.retrievePaymentIntent(
+          var { paymentIntent } = await hyper.retrievePaymentIntent(
             paymentDetails.client_secret
           );
           if (paymentIntent && paymentIntent.status) {
@@ -966,8 +966,8 @@
 
       // Fetches the payment status after payment submission
       async function checkStatus() {
-        const paymentDetails = window.__PAYMENT_DETAILS;
-        const res = {
+        var paymentDetails = window.__PAYMENT_DETAILS;
+        var res = {
           showSdk: true,
         };
 
@@ -975,23 +975,48 @@
           "payment_intent_client_secret"
         );
 
+        // If clientSecret is not found in URL params, try to fetch from window context
         if (!clientSecret) {
           clientSecret = paymentDetails.client_secret;
         }
 
+        // If clientSecret is not present, show status
         if (!clientSecret) {
+          res.showSdk = false;
+          showStatus(
+            Object.assign({}, paymentDetails, {
+              status: "",
+              error: {
+                code: "NO_CLIENT_SECRET",
+                message: "client_secret not found",
+              },
+            })
+          );
           return res;
         }
 
-        const { paymentIntent } = await hyper.retrievePaymentIntent(
-          clientSecret
-        );
+        var { paymentIntent } = await hyper.retrievePaymentIntent(clientSecret);
 
-        if (
-          !paymentIntent ||
-          paymentIntent.status === "requires_confirmation"
-        ) {
+        // If paymentIntent was not found, show status
+        if (!paymentIntent) {
+          res.showSdk = false;
+          showStatus(
+            Object.assign({}, paymentDetails, {
+              status: "",
+              error: {
+                code: "NOT_FOUND",
+                message: "PaymentIntent was not found",
+              },
+            })
+          );
           return res;
+        }
+
+        // Show SDK only if paymentIntent status has not been initiated
+        switch (paymentIntent.status) {
+          case "requires_confirmation":
+          case "requires_payment_method":
+            return res;
         }
 
         showStatus(paymentIntent);
@@ -1021,7 +1046,7 @@
       }
 
       function showStatus(paymentDetails) {
-        const status = paymentDetails.status;
+        var status = paymentDetails.status;
         let statusDetails = {
           imageSource: "",
           message: null,
@@ -1038,7 +1063,7 @@
         // Status specific information
         switch (status) {
           case "succeeded":
-            statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.img";
+            statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.png";
             statusDetails.message =
               "We have successfully received your payment";
             statusDetails.status = "Paid successfully";
@@ -1079,17 +1104,28 @@
             statusDetails.status = "Payment under review";
             break;
 
+          case "requires_capture":
+            statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+            statusDetails.status = "Payment Pending";
+            break;
+
+          case "partially_captured":
+            statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+            statusDetails.message = "Partial payment was captured.";
+            statusDetails.status = "Partial Payment Pending";
+            break;
+
           default:
             statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
             statusDetails.status = "Something went wrong";
             // Error details
             if (typeof paymentDetails.error === "object") {
               var errorCodeNode = createItem(
-                "ERROR CODE",
+                "Error Code",
                 paymentDetails.error.code
               );
               var errorMessageNode = createItem(
-                "ERROR MESSAGE",
+                "Error Message",
                 paymentDetails.error.message
               );
               // @ts-ignore
@@ -1105,7 +1141,7 @@
           paymentDetails.currency + " " + paymentDetails.amount;
         var merchantLogoNode = document.createElement("img");
         merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
-        merchantLogoNode.src = "";
+        merchantLogoNode.src = window.__PAYMENT_DETAILS.merchant_logo;
         merchantLogoNode.alt = "";
 
         // Form content items
@@ -1123,13 +1159,13 @@
 
         // Append items
         statusDetails.items.map((item) => statusDetailsNode?.append(item));
-        const statusHeaderNode = document.getElementById(
+        var statusHeaderNode = document.getElementById(
           "hyper-checkout-status-header"
         );
         if (statusHeaderNode !== null) {
           statusHeaderNode.append(amountNode, merchantLogoNode);
         }
-        const statusContentNode = document.getElementById(
+        var statusContentNode = document.getElementById(
           "hyper-checkout-status-content"
         );
         if (statusContentNode !== null) {
@@ -1171,7 +1207,7 @@
       }
 
       function renderPaymentDetails() {
-        const paymentDetails = window.__PAYMENT_DETAILS;
+        var paymentDetails = window.__PAYMENT_DETAILS;
 
         // Create price node
         var priceNode = document.createElement("div");
@@ -1221,14 +1257,14 @@
       }
 
       function renderCart() {
-        const paymentDetails = window.__PAYMENT_DETAILS;
-        const orderDetails = paymentDetails.order_details;
+        var paymentDetails = window.__PAYMENT_DETAILS;
+        var orderDetails = paymentDetails.order_details;
         var cartNode = document.getElementById("hyper-checkout-cart");
         var cartItemsNode = document.getElementById(
           "hyper-checkout-cart-items"
         );
 
-        const MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
+        var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
           paymentDetails.max_items_visible_after_collapse;
 
         // Cart items
@@ -1247,7 +1283,7 @@
         }
 
         // Expand / collapse button
-        const totalItems = orderDetails.length;
+        var totalItems = orderDetails.length;
         if (totalItems > MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
           var expandButtonNode = document.createElement("div");
           expandButtonNode.className = "hyper-checkout-cart-button";
@@ -1255,9 +1291,9 @@
           var buttonImageNode = document.createElement("img");
           var buttonTextNode = document.createElement("span");
           buttonTextNode.id = "hyper-checkout-cart-button-text";
-          const hiddenItemsCount =
+          var hiddenItemsCount =
             orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-          buttonTextNode.innerText = `Show More (${hiddenItemsCount})`;
+          buttonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
           expandButtonNode.append(buttonTextNode, buttonImageNode);
           cartNode.append(expandButtonNode);
         }
@@ -1307,9 +1343,9 @@
       }
 
       function handleCartView() {
-        const paymentDetails = window.__PAYMENT_DETAILS;
-        const orderDetails = paymentDetails.order_details;
-        const MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
+        var paymentDetails = window.__PAYMENT_DETAILS;
+        var orderDetails = paymentDetails.order_details;
+        var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
           paymentDetails.max_items_visible_after_collapse;
         var itemsHTMLCollection = document.getElementsByClassName(
           "hyper-checkout-cart-item"
@@ -1347,7 +1383,7 @@
           cartItemsNode.style.maxHeight = "354px";
           cartItemsNode.style.height = "354px";
           cartItemsNode.scrollTo({ top: 0, behavior: "smooth" });
-          setTimeout(() => {
+          setTimeout(function () {
             cartItems.map((item, index) => {
               if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
                 return;
@@ -1361,34 +1397,35 @@
               cartItemsNode.removeChild(item);
             });
           }, 300);
-          setTimeout(() => {
-            const hiddenItemsCount =
+          setTimeout(function () {
+            var hiddenItemsCount =
               orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-            cartButtonTextNode.innerText = `Show More (${hiddenItemsCount})`;
+            cartButtonTextNode.innerText =
+              "Show More (" + hiddenItemsCount + ")";
           }, 250);
         }
       }
 
       function hideCartInMobileView() {
         window.history.back();
-        const cartNode = document.getElementById("hyper-checkout-cart");
+        var cartNode = document.getElementById("hyper-checkout-cart");
         cartNode.style.animation = "slide-to-right 0.3s linear";
         cartNode.style.right = "-582px";
-        setTimeout(() => {
+        setTimeout(function () {
           hide("#hyper-checkout-cart");
         }, 300);
       }
 
       function viewCartInMobileView() {
         window.history.pushState("view-cart", "");
-        const cartNode = document.getElementById("hyper-checkout-cart");
+        var cartNode = document.getElementById("hyper-checkout-cart");
         cartNode.style.animation = "slide-from-right 0.3s linear";
         cartNode.style.right = "0px";
         show("#hyper-checkout-cart");
       }
 
       function renderSDKHeader() {
-        const paymentDetails = window.__PAYMENT_DETAILS;
+        var paymentDetails = window.__PAYMENT_DETAILS;
 
         // SDK headers' items
         var sdkHeaderItemNode = document.createElement("div");
@@ -1443,8 +1480,8 @@
       }
 
       window.addEventListener("resize", (event) => {
-        const currentHeight = window.innerHeight;
-        const currentWidth = window.innerWidth;
+        var currentHeight = window.innerHeight;
+        var currentWidth = window.innerWidth;
         if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
           hide("#hyper-checkout-cart");
         } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {

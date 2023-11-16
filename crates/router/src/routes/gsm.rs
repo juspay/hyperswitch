@@ -8,6 +8,23 @@ use crate::{
     services::{api, authentication as auth},
 };
 
+/// Gsm - Create
+///
+/// To create a Gsm Rule
+#[utoipa::path(
+    post,
+    path = "/gsm",
+    request_body(
+        content = GsmCreateRequest,
+    ),
+    responses(
+        (status = 200, description = "Gsm created", body = GsmResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Gsm",
+    operation_id = "Create Gsm Rule",
+    security(("admin_api_key" = [])),
+)]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleCreate))]
 pub async fn create_gsm_rule(
     state: web::Data<AppState>,
@@ -29,6 +46,23 @@ pub async fn create_gsm_rule(
     .await
 }
 
+/// Gsm - Get
+///
+/// To get a Gsm Rule
+#[utoipa::path(
+    post,
+    path = "/gsm/get",
+    request_body(
+        content = GsmRetrieveRequest,
+    ),
+    responses(
+        (status = 200, description = "Gsm retrieved", body = GsmResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Gsm",
+    operation_id = "Retrieve Gsm Rule",
+    security(("admin_api_key" = [])),
+)]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleRetrieve))]
 pub async fn get_gsm_rule(
     state: web::Data<AppState>,
@@ -49,6 +83,23 @@ pub async fn get_gsm_rule(
     .await
 }
 
+/// Gsm - Update
+///
+/// To update a Gsm Rule
+#[utoipa::path(
+    post,
+    path = "/gsm/update",
+    request_body(
+        content = GsmUpdateRequest,
+    ),
+    responses(
+        (status = 200, description = "Gsm updated", body = GsmResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Gsm",
+    operation_id = "Update Gsm Rule",
+    security(("admin_api_key" = [])),
+)]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleUpdate))]
 pub async fn update_gsm_rule(
     state: web::Data<AppState>,
@@ -70,6 +121,23 @@ pub async fn update_gsm_rule(
     .await
 }
 
+/// Gsm - Delete
+///
+/// To delete a Gsm Rule
+#[utoipa::path(
+    post,
+    path = "/gsm/delete",
+    request_body(
+        content = GsmDeleteRequest,
+    ),
+    responses(
+        (status = 200, description = "Gsm deleted", body = GsmDeleteResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Gsm",
+    operation_id = "Delete Gsm Rule",
+    security(("admin_api_key" = [])),
+)]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleDelete))]
 pub async fn delete_gsm_rule(
     state: web::Data<AppState>,
