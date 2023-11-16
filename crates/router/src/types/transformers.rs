@@ -229,6 +229,7 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
                 .into_report()?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
+            api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
@@ -302,6 +303,7 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Paypal => Self::Paypal,
             dsl_enums::Connector::Payu => Self::Payu,
             dsl_enums::Connector::Powertranz => Self::Powertranz,
+            dsl_enums::Connector::Prophetpay => Self::Prophetpay,
             dsl_enums::Connector::Rapyd => Self::Rapyd,
             dsl_enums::Connector::Shift4 => Self::Shift4,
             dsl_enums::Connector::Square => Self::Square,

@@ -116,6 +116,7 @@ pub enum Connector {
     Paypal,
     Payu,
     Powertranz,
+    Prophetpay,
     Rapyd,
     Shift4,
     Square,

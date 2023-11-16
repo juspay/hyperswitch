@@ -230,6 +230,7 @@ pub enum RoutableConnectors {
     Payu,
     Powertranz,
     Prophetpay,
+    Rapyd,
     Shift4,
     Square,
     Stax,
