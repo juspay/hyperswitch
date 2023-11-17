@@ -223,6 +223,7 @@ pub trait ByteSliceExt {
 }
 
 impl ByteSliceExt for [u8] {
+    #[track_caller]
     fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,

@@ -1077,32 +1077,24 @@ impl api::IncomingWebhook for Payme {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let res_json = match resource.notify_type {
+        match resource.notify_type {
             transformers::NotifyType::SaleComplete
             | transformers::NotifyType::SaleAuthorized
             | transformers::NotifyType::SaleFailure => {
-                serde_json::to_value(payme::PaymePaySaleResponse::from(resource))
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+                Ok(Box::new(payme::PaymePaySaleResponse::from(resource)))
             }
-            transformers::NotifyType::Refund => {
-                serde_json::to_value(payme::PaymeQueryTransactionResponse::from(resource))
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
-            }
+            transformers::NotifyType::Refund => Ok(Box::new(
+                payme::PaymeQueryTransactionResponse::from(resource),
+            )),
             transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund => serde_json::to_value(resource)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-        }?;
-
-        Ok(res_json)
+            | transformers::NotifyType::SaleChargebackRefund => Ok(Box::new(resource)),
+        }
     }
 
     fn get_dispute_details(
