@@ -195,59 +195,6 @@ impl Conversion {
     }
 }
 
-//     a.iter()
-//         .find(|a| {
-//             a.path
-//                 .get_ident()
-//                 .map(|ident| *ident == "operation")
-//                 .unwrap_or(false)
-//         })
-//         .cloned()
-//         .ok_or_else(|| {
-//             helpers::syn_error(
-//                 Span::call_site(),
-//                 "Cannot find attribute 'operation' in the macro",
-//             )
-//         })
-// }
-
-// fn find_value(v: &NestedMeta) -> Option<(String, Vec<String>)> {
-//     match v {
-//         NestedMeta::Meta(Meta::NameValue(MetaNameValue {
-//             ref path,
-//             eq_token: _,
-//             lit: Lit::Str(ref litstr),
-//         })) => {
-//             let key = path.get_ident()?.to_string();
-//             Some((
-//                 key,
-//                 litstr.value().split(',').map(ToString::to_string).collect(),
-//             ))
-//         }
-//         _ => None,
-//     }
-// }
-
-// fn find_properties(attr: &syn::Attribute) -> syn::Result<HashMap<String, Vec<String>>> {
-//     let meta = attr.parse_meta();
-//     match meta {
-//         Ok(syn::Meta::List(syn::MetaList {
-//             ref path,
-//             paren_token: _,
-//             nested,
-//         })) => {
-//             path.get_ident().map(|i| i == "operation").ok_or_else(|| {
-//                 helpers::syn_error(path.span(), "Attribute 'operation' was not found")
-//             })?;
-//             Ok(HashMap::from_iter(nested.iter().filter_map(find_value)))
-//         }
-//         _ => Err(helpers::syn_error(
-//             attr.span(),
-//             "No attributes were found. Expected format is ops=..,flow=..",
-//         )),
-//     }
-// }
-
 mod operations_keyword {
     use syn::custom_keyword;
 
@@ -347,50 +294,39 @@ impl Parse for Conversion {
     }
 }
 
-fn get_conversions(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Conversion>> {
-    let lit_str_list = input.parse::<syn::LitStr>()?;
-    lit_str_list
-        .value()
+fn parse_list_string<T>(list_string: String, keyword: &str) -> syn::Result<Vec<T>>
+where
+    T: FromStr + IntoEnumIterator + ToString,
+{
+    list_string
         .split(",")
         .into_iter()
-        .map(Conversion::from_str)
+        .map(str::trim)
+        .map(T::from_str)
         .map(|result| {
             result.map_err(|_| {
-                let possible_values = Conversion::iter()
+                let possible_values = T::iter()
                     .map(|variant| variant.to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
 
                 syn::Error::new(
                     Span::call_site(),
-                    format!("Unexpected operation, possible values are {possible_values}"),
+                    format!("Unexpected {keyword}, possible values are {possible_values}"),
                 )
             })
         })
         .collect()
 }
 
+fn get_conversions(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Conversion>> {
+    let lit_str_list = input.parse::<syn::LitStr>()?;
+    parse_list_string(lit_str_list.value(), "operation")
+}
+
 fn get_derives(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Derives>> {
     let lit_str_list = input.parse::<syn::LitStr>()?;
-    lit_str_list
-        .value()
-        .split(",")
-        .into_iter()
-        .map(|derive| (Derives::from_str(derive), derive))
-        .map(|(result, str_value)| {
-            result.map_err(|_| {
-                let possible_values = Derives::iter()
-                    .map(|variant| variant.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-
-                syn::Error::new(
-                    Span::call_site(),
-                    format!("Unexpected flow {str_value}, possible values are {possible_values}"),
-                )
-            })
-        })
-        .collect()
+    parse_list_string(lit_str_list.value(), "flow")
 }
 
 impl Parse for OperationsEnumMeta {

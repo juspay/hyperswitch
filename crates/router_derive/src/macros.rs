@@ -15,7 +15,6 @@ pub(crate) use self::{
     api_error::api_error_derive_inner,
     diesel::{diesel_enum_derive_inner, diesel_enum_text_derive_inner},
     generate_schema::polymorphic_macro_derive_inner,
-    // operation::operation_derive_inner,
 };
 
 pub(crate) fn debug_as_display_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
