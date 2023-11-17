@@ -861,37 +861,21 @@ pub async fn create_payment_connector(
         payment_link_config: None,
     };
 
-    let connector_status = match (req.status, auth) {
-        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
-            }
-            .into());
-        }
-        (Some(status), _) => status,
-        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
-        (None, _) => common_enums::ConnectorStatus::Active,
-    };
-
-    let disabled = match (req.disabled, connector_status) {
-        (Some(true), common_enums::ConnectorStatus::Inactive) => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
-                    .to_string(),
-            }
-            .into());
-        }
-        (Some(disabled), _) => Some(disabled),
-        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
-        (None, _) => None,
-    };
-
     state
         .store
         .update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
+
+    let (connector_status, disabled) = validate_status_and_disabled(
+        req.status,
+        req.disabled,
+        auth,
+        // The validate_status_and_disabled function will use this value only
+        // when the status can be active. So we are passing this as fallback.
+        api_enums::ConnectorStatus::Active,
+    )?;
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -1119,32 +1103,8 @@ pub async fn update_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    let connector_status = match (req.status, auth) {
-        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
-            }
-            .into());
-        }
-        (Some(status), _) => Some(status),
-        (None, types::ConnectorAuthType::TemporaryAuth) => {
-            Some(common_enums::ConnectorStatus::Inactive)
-        }
-        (None, _) => None,
-    };
-
-    let disabled = match (req.disabled, connector_status.unwrap_or(mca.status)) {
-        (Some(true), common_enums::ConnectorStatus::Inactive) => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
-                    .to_string(),
-            }
-            .into());
-        }
-        (Some(disabled), _) => Some(disabled),
-        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
-        (None, _) => None,
-    };
+    let (connector_status, disabled) =
+        validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
@@ -1178,7 +1138,7 @@ pub async fn update_payment_connector(
         },
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
-        status: connector_status,
+        status: Some(connector_status),
     };
 
     let updated_mca = db
@@ -1785,4 +1745,38 @@ pub async fn validate_dummy_connector_enabled(
     } else {
         Ok(())
     }
+}
+
+pub fn validate_status_and_disabled(
+    status: Option<api_enums::ConnectorStatus>,
+    disabled: Option<bool>,
+    auth: types::ConnectorAuthType,
+    current_status: api_enums::ConnectorStatus,
+) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
+    let connector_status = match (status, auth) {
+        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
+            }
+            .into());
+        }
+        (Some(status), _) => status,
+        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
+        (None, _) => current_status,
+    };
+
+    let disabled = match (disabled, connector_status) {
+        (Some(true), common_enums::ConnectorStatus::Inactive) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
+                    .to_string(),
+            }
+            .into());
+        }
+        (Some(disabled), _) => Some(disabled),
+        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
+        (None, _) => None,
+    };
+
+    Ok((connector_status, disabled))
 }
