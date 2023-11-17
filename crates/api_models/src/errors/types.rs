@@ -96,7 +96,6 @@ pub enum ApiErrorResponse {
     BadRequest(ApiError),
 }
 
-
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error_response: ErrorResponse<'_> = self.into();
