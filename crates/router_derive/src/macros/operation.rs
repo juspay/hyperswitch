@@ -260,15 +260,11 @@ impl Parse for Derives {
         let value = text.value();
 
         value.as_str().parse().map_err(|_| {
-            let possible_values = Derives::iter()
-                .map(|variants| variants.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-
             syn::Error::new_spanned(
                 &text,
                 format!(
-                    "Unexpected value for flow: `{value}`. Possible values are `{possible_values}`"
+                    "Unexpected value for flow: `{value}`. Possible values are `{}`",
+                    helpers::get_possible_values_for_enum::<Derives>()
                 ),
             )
         })
@@ -281,14 +277,12 @@ impl Parse for Conversion {
         let value = text.value();
 
         value.as_str().parse().map_err(|_| {
-            let possible_values = Conversion::iter()
-                .map(|variants| variants.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-
             syn::Error::new_spanned(
                 &text,
-                format!("Unexpected value for operation: `{value}`. Possible values are `{possible_values}`"),
+                format!(
+                    "Unexpected value for operation: `{value}`. Possible values are `{}`",
+                    helpers::get_possible_values_for_enum::<Conversion>()
+                ),
             )
         })
     }
@@ -305,14 +299,12 @@ where
         .map(T::from_str)
         .map(|result| {
             result.map_err(|_| {
-                let possible_values = T::iter()
-                    .map(|variant| variant.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-
                 syn::Error::new(
                     Span::call_site(),
-                    format!("Unexpected {keyword}, possible values are {possible_values}"),
+                    format!(
+                        "Unexpected {keyword}, possible values are {}",
+                        helpers::get_possible_values_for_enum::<T>()
+                    ),
                 )
             })
         })

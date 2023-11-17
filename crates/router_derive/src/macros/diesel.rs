@@ -2,10 +2,9 @@ use std::str::FromStr;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use strum::IntoEnumIterator;
 use syn::{parse::Parse, Data, DeriveInput, ItemEnum};
 
-use crate::macros::helpers::{get_metadata_inner, non_enum_error};
+use crate::macros::helpers;
 
 pub(crate) fn diesel_enum_text_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &ast.ident;
@@ -13,7 +12,7 @@ pub(crate) fn diesel_enum_text_derive_inner(ast: &DeriveInput) -> syn::Result<To
 
     match &ast.data {
         Data::Enum(_) => (),
-        _ => return Err(non_enum_error()),
+        _ => return Err(helpers::non_enum_error()),
     };
 
     Ok(quote! {
@@ -50,7 +49,7 @@ pub(crate) fn diesel_enum_db_enum_derive_inner(ast: &DeriveInput) -> syn::Result
 
     match &ast.data {
         Data::Enum(_) => (),
-        _ => return Err(non_enum_error()),
+        _ => return Err(helpers::non_enum_error()),
     };
 
     let struct_name = format_ident!("Db{name}");
@@ -120,14 +119,12 @@ impl Parse for StorageType {
         let value = text.value();
 
         value.as_str().parse().map_err(|_| {
-            let possible_values = StorageType::iter()
-                .map(|variants| variants.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-
             syn::Error::new_spanned(
                 &text,
-                format!("Unexpected value for storage_type: `{value}`. Possible values are `{possible_values}`"),
+                format!(
+                    "Unexpected value for storage_type: `{value}`. Possible values are `{}`",
+                    helpers::get_possible_values_for_enum::<StorageType>()
+                ),
             )
         })
     }
@@ -172,7 +169,7 @@ trait DieselDeriveInputExt {
 
 impl DieselDeriveInputExt for DeriveInput {
     fn get_metadata(&self) -> syn::Result<Vec<DieselEnumMeta>> {
-        get_metadata_inner("storage_type", &self.attrs)
+        helpers::get_metadata_inner("storage_type", &self.attrs)
     }
 }
 

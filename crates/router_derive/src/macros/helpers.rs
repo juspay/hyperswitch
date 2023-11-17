@@ -23,6 +23,17 @@ pub(super) fn syn_error(span: Span, message: &str) -> syn::Error {
     syn::Error::new(span, message)
 }
 
+/// Get all the variants of a enum in the form of a string
+pub fn get_possible_values_for_enum<T>() -> String
+where
+    T: strum::IntoEnumIterator + ToString,
+{
+    T::iter()
+        .map(|variants| variants.to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub(super) fn get_metadata_inner<'a, T: Parse + Spanned>(
     ident: &str,
     attrs: impl IntoIterator<Item = &'a Attribute>,

@@ -43,7 +43,7 @@ impl Parse for EnumMeta {
 impl ToTokens for EnumMeta {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            EnumMeta::ErrorTypeEnum { keyword, .. } => keyword.to_tokens(tokens),
+            Self::ErrorTypeEnum { keyword, .. } => keyword.to_tokens(tokens),
         }
     }
 }
