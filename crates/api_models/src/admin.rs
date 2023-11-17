@@ -457,6 +457,11 @@ pub struct PrimaryBusinessDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentLinkConfig {
+    #[schema(
+        max_length = 255,
+        max_length = 255,
+        example = "https://i.imgur.com/RfxPFQo.png"
+    )]
     pub merchant_logo: Option<String>,
     pub color_scheme: Option<PaymentLinkColorSchema>,
 }
@@ -465,9 +470,8 @@ pub struct PaymentLinkConfig {
 #[serde(deny_unknown_fields)]
 
 pub struct PaymentLinkColorSchema {
-    pub primary_color: Option<String>,
-    pub primary_accent_color: Option<String>,
-    pub secondary_color: Option<String>,
+    pub background_primary_color: Option<String>,
+    pub sdk_theme: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -895,6 +899,8 @@ pub struct ToggleKVResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,

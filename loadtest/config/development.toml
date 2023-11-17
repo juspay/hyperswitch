@@ -30,6 +30,7 @@ jwt_secret = "secret"
 
 [locker]
 host = ""
+host_rs = ""
 mock_locker = true
 basilisk_host = ""
 
@@ -48,6 +49,7 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
+rust_locker_encryption_key = ""
 vault_private_key = ""
 
 [webhooks]
@@ -236,6 +238,18 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+
+[analytics]
+source = "sqlx"
+
+[analytics.sqlx]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+connection_timeout = 10
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds

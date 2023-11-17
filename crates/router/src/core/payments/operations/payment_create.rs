@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payment_methods};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
@@ -16,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils::{self as core_utils},
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
@@ -62,7 +62,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-        let (payment_intent, payment_attempt, connector_response);
+        let (payment_intent, payment_attempt);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -196,16 +196,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_id: payment_id.clone(),
             })?;
 
-        connector_response = db
-            .insert_connector_response(
-                Self::make_connector_response(&payment_attempt),
-                storage_scheme,
-            )
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                payment_id: payment_id.clone(),
-            })?;
-
         let mandate_id = request
             .mandate_id
             .as_ref()
@@ -277,6 +267,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate: Option<MandateData> = setup_mandate.map(Into::into);
 
+        // populate payment_data.surcharge_details from request
+        let surcharge_details = request.surcharge_details.map(|surcharge_details| {
+            payment_methods::SurchargeDetailsResponse {
+                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
+                tax_on_surcharge: None,
+                surcharge_amount: surcharge_details.surcharge_amount,
+                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
+                final_amount: payment_attempt.amount
+                    + surcharge_details.surcharge_amount
+                    + surcharge_details.tax_amount.unwrap_or(0),
+            }
+        });
+
         Ok((
             operation,
             PaymentData {
@@ -300,7 +303,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 disputes: vec![],
                 attempts: None,
                 force_sync: None,
-                connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
@@ -310,7 +312,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key,
                 multiple_capture_data: None,
                 redirect_response: None,
-                surcharge_details: None,
+                surcharge_details,
                 frm_message: None,
                 payment_link_data,
             },
@@ -392,7 +394,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -432,7 +434,17 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let authorized_amount = payment_data.payment_attempt.amount;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
-        payment_data.payment_attempt = db
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+
+        payment_data.payment_attempt = state
+            .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::UpdateTrackers {
@@ -443,6 +455,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         true => Some(authorized_amount),
                         false => None,
                     },
+                    surcharge_amount,
+                    tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                 },
@@ -453,7 +467,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::ReturnUrlUpdate {
@@ -728,24 +743,6 @@ impl PaymentCreate {
     }
 
     #[instrument(skip_all)]
-    pub fn make_connector_response(
-        payment_attempt: &PaymentAttempt,
-    ) -> storage::ConnectorResponseNew {
-        storage::ConnectorResponseNew {
-            payment_id: payment_attempt.payment_id.clone(),
-            merchant_id: payment_attempt.merchant_id.clone(),
-            attempt_id: payment_attempt.attempt_id.clone(),
-            created_at: payment_attempt.created_at,
-            modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.connector.clone(),
-            connector_transaction_id: None,
-            authentication_data: None,
-            encoded_data: None,
-            updated_by: payment_attempt.updated_by.clone(),
-        }
-    }
-
-    #[instrument(skip_all)]
     pub async fn get_ephemeral_key(
         request: &api::PaymentsRequest,
         state: &AppState,
@@ -803,6 +800,11 @@ async fn create_payment_link(
         merchant_id.clone(),
         payment_id.clone()
     );
+
+    let payment_link_config = payment_link_object.payment_link_config.map(|pl_config|{
+        common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&pl_config)
+    }).transpose().change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
+
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
@@ -813,6 +815,8 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
+        payment_link_config,
+        custom_merchant_name: payment_link_object.custom_merchant_name,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

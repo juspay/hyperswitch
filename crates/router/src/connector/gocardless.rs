@@ -843,7 +843,7 @@ impl api::IncomingWebhook for Gocardless {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: gocardless::GocardlessWebhookEvent = request
             .body
             .parse_struct("GocardlessWebhookEvent")
@@ -851,19 +851,14 @@ impl api::IncomingWebhook for Gocardless {
         let first_event = details
             .events
             .first()
-            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?
+            .clone();
         match first_event.resource_type {
-            transformers::WebhookResourceType::Payments => serde_json::to_value(
-                gocardless::GocardlessPaymentsResponse::try_from(first_event)?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            transformers::WebhookResourceType::Refunds => serde_json::to_value(first_event)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            transformers::WebhookResourceType::Mandates => serde_json::to_value(first_event)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
+            transformers::WebhookResourceType::Payments => Ok(Box::new(
+                gocardless::GocardlessPaymentsResponse::try_from(&first_event)?,
+            )),
+            transformers::WebhookResourceType::Refunds
+            | transformers::WebhookResourceType::Mandates => Ok(Box::new(first_event)),
         }
     }
 }
