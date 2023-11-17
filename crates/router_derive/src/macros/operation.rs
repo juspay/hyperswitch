@@ -293,7 +293,7 @@ where
     T: FromStr + IntoEnumIterator + ToString,
 {
     list_string
-        .split(",")
+        .split(',')
         .map(str::trim)
         .map(T::from_str)
         .map(|result| {
