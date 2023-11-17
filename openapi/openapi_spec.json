@@ -8221,7 +8221,9 @@
         "properties": {
           "merchant_logo": {
             "type": "string",
-            "nullable": true
+            "example": "https://i.imgur.com/RfxPFQo.png",
+            "nullable": true,
+            "maxLength": 255
           },
           "color_scheme": {
             "allOf": [
@@ -8250,6 +8252,9 @@
       },
       "PaymentLinkObject": {
         "type": "object",
+        "required": [
+          "payment_link_config"
+        ],
         "properties": {
           "link_expiry": {
             "type": "string",
@@ -8259,6 +8264,9 @@
           "merchant_custom_domain_name": {
             "type": "string",
             "nullable": true
+          },
+          "payment_link_config": {
+            "$ref": "#/components/schemas/PaymentLinkConfig"
           },
           "custom_merchant_name": {
             "type": "string",
