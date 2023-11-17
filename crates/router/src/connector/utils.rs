@@ -24,7 +24,10 @@ use crate::{
         payments::PaymentData,
     },
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{
+        self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
+        PaymentsCancelData, ResponseId,
+    },
     utils::{OptionExt, ValueExt},
 };
 
@@ -109,10 +112,15 @@ where
             }
             enums::AttemptStatus::Charged => {
                 let captured_amount = types::Capturable::get_capture_amount(&self.request);
-                if Some(payment_data.payment_intent.amount) == captured_amount {
-                    enums::AttemptStatus::Charged
-                } else {
-                    enums::AttemptStatus::PartialCharged
+                if let Some(captured_amount) = captured_amount {
+                    let amount_capturable = payment_data.payment_attempt.get_total_amount();
+                    if captured_amount == amount_capturable {
+                        enums::AttemptStatus::Charged
+                    } else {
+                        enums::AttemptStatus::PartialCharged
+                    }
+                }else{
+                    self.status
                 }
             }
             _ => self.status,

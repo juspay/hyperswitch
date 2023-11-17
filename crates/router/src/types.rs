@@ -545,7 +545,7 @@ pub struct AccessTokenRequestData {
 
 pub trait Capturable {
     fn get_capture_amount(&self) -> Option<i64> {
-        Some(0)
+        None
     }
     fn get_surcharge_amount(&self) -> Option<i64> {
         None
