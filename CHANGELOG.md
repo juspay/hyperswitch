@@ -4,6 +4,56 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.83.1 (2023-11-17)
+
+### Bug Fixes
+
+- **router:** Add choice to use the appropriate key for jws verification ([#2917](https://github.com/juspay/hyperswitch/pull/2917)) ([`606daa9`](https://github.com/juspay/hyperswitch/commit/606daa9367cac8c2ea926313019deab2f938b591))
+
+**Full Changelog:** [`v1.83.0...v1.83.1`](https://github.com/juspay/hyperswitch/compare/v1.83.0...v1.83.1)
+
+- - -
+
+
+## 1.83.0 (2023-11-17)
+
+### Features
+
+- **events:** Add incoming webhook payload to api events logger ([#2852](https://github.com/juspay/hyperswitch/pull/2852)) ([`aea390a`](https://github.com/juspay/hyperswitch/commit/aea390a6a1c331f8e0dbea4f41218e43f7323508))
+- **router:** Custom payment link config for payment create ([#2741](https://github.com/juspay/hyperswitch/pull/2741)) ([`c39beb2`](https://github.com/juspay/hyperswitch/commit/c39beb2501e63bbf7fd41bbc947280d7ff5a71dc))
+
+### Bug Fixes
+
+- **router:** Add rust locker url in proxy_bypass_urls ([#2902](https://github.com/juspay/hyperswitch/pull/2902)) ([`9a201ae`](https://github.com/juspay/hyperswitch/commit/9a201ae698c2cf52e617660f82d5bf1df2e797ae))
+
+### Documentation
+
+- **README:** Replace cloudformation deployment template with latest s3 url. ([#2891](https://github.com/juspay/hyperswitch/pull/2891)) ([`375108b`](https://github.com/juspay/hyperswitch/commit/375108b6df50e041fc9dbeb35a6a6b46b146037a))
+
+**Full Changelog:** [`v1.82.0...v1.83.0`](https://github.com/juspay/hyperswitch/compare/v1.82.0...v1.83.0)
+
+- - -
+
+
+## 1.82.0 (2023-11-17)
+
+### Features
+
+- **router:** Add fallback while add card and retrieve card from rust locker ([#2888](https://github.com/juspay/hyperswitch/pull/2888)) ([`f735fb0`](https://github.com/juspay/hyperswitch/commit/f735fb0551812fd781a2db8bac5a0deef4cabb2b))
+
+### Bug Fixes
+
+- **core:** Introduce new attempt and intent status to handle multiple partial captures ([#2802](https://github.com/juspay/hyperswitch/pull/2802)) ([`cb88be0`](https://github.com/juspay/hyperswitch/commit/cb88be01f22725948648976c2a5606a03b5ce92a))
+
+### Testing
+
+- **postman:** Update postman collection files ([`7d05b74`](https://github.com/juspay/hyperswitch/commit/7d05b74b950d9e078b063e17d046cbeb501d006a))
+
+**Full Changelog:** [`v1.81.0...v1.82.0`](https://github.com/juspay/hyperswitch/compare/v1.81.0...v1.82.0)
+
+- - -
+
+
 ## 1.81.0 (2023-11-16)
 
 ### Features

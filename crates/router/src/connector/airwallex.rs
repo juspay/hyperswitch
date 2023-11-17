@@ -1081,13 +1081,13 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: airwallex::AirwallexWebhookObjectResource = request
             .body
             .parse_struct("AirwallexWebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        Ok(details.data.object)
+        Ok(Box::new(details.data.object))
     }
 
     fn get_dispute_details(

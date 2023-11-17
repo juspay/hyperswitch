@@ -800,6 +800,11 @@ async fn create_payment_link(
         merchant_id.clone(),
         payment_id.clone()
     );
+
+    let payment_link_config = payment_link_object.payment_link_config.map(|pl_config|{
+        common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&pl_config)
+    }).transpose().change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
+
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
@@ -810,6 +815,7 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
+        payment_link_config,
         custom_merchant_name: payment_link_object.custom_merchant_name,
     };
     let payment_link_db = db
