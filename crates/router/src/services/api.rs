@@ -862,7 +862,7 @@ where
                     .into_report()
                     .attach_printable("Failed to serialize json response")
                     .change_context(errors::ApiErrorResponse::InternalServerError.switch())
-                    .ok(),
+                    .ok().into(),
             );
             err.current_context().status_code().as_u16().into()
         }
