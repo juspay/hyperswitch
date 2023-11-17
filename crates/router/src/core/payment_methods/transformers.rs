@@ -189,10 +189,12 @@ pub async fn get_decrypted_response_payload(
     #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     jwe_body: encryption::JweBody,
-    locker_choice: api_enums::LockerChoice,
+    locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+
     #[cfg(feature = "kms")]
-    let public_key = match locker_choice {
+    let public_key = match target_locker {
         api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
         api_enums::LockerChoice::Tartarus => {
             jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
