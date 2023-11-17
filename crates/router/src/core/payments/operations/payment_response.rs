@@ -11,6 +11,7 @@ use tracing_futures::Instrument;
 
 use super::{Operation, PostUpdateTracker};
 use crate::{
+    connector::utils::PaymentResponseRouterData,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
@@ -26,7 +27,7 @@ use crate::{
             self, enums,
             payment_attempt::{AttemptStatusExt, PaymentAttemptExt},
         },
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse,
     },
     utils,
@@ -389,7 +390,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     types::PreprocessingResponseId::ConnectorTransactionId(_) => None,
                 };
                 let payment_attempt_update = storage::PaymentAttemptUpdate::PreprocessingUpdate {
-                    status: router_data.status,
+                    status: router_data.get_attempt_status_for_db_update(&payment_data),
                     payment_method_id: Some(router_data.payment_method_id),
                     connector_metadata,
                     preprocessing_step_id,
@@ -434,7 +435,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                 utils::add_apple_pay_payment_status_metrics(
                     router_data.status,
-                    router_data.apple_pay_flow,
+                    router_data.apple_pay_flow.clone(),
                     payment_data.payment_attempt.connector.clone(),
                     payment_data.payment_attempt.merchant_id.clone(),
                 );
@@ -456,7 +457,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None => (
                             None,
                             Some(storage::PaymentAttemptUpdate::ResponseUpdate {
-                                status: router_data.status,
+                                status: router_data.get_attempt_status_for_db_update(&payment_data),
                                 connector: None,
                                 connector_transaction_id: connector_transaction_id.clone(),
                                 authentication_type: None,
@@ -504,7 +505,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 (
                     None,
                     Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
-                        status: router_data.status,
+                        status: router_data.get_attempt_status_for_db_update(&payment_data),
                         connector: None,
                         connector_transaction_id,
                         payment_method_id: Some(router_data.payment_method_id),
@@ -610,15 +611,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let payment_intent_update = match &router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: payment_data
-                .payment_attempt
-                .get_intent_status(payment_data.payment_intent.amount_captured),
+            status: api_models::enums::IntentStatus::foreign_from(
+                payment_data.payment_attempt.status,
+            ),
             updated_by: storage_scheme.to_string(),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: payment_data
-                .payment_attempt
-                .get_intent_status(payment_data.payment_intent.amount_captured),
+            status: api_models::enums::IntentStatus::foreign_from(
+                payment_data.payment_attempt.status,
+            ),
             return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),

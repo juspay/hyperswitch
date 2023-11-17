@@ -24,6 +24,7 @@ pub struct PaymentLink {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
 }
+
 #[derive(
     Clone,
     Debug,

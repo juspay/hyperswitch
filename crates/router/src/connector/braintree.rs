@@ -1418,17 +1418,13 @@ impl api::IncomingWebhook for Braintree {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
-        let res_json = serde_json::to_value(response)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(res_json)
+        Ok(Box::new(response))
     }
 
     fn get_webhook_api_response(

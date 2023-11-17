@@ -493,7 +493,27 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         requeue: bool,
         schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
+        // This spawns this futures in a background thread, the exception inside this future won't affect
+        // the current thread and the lifecycle of spawn thread is not handled by runtime.
+        // So when server shutdown won't wait for this thread's completion.
+        let m_payment_attempt = payment_attempt.clone();
+        let m_state = state.clone();
+        let m_self = *self;
+        tokio::spawn(
+            async move {
+                helpers::add_domain_task_to_pt(
+                    &m_self,
+                    m_state.as_ref(),
+                    &m_payment_attempt,
+                    requeue,
+                    schedule_time,
+                )
+                .await
+            }
+            .in_current_span(),
+        );
+
+        Ok(())
     }
 
     async fn get_connector<'a>(

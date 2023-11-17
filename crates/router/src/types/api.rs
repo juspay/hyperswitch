@@ -330,7 +330,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
-                // enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)), Added as template code for future usage
+                enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -372,7 +372,7 @@ impl ConnectorData {
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
-                // enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
+                enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),

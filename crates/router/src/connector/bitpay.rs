@@ -23,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt, Encode},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -393,12 +393,11 @@ impl api::IncomingWebhook for Bitpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Encode::<BitpayWebhookDetails>::encode_to_value(&notif)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+        Ok(Box::new(notif))
     }
 }

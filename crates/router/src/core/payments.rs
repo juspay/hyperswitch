@@ -1736,19 +1736,19 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                     | storage_enums::IntentStatus::RequiresCustomerAction
                     | storage_enums::IntentStatus::RequiresMerchantAction
                     | storage_enums::IntentStatus::RequiresCapture
-                    | storage_enums::IntentStatus::PartiallyCaptured
+                    | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             ) && payment_data.force_sync.unwrap_or(false)
         }
         "PaymentCancel" => matches!(
             payment_data.payment_intent.status,
             storage_enums::IntentStatus::RequiresCapture
-                | storage_enums::IntentStatus::PartiallyCaptured
+                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
         "PaymentCapture" => {
             matches!(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::RequiresCapture
-                    | storage_enums::IntentStatus::PartiallyCaptured
+                    | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             ) || (matches!(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::Processing

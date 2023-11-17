@@ -4797,6 +4797,7 @@ dependencies = [
  "digest 0.9.0",
  "dyn-clone",
  "encoding_rs",
+ "erased-serde",
  "error-stack",
  "euclid",
  "external_services",
