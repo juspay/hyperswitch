@@ -455,13 +455,13 @@ impl api::IncomingWebhook for Cryptopay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: CryptopayWebhookDetails =
             request
                 .body
                 .parse_struct("CryptopayWebhookDetails")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<CryptopayWebhookDetails>::encode_to_value(&notif)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif))
     }
 }
