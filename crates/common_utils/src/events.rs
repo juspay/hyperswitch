@@ -44,6 +44,7 @@ pub enum ApiEventsType {
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
+    RustLocker,
 }
 
 impl ApiEventMetric for serde_json::Value {}

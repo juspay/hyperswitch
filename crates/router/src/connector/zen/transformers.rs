@@ -790,7 +790,8 @@ impl TryFrom<&api_models::payments::CardRedirectData> for ZenPaymentsRequest {
         match value {
             api_models::payments::CardRedirectData::Knet {}
             | api_models::payments::CardRedirectData::Benefit {}
-            | api_models::payments::CardRedirectData::MomoAtm {} => {
+            | api_models::payments::CardRedirectData::MomoAtm {}
+            | api_models::payments::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )

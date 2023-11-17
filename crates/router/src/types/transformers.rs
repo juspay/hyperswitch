@@ -193,8 +193,9 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Airwallex => Self::Airwallex,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bambora => Self::Bambora,
+            api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
@@ -229,6 +230,7 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
                 .into_report()?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
+            api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
@@ -272,8 +274,9 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Adyen => Self::Adyen,
             dsl_enums::Connector::Airwallex => Self::Airwallex,
             dsl_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            dsl_enums::Connector::Bitpay => Self::Bitpay,
             dsl_enums::Connector::Bambora => Self::Bambora,
+            dsl_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            dsl_enums::Connector::Bitpay => Self::Bitpay,
             dsl_enums::Connector::Bluesnap => Self::Bluesnap,
             dsl_enums::Connector::Boku => Self::Boku,
             dsl_enums::Connector::Braintree => Self::Braintree,
@@ -302,6 +305,7 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Paypal => Self::Paypal,
             dsl_enums::Connector::Payu => Self::Payu,
             dsl_enums::Connector::Powertranz => Self::Powertranz,
+            dsl_enums::Connector::Prophetpay => Self::Prophetpay,
             dsl_enums::Connector::Rapyd => Self::Rapyd,
             dsl_enums::Connector::Shift4 => Self::Shift4,
             dsl_enums::Connector::Square => Self::Square,
@@ -501,7 +505,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
-            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
+            | api_enums::PaymentMethodType::MomoAtm
+            | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
         }
     }
 }

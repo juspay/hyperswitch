@@ -4038,6 +4038,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -4059,6 +4070,7 @@
           "airwallex",
           "authorizedotnet",
           "bambora",
+          "bankofamerica",
           "bitpay",
           "bluesnap",
           "boku",
@@ -4088,6 +4100,7 @@
           "paypal",
           "payu",
           "powertranz",
+          "prophetpay",
           "rapyd",
           "shift4",
           "square",
@@ -8794,6 +8807,7 @@
           "bca_bank_transfer",
           "bni_va",
           "bri_va",
+          "card_redirect",
           "cimb_va",
           "classic",
           "credit",
