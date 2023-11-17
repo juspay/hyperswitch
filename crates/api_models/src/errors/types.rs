@@ -117,8 +117,6 @@ impl serde::ser::Serialize for ApiErrorResponse {
                 state.serialize_field("type", &self.error_type_name())?;
                 state.serialize_field("value", api_error)?;
                 state.end()
-
-                // serializer.serialize_newtype_variant("ApiErrorResponse", 0, "xyz", i)
             }
         }
     }
