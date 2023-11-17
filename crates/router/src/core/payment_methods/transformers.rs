@@ -205,7 +205,7 @@ pub async fn get_decrypted_response_payload(
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let public_key = match locker_choice {
+    let public_key = match target_locker {
         api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
         api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
     };
