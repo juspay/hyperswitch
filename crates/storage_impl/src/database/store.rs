@@ -91,7 +91,11 @@ pub async fn diesel_make_pg_pool(
         .min_idle(database.min_idle)
         .queue_strategy(database.queue_strategy)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
-        .max_lifetime(database.max_lifetime.map(|x| std::time::Duration::from_secs(x)));
+        .max_lifetime(
+            database
+                .max_lifetime
+                .map(|x| std::time::Duration::from_secs(x)),
+        );
 
     if test_transaction {
         pool = pool.connection_customizer(Box::new(TestTransaction));

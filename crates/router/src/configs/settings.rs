@@ -484,8 +484,8 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle : Option<u32>,
-    pub max_lifetime : Option<u64>
+    pub min_idle: Option<u32>,
+    pub max_lifetime: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -517,8 +517,8 @@ impl From<Database> for storage_impl::config::Database {
             pool_size: val.pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy.into(),
-            min_idle : val.min_idle,
-            max_lifetime : val.max_lifetime
+            min_idle: val.min_idle,
+            max_lifetime: val.max_lifetime,
         }
     }
 }
