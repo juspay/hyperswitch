@@ -858,7 +858,7 @@ where
         }
         Err(err) => {
             error.replace(
-                serde_json::to_value(&err.current_context())
+                serde_json::to_value(err.current_context())
                     .into_report()
                     .attach_printable("Failed to serialize json response")
                     .change_context(errors::ApiErrorResponse::InternalServerError.switch())
