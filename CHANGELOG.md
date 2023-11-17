@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.83.0 (2023-11-17)
+
+### Features
+
+- **events:** Add incoming webhook payload to api events logger ([#2852](https://github.com/juspay/hyperswitch/pull/2852)) ([`aea390a`](https://github.com/juspay/hyperswitch/commit/aea390a6a1c331f8e0dbea4f41218e43f7323508))
+- **router:** Custom payment link config for payment create ([#2741](https://github.com/juspay/hyperswitch/pull/2741)) ([`c39beb2`](https://github.com/juspay/hyperswitch/commit/c39beb2501e63bbf7fd41bbc947280d7ff5a71dc))
+
+### Bug Fixes
+
+- **router:** Add rust locker url in proxy_bypass_urls ([#2902](https://github.com/juspay/hyperswitch/pull/2902)) ([`9a201ae`](https://github.com/juspay/hyperswitch/commit/9a201ae698c2cf52e617660f82d5bf1df2e797ae))
+
+### Documentation
+
+- **README:** Replace cloudformation deployment template with latest s3 url. ([#2891](https://github.com/juspay/hyperswitch/pull/2891)) ([`375108b`](https://github.com/juspay/hyperswitch/commit/375108b6df50e041fc9dbeb35a6a6b46b146037a))
+
+**Full Changelog:** [`v1.82.0...v1.83.0`](https://github.com/juspay/hyperswitch/compare/v1.82.0...v1.83.0)
+
+- - -
+
+
 ## 1.82.0 (2023-11-17)
 
 ### Features
