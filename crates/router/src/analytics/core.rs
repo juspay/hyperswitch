@@ -29,7 +29,7 @@ pub async fn get_domain_info(domain: AnalyticsDomain) -> AnalyticsApiResponse<Ge
             dimensions: utils::get_refund_dimensions(),
         },
     };
-    Ok(ApplicationResponse::Json(info))
+    Err(AnalyticsError::UnknownError.into())
 }
 
 pub async fn payment_filters_core(

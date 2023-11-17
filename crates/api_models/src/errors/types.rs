@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use reqwest::StatusCode;
+use serde::Serialize;
 
 #[derive(Debug, serde::Serialize)]
 pub enum ErrorType {
@@ -78,7 +79,8 @@ pub struct Extra {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
+#[serde(tag = "type", content = "value")]
 pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     ForbiddenCommonResource(ApiError),
@@ -88,39 +90,12 @@ pub enum ApiErrorResponse {
     Unprocessable(ApiError),
     InternalServerError(ApiError),
     NotImplemented(ApiError),
-    ConnectorError(ApiError, StatusCode),
+    ConnectorError(ApiError, #[serde(skip_serializing)] StatusCode),
     NotFound(ApiError),
     MethodNotAllowed(ApiError),
     BadRequest(ApiError),
 }
 
-impl serde::ser::Serialize for ApiErrorResponse {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        match self {
-            Self::Unauthorized(api_error)
-            | Self::ForbiddenCommonResource(api_error)
-            | Self::ForbiddenPrivateResource(api_error)
-            | Self::Conflict(api_error)
-            | Self::Gone(api_error)
-            | Self::Unprocessable(api_error)
-            | Self::InternalServerError(api_error)
-            | Self::NotImplemented(api_error)
-            | Self::NotFound(api_error)
-            | Self::MethodNotAllowed(api_error)
-            | Self::BadRequest(api_error)
-            | Self::ConnectorError(api_error, _) => {
-                let mut state = serializer.serialize_struct("ApiErrorResponse", 2)?;
-                state.serialize_field("type", &self.error_type_name())?;
-                state.serialize_field("value", api_error)?;
-                state.end()
-            }
-        }
-    }
-}
 
 impl ::core::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -183,23 +158,6 @@ impl ApiErrorResponse {
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
             Self::ConnectorError(_, _) => "connector",
-        }
-    }
-
-    pub(crate) fn error_type_name(&self) -> &'static str {
-        match self {
-            Self::Unauthorized(_) => "Unauthorized",
-            Self::ForbiddenCommonResource(_) => "ForbiddenCommonResource",
-            Self::ForbiddenPrivateResource(_) => "ForbiddenPrivateResource",
-            Self::Conflict(_) => "Conflict",
-            Self::Gone(_) => "Gone",
-            Self::Unprocessable(_) => "Unprocessable",
-            Self::NotImplemented(_) => "NotImplemented",
-            Self::MethodNotAllowed(_) => "MethodNotAllowed",
-            Self::NotFound(_) => "NotFound",
-            Self::BadRequest(_) => "BadRequest",
-            Self::InternalServerError(_) => "InternalServerError",
-            Self::ConnectorError(_, _) => "ConnectorError",
         }
     }
 }
