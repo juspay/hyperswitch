@@ -391,6 +391,10 @@ pub struct PaymentAttemptResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -2088,6 +2092,12 @@ pub struct PaymentsResponse {
     /// If there was an error while calling the connector the error message is received here
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
+
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
 
     /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
