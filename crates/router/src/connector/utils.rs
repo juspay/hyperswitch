@@ -119,7 +119,7 @@ where
                     } else {
                         enums::AttemptStatus::PartialCharged
                     }
-                }else{
+                } else {
                     self.status
                 }
             }
