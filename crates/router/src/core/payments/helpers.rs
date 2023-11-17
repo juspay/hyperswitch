@@ -1579,7 +1579,7 @@ pub(crate) fn validate_status_with_capture_method(
     }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
@@ -2784,6 +2784,7 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::Pending
                     | enums::AttemptStatus::ConfirmationAwaited
                     | enums::AttemptStatus::PartialCharged
+                    | enums::AttemptStatus::PartialChargedAndChargeable
                     | enums::AttemptStatus::Voided
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
@@ -2844,6 +2845,7 @@ pub fn get_attempt_type(
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
+        | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -3023,6 +3025,7 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable
             | enums::AttemptStatus::Voided
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
@@ -3042,6 +3045,7 @@ pub fn is_manual_retry_allowed(
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
+        | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => Some(false),
 

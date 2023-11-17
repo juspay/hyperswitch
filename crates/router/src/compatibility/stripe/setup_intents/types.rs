@@ -313,7 +313,9 @@ pub enum StripeSetupStatus {
 impl From<api_enums::IntentStatus> for StripeSetupStatus {
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
-            api_enums::IntentStatus::Succeeded => Self::Succeeded,
+            api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
+                Self::Succeeded
+            }
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
@@ -321,7 +323,7 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured => {
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }

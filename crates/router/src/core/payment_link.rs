@@ -3,7 +3,7 @@ use common_utils::{
     consts::{
         DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
     },
-    ext_traits::ValueExt,
+    ext_traits::{OptionExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
@@ -15,7 +15,6 @@ use crate::{
     routes::AppState,
     services,
     types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
-    utils::OptionExt,
 };
 
 pub async fn retrieve_payment_link(
@@ -71,16 +70,11 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let payment_link_config = merchant_account
-        .payment_link_config
-        .map(|pl_config| {
-            serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
-        })
-        .transpose()?;
+    let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
+        extract_payment_link_config(Some(pl_config))?
+    } else {
+        extract_payment_link_config(merchant_account.payment_link_config.clone())?
+    };
 
     let order_details = validate_order_details(payment_intent.order_details)?;
 
@@ -234,4 +228,18 @@ fn validate_order_details(
         order_details
     });
     Ok(updated_order_details)
+}
+
+fn extract_payment_link_config(
+    pl_config: Option<serde_json::Value>,
+) -> Result<Option<admin_types::PaymentLinkConfig>, error_stack::Report<errors::ApiErrorResponse>> {
+    pl_config
+        .map(|config| {
+            serde_json::from_value::<admin_types::PaymentLinkConfig>(config)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()
 }

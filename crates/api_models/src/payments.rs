@@ -3150,6 +3150,8 @@ pub struct PaymentLinkObject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
+    #[schema(value_type = PaymentLinkConfig)]
+    pub payment_link_config: Option<admin::PaymentLinkConfig>,
     /// Custom merchant name for payment link
     pub custom_merchant_name: Option<String>,
 }

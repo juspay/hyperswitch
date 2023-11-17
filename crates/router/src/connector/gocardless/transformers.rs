@@ -862,14 +862,14 @@ pub struct GocardlessWebhookEvent {
     pub events: Vec<WebhookEvent>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WebhookEvent {
     pub resource_type: WebhookResourceType,
     pub action: WebhookAction,
     pub links: WebhooksLink,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookResourceType {
     Payments,
@@ -877,7 +877,7 @@ pub enum WebhookResourceType {
     Mandates,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WebhookAction {
     PaymentsAction(PaymentsAction),
@@ -885,7 +885,7 @@ pub enum WebhookAction {
     MandatesAction(MandatesAction),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentsAction {
     Created,
@@ -901,7 +901,7 @@ pub enum PaymentsAction {
     ResubmissionRequired,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundsAction {
     Created,
@@ -912,7 +912,7 @@ pub enum RefundsAction {
     FundsReturned,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MandatesAction {
     Created,
@@ -931,7 +931,7 @@ pub enum MandatesAction {
     Blocked,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WebhooksLink {
     PaymentWebhooksLink(PaymentWebhooksLink),
@@ -939,17 +939,17 @@ pub enum WebhooksLink {
     MandateWebhookLink(MandateWebhookLink),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundWebhookLink {
     pub refund: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentWebhooksLink {
     pub payment: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MandateWebhookLink {
     pub mandate: String,
 }
