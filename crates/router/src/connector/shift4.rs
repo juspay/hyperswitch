@@ -815,11 +815,13 @@ impl api::IncomingWebhook for Shift4 {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: shift4::Shift4WebhookObjectResource = request
             .body
             .parse_struct("Shift4WebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(details.data)
+        // Ideally this should be a strict type that has type information
+        // PII information is likely being logged here when this response will be logged
+        Ok(Box::new(details.data))
     }
 }

@@ -426,12 +426,12 @@ impl api::IncomingWebhook for Coinbase {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif.event))
     }
 }
