@@ -455,6 +455,11 @@ pub struct PrimaryBusinessDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentLinkConfig {
+    #[schema(
+        max_length = 255,
+        max_length = 255,
+        example = "https://i.imgur.com/RfxPFQo.png"
+    )]
     pub merchant_logo: Option<String>,
     pub color_scheme: Option<PaymentLinkColorSchema>,
 }

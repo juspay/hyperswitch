@@ -808,14 +808,16 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details = request
             .body
             .parse_struct::<worldline::WebhookBody>("WorldlineWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
             .payment
             .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(details)
+        // Ideally this should be a strict type that has type information
+        // PII information is likely being logged here when this response will be logged
+        Ok(Box::new(details))
     }
 
     fn get_webhook_api_response(

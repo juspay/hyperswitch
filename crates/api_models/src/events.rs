@@ -1,5 +1,6 @@
 pub mod customer;
 pub mod gsm;
+mod locker_migration;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;

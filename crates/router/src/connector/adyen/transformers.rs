@@ -2201,6 +2201,12 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
             payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
+            payments::CardRedirectData::CardRedirect {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
