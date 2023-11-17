@@ -17,7 +17,37 @@ pub enum TsysPaymentsRequest {
     Sale(TsysPaymentAuthSaleRequest),
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
+pub struct TsysRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for TsysRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 #[serde(rename_all = "camelCase")]
 pub struct TsysPaymentAuthSaleRequest {
     #[serde(rename = "deviceID")]
@@ -37,9 +67,11 @@ pub struct TsysPaymentAuthSaleRequest {
     order_number: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
+impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData>> for TsysPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &TsysRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let connector_auth: TsysAuthType =
@@ -460,9 +492,9 @@ pub struct TsysRefundRequest {
     return_request: TsysReturnRequest,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for TsysRefundRequest {
+impl<F> TryFrom<&TsysRouterData::RefundsRouterData<F>> for TsysRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &TsysRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let return_request = TsysReturnRequest {
             device_id: connector_auth.device_id,
