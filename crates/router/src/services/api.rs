@@ -858,10 +858,10 @@ where
         }
         Err(err) => {
             error.replace(
-                masking::masked_serialize(&err.current_context())
+                serde_json::to_value(&err.current_context())
                     .into_report()
                     .attach_printable("Failed to serialize json response")
-                    .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                    .change_context(errors::ApiErrorResponse::InternalServerError.switch()).ok(),
             );
             err.current_context().status_code().as_u16().into()
         }
