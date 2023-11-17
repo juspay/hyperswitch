@@ -264,7 +264,7 @@ impl Parse for Derives {
                 &text,
                 format!(
                     "Unexpected value for flow: `{value}`. Possible values are `{}`",
-                    helpers::get_possible_values_for_enum::<Derives>()
+                    helpers::get_possible_values_for_enum::<Self>()
                 ),
             )
         })
@@ -281,7 +281,7 @@ impl Parse for Conversion {
                 &text,
                 format!(
                     "Unexpected value for operation: `{value}`. Possible values are `{}`",
-                    helpers::get_possible_values_for_enum::<Conversion>()
+                    helpers::get_possible_values_for_enum::<Self>()
                 ),
             )
         })
@@ -294,7 +294,6 @@ where
 {
     list_string
         .split(",")
-        .into_iter()
         .map(str::trim)
         .map(T::from_str)
         .map(|result| {

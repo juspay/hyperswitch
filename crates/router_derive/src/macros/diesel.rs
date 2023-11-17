@@ -123,7 +123,7 @@ impl Parse for StorageType {
                 &text,
                 format!(
                     "Unexpected value for storage_type: `{value}`. Possible values are `{}`",
-                    helpers::get_possible_values_for_enum::<StorageType>()
+                    helpers::get_possible_values_for_enum::<Self>()
                 ),
             )
         })
@@ -131,11 +131,9 @@ impl Parse for StorageType {
 }
 
 impl DieselEnumMeta {
-    pub fn get_storage_type(&self) -> StorageType {
+    pub fn get_storage_type(&self) -> &StorageType {
         match self {
-            DieselEnumMeta::StorageTypeEnum { value, .. } => {
-                StorageType::from_str(&value.to_string()).unwrap()
-            }
+            Self::StorageTypeEnum { value, .. } => value,
         }
     }
 }
