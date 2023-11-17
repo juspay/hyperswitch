@@ -321,7 +321,7 @@ pub struct BankOfAmericaErrorInformationResponse {
 #[derive(Debug, Deserialize)]
 pub struct BankOfAmericaErrorInformation {
     reason: Option<String>,
-    message: String,
+    message: Option<String>,
 }
 
 impl<F>
@@ -369,7 +369,10 @@ impl<F>
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response.error_information.message,
+                    message: error_response
+                        .error_information
+                        .message
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
@@ -422,7 +425,10 @@ impl<F>
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response.error_information.message,
+                    message: error_response
+                        .error_information
+                        .message
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
@@ -475,7 +481,10 @@ impl<F>
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response.error_information.message,
+                    message: error_response
+                        .error_information
+                        .message
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
