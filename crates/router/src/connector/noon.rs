@@ -744,16 +744,12 @@ impl api::IncomingWebhook for Noon {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource: noon::NoonWebhookObject = request
             .body
             .parse_struct("NoonWebhookObject")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        let res_json = serde_json::to_value(noon::NoonPaymentsResponse::from(resource))
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        Ok(res_json)
+        Ok(Box::new(noon::NoonPaymentsResponse::from(resource)))
     }
 }

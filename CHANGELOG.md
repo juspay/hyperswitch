@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.82.0 (2023-11-17)
+
+### Features
+
+- **router:** Add fallback while add card and retrieve card from rust locker ([#2888](https://github.com/juspay/hyperswitch/pull/2888)) ([`f735fb0`](https://github.com/juspay/hyperswitch/commit/f735fb0551812fd781a2db8bac5a0deef4cabb2b))
+
+### Bug Fixes
+
+- **core:** Introduce new attempt and intent status to handle multiple partial captures ([#2802](https://github.com/juspay/hyperswitch/pull/2802)) ([`cb88be0`](https://github.com/juspay/hyperswitch/commit/cb88be01f22725948648976c2a5606a03b5ce92a))
+
+### Testing
+
+- **postman:** Update postman collection files ([`7d05b74`](https://github.com/juspay/hyperswitch/commit/7d05b74b950d9e078b063e17d046cbeb501d006a))
+
+**Full Changelog:** [`v1.81.0...v1.82.0`](https://github.com/juspay/hyperswitch/compare/v1.81.0...v1.82.0)
+
+- - -
+
+
 ## 1.81.0 (2023-11-16)
 
 ### Features

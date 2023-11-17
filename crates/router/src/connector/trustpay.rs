@@ -906,16 +906,12 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
-        let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
-            &details.payment_information,
-        )
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+        Ok(Box::new(details.payment_information))
     }
 
     fn get_webhook_source_verification_algorithm(
