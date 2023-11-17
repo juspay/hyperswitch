@@ -273,7 +273,8 @@ pub enum BankofamericaPaymentStatus {
 impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
     fn foreign_from((status, auto_capture): (BankofamericaPaymentStatus, bool)) -> Self {
         match status {
-            BankofamericaPaymentStatus::Authorized => {
+            BankofamericaPaymentStatus::Authorized
+            | BankofamericaPaymentStatus::AuthorizedPendingReview => {
                 if auto_capture {
                     // Because BankOfAmerica will return Payment Status as Authorized even in AutoCapture Payment
                     Self::Pending
@@ -281,7 +282,6 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
                     Self::Authorized
                 }
             }
-            BankofamericaPaymentStatus::AuthorizedPendingReview => Self::Authorized,
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
                 Self::Charged
             }
