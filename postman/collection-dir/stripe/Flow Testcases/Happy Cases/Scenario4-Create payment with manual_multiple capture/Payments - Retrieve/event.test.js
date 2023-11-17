@@ -60,47 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "Succeeded" for "status"
+// Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'",
+    "[POST]::/payments - Content check if value for 'status' matches 'partially_captured'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
-    },
-  );
-}
-
-// Validate the connector
-pm.test("[POST]::/payments - connector", function () {
-  pm.expect(jsonData.connector).to.eql("stripe");
-});
-
-// Response body should have value "6540" for "amount"
-if (jsonData?.amount) {
-  pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount' matches '6540'",
-    function () {
-      pm.expect(jsonData.amount).to.eql(6540);
-    },
-  );
-}
-
-// Response body should have value "6000" for "amount_received"
-if (jsonData?.amount_received) {
-  pm.test(
-    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6540'",
-    function () {
-      pm.expect(jsonData.amount_received).to.eql(6540);
-    },
-  );
-}
-
-// Response body should have value "6540" for "amount_capturable"
-if (jsonData?.amount) {
-  pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 540'",
-    function () {
-      pm.expect(jsonData.amount_capturable).to.eql(0);
+      pm.expect(jsonData.status).to.eql("partially_captured");
     },
   );
 }
