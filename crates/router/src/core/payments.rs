@@ -3,6 +3,8 @@ pub mod customers;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+#[cfg(feature = "retry")]
+pub mod retry;
 pub mod routing;
 pub mod tokenization;
 pub mod transformers;
@@ -12,7 +14,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoI
 
 use api_models::{
     enums,
-    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+    payment_methods::{Surcharge, SurchargeDetailsResponse},
     payments::HeaderPayload,
 };
 use common_utils::{ext_traits::AsyncExt, pii};
@@ -153,6 +155,7 @@ where
         &operation,
         &mut payment_data,
         &validate_result,
+        &key_store,
     )
     .await?;
 
@@ -190,7 +193,7 @@ where
                 )
                 .await?;
                 let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
+
                 connector_http_status_code = router_data.connector_http_status_code;
                 external_latency = router_data.external_latency;
                 //add connector http status code metrics
@@ -198,7 +201,7 @@ where
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
-                        db,
+                        state,
                         &validate_result.payment_id,
                         payment_data,
                         router_data,
@@ -230,7 +233,7 @@ where
                     state,
                     &merchant_account,
                     &key_store,
-                    connector_data,
+                    connector_data.clone(),
                     &operation,
                     &mut payment_data,
                     &customer,
@@ -241,8 +244,34 @@ where
                 )
                 .await?;
 
+                #[cfg(feature = "retry")]
+                let mut router_data = router_data;
+                #[cfg(feature = "retry")]
+                {
+                    use crate::core::payments::retry::{self, GsmValidation};
+                    let config_bool =
+                        retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id)
+                            .await;
+
+                    if config_bool && router_data.should_call_gsm() {
+                        router_data = retry::do_gsm_actions(
+                            state,
+                            &mut payment_data,
+                            connectors,
+                            connector_data,
+                            router_data,
+                            &merchant_account,
+                            &key_store,
+                            &operation,
+                            &customer,
+                            &validate_result,
+                            schedule_time,
+                        )
+                        .await?;
+                    };
+                }
+
                 let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
                 connector_http_status_code = router_data.connector_http_status_code;
                 external_latency = router_data.external_latency;
                 //add connector http status code metrics
@@ -250,7 +279,7 @@ where
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
-                        db,
+                        state,
                         &validate_result.payment_id,
                         payment_data,
                         router_data,
@@ -260,6 +289,8 @@ where
             }
 
             api::ConnectorCallType::SessionMultiple(connectors) => {
+                let session_surcharge_data =
+                    get_session_surcharge_data(&payment_data.payment_attempt);
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -268,7 +299,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                    None,
+                    session_surcharge_data,
                 )
                 .await?
             }
@@ -291,7 +322,7 @@ where
         (_, payment_data) = operation
             .to_update_tracker()?
             .update_trackers(
-                &*state.store,
+                state,
                 payment_data.clone(),
                 customer.clone(),
                 validate_result.storage_scheme,
@@ -323,6 +354,21 @@ pub fn get_connector_data(
         .attach_printable("Connector not found in connectors iterator")
 }
 
+pub fn get_session_surcharge_data(
+    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
+) -> Option<api::SessionSurchargeDetails> {
+    payment_attempt.surcharge_amount.map(|surcharge_amount| {
+        let tax_on_surcharge_amount = payment_attempt.tax_amount.unwrap_or(0);
+        let final_amount = payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+        api::SessionSurchargeDetails::PreDetermined(SurchargeDetailsResponse {
+            surcharge: Surcharge::Fixed(surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+            final_amount,
+        })
+    })
+}
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
     state: AppState,
@@ -535,7 +581,14 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             }),
             ..Default::default()
         };
-        payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _, Ctx>(
+        Box::pin(payments_core::<
+            api::CompleteAuthorize,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
             state.clone(),
             merchant_account,
             merchant_key_store,
@@ -545,7 +598,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
             connector_action,
             None,
             HeaderPayload::default(),
-        )
+        ))
         .await
     }
 
@@ -631,7 +684,14 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             expand_attempts: None,
             expand_captures: None,
         };
-        payments_core::<api::PSync, api::PaymentsResponse, _, _, _, Ctx>(
+        Box::pin(payments_core::<
+            api::PSync,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
             state.clone(),
             merchant_account,
             merchant_key_store,
@@ -641,7 +701,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             connector_action,
             None,
             HeaderPayload::default(),
-        )
+        ))
         .await
     }
     fn generate_response(
@@ -717,6 +777,7 @@ where
         payment_data,
         validate_result,
         &merchant_connector_account,
+        key_store,
     )
     .await?;
 
@@ -841,7 +902,7 @@ where
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
-            &*state.store,
+            state,
             payment_data.clone(),
             customer.clone(),
             merchant_account.storage_scheme,
@@ -889,7 +950,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, Ctx>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
-    session_surcharge_metadata: Option<SurchargeMetadata>,
+    session_surcharge_details: Option<api::SessionSurchargeDetails>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -926,18 +987,16 @@ where
         )
         .await?;
 
-        payment_data.surcharge_details = session_surcharge_metadata
-            .as_ref()
-            .and_then(|surcharge_metadata| {
-                surcharge_metadata.surcharge_results.get(
-                    &SurchargeMetadata::get_key_for_surcharge_details_hash_map(
+        payment_data.surcharge_details =
+            session_surcharge_details
+                .as_ref()
+                .and_then(|session_surcharge_details| {
+                    session_surcharge_details.fetch_surcharge_details(
                         &session_connector_data.payment_method_type.into(),
                         &session_connector_data.payment_method_type,
                         None,
-                    ),
-                )
-            })
-            .cloned();
+                    )
+                });
 
         let router_data = payment_data
             .construct_router_data(
@@ -1399,6 +1458,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, Ctx>(
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -1461,7 +1521,12 @@ where
                 TokenizationAction::TokenizeInRouter => {
                     let (_operation, payment_method_data) = operation
                         .to_domain()?
-                        .make_pm_data(state, payment_data, validate_result.storage_scheme)
+                        .make_pm_data(
+                            state,
+                            payment_data,
+                            validate_result.storage_scheme,
+                            merchant_key_store,
+                        )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
                     TokenizationAction::SkipConnectorTokenization
@@ -1471,7 +1536,12 @@ where
                 TokenizationAction::TokenizeInConnectorAndRouter => {
                     let (_operation, payment_method_data) = operation
                         .to_domain()?
-                        .make_pm_data(state, payment_data, validate_result.storage_scheme)
+                        .make_pm_data(
+                            state,
+                            payment_data,
+                            validate_result.storage_scheme,
+                            merchant_key_store,
+                        )
                         .await?;
 
                     payment_data.payment_method_data = payment_method_data;
@@ -1507,6 +1577,7 @@ pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
@@ -1516,7 +1587,12 @@ where
     let payment_data = if !is_operation_confirm(operation) {
         let (_operation, payment_method_data) = operation
             .to_domain()?
-            .make_pm_data(state, payment_data, validate_result.storage_scheme)
+            .make_pm_data(
+                state,
+                payment_data,
+                validate_result.storage_scheme,
+                merchant_key_store,
+            )
             .await?;
         payment_data.payment_method_data = payment_method_data;
         payment_data
@@ -1559,7 +1635,6 @@ where
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub multiple_capture_data: Option<types::MultipleCaptureData>,
-    pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub mandate_connector: Option<MandateConnectorDetails>,
@@ -1652,10 +1727,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             !matches!(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::Failed | storage_enums::IntentStatus::Succeeded
-            ) && payment_data
-                .connector_response
-                .authentication_data
-                .is_none()
+            ) && payment_data.payment_attempt.authentication_data.is_none()
         }
         "PaymentStatus" => {
             matches!(

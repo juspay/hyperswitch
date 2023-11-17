@@ -480,6 +480,7 @@ fn build_error_response(
                         .collect::<Vec<_>>()
                         .join(", "),
                 ),
+                attempt_status: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -489,6 +490,7 @@ fn build_error_response(
             code: item.iso_response_code.clone(),
             message: item.response_message.clone(),
             reason: Some(item.response_message.clone()),
+            attempt_status: None,
         })
     } else {
         None

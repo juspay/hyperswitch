@@ -5,13 +5,13 @@ pub mod cache;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
 pub mod customers;
 pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod gsm;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -25,6 +25,8 @@ pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
+pub mod user;
+pub mod user_role;
 
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
@@ -51,7 +53,6 @@ pub trait StorageInterface:
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
@@ -80,6 +81,9 @@ pub trait StorageInterface:
     + business_profile::BusinessProfileInterface
     + organization::OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
+    + gsm::GsmInterface
+    + user::UserInterface
+    + user_role::UserRoleInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

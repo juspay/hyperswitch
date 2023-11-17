@@ -16,6 +16,7 @@ pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
+use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
@@ -111,6 +112,7 @@ pub trait ConnectorCommon {
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -213,6 +215,30 @@ pub struct SessionConnectorData {
     pub business_sub_label: Option<String>,
 }
 
+/// Session Surcharge type
+pub enum SessionSurchargeDetails {
+    /// Surcharge is calculated by hyperswitch
+    Calculated(SurchargeMetadata),
+    /// Surcharge is sent by merchant
+    PreDetermined(SurchargeDetailsResponse),
+}
+
+impl SessionSurchargeDetails {
+    pub fn fetch_surcharge_details(
+        &self,
+        payment_method: &enums::PaymentMethod,
+        payment_method_type: &enums::PaymentMethodType,
+        card_network: Option<&enums::CardNetwork>,
+    ) -> Option<SurchargeDetailsResponse> {
+        match self {
+            Self::Calculated(surcharge_metadata) => surcharge_metadata
+                .get_surcharge_details(payment_method, payment_method_type, card_network)
+                .cloned(),
+            Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
+        }
+    }
+}
+
 pub enum ConnectorChoice {
     SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
@@ -303,7 +329,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
-                // enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)), Added as template code for future usage
+                enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -345,7 +371,7 @@ impl ConnectorData {
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
-                // enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
+                enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),

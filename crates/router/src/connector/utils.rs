@@ -292,6 +292,18 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
 }
 
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
@@ -626,6 +638,7 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::JCB,
         Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
     );
+    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
     map
 });
 
@@ -638,6 +651,7 @@ pub enum CardIssuer {
     Discover,
     DinersClub,
     JCB,
+    CarteBlanche,
 }
 
 pub trait CardData {
@@ -1077,7 +1091,7 @@ pub fn get_amount_as_string(
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => to_currency_lower_unit(amount.to_string(), currency)?,
+        types::api::CurrencyUnit::Minor => amount.to_string(),
         types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)

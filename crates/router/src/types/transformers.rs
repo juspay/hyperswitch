@@ -1,6 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::{enums as api_enums, payments, routing::ConnectorSelection};
+use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -193,8 +193,9 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Airwallex => Self::Airwallex,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bambora => Self::Bambora,
+            api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
@@ -229,6 +230,7 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
                 .into_report()?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
+            api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
@@ -272,8 +274,9 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Adyen => Self::Adyen,
             dsl_enums::Connector::Airwallex => Self::Airwallex,
             dsl_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            dsl_enums::Connector::Bitpay => Self::Bitpay,
             dsl_enums::Connector::Bambora => Self::Bambora,
+            dsl_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            dsl_enums::Connector::Bitpay => Self::Bitpay,
             dsl_enums::Connector::Bluesnap => Self::Bluesnap,
             dsl_enums::Connector::Boku => Self::Boku,
             dsl_enums::Connector::Braintree => Self::Braintree,
@@ -302,6 +305,7 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Paypal => Self::Paypal,
             dsl_enums::Connector::Payu => Self::Payu,
             dsl_enums::Connector::Powertranz => Self::Powertranz,
+            dsl_enums::Connector::Prophetpay => Self::Prophetpay,
             dsl_enums::Connector::Rapyd => Self::Rapyd,
             dsl_enums::Connector::Shift4 => Self::Shift4,
             dsl_enums::Connector::Square => Self::Square,
@@ -501,7 +505,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
-            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
+            | api_enums::PaymentMethodType::MomoAtm
+            | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
         }
     }
 }
@@ -1028,6 +1033,38 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
         Self {
             org_id: item.org_id,
             org_name: item.org_name,
+        }
+    }
+}
+
+impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+    fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
+        }
+    }
+}
+
+impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
         }
     }
 }
