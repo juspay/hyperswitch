@@ -99,7 +99,7 @@ mod diesel_keyword {
 #[derive(Debug, strum::EnumString, strum::EnumIter, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum StorageType {
-    /// Store the Enum as Text value the database
+    /// Store the Enum as Text value in the database
     Text,
     /// Store the Enum as Enum in the database. This requires a corresponding enum to be created
     /// in the database with the same name
