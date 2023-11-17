@@ -440,7 +440,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body, locker_choice)
             .await
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
             .attach_printable("Error getting decrypted response payload for get card")?;
@@ -490,7 +490,7 @@ pub async fn call_to_locker_hs<'a>(
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
 
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body, locker_choice)
             .await
             .change_context(errors::VaultError::SaveCardFailed)
             .attach_printable("Error getting decrypted response payload")?;
@@ -557,7 +557,7 @@ pub async fn get_card_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body, locker_choice)
             .await
             .change_context(errors::VaultError::FetchCardFailed)
             .attach_printable("Error getting decrypted response payload for get card")?;
@@ -609,7 +609,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while executing call_connector_api for delete card");
         let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body, api_enums::LockerChoice::Basilisk)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting decrypted response payload for delete card")?;
