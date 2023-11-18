@@ -211,10 +211,9 @@ pub async fn list_payment_link(
     merchant: domain::MerchantAccount,
     constraints: api_models::payments::PaymentLinkListConstraints,
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
-    // helpers::validate_payment_link_list_request(&constraints)?;
     let db = state.store.as_ref();
     let payment_link = db
-        .find_payment_link_by_merchant_id(&merchant.merchant_id, constraints)
+        .find_payment_link_list_by_merchant_id(&merchant.merchant_id, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;

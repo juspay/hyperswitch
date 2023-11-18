@@ -1,2 +1,2 @@
 -- Your SQL goes here
-ALTER table payment_link ADD COLUMN description VARCHAR (255);
+ALTER table payment_link ADD COLUMN IF NOT EXISTS description VARCHAR (255);

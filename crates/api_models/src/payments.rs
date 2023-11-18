@@ -3214,14 +3214,6 @@ pub struct PaymentLinkListConstraints {
     #[schema(example = "cus_meowuwunwiuwiwqw")]
     pub customer_id: Option<String>,
 
-    /// A cursor for use in pagination, fetch the next list after some object
-    #[schema(example = "pay_fafa124123")]
-    pub starting_after: Option<String>,
-
-    /// A cursor for use in pagination, fetch the previous list before some object
-    #[schema(example = "pay_fafa124123")]
-    pub ending_before: Option<String>,
-
     /// limit on the number of objects to return
     pub limit: Option<i64>,
 

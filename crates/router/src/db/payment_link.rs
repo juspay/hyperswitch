@@ -20,7 +20,7 @@ pub trait PaymentLinkInterface {
         _payment_link: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError>;
 
-    async fn find_payment_link_by_merchant_id(
+    async fn find_payment_link_list_by_merchant_id(
         &self,
         merchant_id: &str,
         payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
@@ -52,7 +52,7 @@ impl PaymentLinkInterface for Store {
             .into_report()
     }
 
-    async fn find_payment_link_by_merchant_id(
+    async fn find_payment_link_list_by_merchant_id(
         &self,
         merchant_id: &str,
         payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
@@ -83,7 +83,7 @@ impl PaymentLinkInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_payment_link_by_merchant_id(
+    async fn find_payment_link_list_by_merchant_id(
         &self,
         _merchant_id: &str,
         _payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
