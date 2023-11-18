@@ -1,8 +1,10 @@
-use crate::enums;
+use utoipa::ToSchema;
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+use crate::enums::Connector;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmCreateRequest {
-    pub connector: enums::Connector,
+    pub connector: Connector,
     pub flow: String,
     pub sub_flow: String,
     pub code: String,
@@ -13,9 +15,9 @@ pub struct GsmCreateRequest {
     pub step_up_possible: bool,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmRetrieveRequest {
-    pub connector: enums::Connector,
+    pub connector: Connector,
     pub flow: String,
     pub sub_flow: String,
     pub code: String,
@@ -33,6 +35,7 @@ pub struct GsmRetrieveRequest {
     serde::Serialize,
     serde::Deserialize,
     strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -43,7 +46,7 @@ pub enum GsmDecision {
     DoDefault,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmUpdateRequest {
     pub connector: String,
     pub flow: String,
@@ -56,7 +59,7 @@ pub struct GsmUpdateRequest {
     pub step_up_possible: Option<bool>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmDeleteRequest {
     pub connector: String,
     pub flow: String,
@@ -65,11 +68,24 @@ pub struct GsmDeleteRequest {
     pub message: String,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GsmDeleteResponse {
     pub gsm_rule_delete: bool,
     pub connector: String,
     pub flow: String,
     pub sub_flow: String,
     pub code: String,
+}
+
+#[derive(serde::Serialize, Debug, ToSchema)]
+pub struct GsmResponse {
+    pub connector: String,
+    pub flow: String,
+    pub sub_flow: String,
+    pub code: String,
+    pub message: String,
+    pub status: String,
+    pub router_error: Option<String>,
+    pub decision: String,
+    pub step_up_possible: bool,
 }

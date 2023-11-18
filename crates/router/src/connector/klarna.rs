@@ -323,6 +323,7 @@ impl
                     | api_models::enums::PaymentMethodType::BcaBankTransfer
                     | api_models::enums::PaymentMethodType::BniVa
                     | api_models::enums::PaymentMethodType::BriVa
+                    | api_models::enums::PaymentMethodType::CardRedirect
                     | api_models::enums::PaymentMethodType::CimbVa
                     | api_models::enums::PaymentMethodType::ClassicReward
                     | api_models::enums::PaymentMethodType::Credit
@@ -519,7 +520,7 @@ impl api::IncomingWebhook for Klarna {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
