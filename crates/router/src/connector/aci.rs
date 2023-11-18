@@ -2,6 +2,7 @@ mod result_codes;
 pub mod transformers;
 use std::fmt::Debug;
 
+use common_utils::request::FormUrlEncodedRequestBody;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
@@ -100,6 +101,7 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     // Not Implemented (R)
@@ -110,6 +112,7 @@ impl
         api::Session,
         types::PaymentsSessionData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     // Not Implemented (R)
@@ -120,6 +123,7 @@ impl
         api::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     // Not Implemented (R)
@@ -132,6 +136,7 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     // Issue: #173
@@ -142,14 +147,19 @@ impl
         api::Capture,
         types::PaymentsCaptureData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     // Not Implemented (R)
 }
 
 impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Aci
+    services::ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Aci
 {
     fn get_headers(
         &self,
@@ -165,10 +175,6 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
     }
 
     fn get_url(
@@ -242,6 +248,7 @@ impl
         api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     fn get_headers(
@@ -258,10 +265,6 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
     }
 
     fn get_url(
@@ -283,7 +286,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         // encode only for for urlencoded things.
         let connector_router_data = aci::AciRouterData::try_from((
             &self.get_currency_unit(),
@@ -292,13 +295,10 @@ impl
             req,
         ))?;
         let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
-        let aci_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciPaymentsRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        #[cfg(feature = "logs")]
+        logger::info!(connector_request_body=?req);
 
-        Ok(Some(aci_req))
+        Ok(FormUrlEncodedRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -320,7 +320,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -357,6 +357,7 @@ impl
         api::Void,
         types::PaymentsCancelData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Aci
 {
     fn get_headers(
@@ -375,10 +376,6 @@ impl
         Ok(header)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -392,14 +389,9 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         let connector_req = aci::AciCancelRequest::try_from(req)?;
-        let aci_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciCancelRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(aci_req))
+        Ok(FormUrlEncodedRequestBody(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -412,7 +404,7 @@ impl
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -448,8 +440,13 @@ impl api::Refund for Aci {}
 impl api::RefundExecute for Aci {}
 impl api::RefundSync for Aci {}
 
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Aci
+impl
+    services::ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Aci
 {
     fn get_headers(
         &self,
@@ -465,10 +462,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
     }
 
     fn get_url(
@@ -488,7 +481,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         let connector_router_data = aci::AciRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -496,12 +489,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req,
         ))?;
         let connector_req = aci::AciRefundRequest::try_from(&connector_router_data)?;
-        let body = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciRefundRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(body))
+        Ok(FormUrlEncodedRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -517,7 +505,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::RefundExecuteType::get_request_body(
+                .set_body(types::RefundExecuteType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -548,8 +536,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 }
 
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Aci
+impl
+    services::ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Aci
 {
 }
 

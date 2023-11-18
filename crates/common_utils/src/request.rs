@@ -1,3 +1,4 @@
+use diesel::sql_types::Json;
 use masking::{Maskable, Secret};
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -39,7 +40,7 @@ pub struct Request {
     pub method: Method,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub body: RequestContent,
+    pub body: Option<RequestContent>,
 }
 
 #[derive(Debug)]
@@ -47,7 +48,55 @@ pub enum RequestContent {
     Json(serde_json::Value),
     FormUrlEncoded(serde_json::Value),
     FormData(reqwest::multipart::Form),
-    Empty,
+}
+
+#[derive(Debug)]
+pub struct JsonRequestBody(pub Box<dyn masking::ErasedMaskSerialize>);
+
+#[derive(Debug)]
+pub struct FormRequestBody(pub reqwest::multipart::Form);
+
+#[derive(Debug)]
+pub struct FormUrlEncodedRequestBody(pub Box<dyn masking::ErasedMaskSerialize>);
+
+impl From<JsonRequestBody> for RequestContent {
+    fn from(value: JsonRequestBody) -> Self {
+        Self::Json(value.0)
+    }
+}
+
+impl From<FormRequestBody> for RequestContent {
+    fn from(value: FormRequestBody) -> Self {
+        Self::FormData(value.0)
+    }
+}
+
+impl From<FormUrlEncodedRequestBody> for RequestContent {
+    fn from(value: FormUrlEncodedRequestBody) -> Self {
+        Self::FormUrlEncoded(value.0)
+    }
+}
+
+pub trait HttpRequestBody {
+    fn get_content_type() -> ContentType;
+}
+
+impl HttpRequestBody for JsonRequestBody {
+    fn get_content_type() -> ContentType {
+        ContentType::Json
+    }
+}
+
+impl HttpRequestBody for FormRequestBody {
+    fn get_content_type() -> ContentType {
+        ContentType::FormData
+    }
+}
+
+impl HttpRequestBody for FormUrlEncodedRequestBody {
+    fn get_content_type() -> ContentType {
+        ContentType::FormUrlEncoded
+    }
 }
 
 impl Request {
@@ -58,16 +107,12 @@ impl Request {
             headers: std::collections::HashSet::new(),
             certificate: None,
             certificate_key: None,
-            body: RequestContent::Empty,
+            body: None,
         }
     }
 
-    pub fn set_form_url_encoded_body(&mut self, body: serde_json::Value) {
-        self.body = RequestContent::FormUrlEncoded(body)
-    }
-
-    pub fn set_json_body(&mut self, body: serde_json::Value) {
-        self.body = RequestContent::Json(body);
+    pub fn set_body<T: Into<RequestContent>>(&mut self, body: T) {
+        self.body.replace(body.into());
     }
 
     pub fn add_default_headers(&mut self) {
@@ -85,10 +130,6 @@ impl Request {
     pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
         self.certificate = certificate_key;
     }
-
-    pub fn set_form_data(&mut self, form_data: reqwest::multipart::Form) {
-        self.body = RequestContent::FormData(form_data);
-    }
 }
 
 #[derive(Debug)]
@@ -98,7 +139,7 @@ pub struct RequestBuilder {
     pub method: Method,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub body: RequestContent,
+    pub body: Option<RequestContent>,
 }
 
 impl RequestBuilder {
@@ -109,7 +150,7 @@ impl RequestBuilder {
             headers: std::collections::HashSet::new(),
             certificate: None,
             certificate_key: None,
-            body: RequestContent::Empty,
+            body: None,
         }
     }
 
@@ -139,18 +180,8 @@ impl RequestBuilder {
         self
     }
 
-    pub fn form_data(mut self, form_data: reqwest::multipart::Form) -> Self {
-        self.body = RequestContent::FormData(form_data);
-        self
-    }
-
-    pub fn json_body(mut self, json: serde_json::Value) -> Self {
-        self.body = RequestContent::Json(json);
-        self
-    }
-
-    pub fn form_url_encoded(mut self, form_body: serde_json::Value) -> Self {
-        self.body = RequestContent::FormUrlEncoded(form_body);
+    pub fn set_body<T: Into<RequestContent>>(mut self, body: T) -> Self {
+        self.body.replace(body.into());
         self
     }
 

@@ -92,8 +92,8 @@ pub trait ConnectorCommon {
 
     /// HTTP `Content-Type` to be used for POST requests.
     /// Defaults to `application/json`.
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+    fn common_get_content_type(&self) -> ContentType {
+        ContentType::Json
     }
 
     // FIXME write doc - think about this

@@ -16,7 +16,7 @@ pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
     errors::{ErrorSwitch, ReportSwitchExt},
-    request::RequestContent,
+    request::{HttpRequestBody, RequestContent},
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -49,11 +49,14 @@ use crate::{
     },
 };
 
-pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
-    Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
+pub type BoxedConnectorIntegration<'a, T, Req, Resp, ReqBody> =
+    Box<&'a (dyn ConnectorIntegration<T, Req, Resp, ReqBody> + Send + Sync)>;
 
-pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
+pub trait ConnectorIntegrationAny<T, Req, Resp, ReqBody>: Send + Sync + 'static
+where
+    ReqBody: HttpRequestBody,
+{
+    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp, ReqBody>;
 }
 
 impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
@@ -104,7 +107,11 @@ pub trait ConnectorValidation: ConnectorCommon {
 }
 
 #[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+pub trait ConnectorIntegration<T, Req, Resp, ReqBody>:
+    ConnectorIntegrationAny<T, Req, Resp, ReqBody> + Sync
+where
+    ReqBody: HttpRequestBody,
+{
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -113,8 +120,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(vec![])
     }
 
-    fn get_content_type(&self) -> &'static str {
-        mime::APPLICATION_JSON.essence_str()
+    fn get_content_type(&self) -> ContentType {
+        ReqBody::get_content_type()
     }
 
     /// primarily used when creating signature based on request method of payment flow
@@ -134,7 +141,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<ReqBody, errors::ConnectorError> {
         Ok(None)
     }
 
