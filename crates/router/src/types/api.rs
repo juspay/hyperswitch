@@ -118,8 +118,8 @@ pub trait ConnectorCommon {
 }
 
 /// Extended trait for connector common to allow functions with generic type
-pub trait ConnectorCommonExt<Flow, Req, Resp>:
-    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
+pub trait ConnectorCommonExt<Flow, Req, Resp, ReqBody>:
+    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp, ReqBody>
 {
     /// common header builder when every request for the connector have same headers
     fn build_headers(
