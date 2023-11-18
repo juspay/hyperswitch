@@ -22,12 +22,13 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
     Box::pin(api::server_wrap(
-        flow,
+        flow.clone(),
         state,
         &req,
         (),
         |state, auth, _| {
             webhooks::webhooks_wrapper::<W, Oss>(
+                &flow,
                 state.to_owned(),
                 &req,
                 auth.merchant_account,

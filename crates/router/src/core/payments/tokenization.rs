@@ -183,8 +183,8 @@ pub async fn save_in_locker(
         Some(card) => payment_methods::cards::add_card_to_locker(
             state,
             payment_method_request,
-            card,
-            customer_id,
+            &card,
+            &customer_id,
             merchant_account,
         )
         .await
