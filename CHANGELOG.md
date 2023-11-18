@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.84.0 (2023-11-17)
+
+### Features
+
+- **connector:** [BANKOFAMERICA] PSYNC Bugfix ([#2897](https://github.com/juspay/hyperswitch/pull/2897)) ([`bdcc138`](https://github.com/juspay/hyperswitch/commit/bdcc138e8d84577fc99f9a9aef3484b66f98209a))
+
+**Full Changelog:** [`v1.83.1...v1.84.0`](https://github.com/juspay/hyperswitch/compare/v1.83.1...v1.84.0)
+
+- - -
+
+
 ## 1.83.1 (2023-11-17)
 
 ### Bug Fixes
