@@ -566,6 +566,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::AutoRefunded
                 | storage_enums::AttemptStatus::CaptureFailed
                 | storage_enums::AttemptStatus::PartialCharged
+                | storage_enums::AttemptStatus::PartialChargedAndChargeable
                 | storage_enums::AttemptStatus::Pending
                 | storage_enums::AttemptStatus::PaymentMethodAwaited
                 | storage_enums::AttemptStatus::ConfirmationAwaited

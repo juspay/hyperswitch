@@ -875,17 +875,15 @@ impl api::IncomingWebhook for Authorizedotnet {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let payload: authorizedotnet::AuthorizedotnetWebhookObjectId = request
             .body
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        let sync_payload = serde_json::to_value(
+
+        Ok(Box::new(
             authorizedotnet::AuthorizedotnetSyncResponse::try_from(payload)?,
-        )
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-        Ok(sync_payload)
+        ))
     }
 }
 

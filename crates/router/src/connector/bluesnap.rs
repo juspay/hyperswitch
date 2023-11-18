@@ -1119,15 +1119,13 @@ impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        let res_json = serde_json::Value::try_from(resource)?;
-
-        Ok(res_json)
+        Ok(Box::new(resource))
     }
 }
 

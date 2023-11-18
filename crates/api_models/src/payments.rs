@@ -704,6 +704,7 @@ pub enum CardRedirectData {
     Knet {},
     Benefit {},
     MomoAtm {},
+    CardRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -868,6 +869,7 @@ impl GetPaymentMethodType for CardRedirectData {
             Self::Knet {} => api_enums::PaymentMethodType::Knet,
             Self::Benefit {} => api_enums::PaymentMethodType::Benefit,
             Self::MomoAtm {} => api_enums::PaymentMethodType::MomoAtm,
+            Self::CardRedirect {} => api_enums::PaymentMethodType::CardRedirect,
         }
     }
 }
@@ -3148,6 +3150,8 @@ pub struct PaymentLinkObject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
+    #[schema(value_type = PaymentLinkConfig)]
+    pub payment_link_config: Option<admin::PaymentLinkConfig>,
     /// Custom merchant name for payment link
     pub custom_merchant_name: Option<String>,
 }
