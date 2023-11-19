@@ -1,23 +1,23 @@
-//!
 //! This module defines a Rust enum `RedisKey` that facilitates the creation of Redis keys for various purposes.
-//! The `RedisKey` enum implements the `ToString` trait, allowing conversion to a string representation of the Redis key.
-//!
-//! # Example
-//!
-//! ```rust
-//! let payment_key = RedisKey::PaymentId { payment_id: "67890" };
-//! assert_eq!(payment_key.to_string(), "pi_67890");
-//!
-//! let creds_key = RedisKey::McdCredsId {
-//!     merchant_id: "54321",
-//!     creds_identifier: "cred_123",
-//! };
-//! assert_eq!(creds_key.to_string(), "mcd_54321_cred_123");
-//! ```
-//!
+
 #[derive(Debug)]
 #[allow(missing_docs)]
-/// Create
+/// This enum facilitates the creation of Redis keys for various purposes.
+/// The `RedisKey` enum implements the `ToString` trait, allowing conversion to a string representation of the Redis key.
+///
+/// # Example
+///
+/// ```rust
+/// let payment_key = RedisKey::PaymentId { payment_id: "67890" };
+/// assert_eq!(payment_key.to_string(), "pi_67890");
+///
+/// let creds_key = RedisKey::McdCredsId {
+///     merchant_id: "54321",
+///     creds_identifier: "cred_123",
+/// };
+/// assert_eq!(creds_key.to_string(), "mcd_54321_cred_123");
+/// ```
+///
 pub enum RedisKey<'a> {
     /// for "access_token_{merchant_id}_{connector_name}"
     AccessToken {
