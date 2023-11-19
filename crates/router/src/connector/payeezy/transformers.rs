@@ -69,13 +69,14 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
 
-            utils::CardIssuer::Maestro | utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Payeezy",
-                }
-                .into())
+            utils::CardIssuer::Maestro
+            | utils::CardIssuer::DinersClub
+            | utils::CardIssuer::JCB
+            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Payeezy",
             }
+            .into()),
         }
     }
 }

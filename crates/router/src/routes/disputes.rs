@@ -117,7 +117,7 @@ pub async fn accept_dispute(
     let dispute_id = dispute_types::DisputeId {
         dispute_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -127,7 +127,7 @@ pub async fn accept_dispute(
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Disputes - Submit Dispute Evidence
@@ -150,7 +150,7 @@ pub async fn submit_dispute_evidence(
     json_payload: web::Json<dispute_models::SubmitEvidenceRequest>,
 ) -> HttpResponse {
     let flow = Flow::DisputesEvidenceSubmit;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -160,7 +160,7 @@ pub async fn submit_dispute_evidence(
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Disputes - Attach Evidence to Dispute
@@ -191,7 +191,7 @@ pub async fn attach_dispute_evidence(
         Ok(valid_request) => valid_request,
         Err(err) => return api::log_and_return_error_response(err),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -201,7 +201,7 @@ pub async fn attach_dispute_evidence(
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Diputes - Retrieve Dispute
@@ -229,7 +229,7 @@ pub async fn retrieve_dispute_evidence(
     let dispute_id = dispute_types::DisputeId {
         dispute_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -237,6 +237,6 @@ pub async fn retrieve_dispute_evidence(
         |state, auth, req| disputes::retrieve_dispute_evidence(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
