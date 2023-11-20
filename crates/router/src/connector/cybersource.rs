@@ -288,22 +288,17 @@ impl
         req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
-        // Preprocessing flow is to create mandate, which should to be called only in case of First mandate
-        if req.request.setup_mandate_details.is_some() {
-            Ok(Some(
-                services::RequestBuilder::new()
-                    .method(services::Method::Post)
-                    .url(&types::SetupMandateType::get_url(self, req, connectors)?)
-                    .attach_default_headers()
-                    .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                    .body(types::SetupMandateType::get_request_body(
-                        self, req, connectors,
-                    )?)
-                    .build(),
-            ))
-        } else {
-            Ok(None)
-        }
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
 
     fn handle_response(

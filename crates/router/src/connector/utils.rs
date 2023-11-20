@@ -861,6 +861,7 @@ impl CryptoData for api::CryptoData {
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
+    fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -873,6 +874,17 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.number
             .clone()
             .ok_or_else(missing_field_err("billing.phone.number"))
+    }
+    fn get_number_with_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self
+            .number
+            .clone()
+            .ok_or_else(missing_field_err("billing.phone.number"))?;
+        let country_code = self
+            .country_code
+            .clone()
+            .ok_or_else(missing_field_err("billing.phone.country_code"))?;
+        Ok(Secret::new(format!("{}{}", country_code, number.peek())))
     }
 }
 

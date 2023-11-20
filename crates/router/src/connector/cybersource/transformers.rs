@@ -10,7 +10,6 @@ use crate::{
     },
     consts,
     core::errors,
-    pii::PeekInterface,
     types::{
         self,
         api::{self, enums as api_enums},
@@ -62,9 +61,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let phone = item.get_billing_phone()?;
-        let phone_number = phone.get_number()?;
-        let country_code = phone.get_country_code()?;
-        let number_with_code = Secret::new(format!("{}{}", country_code, phone_number.peek()));
+        let number_with_code = phone.get_number_with_country_code()?;
         let email = item.request.get_email()?;
         let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
 
@@ -75,21 +72,16 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             },
             bill_to: Some(bill_to),
         };
-        let (action_list, action_token_types, authorization_options) =
-            if item.request.setup_future_usage.is_some() {
-                (
-                    Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: CybersourcePaymentInitiator {
-                            initiator_type: CybersourcePaymentInitiatorTypes::Customer,
-                            credential_stored_on_file: true,
-                        },
-                    }),
-                )
-            } else {
-                (None, None, None)
-            };
+        let (action_list, action_token_types, authorization_options) = (
+            Some(vec![CybersourceActionsList::TokenCreate]),
+            Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
+            Some(CybersourceAuthorizationOptions {
+                initiator: CybersourcePaymentInitiator {
+                    initiator_type: CybersourcePaymentInitiatorTypes::Customer,
+                    credential_stored_on_file: true,
+                },
+            }),
+        );
 
         let processing_information = ProcessingInformation {
             capture: Some(false),
@@ -118,7 +110,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "payment methods".to_string(),
+                utils::get_unimplemented_payment_method_error_message("Cybersource"),
             ))?,
         };
         Ok(Self {
@@ -295,9 +287,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let phone = item.router_data.get_billing_phone()?;
-        let phone_number = phone.get_number()?;
-        let country_code = phone.get_country_code()?;
-        let number_with_code = Secret::new(format!("{}{}", country_code, phone_number.peek()));
+        let number_with_code = phone.get_number_with_country_code()?;
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
 
@@ -367,7 +357,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "payment methods".to_string(),
+                utils::get_unimplemented_payment_method_error_message("Cybersource"),
             ))?,
         };
         Ok(Self {
