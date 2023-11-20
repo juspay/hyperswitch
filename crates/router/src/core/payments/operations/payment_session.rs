@@ -200,7 +200,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -217,7 +217,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     {
         let metadata = payment_data.payment_intent.metadata.clone();
         payment_data.payment_intent = match metadata {
-            Some(metadata) => db
+            Some(metadata) => state
+                .store
                 .update_payment_intent(
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {

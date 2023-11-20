@@ -64,9 +64,7 @@ The fastest and easiest way to try hyperswitch is via our CDK scripts
 1. Click on the following button for a quick standalone deployment on AWS, suitable for prototyping.
    No code or setup is required in your system and the deployment is covered within the AWS free-tier setup.
 
-&emsp;&emsp; <a title="Bootstrap" href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=cdk-hs&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/bootstrap-template.yml"> Click here if you have not bootstrapped your region before deploying</a>
-
-&emsp;&emsp; <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=Hyperswitch&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/deployment.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
+&emsp;&emsp; <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
 
 
 2. Sign-in to your AWS console.

@@ -41,3 +41,9 @@ pub const DEFAULT_PRODUCT_IMG: &str = "https://i.imgur.com/On3VtKF.png";
 
 /// Default Merchant Logo Link
 pub const DEFAULT_MERCHANT_LOGO: &str = "https://i.imgur.com/RfxPFQo.png";
+
+/// Redirect url for Prophetpay
+pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/tokenize/";
+
+/// Variable which store the card token for Prophetpay
+pub const PROPHETPAY_TOKEN: &str = "cctoken";

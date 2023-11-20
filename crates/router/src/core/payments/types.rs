@@ -116,7 +116,7 @@ impl MultipleCaptureData {
         }
         let status_count_map = self.get_status_count();
         if status_count_map.get(&storage_enums::CaptureStatus::Charged) > Some(&0) {
-            storage_enums::AttemptStatus::PartialCharged
+            storage_enums::AttemptStatus::PartialChargedAndChargeable
         } else {
             storage_enums::AttemptStatus::CaptureInitiated
         }

@@ -19,7 +19,7 @@ use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, user::*};
+use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, user::*};
 use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
@@ -112,56 +112,59 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        #[cfg(feature = "kms")]
-        let kms_client = kms::get_kms_client(&conf.kms).await;
-        let testable = storage_impl == StorageImpl::PostgresqlTest;
-        let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+        Box::pin(async move {
+            #[cfg(feature = "kms")]
+            let kms_client = kms::get_kms_client(&conf.kms).await;
+            let testable = storage_impl == StorageImpl::PostgresqlTest;
+            let store: Box<dyn StorageInterface> = match storage_impl {
+                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(&conf, shut_down_signal, testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
                 #[allow(clippy::expect_used)]
-                get_store(&conf, shut_down_signal, testable)
-                    .await
-                    .expect("Failed to create store"),
-            ),
-            #[allow(clippy::expect_used)]
-            StorageImpl::Mock => Box::new(
-                MockDb::new(&conf.redis)
-                    .await
-                    .expect("Failed to create mock store"),
-            ),
-        };
+                StorageImpl::Mock => Box::new(
+                    MockDb::new(&conf.redis)
+                        .await
+                        .expect("Failed to create mock store"),
+                ),
+            };
 
-        #[cfg(feature = "olap")]
-        let pool = crate::analytics::AnalyticsProvider::from_conf(
-            &conf.analytics,
-            #[cfg(feature = "kms")]
-            kms_client,
-        )
-        .await;
-
-        #[cfg(feature = "kms")]
-        #[allow(clippy::expect_used)]
-        let kms_secrets = settings::ActiveKmsSecrets {
-            jwekey: conf.jwekey.clone().into(),
-        }
-        .decrypt_inner(kms_client)
-        .await
-        .expect("Failed while performing KMS decryption");
-
-        #[cfg(feature = "email")]
-        let email_client = Arc::new(AwsSes::new(&conf.email).await);
-        Self {
-            flow_name: String::from("default"),
-            store,
-            conf: Arc::new(conf),
-            #[cfg(feature = "email")]
-            email_client,
-            #[cfg(feature = "kms")]
-            kms_secrets: Arc::new(kms_secrets),
-            api_client,
-            event_handler: Box::<EventLogger>::default(),
             #[cfg(feature = "olap")]
-            pool,
-        }
+            let pool = crate::analytics::AnalyticsProvider::from_conf(
+                &conf.analytics,
+                #[cfg(feature = "kms")]
+                kms_client,
+            )
+            .await;
+
+            #[cfg(feature = "kms")]
+            #[allow(clippy::expect_used)]
+            let kms_secrets = settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
+            }
+            .decrypt_inner(kms_client)
+            .await
+            .expect("Failed while performing KMS decryption");
+
+            #[cfg(feature = "email")]
+            let email_client = Arc::new(AwsSes::new(&conf.email).await);
+            Self {
+                flow_name: String::from("default"),
+                store,
+                conf: Arc::new(conf),
+                #[cfg(feature = "email")]
+                email_client,
+                #[cfg(feature = "kms")]
+                kms_secrets: Arc::new(kms_secrets),
+                api_client,
+                event_handler: Box::<EventLogger>::default(),
+                #[cfg(feature = "olap")]
+                pool,
+            }
+        })
+        .await
     }
 
     pub async fn new(
@@ -169,7 +172,13 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
+        Box::pin(Self::with_storage(
+            conf,
+            StorageImpl::Postgresql,
+            shut_down_signal,
+            api_client,
+        ))
+        .await
     }
 }
 
@@ -730,5 +739,18 @@ impl User {
             .app_data(web::Data::new(state))
             .service(web::resource("/signin").route(web::post().to(user_signin)))
             .service(web::resource("/signup").route(web::post().to(user_signup)))
+    }
+}
+
+pub struct LockerMigrate;
+
+#[cfg(feature = "olap")]
+impl LockerMigrate {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("locker_migration/{merchant_id}")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
+            )
     }
 }

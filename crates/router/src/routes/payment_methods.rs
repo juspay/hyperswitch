@@ -34,7 +34,7 @@ pub async fn create_payment_method_api(
     json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -44,7 +44,7 @@ pub async fn create_payment_method_api(
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// List payment methods for a Merchant
@@ -84,7 +84,7 @@ pub async fn list_payment_method_api(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -94,7 +94,7 @@ pub async fn list_payment_method_api(
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// List payment methods for a Customer
@@ -135,7 +135,7 @@ pub async fn list_customer_payment_method_api(
         Err(e) => return api::log_and_return_error_response(e),
     };
     let customer_id = customer_id.into_inner().0;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -151,7 +151,7 @@ pub async fn list_customer_payment_method_api(
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// List payment methods for a Customer
@@ -191,7 +191,7 @@ pub async fn list_customer_payment_method_api_client(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -207,7 +207,7 @@ pub async fn list_customer_payment_method_api_client(
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Payment Method - Retrieve
@@ -239,7 +239,7 @@ pub async fn payment_method_retrieve_api(
     })
     .into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -247,7 +247,7 @@ pub async fn payment_method_retrieve_api(
         |state, _auth, pm| cards::retrieve_payment_method(state, pm),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Payment Method - Update
@@ -278,7 +278,7 @@ pub async fn payment_method_update_api(
     let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -294,7 +294,7 @@ pub async fn payment_method_update_api(
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Payment Method - Delete
@@ -324,7 +324,7 @@ pub async fn payment_method_delete_api(
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -332,7 +332,7 @@ pub async fn payment_method_delete_api(
         |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[cfg(test)]
