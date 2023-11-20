@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payment_methods};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
@@ -269,15 +269,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // populate payment_data.surcharge_details from request
         let surcharge_details = request.surcharge_details.map(|surcharge_details| {
-            payment_methods::SurchargeDetailsResponse {
-                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
-                tax_on_surcharge: None,
-                surcharge_amount: surcharge_details.surcharge_amount,
-                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
-                final_amount: payment_attempt.amount
-                    + surcharge_details.surcharge_amount
-                    + surcharge_details.tax_amount.unwrap_or(0),
-            }
+            surcharge_details.get_surcharge_details_object(payment_attempt.amount)
         });
 
         Ok((

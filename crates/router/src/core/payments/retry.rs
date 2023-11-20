@@ -437,6 +437,8 @@ where
                     status: storage_enums::AttemptStatus::Failure,
                     error_reason: Some(error_response.reason),
                     amount_capturable: Some(0),
+                    surcharge_amount: None,
+                    tax_amount: None,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,

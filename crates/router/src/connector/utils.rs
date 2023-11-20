@@ -102,6 +102,7 @@ where
     where
         F: Clone,
     {
+        // let is_psync = self.request.is_psync();
         match self.status {
             enums::AttemptStatus::Voided => {
                 if payment_data.payment_intent.amount_captured > Some(0) {
