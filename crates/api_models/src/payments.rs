@@ -1679,6 +1679,20 @@ impl std::fmt::Display for PaymentIdType {
     }
 }
 
+impl PaymentIdType {
+    pub fn and_then<F, E>(self, f: F) -> Result<Self, E>
+    where
+        F: FnOnce(String) -> Result<String, E>,
+    {
+        match self {
+            Self::PaymentIntentId(s) => f(s).map(Self::PaymentIntentId),
+            Self::ConnectorTransactionId(s) => f(s).map(Self::ConnectorTransactionId),
+            Self::PaymentAttemptId(s) => f(s).map(Self::PaymentAttemptId),
+            Self::PreprocessingId(s) => f(s).map(Self::PreprocessingId),
+        }
+    }
+}
+
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
