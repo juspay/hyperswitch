@@ -50,6 +50,7 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    PartialChargedAndChargeable,
     Unresolved,
     #[default]
     Pending,
@@ -68,7 +69,8 @@ impl AttemptStatus {
             | Self::Voided
             | Self::VoidFailed
             | Self::CaptureFailed
-            | Self::Failure => true,
+            | Self::Failure
+            | Self::PartialCharged => true,
             Self::Started
             | Self::AuthenticationFailed
             | Self::AuthenticationPending
@@ -79,7 +81,7 @@ impl AttemptStatus {
             | Self::CodInitiated
             | Self::VoidInitiated
             | Self::CaptureInitiated
-            | Self::PartialCharged
+            | Self::PartialChargedAndChargeable
             | Self::Unresolved
             | Self::Pending
             | Self::PaymentMethodAwaited
@@ -861,6 +863,7 @@ pub enum IntentStatus {
     RequiresConfirmation,
     RequiresCapture,
     PartiallyCaptured,
+    PartiallyCapturedAndCapturable,
 }
 
 #[derive(
@@ -990,6 +993,7 @@ pub enum PaymentMethodType {
     BcaBankTransfer,
     BniVa,
     BriVa,
+    CardRedirect,
     CimbVa,
     #[serde(rename = "classic")]
     ClassicReward,
@@ -1852,4 +1856,26 @@ pub enum ReconStatus {
 pub enum ApplePayFlow {
     Simplified,
     Manual,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    Default,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorStatus {
+    #[default]
+    Inactive,
+    Active,
 }

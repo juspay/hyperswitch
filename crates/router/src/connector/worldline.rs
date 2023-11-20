@@ -378,6 +378,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = worldline::ApproveRequest::try_from(req)?;
 
@@ -406,7 +407,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -489,6 +492,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = worldline::WorldlineRouterData::try_from((
             &self.get_currency_unit(),
@@ -524,7 +528,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -588,6 +594,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = worldline::WorldlineRefundRequest::try_from(req)?;
         let refund_req = types::RequestBody::log_and_get_request_body(
@@ -610,7 +617,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -799,14 +808,16 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details = request
             .body
             .parse_struct::<worldline::WebhookBody>("WorldlineWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
             .payment
             .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(details)
+        // Ideally this should be a strict type that has type information
+        // PII information is likely being logged here when this response will be logged
+        Ok(Box::new(details))
     }
 
     fn get_webhook_api_response(

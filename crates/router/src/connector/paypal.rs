@@ -91,6 +91,7 @@ impl Paypal {
             code: response.name,
             message: response.message.clone(),
             reason: error_reason.or(Some(response.message)),
+            attempt_status: None,
         })
     }
 }
@@ -203,6 +204,7 @@ impl ConnectorCommon for Paypal {
             code: response.name,
             message: response.message.clone(),
             reason,
+            attempt_status: None,
         })
     }
 }
@@ -281,6 +283,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = paypal::PaypalAuthUpdateRequest::try_from(req)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
@@ -302,7 +305,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .method(services::Method::Post)
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
 
@@ -340,6 +345,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             code: response.error,
             message: response.error_description.clone(),
             reason: Some(response.error_description),
+            attempt_status: None,
         })
     }
 }
@@ -379,6 +385,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
@@ -412,7 +419,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -514,7 +523,7 @@ impl
                     self, req, connectors,
                 )?)
                 .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req,
+                    self, req, connectors,
                 )?)
                 .build(),
         ))
@@ -686,6 +695,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
@@ -714,7 +724,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -847,6 +859,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
@@ -874,7 +887,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -1036,7 +1051,9 @@ impl
             .headers(types::VerifyWebhookSourceType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::VerifyWebhookSourceType::get_request_body(self, req)?)
+            .body(types::VerifyWebhookSourceType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -1049,6 +1066,7 @@ impl
             types::VerifyWebhookSourceRequestData,
             types::VerifyWebhookSourceResponseData,
         >,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
@@ -1171,33 +1189,24 @@ impl api::IncomingWebhook for Paypal {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: paypal::PaypalWebhooksBody =
             request
                 .body
                 .parse_struct("PaypalWebhooksBody")
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        let sync_payload = match details.resource {
-            paypal::PaypalResource::PaypalCardWebhooks(resource) => serde_json::to_value(
+        Ok(match details.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => Box::new(
                 paypal::PaypalPaymentsSyncResponse::try_from((*resource, details.event_type))?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => serde_json::to_value(
+            ),
+            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => Box::new(
                 paypal::PaypalOrdersResponse::try_from((*resource, details.event_type))?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-            paypal::PaypalResource::PaypalRefundWebhooks(resource) => serde_json::to_value(
+            ),
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => Box::new(
                 paypal::RefundSyncResponse::try_from((*resource, details.event_type))?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-            paypal::PaypalResource::PaypalDisputeWebhooks(_) => serde_json::to_value(details)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-        };
-        Ok(sync_payload)
+            ),
+            paypal::PaypalResource::PaypalDisputeWebhooks(_) => Box::new(details),
+        })
     }
 
     fn get_dispute_details(

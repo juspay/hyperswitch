@@ -235,6 +235,18 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Rust locker migration
+    RustLockerMigration,
+    /// Gsm Rule Creation flow
+    GsmRuleCreate,
+    /// Gsm Rule Retrieve flow
+    GsmRuleRetrieve,
+    /// Gsm Rule Update flow
+    GsmRuleUpdate,
+    /// Gsm Rule Delete flow
+    GsmRuleDelete,
+    /// User connect account
+    UserConnectAccount,
 }
 
 ///

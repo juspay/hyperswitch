@@ -111,7 +111,9 @@ where
             KvOperation::Hset(value, sql) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
-                redis_conn.set_hash_fields(key, value, Some(ttl)).await?;
+                redis_conn
+                    .set_hash_fields(key, value, Some(ttl.into()))
+                    .await?;
 
                 store
                     .push_to_drainer_stream::<S>(sql, partition_key)
