@@ -878,6 +878,8 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         }
     }
 }
@@ -1055,6 +1057,8 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
         }
     }
 }
@@ -1071,6 +1075,8 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
         }
     }
 }
