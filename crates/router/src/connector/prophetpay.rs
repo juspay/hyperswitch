@@ -324,7 +324,7 @@ impl
     where
         types::PaymentsResponseData: Clone,
     {
-        let response: prophetpay::ProphetpayResponse = res
+        let response: prophetpay::ProphetpayCompleteAuthResponse = res
             .response
             .parse_struct("prophetpay ProphetpayResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -407,9 +407,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayResponse = res
+        let response: prophetpay::ProphetpaySyncResponse = res
             .response
-            .parse_struct("prophetpay ProphetpayResponse")
+            .parse_struct("prophetpay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -495,9 +495,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayResponse = res
+        let response: prophetpay::ProphetpayVoidResponse = res
             .response
-            .parse_struct("prophetpay ProphetpayResponse")
+            .parse_struct("prophetpay PaymentsCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -668,7 +668,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayRefundResponse = res
+        let response: prophetpay::ProphetpayRefundSyncResponse = res
             .response
             .parse_struct("prophetpay ProphetpayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
