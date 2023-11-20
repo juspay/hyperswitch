@@ -40,6 +40,12 @@ pub struct RoutingConfigRequest {
     pub profile_id: Option<String>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct ProfileDefaultRoutingConfig {
+    pub profile_id: String,
+    pub connectors: Vec<RoutableConnectorChoice>,
+}
+
 #[cfg(feature = "business_profile_routing")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
@@ -300,8 +306,9 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
                 RoutableConnectors::Adyen => euclid_enums::Connector::Adyen,
                 RoutableConnectors::Airwallex => euclid_enums::Connector::Airwallex,
                 RoutableConnectors::Authorizedotnet => euclid_enums::Connector::Authorizedotnet,
-                RoutableConnectors::Bitpay => euclid_enums::Connector::Bitpay,
                 RoutableConnectors::Bambora => euclid_enums::Connector::Bambora,
+                RoutableConnectors::Bankofamerica => euclid_enums::Connector::Bankofamerica,
+                RoutableConnectors::Bitpay => euclid_enums::Connector::Bitpay,
                 RoutableConnectors::Bluesnap => euclid_enums::Connector::Bluesnap,
                 RoutableConnectors::Boku => euclid_enums::Connector::Boku,
                 RoutableConnectors::Braintree => euclid_enums::Connector::Braintree,
@@ -330,6 +337,7 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
                 RoutableConnectors::Paypal => euclid_enums::Connector::Paypal,
                 RoutableConnectors::Payu => euclid_enums::Connector::Payu,
                 RoutableConnectors::Powertranz => euclid_enums::Connector::Powertranz,
+                RoutableConnectors::Prophetpay => euclid_enums::Connector::Prophetpay,
                 RoutableConnectors::Rapyd => euclid_enums::Connector::Rapyd,
                 RoutableConnectors::Shift4 => euclid_enums::Connector::Shift4,
                 RoutableConnectors::Square => euclid_enums::Connector::Square,
@@ -387,6 +395,13 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+
+pub struct RoutingPayloadWrapper {
+    pub updated_config: Vec<RoutableConnectorChoice>,
+    pub profile_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -592,3 +607,8 @@ pub enum RoutingKind {
     Config(RoutingDictionary),
     RoutingAlgorithm(Vec<RoutingDictionaryRecord>),
 }
+
+#[repr(transparent)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[serde(transparent)]
+pub struct RoutingAlgorithmId(pub String);

@@ -16,6 +16,8 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
+#[cfg(feature = "olap")]
+use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
@@ -101,6 +103,8 @@ pub struct Settings {
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
+    #[cfg(feature = "olap")]
+    pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
 }
@@ -416,6 +420,7 @@ pub struct Secrets {
 #[serde(default)]
 pub struct Locker {
     pub host: String,
+    pub host_rs: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
@@ -444,6 +449,7 @@ pub struct Jwekey {
     pub locker_decryption_key1: String,
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
+    pub rust_locker_encryption_key: String,
     pub vault_private_key: String,
     pub tunnel_private_key: String,
 }

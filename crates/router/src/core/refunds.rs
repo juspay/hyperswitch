@@ -476,14 +476,13 @@ pub async fn sync_refund_with_gateway(
 pub async fn refund_update_core(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    refund_id: &str,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = state.store.as_ref();
     let refund = db
         .find_refund_by_merchant_id_refund_id(
             &merchant_account.merchant_id,
-            refund_id,
+            &req.refund_id,
             merchant_account.storage_scheme,
         )
         .await
@@ -501,7 +500,9 @@ pub async fn refund_update_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Unable to update refund with refund_id: {refund_id}"))?;
+        .attach_printable_lazy(|| {
+            format!("Unable to update refund with refund_id: {}", req.refund_id)
+        })?;
 
     Ok(services::ApplicationResponse::Json(response.foreign_into()))
 }
@@ -698,7 +699,7 @@ pub async fn refund_list(
 pub async fn refund_filter_list(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    req: api_models::refunds::TimeRange,
+    req: api_models::payments::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
     let db = state.store;
     let filter_list = db

@@ -1662,7 +1662,7 @@ pub(crate) fn validate_status_with_capture_method(
     }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::PartiallyCapturedAndCapturable
             && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
@@ -1900,6 +1900,7 @@ pub fn validate_payment_method_type_against_payment_method(
             api_enums::PaymentMethodType::Knet
                 | api_enums::PaymentMethodType::Benefit
                 | api_enums::PaymentMethodType::MomoAtm
+                | api_enums::PaymentMethodType::CardRedirect
         ),
     }
 }
@@ -2866,6 +2867,7 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::Pending
                     | enums::AttemptStatus::ConfirmationAwaited
                     | enums::AttemptStatus::PartialCharged
+                    | enums::AttemptStatus::PartialChargedAndChargeable
                     | enums::AttemptStatus::Voided
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
@@ -2926,6 +2928,7 @@ pub fn get_attempt_type(
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
+        | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -3081,60 +3084,6 @@ impl AttemptType {
             }
         }
     }
-
-    #[instrument(skip_all)]
-    pub async fn get_or_insert_connector_response(
-        &self,
-        payment_attempt: &PaymentAttempt,
-        db: &dyn StorageInterface,
-        storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> RouterResult<storage::ConnectorResponse> {
-        match self {
-            Self::New => db
-                .insert_connector_response(
-                    payments::PaymentCreate::make_connector_response(payment_attempt),
-                    storage_scheme,
-                )
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_attempt.payment_id.clone(),
-                }),
-            Self::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    &payment_attempt.payment_id,
-                    &payment_attempt.merchant_id,
-                    &payment_attempt.attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn get_connector_response(
-        &self,
-        db: &dyn StorageInterface,
-        payment_id: &str,
-        merchant_id: &str,
-        attempt_id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<storage::ConnectorResponse> {
-        match self {
-            Self::New => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("Precondition failed, the attempt type should not be `New`"),
-            Self::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    payment_id,
-                    merchant_id,
-                    attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
-        }
-    }
 }
 
 #[inline(always)]
@@ -3159,6 +3108,7 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable
             | enums::AttemptStatus::Voided
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
@@ -3178,6 +3128,7 @@ pub fn is_manual_retry_allowed(
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::PartiallyCaptured
+        | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => Some(false),
 
