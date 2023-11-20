@@ -1,4 +1,3 @@
-use diesel::sql_types::Json;
 use masking::{Maskable, Secret};
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -43,20 +42,30 @@ pub struct Request {
     pub body: Option<RequestContent>,
 }
 
-#[derive(Debug)]
+impl std::fmt::Debug for RequestContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Json(_) => "JsonRequestBody",
+            Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
+            Self::FormData(_) => "FormDataRequestBody",
+        })
+    }
+}
+
+// #[derive(Debug)]
 pub enum RequestContent {
-    Json(serde_json::Value),
-    FormUrlEncoded(serde_json::Value),
+    Json(Box<dyn masking::ErasedMaskSerialize>),
+    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize>),
     FormData(reqwest::multipart::Form),
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct JsonRequestBody(pub Box<dyn masking::ErasedMaskSerialize>);
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct FormRequestBody(pub reqwest::multipart::Form);
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct FormUrlEncodedRequestBody(pub Box<dyn masking::ErasedMaskSerialize>);
 
 impl From<JsonRequestBody> for RequestContent {
@@ -78,23 +87,23 @@ impl From<FormUrlEncodedRequestBody> for RequestContent {
 }
 
 pub trait HttpRequestBody {
-    fn get_content_type() -> ContentType;
+    fn get_content_type(&self) -> ContentType;
 }
 
 impl HttpRequestBody for JsonRequestBody {
-    fn get_content_type() -> ContentType {
+    fn get_content_type(&self) -> ContentType {
         ContentType::Json
     }
 }
 
 impl HttpRequestBody for FormRequestBody {
-    fn get_content_type() -> ContentType {
+    fn get_content_type(&self) -> ContentType {
         ContentType::FormData
     }
 }
 
 impl HttpRequestBody for FormUrlEncodedRequestBody {
-    fn get_content_type() -> ContentType {
+    fn get_content_type(&self) -> ContentType {
         ContentType::FormUrlEncoded
     }
 }

@@ -59,11 +59,11 @@ where
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp, ReqBody>;
 }
 
-impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
+impl<S, T, Req, Resp, ReqBody> ConnectorIntegrationAny<T, Req, Resp, ReqBody> for S
 where
-    S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
+    S: ConnectorIntegration<T, Req, Resp, ReqBody> + Send + Sync,
 {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
+    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp, ReqBody> {
         Box::new(self)
     }
 }
@@ -121,7 +121,7 @@ where
     }
 
     fn get_content_type(&self) -> ContentType {
-        ReqBody::get_content_type()
+        ReqBody::get_content_type(None)
     }
 
     /// primarily used when creating signature based on request method of payment flow
@@ -272,9 +272,10 @@ pub async fn execute_connector_processing_step<
     T: 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
+    ReqBody: HttpRequestBody,
 >(
     state: &'b AppState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp, ReqBody>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,

@@ -1560,6 +1560,7 @@ dependencies = [
  "bytes 1.5.0",
  "common_enums",
  "diesel",
+ "erased-serde",
  "error-stack",
  "fake",
  "futures 0.3.28",
@@ -3418,6 +3419,7 @@ version = "0.1.0"
 dependencies = [
  "bytes 1.5.0",
  "diesel",
+ "erased-serde",
  "serde",
  "serde_json",
  "subtle",

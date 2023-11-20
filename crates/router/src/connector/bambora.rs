@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::{ext_traits::ByteSliceExt, request::JsonRequestBody};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bambora;
@@ -28,15 +29,16 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
 pub struct Bambora;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bambora
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody>
+    for Bambora
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {
     fn build_headers(
         &self,
@@ -124,6 +126,7 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bambora
 {
     // Not Implemented (R)
@@ -135,14 +138,20 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bambora
 {
 }
 
 impl api::PaymentVoid for Bambora {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bambora
 {
     fn get_headers(
         &self,
@@ -174,15 +183,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let request = bambora::BamboraPaymentsRequest::try_from(req)?;
 
-        let bambora_req = types::RequestBody::log_and_get_request_body(
-            &request,
-            utils::Encode::<bambora::BamboraPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bambora_req))
+        Ok(JsonRequestBody(Box::new(request)))
     }
 
     fn build_request(
@@ -196,7 +200,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(self.get_request_body(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -231,14 +235,24 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
 impl api::ConnectorAccessToken for Bambora {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        JsonRequestBody,
+    > for Bambora
 {
 }
 
 impl api::PaymentSync for Bambora {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bambora
 {
     fn get_headers(
         &self,
@@ -314,8 +328,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl api::PaymentCapture for Bambora {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bambora
 {
     fn get_headers(
         &self,
@@ -347,14 +366,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_req = bambora::BamboraPaymentsCaptureRequest::try_from(req)?;
-        let bambora_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<bambora::BamboraPaymentsCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bambora_req))
+        Ok(JsonRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -406,16 +420,26 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
 impl api::PaymentSession for Bambora {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bambora
 {
     //TODO: implement sessions flow
 }
 
 impl api::PaymentAuthorize for Bambora {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bambora
 {
     fn get_headers(
         &self,
@@ -441,15 +465,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let request = bambora::BamboraPaymentsRequest::try_from(req)?;
 
-        let bambora_req = types::RequestBody::log_and_get_request_body(
-            &request,
-            utils::Encode::<bambora::BamboraPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bambora_req))
+        Ok(JsonRequestBody(Box::new(request)))
     }
 
     fn build_request(
@@ -467,7 +486,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -507,8 +526,13 @@ impl api::Refund for Bambora {}
 impl api::RefundExecute for Bambora {}
 impl api::RefundSync for Bambora {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Bambora
 {
     fn get_headers(
         &self,
@@ -541,14 +565,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_req = bambora::BamboraRefundRequest::try_from(req)?;
-        let bambora_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<bambora::BamboraRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bambora_req))
+        Ok(JsonRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -563,7 +582,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -595,7 +614,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bambora {
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Bambora
+{
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -634,7 +660,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -720,6 +746,7 @@ impl
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bambora
 {
     fn get_headers(
@@ -752,15 +779,10 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let request = bambora::BamboraThreedsContinueRequest::try_from(&req.request)?;
 
-        let bambora_req = types::RequestBody::log_and_get_request_body(
-            &request,
-            utils::Encode::<bambora::BamboraThreedsContinueRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bambora_req))
+        Ok(JsonRequestBody(Box::new(request)))
     }
 
     fn build_request(

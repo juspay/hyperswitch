@@ -3,7 +3,12 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::{
+    crypto,
+    errors::ReportSwitchExt,
+    ext_traits::ByteSliceExt,
+    request::{ContentType, FormUrlEncodedRequestBody, HttpRequestBody, JsonRequestBody},
+};
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
@@ -36,9 +41,24 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Trustpay;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Trustpay
+pub enum TrustPayRequest {
+    NormalRequest(FormUrlEncodedRequestBody),
+    BankRedirectRequest(JsonRequestBody),
+}
+
+impl HttpRequestBody for TrustPayRequest {
+    fn get_content_type(&self) -> ContentType {
+        match self {
+            TrustPayRequest::NormalRequest(_) => ContentType::FormUrlEncoded,
+            TrustPayRequest::BankRedirectRequest(_) => ContentType::Json,
+        }
+    }
+}
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, FormUrlEncodedRequestBody>
+    for Trustpay
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response, FormUrlEncodedRequestBody>,
 {
     fn build_headers(
         &self,
@@ -164,6 +184,7 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Trustpay
 {
     // Not Implemented (R)
@@ -175,21 +196,32 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Trustpay
 {
 }
 
 impl api::PaymentVoid for Trustpay {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Trustpay
 {
 }
 
 impl api::ConnectorAccessToken for Trustpay {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        FormUrlEncodedRequestBody,
+    > for Trustpay
 {
     fn get_url(
         &self,
@@ -237,14 +269,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayAuthUpdateRequest::try_from(req)?;
-        let trustpay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(trustpay_req))
+        // let trustpay_req = types::RequestBody::log_and_get_request_body(
+        //     &connector_req,
+        //     utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::url_encode,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(FormUrlEncodedRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -303,8 +335,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 }
 
 impl api::PaymentSync for Trustpay {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Trustpay
 {
     fn get_headers(
         &self,
@@ -346,7 +383,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Get)
@@ -394,8 +431,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl api::PaymentCapture for Trustpay {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Trustpay
 {
 }
 
@@ -406,6 +448,7 @@ impl
         api::PreProcessing,
         types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
     > for Trustpay
 {
     fn get_headers(
@@ -440,7 +483,7 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         let currency = req.request.get_currency()?;
         let amount = req
             .request
@@ -456,12 +499,12 @@ impl
         ))?;
         let create_intent_req =
             trustpay::TrustpayCreateIntentRequest::try_from(&connector_router_data)?;
-        let trustpay_req = types::RequestBody::log_and_get_request_body(
-            &create_intent_req,
-            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(trustpay_req))
+        // let trustpay_req = types::RequestBody::log_and_get_request_body(
+        //     &create_intent_req,
+        //     utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(FormUrlEncodedRequestBody(Box::new(create_intent_req)))
     }
 
     fn build_request(
@@ -514,15 +557,25 @@ impl
 
 impl api::PaymentSession for Trustpay {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Trustpay
 {
 }
 
 impl api::PaymentAuthorize for Trustpay {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        FormUrlEncodedRequestBody,
+    > for Trustpay
 {
     fn get_headers(
         &self,
@@ -558,7 +611,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<FormUrlEncodedRequestBody, errors::ConnectorError> {
         let amount = req
             .request
             .surcharge_details
@@ -640,8 +693,13 @@ impl api::Refund for Trustpay {}
 impl api::RefundExecute for Trustpay {}
 impl api::RefundSync for Trustpay {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        TrustPayRequest,
+    > for Trustpay
 {
     fn get_headers(
         &self,
@@ -746,7 +804,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Trustpay {
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        TrustPayRequest,
+    > for Trustpay
+{
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
