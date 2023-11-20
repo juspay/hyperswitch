@@ -43,7 +43,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-	Stancer,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -112,6 +111,7 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Square,
+    Stancer,
     Stax,
     Stripe,
     Trustpay,
@@ -164,7 +164,6 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
-	Stancer,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -233,6 +232,7 @@ pub enum RoutableConnectors {
     Rapyd,
     Shift4,
     Square,
+    Stancer,
     Stax,
     Stripe,
     Trustpay,
