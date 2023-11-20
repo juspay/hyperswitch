@@ -86,6 +86,7 @@ impl ForeignFrom<api_enums::RoutableConnectors> for dsl_enums::Connector {
             api_enums::RoutableConnectors::Cryptopay => Self::Cryptopay,
             api_enums::RoutableConnectors::Cybersource => Self::Cybersource,
             api_enums::RoutableConnectors::Dlocal => Self::Dlocal,
+            api_enums::RoutableConnectors::Elavon => Self::Elavon,
             api_enums::RoutableConnectors::Fiserv => Self::Fiserv,
             api_enums::RoutableConnectors::Forte => Self::Forte,
             api_enums::RoutableConnectors::Globalpay => Self::Globalpay,

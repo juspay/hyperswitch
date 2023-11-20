@@ -99,6 +99,7 @@ pub enum Connector {
     Cybersource,
     Dlocal,
     Fiserv,
+    Elavon,
     Forte,
     Globalpay,
     Globepay,

@@ -318,6 +318,7 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
                 RoutableConnectors::Cryptopay => euclid_enums::Connector::Cryptopay,
                 RoutableConnectors::Cybersource => euclid_enums::Connector::Cybersource,
                 RoutableConnectors::Dlocal => euclid_enums::Connector::Dlocal,
+                RoutableConnectors::Elavon => euclid_enums::Connector::Elavon,
                 RoutableConnectors::Fiserv => euclid_enums::Connector::Fiserv,
                 RoutableConnectors::Forte => euclid_enums::Connector::Forte,
                 RoutableConnectors::Globalpay => euclid_enums::Connector::Globalpay,

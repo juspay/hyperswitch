@@ -123,6 +123,7 @@ impl ConnectorCommon for Elavon {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
+            attempt_status: None,
             code: match response.failures.get(0) {
                 Some(failure_data) => failure_data.code.clone(),
                 None => consts::NO_ERROR_CODE.to_string(),
@@ -571,7 +572,7 @@ impl api::IncomingWebhook for Elavon {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

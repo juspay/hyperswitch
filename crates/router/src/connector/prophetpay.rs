@@ -486,9 +486,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
