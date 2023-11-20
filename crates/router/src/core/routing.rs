@@ -52,13 +52,17 @@ pub async fn retrieve_merchant_routing_dictionary(
             .map(ForeignInto::foreign_into)
             .collect::<Vec<_>>();
 
-        metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(
+            &metrics::CONTEXT,
+            1,
+            &[],
+        );
         Ok(service_api::ApplicationResponse::Json(
             routing_types::RoutingKind::RoutingAlgorithm(result),
         ))
     }
     #[cfg(not(feature = "business_profile_routing"))]
-    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(not(feature = "business_profile_routing"))]
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::Config(
@@ -152,7 +156,7 @@ pub async fn create_routing_config(
 
         let new_record = record.foreign_into();
 
-        metrics::ROUTING_CREATE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     }
 
@@ -219,7 +223,7 @@ pub async fn create_routing_config(
         )
         .await?;
 
-        metrics::ROUTING_CREATE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     }
 }
@@ -276,7 +280,7 @@ pub async fn link_routing_config(
         helpers::update_business_profile_active_algorithm_ref(db, business_profile, routing_ref)
             .await?;
 
-        metrics::ROUTING_LINK_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(
             routing_algorithm.foreign_into(),
         ))
@@ -326,7 +330,7 @@ pub async fn link_routing_config(
         .await?;
         helpers::update_merchant_active_algorithm_ref(db, &key_store, routing_ref).await?;
 
-        metrics::ROUTING_LINK_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -362,7 +366,7 @@ pub async fn retrieve_routing_config(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse routing algorithm")?;
 
-        metrics::ROUTING_RETRIEVE_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 
@@ -400,7 +404,7 @@ pub async fn retrieve_routing_config(
             modified_at: record.modified_at,
         };
 
-        metrics::ROUTING_RETRIEVE_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -467,7 +471,11 @@ pub async fn unlink_routing_config(
                         )
                         .await?;
 
-                        metrics::ROUTING_UNLINK_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[],
+                        );
                         Ok(service_api::ApplicationResponse::Json(response))
                     }
                     None => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -576,7 +584,7 @@ pub async fn unlink_routing_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
-        metrics::ROUTING_UNLINK_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -625,7 +633,7 @@ pub async fn update_default_routing_config(
     )
     .await?;
 
-    metrics::ROUTING_UPDATE_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
@@ -694,7 +702,7 @@ pub async fn retrieve_linked_routing_config(
             }
         }
 
-        metrics::ROUTING_RETRIEVE_LINK_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(
             routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
         ))
@@ -741,7 +749,7 @@ pub async fn retrieve_linked_routing_config(
             routing_types::RoutingRetrieveResponse { algorithm },
         );
 
-        metrics::ROUTING_RETRIEVE_LINK_CONFIG_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -780,7 +788,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         )
         .collect::<Vec<_>>();
 
-    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(default_configs))
 }
 
@@ -856,7 +864,7 @@ pub async fn update_default_routing_config_for_profile(
     )
     .await?;
 
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::ProfileDefaultRoutingConfig {
             profile_id: business_profile.profile_id,
