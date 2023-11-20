@@ -498,6 +498,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
             true,
             "Transaction declined (maximum transaction frequency exceeded)",
         ),
+        "800.100.165" => (true, "Transaction declined (card lost)"),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
         "800.100.171" => (true, "transaction declined (pick up card)"),
