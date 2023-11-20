@@ -492,6 +492,9 @@ impl<F, T>
     }
 }
 
+// This is Void Implementation for Prophetpay
+// Since Prophetpay does not have capture this have been commented out but kept if it is required for future usage
+/*
 #[derive(Debug, Clone, Deserialize)]
 pub enum ProphetpayVoidStatus {
     Failure,
@@ -577,6 +580,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
         })
     }
 }
+*/
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
