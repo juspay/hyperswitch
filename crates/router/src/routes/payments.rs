@@ -967,7 +967,7 @@ where
     }
 }
 
-fn get_or_generate_payment_id(
+pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
     let given_payment_id = payload

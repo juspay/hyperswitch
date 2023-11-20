@@ -19,7 +19,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils::get_individual_surcharge_detail_from_redis,
+        utils::{self as core_utils, get_individual_surcharge_detail_from_redis},
     },
     db::StorageInterface,
     routes::AppState,
@@ -797,7 +797,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
                 payment_id: payment_id
-                    .and_then(|id| crate::core::utils::validate_id(id, "payment_id"))
+                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
                     .into_report()?,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
