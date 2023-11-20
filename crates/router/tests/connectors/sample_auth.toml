@@ -183,4 +183,7 @@ api_key="API Key"
 api_key="API Key"
 
 [prophetpay]
-api_key="API Key"\n\n[stancer]\napi_key="API Key"
+api_key="API Key"
+
+[stancer]
+api_key="API Key"
