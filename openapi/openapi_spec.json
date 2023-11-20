@@ -4147,6 +4147,13 @@
           }
         }
       },
+      "ConnectorStatus": {
+        "type": "string",
+        "enum": [
+          "inactive",
+          "active"
+        ]
+      },
       "ConnectorType": {
         "type": "string",
         "enum": [
@@ -6871,7 +6878,8 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name"
+          "connector_name",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7002,6 +7010,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7087,7 +7098,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7230,6 +7242,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7237,7 +7252,8 @@
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
-          "connector_type"
+          "connector_type",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7335,6 +7351,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
