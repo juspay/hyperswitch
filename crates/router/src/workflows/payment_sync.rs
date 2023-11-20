@@ -138,6 +138,8 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             surcharge_amount: None,
                             tax_amount: None,
                             updated_by: merchant_account.storage_scheme.to_string(),
+                            unified_code: None,
+                            unified_message: None,
                         };
 
                     payment_data.payment_attempt = db
