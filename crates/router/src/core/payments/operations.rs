@@ -123,6 +123,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R, Ctx>,
         Option<api::PaymentMethodData>,
@@ -153,7 +154,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
 pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &'b AppState,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -170,7 +171,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 pub trait PostUpdateTracker<F, D, R>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &'b AppState,
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
@@ -233,11 +234,12 @@ where
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 }
 
@@ -282,6 +284,7 @@ where
         _state: &'a AppState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -343,6 +346,7 @@ where
         _state: &'a AppState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -394,6 +398,7 @@ where
         _state: &'a AppState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest, Ctx>,
         Option<api::PaymentMethodData>,

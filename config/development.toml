@@ -48,6 +48,7 @@ applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
 host = ""
+host_rs = ""
 mock_locker = true
 basilisk_host = ""
 
@@ -59,6 +60,7 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
+rust_locker_encryption_key = ""
 vault_private_key = ""
 tunnel_private_key = ""
 
@@ -248,7 +250,7 @@ ideal = { country = "NL", currency = "EUR" }
 [pm_filters.stripe]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA" }
-klarna = { country = "US", currency = "USD" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "AUD,CAD,CHF,CZK,DKK,EUR,GBP,NOK,NZD,PLN,SEK,USD" }
 affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD" }
 giropay = { country = "DE", currency = "EUR" }
@@ -352,6 +354,9 @@ debit = { not_available_flows = { capture_method = "manual" } }
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 ach = { currency = "USD" }
+
+[pm_filters.prophetpay]
+card_redirect = { currency = "USD" }
 
 [pm_filters.trustpay]
 credit = { not_available_flows = { capture_method = "manual" } }

@@ -19,7 +19,10 @@ use serde::Serializer;
 
 use crate::{
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::PaymentData,
+    },
     pii::PeekInterface,
     types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{OptionExt, ValueExt},
@@ -74,6 +77,49 @@ pub trait RouterData {
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
 }
+
+pub trait PaymentResponseRouterData {
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone;
+}
+
+impl<Flow, Request, Response> PaymentResponseRouterData
+    for types::RouterData<Flow, Request, Response>
+where
+    Request: types::Capturable,
+{
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone,
+    {
+        match self.status {
+            enums::AttemptStatus::Voided => {
+                if payment_data.payment_intent.amount_captured > Some(0) {
+                    enums::AttemptStatus::PartialCharged
+                } else {
+                    self.status
+                }
+            }
+            enums::AttemptStatus::Charged => {
+                let captured_amount = types::Capturable::get_capture_amount(&self.request);
+                if Some(payment_data.payment_intent.amount) == captured_amount {
+                    enums::AttemptStatus::Charged
+                } else {
+                    enums::AttemptStatus::PartialCharged
+                }
+            }
+            _ => self.status,
+        }
+    }
+}
+
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
@@ -290,6 +336,18 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+}
+
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -626,6 +684,7 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::JCB,
         Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
     );
+    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
     map
 });
 
@@ -638,6 +697,7 @@ pub enum CardIssuer {
     Discover,
     DinersClub,
     JCB,
+    CarteBlanche,
 }
 
 pub trait CardData {

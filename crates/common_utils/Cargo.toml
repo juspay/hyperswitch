@@ -23,6 +23,7 @@ http = "0.2.9"
 md5 = "0.7.0"
 nanoid = "0.4.0"
 once_cell = "1.18.0"
+phonenumber = "0.3.3"
 quick-xml = { version = "0.28.2", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.8.4"
@@ -37,9 +38,9 @@ strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"], optional = true }
-phonenumber = "0.3.3"
 
 # First party crates
+common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true }
 
