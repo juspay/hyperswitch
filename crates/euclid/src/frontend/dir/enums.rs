@@ -225,6 +225,7 @@ pub enum CardRedirectType {
     Benefit,
     Knet,
     MomoAtm,
+    CardRedirect,
 }
 
 #[derive(

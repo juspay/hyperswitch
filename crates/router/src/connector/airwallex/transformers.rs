@@ -824,7 +824,8 @@ pub enum AirwallexDisputeStage {
 
 #[derive(Debug, Deserialize)]
 pub struct AirwallexWebhookDataResource {
-    pub object: serde_json::Value,
+    // Should this be a secret by default since it represents webhook payload
+    pub object: Secret<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]

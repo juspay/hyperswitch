@@ -4,7 +4,7 @@ use router::{
     logger,
 };
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
@@ -43,7 +43,7 @@ async fn main() -> ApplicationResult<()> {
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
-    let server = router::start_server(conf)
+    let server = Box::pin(router::start_server(conf))
         .await
         .expect("Failed to create the server");
     let _ = server.await;
