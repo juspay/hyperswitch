@@ -16,7 +16,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::PaymentMethodRetrieve,
-        payments::{types::MultipleCaptureData, PaymentData},
+        payments::{helpers as payments_helpers, types::MultipleCaptureData, PaymentData},
         utils as core_utils,
     },
     routes::{metrics, AppState},
@@ -331,7 +331,16 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     (Some((multiple_capture_data, capture_update_list)), None)
                 }
                 None => {
+                    let connector_name = router_data.connector.to_string();
                     let flow_name = core_utils::get_flow_name::<F>()?;
+                    let option_gsm = payments_helpers::get_gsm_record(
+                        state,
+                        Some(err.code.clone()),
+                        Some(err.message.clone()),
+                        connector_name,
+                        flow_name.clone(),
+                    )
+                    .await;
                     let status =
                         // mark previous attempt status for technical failures in PSync flow
                         if flow_name == "PSync" {
@@ -364,6 +373,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 None
                             },
                             updated_by: storage_scheme.to_string(),
+                            unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
+                            unified_message: option_gsm.map(|gsm| gsm.unified_message),
                         }),
                     )
                 }
@@ -470,7 +481,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 payment_token: None,
                                 error_code: error_status.clone(),
                                 error_message: error_status.clone(),
-                                error_reason: error_status,
+                                error_reason: error_status.clone(),
+                                unified_code: error_status.clone(),
+                                unified_message: error_status,
                                 connector_response_reference_id,
                                 amount_capturable: if router_data.status.is_terminal_status()
                                     || router_data

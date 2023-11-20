@@ -65,6 +65,8 @@ pub async fn update_gsm_rule(
         status,
         router_error,
         step_up_possible,
+        unified_code,
+        unified_message,
     } = gsm_request;
     GsmInterface::update_gsm_rule(
         db,
@@ -78,6 +80,8 @@ pub async fn update_gsm_rule(
             status,
             router_error: Some(router_error),
             step_up_possible,
+            unified_code,
+            unified_message,
         },
     )
     .await

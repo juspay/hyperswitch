@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -150,9 +150,11 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
         };
         let metadata = item.router_data.get_connector_meta()?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
 
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
@@ -230,9 +232,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
         let metadata = item.get_connector_meta()?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -418,9 +422,19 @@ pub struct ReferenceTransactionDetails {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionObject {
+pub struct FiservSessionObject {
     pub terminal_id: String,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
 }
 
 impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCaptureRequest {
@@ -434,9 +448,11 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             amount: Amount {
                 total: item.amount.clone(),
@@ -527,9 +543,11 @@ impl<F> TryFrom<&FiservRouterData<&types::RefundsRouterData<F>>> for FiservRefun
             .connector_meta_data
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let session: SessionObject = metadata
-            .parse_value("SessionObject")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let session: FiservSessionObject = metadata
+            .parse_value("FiservSessionObject")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Merchant connector account metadata",
+            })?;
         Ok(Self {
             amount: Amount {
                 total: item.amount.clone(),

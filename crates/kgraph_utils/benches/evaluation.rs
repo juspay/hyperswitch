@@ -65,6 +65,7 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
         profile_id: None,
         applepay_verified_domains: None,
         pm_auth_config: None,
+        status: api_enums::ConnectorStatus::Inactive,
     };
 
     kgraph_utils::mca::make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
