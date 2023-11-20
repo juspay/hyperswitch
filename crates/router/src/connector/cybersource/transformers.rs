@@ -119,7 +119,7 @@ pub struct PaymentInformation {
     instrument_identifier: Option<CybersoucreInstrumentIdentifier>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CybersoucreInstrumentIdentifier {
     id: String,
 }
@@ -249,32 +249,27 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
         };
         let payment_information = match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                let mandate_data =
+                let instrument_identifier =
                     item.router_data
                         .request
                         .connector_mandate_id()
-                        .map(|mandate_token_id| {
-                            (
-                                CybersoucreInstrumentIdentifier {
-                                    id: mandate_token_id,
-                                },
-                                ccard.card_cvc,
-                            )
+                        .map(|mandate_token_id| CybersoucreInstrumentIdentifier {
+                            id: mandate_token_id,
                         });
-                let (instrument_identifier, security_code) = match mandate_data {
-                    Some((a, b)) => (Some(a), Some(b)),
-                    None => (None, None),
+                let security_code = if instrument_identifier.is_some() {
+                    None
+                } else {
+                    Some(ccard.card_cvc)
                 };
-                let payment_information = PaymentInformation {
+                PaymentInformation {
                     card: Card {
                         number: ccard.card_number,
                         expiration_month: ccard.card_exp_month,
                         expiration_year: ccard.card_exp_year,
-                        security_code: Some(ccard.card_cvc),
+                        security_code,
                     },
                     instrument_identifier,
-                };
-                payment_information
+                }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment methods".to_string(),

@@ -94,7 +94,7 @@ impl ConnectorCommon for Cybersource {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn build_error_response(
@@ -300,7 +300,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = cybersource::CybersourcePaymentsRequest::try_from(req)?;
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_request =
+            cybersource::CybersourcePaymentsCaptureRequest::try_from(&connector_router_data)?;
         let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
@@ -665,7 +672,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = cybersource::CybersourceRefundRequest::try_from(req)?;
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_request =
+            cybersource::CybersourceRefundRequest::try_from(&connector_router_data)?;
         let cybersource_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<cybersource::CybersourceRefundRequest>::encode_to_string_of_json,
