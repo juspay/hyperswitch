@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
+        self, AddressDetailsData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        PhoneDetailsData, RouterData,
     },
     consts,
     core::errors,
@@ -44,6 +45,87 @@ impl<T>
         Ok(Self {
             amount,
             router_data: item,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceZeroMandateRequest {
+    processing_information: ProcessingInformation,
+    payment_information: PaymentInformation,
+    order_information: OrderInformationWithBill,
+    client_reference_information: ClientReferenceInformation,
+}
+
+impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        let phone = item.get_billing_phone()?;
+        let phone_number = phone.get_number()?;
+        let country_code = phone.get_country_code()?;
+        let number_with_code = Secret::new(format!("{}{}", country_code, phone_number.peek()));
+        let email = item.request.get_email()?;
+        let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
+
+        let order_information = OrderInformationWithBill {
+            amount_details: Amount {
+                total_amount: "0".to_string(),
+                currency: item.request.currency.to_string(),
+            },
+            bill_to: Some(bill_to),
+        };
+        let (action_list, action_token_types, authorization_options) =
+            if item.request.setup_future_usage.is_some() {
+                (
+                    Some(vec![CybersourceActionsList::TokenCreate]),
+                    Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
+                    Some(CybersourceAuthorizationOptions {
+                        initiator: CybersourcePaymentInitiator {
+                            initiator_type: CybersourcePaymentInitiatorTypes::Customer,
+                            credential_stored_on_file: true,
+                        },
+                    }),
+                )
+            } else {
+                (None, None, None)
+            };
+
+        let processing_information = ProcessingInformation {
+            capture: Some(false),
+            capture_options: None,
+            action_list,
+            action_token_types,
+            authorization_options,
+            commerce_indicator: CybersourceCommerceIndicator::Internet,
+        };
+
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.connector_request_reference_id.clone()),
+        };
+
+        let payment_information = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => {
+                let card = CardDetails::PaymentCard(Card {
+                    number: ccard.card_number,
+                    expiration_month: ccard.card_exp_month,
+                    expiration_year: ccard.card_exp_year,
+                    security_code: ccard.card_cvc,
+                });
+                PaymentInformation {
+                    card,
+                    instrument_identifier: None,
+                }
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "payment methods".to_string(),
+            ))?,
+        };
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
         })
     }
 }
@@ -114,8 +196,9 @@ pub struct CaptureOptions {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentInformation {
-    card: Card,
+    card: CardDetails,
     instrument_identifier: Option<CybersoucreInstrumentIdentifier>,
 }
 
@@ -125,12 +208,26 @@ pub struct CybersoucreInstrumentIdentifier {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum CardDetails {
+    PaymentCard(Card),
+    MandateCard(MandateCardDetails),
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-    security_code: Option<Secret<String>>,
+    security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateCardDetails {
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -201,12 +298,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
         let phone_number = phone.get_number()?;
         let country_code = phone.get_country_code()?;
         let number_with_code = Secret::new(format!("{}{}", country_code, phone_number.peek()));
-        let email = item
-            .router_data
-            .request
-            .email
-            .clone()
-            .ok_or_else(utils::missing_field_err("email"))?;
+        let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
 
         let order_information = OrderInformationWithBill {
@@ -256,18 +348,21 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         .map(|mandate_token_id| CybersoucreInstrumentIdentifier {
                             id: mandate_token_id,
                         });
-                let security_code = if instrument_identifier.is_some() {
-                    None
+                let card = if instrument_identifier.is_some() {
+                    CardDetails::MandateCard(MandateCardDetails {
+                        expiration_month: ccard.card_exp_month,
+                        expiration_year: ccard.card_exp_year,
+                    })
                 } else {
-                    Some(ccard.card_cvc)
-                };
-                PaymentInformation {
-                    card: Card {
+                    CardDetails::PaymentCard(Card {
                         number: ccard.card_number,
                         expiration_month: ccard.card_exp_month,
                         expiration_year: ccard.card_exp_year,
-                        security_code,
-                    },
+                        security_code: ccard.card_cvc,
+                    })
+                };
+                PaymentInformation {
+                    card,
                     instrument_identifier,
                 }
             }
