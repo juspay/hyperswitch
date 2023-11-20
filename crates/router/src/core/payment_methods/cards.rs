@@ -50,7 +50,7 @@ use crate::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
         },
-        storage::{self, enums},
+        storage::{self, enums, PaymentTokenData},
         transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
@@ -2103,23 +2103,32 @@ pub async fn list_customer_payment_method(
     let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-        let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
-        let card = if pm.payment_method == enums::PaymentMethod::Card {
-            get_card_details(&pm, key, state, &hyperswitch_token, &key_store).await?
-        } else {
-            None
+        let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
+            enums::PaymentMethod::Card => (
+                Some(get_card_details(&pm, key, state).await?),
+                None,
+                PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
+            ),
+
+            #[cfg(feature = "payouts")]
+            enums::PaymentMethod::BankTransfer => {
+                let token = generate_id(consts::ID_LENGTH, "token");
+                let token_data = PaymentTokenData::temporary_generic(token.clone());
+                (
+                    None,
+                    Some(get_lookup_key_for_payout_method(state, &key_store, &token, &pm).await?),
+                    token_data,
+                )
+            }
+
+            _ => (
+                None,
+                None,
+                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
+            ),
         };
 
-        #[cfg(feature = "payouts")]
-        let pmd = if pm.payment_method == enums::PaymentMethod::BankTransfer {
-            Some(
-                get_lookup_key_for_payout_method(state, &key_store, &hyperswitch_token, &pm)
-                    .await?,
-            )
-        } else {
-            None
-        };
         //Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -2134,10 +2143,7 @@ pub async fn list_customer_payment_method(
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
-            #[cfg(feature = "payouts")]
             bank_transfer: pmd,
-            #[cfg(not(feature = "payouts"))]
-            bank_transfer: None,
             requires_cvv,
         };
         customer_pms.push(pma.to_owned());
@@ -2153,7 +2159,7 @@ pub async fn list_customer_payment_method(
             &parent_payment_method_token,
             pma.payment_method,
         ))
-        .insert(intent_created, hyperswitch_token, state)
+        .insert(intent_created, hyperswitch_token_data, state)
         .await?;
 
         if let Some(metadata) = pma.metadata {
@@ -2200,10 +2206,8 @@ async fn get_card_details(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
     state: &routes::AppState,
-    hyperswitch_token: &str,
-    key_store: &domain::MerchantKeyStore,
-) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    let mut _card_decrypted =
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -2217,16 +2221,17 @@ async fn get_card_details(
                 _ => None,
             });
 
-    Ok(Some(
-        get_lookup_key_from_locker(state, hyperswitch_token, pm, key_store).await?,
-    ))
+    Ok(if let Some(mut crd) = card_decrypted {
+        crd.scheme = pm.scheme.clone();
+        crd
+    } else {
+        get_card_details_from_locker(state, pm).await?
+    })
 }
 
-pub async fn get_lookup_key_from_locker(
+pub async fn get_card_details_from_locker(
     state: &routes::AppState,
-    payment_token: &str,
     pm: &storage::PaymentMethod,
-    merchant_key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card = get_card_from_locker(
         state,
@@ -2237,9 +2242,19 @@ pub async fn get_lookup_key_from_locker(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error getting card from card vault")?;
-    let card_detail = payment_methods::get_card_detail(pm, card)
+
+    payment_methods::get_card_detail(pm, card)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Get Card Details Failed")?;
+        .attach_printable("Get Card Details Failed")
+}
+
+pub async fn get_lookup_key_from_locker(
+    state: &routes::AppState,
+    payment_token: &str,
+    pm: &storage::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card_detail = get_card_details_from_locker(state, pm).await?;
     let card = card_detail.clone();
 
     let resp = TempLockerCardSupport::create_payment_method_data_in_temp_locker(
