@@ -728,9 +728,7 @@ impl User {
     pub fn server(state: AppState) -> Scope {
         web::scope("/user")
             .app_data(web::Data::new(state))
-            .service(web::resource("/signin").route(web::post().to(user_connect_account)))
-            .service(web::resource("/signup").route(web::post().to(user_connect_account)))
-            .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
-            .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/signin").route(web::post().to(user_signin)))
+            .service(web::resource("/signup").route(web::post().to(user_signup)))
     }
 }

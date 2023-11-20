@@ -206,8 +206,8 @@ impl NewUserOrganization {
     }
 }
 
-impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
-    fn from(_value: user_api::ConnectAccountRequest) -> Self {
+impl From<user_api::SignUpRequest> for NewUserOrganization {
+    fn from(_value: user_api::SignUpRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
@@ -287,10 +287,10 @@ impl NewUserMerchant {
     }
 }
 
-impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
+impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
+    fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
         let merchant_id = format!("merchant_{}", common_utils::date_time::now_unix_timestamp());
         let new_organization = NewUserOrganization::from(value);
 
@@ -406,10 +406,10 @@ impl TryFrom<NewUser> for storage_user::UserNew {
     }
 }
 
-impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
+impl TryFrom<user_api::SignUpRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
+    fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
