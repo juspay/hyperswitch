@@ -868,6 +868,15 @@ pub async fn create_payment_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
 
+    let (connector_status, disabled) = validate_status_and_disabled(
+        req.status,
+        req.disabled,
+        auth,
+        // The validate_status_and_disabled function will use this value only
+        // when the status can be active. So we are passing this as fallback.
+        api_enums::ConnectorStatus::Active,
+    )?;
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -886,7 +895,7 @@ pub async fn create_payment_connector(
         .attach_printable("Unable to encrypt connector account details")?,
         payment_methods_enabled,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         metadata: req.metadata,
         frm_configs,
         connector_label: Some(connector_label),
@@ -911,6 +920,7 @@ pub async fn create_payment_connector(
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
+        status: connector_status,
     };
 
     let mut default_routing_config =
@@ -1083,6 +1093,19 @@ pub async fn update_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    let auth: types::ConnectorAuthType = req
+        .connector_account_details
+        .clone()
+        .unwrap_or(mca.connector_account_details.clone().into_inner())
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details".to_string(),
+            expected_format: "auth_type and api_key".to_string(),
+        })?;
+
+    let (connector_status, disabled) =
+        validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1098,7 +1121,7 @@ pub async fn update_payment_connector(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
@@ -1115,6 +1138,7 @@ pub async fn update_payment_connector(
         },
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
+        status: Some(connector_status),
     };
 
     let updated_mca = db
@@ -1721,4 +1745,38 @@ pub async fn validate_dummy_connector_enabled(
     } else {
         Ok(())
     }
+}
+
+pub fn validate_status_and_disabled(
+    status: Option<api_enums::ConnectorStatus>,
+    disabled: Option<bool>,
+    auth: types::ConnectorAuthType,
+    current_status: api_enums::ConnectorStatus,
+) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
+    let connector_status = match (status, auth) {
+        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
+            }
+            .into());
+        }
+        (Some(status), _) => status,
+        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
+        (None, _) => current_status,
+    };
+
+    let disabled = match (disabled, connector_status) {
+        (Some(true), common_enums::ConnectorStatus::Inactive) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
+                    .to_string(),
+            }
+            .into());
+        }
+        (Some(disabled), _) => Some(disabled),
+        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
+        (None, _) => None,
+    };
+
+    Ok((connector_status, disabled))
 }
