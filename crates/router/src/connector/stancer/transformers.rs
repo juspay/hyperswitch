@@ -215,7 +215,6 @@ impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for StancerRef
 // Type definition for Refund Response
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
-#[serde(rename_all = 'snake_case']
 pub enum RefundStatus {
     Failed,
     NotHonored,
