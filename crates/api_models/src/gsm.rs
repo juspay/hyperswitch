@@ -13,6 +13,8 @@ pub struct GsmCreateRequest {
     pub router_error: Option<String>,
     pub decision: GsmDecision,
     pub step_up_possible: bool,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -57,6 +59,8 @@ pub struct GsmUpdateRequest {
     pub router_error: Option<String>,
     pub decision: Option<GsmDecision>,
     pub step_up_possible: Option<bool>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -88,4 +92,6 @@ pub struct GsmResponse {
     pub router_error: Option<String>,
     pub decision: String,
     pub step_up_possible: bool,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }

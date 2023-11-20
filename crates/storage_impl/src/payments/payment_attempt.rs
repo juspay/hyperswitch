@@ -364,6 +364,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     authentication_data: payment_attempt.authentication_data.clone(),
                     encoded_data: payment_attempt.encoded_data.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                    unified_code: payment_attempt.unified_code.clone(),
+                    unified_message: payment_attempt.unified_message.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -978,6 +980,8 @@ impl DataModelExt for PaymentAttempt {
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
             merchant_connector_id: self.merchant_connector_id,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
         }
     }
 
@@ -1030,6 +1034,8 @@ impl DataModelExt for PaymentAttempt {
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
             merchant_connector_id: storage_model.merchant_connector_id,
+            unified_code: storage_model.unified_code,
+            unified_message: storage_model.unified_message,
         }
     }
 }
@@ -1082,6 +1088,8 @@ impl DataModelExt for PaymentAttemptNew {
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
             merchant_connector_id: self.merchant_connector_id,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
         }
     }
 
@@ -1132,6 +1140,8 @@ impl DataModelExt for PaymentAttemptNew {
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
             merchant_connector_id: storage_model.merchant_connector_id,
+            unified_code: storage_model.unified_code,
+            unified_message: storage_model.unified_message,
         }
     }
 }
@@ -1267,6 +1277,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 authentication_data,
                 encoded_data,
+                unified_code,
+                unified_message,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1286,6 +1298,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 authentication_data,
                 encoded_data,
+                unified_code,
+                unified_message,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1319,6 +1333,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                unified_code,
+                unified_message,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1327,6 +1343,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                unified_code,
+                unified_message,
             },
             Self::MultipleCaptureCountUpdate {
                 multiple_capture_count,
@@ -1516,6 +1534,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 authentication_data,
                 encoded_data,
+                unified_code,
+                unified_message,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -1535,6 +1555,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 authentication_data,
                 encoded_data,
+                unified_code,
+                unified_message,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -1568,6 +1590,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                unified_code,
+                unified_message,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -1576,6 +1600,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                unified_code,
+                unified_message,
             },
             DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
