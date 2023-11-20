@@ -3026,6 +3026,8 @@ impl AttemptType {
             authentication_data: None,
             encoded_data: None,
             merchant_connector_id: None,
+            unified_code: None,
+            unified_message: None,
         }
     }
 
@@ -3515,4 +3517,47 @@ pub fn validate_payment_link_request(
         }
     }
     Ok(())
+}
+
+pub async fn get_gsm_record(
+    state: &AppState,
+    error_code: Option<String>,
+    error_message: Option<String>,
+    connector_name: String,
+    flow: String,
+) -> Option<storage::gsm::GatewayStatusMap> {
+    let get_gsm = || async {
+        state.store.find_gsm_rule(
+                connector_name.clone(),
+                flow.clone(),
+                "sub_flow".to_string(),
+                error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
+                error_message.clone().unwrap_or_default(),
+            )
+            .await
+            .map_err(|err| {
+                if err.current_context().is_db_not_found() {
+                    logger::warn!(
+                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        connector_name,
+                        flow,
+                        error_code,
+                        error_message
+                    );
+                    metrics::AUTO_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                } else {
+                    metrics::AUTO_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                };
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to fetch decision from gsm")
+            })
+    };
+    get_gsm()
+        .await
+        .map_err(|err| {
+            // warn log should suffice here because we are not propagating this error
+            logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
+            err
+        })
+        .ok()
 }
