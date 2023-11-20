@@ -42,6 +42,7 @@ pub struct MerchantConnectorAccount {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
+    pub status: storage_enums::ConnectorStatus,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -70,6 +71,7 @@ pub struct MerchantConnectorAccountNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
+    pub status: storage_enums::ConnectorStatus,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -93,6 +95,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
+    pub status: Option<storage_enums::ConnectorStatus>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {
@@ -115,6 +118,7 @@ impl MerchantConnectorAccountUpdateInternal {
             frm_config: self.frm_config,
             modified_at: self.modified_at.unwrap_or(source.modified_at),
             pm_auth_config: self.pm_auth_config,
+            status: self.status.unwrap_or(source.status),
 
             ..source
         }
