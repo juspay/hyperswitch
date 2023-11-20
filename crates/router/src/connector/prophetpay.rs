@@ -124,12 +124,6 @@ impl ConnectorCommon for Prophetpay {
 
 impl ConnectorValidation for Prophetpay {
     //TODO: implement functions when support enabled
-    fn validate_psync_reference_id(
-        &self,
-        _data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
