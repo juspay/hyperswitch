@@ -37,7 +37,7 @@ pub struct StancerPaymentsRequest {
     currency: String,
     auth: Option<StancerAuth>,
     card: Option<StancerCard>,
-    sepa: Option>StancerSepa>,
+    sepa: Option<StancerSepa>,
     customer: Option<StancerCustomer>,
     capture: Option<bool>,
     description: Option<String>,
@@ -110,7 +110,6 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Stance
 // Auth Struct
 pub struct StancerAuthType {
     pub(super) api_key: Secret<String>
-    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StancerAuthType  {
@@ -216,22 +215,23 @@ impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for StancerRef
 // Type definition for Refund Response
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = 'snake_case']
 pub enum RefundStatus {
     Failed,
-    Not_Honored,
-    Refund_Sent,
+    NotHonored,
+    RefundSent,
     Refunded,
     #[default]
-    To_Refund,
+    ToRefund,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Failed => Self::Failure,
-            RefundStatus::Not_Honored => Self::Failure,
-            RefundStatus::To_Refund => Self::Pending,
-            RefundStatus::Refund_Sent => Self::Pending,
+            RefundStatus::NotHonored => Self::Failure,
+            RefundStatus::ToRefund => Self::Pending,
+            RefundStatus::RefundSent => Self::Pending,
             RefundStatus::Succeeded => Self::Success,
         }
     }
