@@ -210,27 +210,16 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response {
-            CashtocodePaymentsResponse::CashtoCodeError(error_data) => {
-                let (code, message) = match error_data {
-                    CashtocodeErrorResponse::StringError(string_error_data) => {
-                        (string_error_data.error, string_error_data.error_description)
-                    }
-                    CashtocodeErrorResponse::IntError(int_error_data) => (
-                        int_error_data.error.to_string(),
-                        int_error_data.error_description,
-                    ),
-                };
-                (
-                    enums::AttemptStatus::Failure,
-                    Err(types::ErrorResponse {
-                        code,
-                        status_code: item.http_code,
-                        message,
-                        reason: None,
-                        attempt_status: None,
-                    }),
-                )
-            }
+            CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: error_data.error.to_string(),
+                    status_code: item.http_code,
+                    message: error_data.error_description,
+                    reason: None,
+                    attempt_status: None,
+                }),
+            ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
                 let redirection_data = services::RedirectForm::Form {
                     endpoint: response_data.pay_url,
@@ -299,22 +288,8 @@ impl<F, T>
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum CashtocodeErrorResponse {
-    StringError(CashtocodeStringErrorResponse),
-    IntError(CashtocodeIntErrorResponse),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CashtocodeStringErrorResponse {
-    pub error: String,
-    pub error_description: String,
-    pub errors: Option<Vec<CashtocodeErrors>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CashtocodeIntErrorResponse {
-    pub error: i64,
+pub struct CashtocodeErrorResponse {
+    pub error: serde_json::Value,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }

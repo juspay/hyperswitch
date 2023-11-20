@@ -114,19 +114,10 @@ impl ConnectorCommon for Cashtocode {
             .response
             .parse_struct("CashtocodeErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let (code, message) = match response {
-            cashtocode::CashtocodeErrorResponse::StringError(string_error_data) => {
-                (string_error_data.error, string_error_data.error_description)
-            }
-            cashtocode::CashtocodeErrorResponse::IntError(int_error_data) => (
-                int_error_data.error.to_string(),
-                int_error_data.error_description,
-            ),
-        };
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code,
-            message,
+            code: response.error.to_string(),
+            message: response.error_description,
             reason: None,
             attempt_status: None,
         })
