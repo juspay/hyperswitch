@@ -1,6 +1,7 @@
+use crate::utils::user as utils;
 use api_models::user as api;
 use diesel_models::enums::UserStatus;
-use masking::{ExposeInterface, Secret};
+use masking::ExposeInterface;
 
 use super::errors::{UserErrors, UserResponse};
 use crate::{
@@ -12,7 +13,7 @@ pub async fn signup(
     request: api::SignUpRequest,
 ) -> UserResponse<api::SignUpResponse> {
     let new_user = domain::NewUser::try_from(request)?;
-    let _ = new_user
+    new_user
         .get_new_merchant()
         .get_new_organization()
         .insert_org_in_db(state.clone())
@@ -27,12 +28,10 @@ pub async fn signup(
             UserStatus::Active,
         )
         .await?;
-    let jwt_token = user_from_db
-        .get_jwt_auth_token(state.clone(), user_role.org_id)
-        .await?;
+    let token = utils::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
 
     return Ok(ApplicationResponse::Json(api::SignUpResponse {
-        token: Secret::new(jwt_token),
+        token,
         merchant_id: user_role.merchant_id,
         name: user_from_db.get_name(),
         email: user_from_db.get_email(),
@@ -62,12 +61,10 @@ pub async fn signin(
     user_from_db.compare_password(request.password)?;
 
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let jwt_token = user_from_db
-        .get_jwt_auth_token(state.clone(), user_role.org_id)
-        .await?;
+    let token = utils::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
 
     return Ok(ApplicationResponse::Json(api::SignInResponse {
-        token: Secret::new(jwt_token),
+        token,
         merchant_id: user_role.merchant_id,
         name: user_from_db.get_name(),
         email: user_from_db.get_email(),

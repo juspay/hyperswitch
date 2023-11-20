@@ -22,7 +22,6 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    services::authentication::AuthToken,
     types::transformers::ForeignFrom,
     utils::user::password,
 };
@@ -453,24 +452,6 @@ impl UserFromStorage {
 
     pub fn get_email(&self) -> pii::Email {
         self.0.email.clone()
-    }
-
-    pub async fn get_jwt_auth_token(&self, state: AppState, org_id: String) -> UserResult<String> {
-        let role_id = self.get_role_from_db(state.clone()).await?.role_id;
-        let merchant_id = state
-            .store
-            .find_user_role_by_user_id(self.get_user_id())
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .merchant_id;
-        AuthToken::new_token(
-            self.0.user_id.clone(),
-            merchant_id,
-            role_id,
-            &state.conf,
-            org_id,
-        )
-        .await
     }
 
     pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
