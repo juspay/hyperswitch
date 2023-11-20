@@ -131,6 +131,7 @@ impl ConnectorCommon for Checkout {
                 .error_codes
                 .map(|errors| errors.join(" & "))
                 .or(response.error_type),
+            attempt_status: None,
         })
     }
 }
@@ -1260,7 +1261,7 @@ impl api::IncomingWebhook for Checkout {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
@@ -1280,7 +1281,10 @@ impl api::IncomingWebhook for Checkout {
             utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         };
-        Ok(resource_object)
+        // Ideally this should be a strict type that has type information
+        // PII information is likely being logged here when this response will be logged.
+
+        Ok(Box::new(resource_object))
     }
 
     fn get_dispute_details(

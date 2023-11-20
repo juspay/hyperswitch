@@ -111,6 +111,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             code: response.error.code,
             message: response.error.message,
             reason: response.error.reason,
+            attempt_status: None,
         })
     }
 }
@@ -578,7 +579,7 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

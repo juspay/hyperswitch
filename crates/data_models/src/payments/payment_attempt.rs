@@ -142,6 +142,8 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<String>,
 }
 
@@ -202,6 +204,8 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<String>,
 }
 
@@ -220,6 +224,8 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -227,6 +233,8 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -251,8 +259,6 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -281,7 +287,11 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -323,6 +333,13 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        updated_by: String,
+    },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
         updated_by: String,
     },
 }

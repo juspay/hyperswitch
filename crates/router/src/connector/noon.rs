@@ -136,6 +136,7 @@ impl ConnectorCommon for Noon {
             code: response.result_code.to_string(),
             message: response.class_description,
             reason: Some(response.message),
+            attempt_status: None,
         })
     }
 }
@@ -152,6 +153,14 @@ impl ConnectorValidation for Noon {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
     }
 }
 
@@ -735,16 +744,12 @@ impl api::IncomingWebhook for Noon {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource: noon::NoonWebhookObject = request
             .body
             .parse_struct("NoonWebhookObject")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        let res_json = serde_json::to_value(noon::NoonPaymentsResponse::from(resource))
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        Ok(res_json)
+        Ok(Box::new(noon::NoonPaymentsResponse::from(resource)))
     }
 }

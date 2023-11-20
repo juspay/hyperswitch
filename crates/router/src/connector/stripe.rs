@@ -217,7 +217,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -338,7 +347,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -455,7 +473,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -580,7 +607,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -714,7 +750,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -863,7 +908,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -977,7 +1031,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1124,7 +1187,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1236,7 +1308,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1333,7 +1414,16 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1469,7 +1559,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1563,7 +1662,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1683,7 +1791,16 @@ impl
                 .error
                 .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
+            reason: response.error.message.map(|message| {
+                response
+                    .error
+                    .decline_code
+                    .map(|decline_code| {
+                        format!("message - {}, decline_code - {}", message, decline_code)
+                    })
+                    .unwrap_or(message)
+            }),
+            attempt_status: None,
         })
     }
 }
@@ -1940,13 +2057,13 @@ impl api::IncomingWebhook for Stripe {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: stripe::WebhookEventObjectResource = request
             .body
             .parse_struct("WebhookEventObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        Ok(details.data.object)
+        Ok(Box::new(details.data.object))
     }
     fn get_dispute_details(
         &self,

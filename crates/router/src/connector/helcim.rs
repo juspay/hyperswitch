@@ -137,6 +137,7 @@ impl ConnectorCommon for Helcim {
             code: NO_ERROR_CODE.to_owned(),
             message: error_string.clone(),
             reason: Some(error_string),
+            attempt_status: None,
         })
     }
 }
@@ -770,7 +771,7 @@ impl api::IncomingWebhook for Helcim {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

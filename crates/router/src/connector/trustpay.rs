@@ -138,6 +138,7 @@ impl ConnectorCommon for Trustpay {
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: reason.or(response_data.description),
+                    attempt_status: None,
                 })
             }
             Err(error_msg) => {
@@ -296,6 +297,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
             reason: response.result_info.additional_info,
+            attempt_status: None,
         })
     }
 }
@@ -369,6 +371,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             // message vary for the same code, so relying on code alone as it is unique
             message: response.status.to_string(),
             reason: Some(response.payment_description),
+            attempt_status: None,
         })
     }
 
@@ -903,16 +906,12 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
-        let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
-            &details.payment_information,
-        )
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+        Ok(Box::new(details.payment_information))
     }
 
     fn get_webhook_source_verification_algorithm(

@@ -90,6 +90,10 @@ impl ConnectorCommon for Payeezy {
         "payeezy"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -119,6 +123,7 @@ impl ConnectorCommon for Payeezy {
             code: response.transaction_status,
             message: error_messages.join(", "),
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -296,12 +301,19 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
+        let router_obj = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let req_obj = payeezy::PayeezyCaptureOrVoidRequest::try_from(&router_obj)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(payeezy_req))
     }
 
@@ -387,9 +399,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyPaymentsRequest::try_from(req)?;
+        let router_obj = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = payeezy::PayeezyPaymentsRequest::try_from(&router_obj)?;
+
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
+            &req_obj,
             utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -479,10 +498,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = payeezy::PayeezyRefundRequest::try_from(req)?;
+        let router_obj = payeezy::PayeezyRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = payeezy::PayeezyRefundRequest::try_from(&router_obj)?;
         let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
+            &req_obj,
+            utils::Encode::<payeezy::PayeezyRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
@@ -511,16 +536,22 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+        // Parse the response into a payeezy::RefundResponse
         let response: payeezy::RefundResponse = res
             .response
             .parse_struct("payeezy RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RefundsRouterData::try_from(types::ResponseRouterData {
+
+        // Create a new instance of types::RefundsRouterData based on the response, input data, and HTTP code
+        let response_data = types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        };
+        let router_data = types::RefundsRouterData::try_from(response_data)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -554,7 +585,7 @@ impl api::IncomingWebhook for Payeezy {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

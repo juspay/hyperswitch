@@ -3,6 +3,7 @@ pub mod adyen;
 pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bambora;
+pub mod bankofamerica;
 pub mod bitpay;
 pub mod bluesnap;
 pub mod boku;
@@ -56,9 +57,9 @@ pub mod zen;
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
-    cybersource::Cybersource, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv, forte::Forte,
+    bambora::Bambora, bankofamerica::Bankofamerica, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
+    braintree::Braintree, cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase,
+    cryptopay::Cryptopay, cybersource::Cybersource, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv, forte::Forte,
     globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, helcim::Helcim,
     iatapay::Iatapay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay,
     nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,

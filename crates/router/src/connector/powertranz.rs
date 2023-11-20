@@ -120,6 +120,7 @@ impl ConnectorCommon for Powertranz {
             code: consts::NO_ERROR_CODE.to_string(),
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -609,7 +610,7 @@ impl api::IncomingWebhook for Powertranz {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

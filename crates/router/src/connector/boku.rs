@@ -130,6 +130,7 @@ impl ConnectorCommon for Boku {
                 code: response.code,
                 message: response.message,
                 reason: response.reason,
+                attempt_status: None,
             }),
             Err(_) => get_xml_deserialized(res),
         }
@@ -626,7 +627,7 @@ impl api::IncomingWebhook for Boku {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
@@ -666,6 +667,7 @@ fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::Co
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
+                attempt_status: None,
             })
         }
     }

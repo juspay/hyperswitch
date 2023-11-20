@@ -91,6 +91,7 @@ impl Paypal {
             code: response.name,
             message: response.message.clone(),
             reason: error_reason.or(Some(response.message)),
+            attempt_status: None,
         })
     }
 }
@@ -203,6 +204,7 @@ impl ConnectorCommon for Paypal {
             code: response.name,
             message: response.message.clone(),
             reason,
+            attempt_status: None,
         })
     }
 }
@@ -343,6 +345,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             code: response.error,
             message: response.error_description.clone(),
             reason: Some(response.error_description),
+            attempt_status: None,
         })
     }
 }
@@ -1186,33 +1189,24 @@ impl api::IncomingWebhook for Paypal {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: paypal::PaypalWebhooksBody =
             request
                 .body
                 .parse_struct("PaypalWebhooksBody")
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        let sync_payload = match details.resource {
-            paypal::PaypalResource::PaypalCardWebhooks(resource) => serde_json::to_value(
+        Ok(match details.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => Box::new(
                 paypal::PaypalPaymentsSyncResponse::try_from((*resource, details.event_type))?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => serde_json::to_value(
+            ),
+            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => Box::new(
                 paypal::PaypalOrdersResponse::try_from((*resource, details.event_type))?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-            paypal::PaypalResource::PaypalRefundWebhooks(resource) => serde_json::to_value(
+            ),
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => Box::new(
                 paypal::RefundSyncResponse::try_from((*resource, details.event_type))?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-            paypal::PaypalResource::PaypalDisputeWebhooks(_) => serde_json::to_value(details)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
-        };
-        Ok(sync_payload)
+            ),
+            paypal::PaypalResource::PaypalDisputeWebhooks(_) => Box::new(details),
+        })
     }
 
     fn get_dispute_details(

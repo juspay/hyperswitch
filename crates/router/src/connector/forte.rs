@@ -130,6 +130,7 @@ impl ConnectorCommon for Forte {
             code,
             message,
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -668,7 +669,7 @@ impl api::IncomingWebhook for Forte {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

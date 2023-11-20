@@ -105,6 +105,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             code: response.code,
             message: response.message,
             reason: response.reason,
+            attempt_status: None,
         })
     }
 }
@@ -484,7 +485,7 @@ impl api::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn erased_serde::Serialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

@@ -95,6 +95,7 @@ impl ConnectorCommon for Bambora {
             code: response.code.to_string(),
             message: response.message,
             reason: Some(serde_json::to_string(&response.details).unwrap_or_default()),
+            attempt_status: None,
         })
     }
 }
@@ -684,7 +685,7 @@ impl api::IncomingWebhook for Bambora {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

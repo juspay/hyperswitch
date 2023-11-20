@@ -123,6 +123,7 @@ impl ConnectorCommon for Square {
                 .and_then(|error| error.category.clone())
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(reason),
+            attempt_status: None,
         })
     }
 }
@@ -914,24 +915,19 @@ impl api::IncomingWebhook for Square {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: square::SquareWebhookBody =
             request
                 .body
                 .parse_struct("SquareWebhookObject")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let reference_object = match details.data.object {
+        Ok(match details.data.object {
             square::SquareWebhookObject::Payment(square_payments_response_details) => {
-                serde_json::to_value(square_payments_response_details)
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+                Box::new(square_payments_response_details)
             }
             square::SquareWebhookObject::Refund(square_refund_response_details) => {
-                serde_json::to_value(square_refund_response_details)
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+                Box::new(square_refund_response_details)
             }
-        };
-        Ok(reference_object)
+        })
     }
 }

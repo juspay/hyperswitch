@@ -104,6 +104,7 @@ impl ConnectorCommon for Globalpay {
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -317,6 +318,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
+            attempt_status: None,
         })
     }
 }
@@ -930,14 +932,15 @@ impl api::IncomingWebhook for Globalpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details = std::str::from_utf8(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json = serde_json::from_str(details)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+        Ok(Box::new(
+            serde_json::from_str(details)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+        ))
     }
 }
 

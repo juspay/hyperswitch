@@ -23,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt, Encode},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -82,6 +82,10 @@ impl ConnectorCommon for Bitpay {
         "bitpay"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -116,6 +120,7 @@ impl ConnectorCommon for Bitpay {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.error,
             reason: response.message,
+            attempt_status: None,
         })
     }
 }
@@ -170,7 +175,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = bitpay::BitpayPaymentsRequest::try_from(req)?;
+        let connector_router_data = bitpay::BitpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
         let bitpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
@@ -382,12 +393,11 @@ impl api::IncomingWebhook for Bitpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Encode::<BitpayWebhookDetails>::encode_to_value(&notif)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+        Ok(Box::new(notif))
     }
 }

@@ -104,6 +104,10 @@ impl ConnectorCommon for Fiserv {
         "fiserv"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -147,6 +151,7 @@ impl ConnectorCommon for Fiserv {
                         message: first_error.message.to_owned(),
                         reason: first_error.field.to_owned(),
                         status_code: res.status_code,
+                        attempt_status: None,
                     })
             })
             .unwrap_or(types::ErrorResponse {
@@ -154,6 +159,7 @@ impl ConnectorCommon for Fiserv {
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
                 status_code: res.status_code,
+                attempt_status: None,
             }))
     }
 }
@@ -407,7 +413,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservCaptureRequest::try_from(req)?;
+        let router_obj = fiserv::FiservRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_request = fiserv::FiservCaptureRequest::try_from(&router_obj)?;
         let fiserv_payments_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json,
@@ -515,7 +527,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservPaymentsRequest::try_from(req)?;
+        let router_obj = fiserv::FiservRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request = fiserv::FiservPaymentsRequest::try_from(&router_obj)?;
         let fiserv_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json,
@@ -605,7 +623,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservRefundRequest::try_from(req)?;
+        let router_obj = fiserv::FiservRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_request = fiserv::FiservRefundRequest::try_from(&router_obj)?;
         let fiserv_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json,
@@ -763,7 +787,7 @@ impl api::IncomingWebhook for Fiserv {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

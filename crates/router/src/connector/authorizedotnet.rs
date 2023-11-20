@@ -875,17 +875,15 @@ impl api::IncomingWebhook for Authorizedotnet {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let payload: authorizedotnet::AuthorizedotnetWebhookObjectId = request
             .body
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        let sync_payload = serde_json::to_value(
+
+        Ok(Box::new(
             authorizedotnet::AuthorizedotnetSyncResponse::try_from(payload)?,
-        )
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-        Ok(sync_payload)
+        ))
     }
 }
 
@@ -912,6 +910,7 @@ fn get_error_response(
                     message: error.error_text.to_owned(),
                     reason: Some(error.error_text),
                     status_code,
+                    attempt_status: None,
                 })
             })
             .unwrap_or_else(|| types::ErrorResponse {
@@ -919,6 +918,7 @@ fn get_error_response(
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
                 status_code,
+                attempt_status: None,
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
@@ -928,6 +928,7 @@ fn get_error_response(
                 message: message.to_string(),
                 reason: Some(message.to_string()),
                 status_code,
+                attempt_status: None,
             })
         }
     }

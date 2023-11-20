@@ -95,11 +95,12 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 
     #[instrument(skip_all)]
@@ -131,7 +132,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 {
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn StorageInterface,
+        _state: &'b AppState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -156,7 +157,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 {
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn StorageInterface,
+        _state: &'b AppState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -225,7 +226,7 @@ async fn get_tracker_for_sync<
     PaymentData<F>,
     Option<CustomerDetails>,
 )> {
-    let (payment_intent, payment_attempt, currency, amount);
+    let (payment_intent, mut payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -249,18 +250,7 @@ async fn get_tracker_for_sync<
 
     let payment_id_str = payment_attempt.payment_id.clone();
 
-    let mut connector_response = db
-        .find_connector_response_by_payment_id_merchant_id_attempt_id(
-            &payment_intent.payment_id,
-            &payment_intent.merchant_id,
-            &payment_attempt.attempt_id,
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable("Database error when finding connector response")?;
-
-    connector_response.encoded_data = request.param.clone();
+    payment_attempt.encoded_data = request.param.clone();
     currency = payment_attempt.currency.get_required_value("currency")?;
     amount = payment_attempt.amount.into();
 
@@ -348,7 +338,7 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {payment_id_str}", &merchant_account.merchant_id)
         });
 
-    let contains_encoded_data = connector_response.encoded_data.is_some();
+    let contains_encoded_data = payment_attempt.encoded_data.is_some();
 
     let creds_identifier = request
         .merchant_connector_details
@@ -372,7 +362,6 @@ async fn get_tracker_for_sync<
         PaymentData {
             flow: PhantomData,
             payment_intent,
-            connector_response,
             currency,
             amount,
             email: None,
