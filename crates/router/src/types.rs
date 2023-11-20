@@ -782,14 +782,6 @@ pub enum VerifyWebhookStatus {
     SourceNotVerified,
 }
 
-#[derive(Debug, Clone)]
-pub struct SyncConnectorRequestData;
-
-#[derive(Debug, Clone)]
-pub struct SyncConnectorResponseData {
-    pub referral_url: String,
-}
-
 #[derive(Default, Debug, Clone)]
 pub struct AcceptDisputeRequestData {
     pub dispute_id: String,

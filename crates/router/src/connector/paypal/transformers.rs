@@ -346,7 +346,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
         item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let paypal_auth: PaypalAuthType =
-            PaypalAuthType::try_from(&item.router_data.connector_auth_type)?; // Assuming you have implemented TryInto for ConnectorAuthType to PaypalAuthType
+            PaypalAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payee = get_payee(&paypal_auth);
         match item.router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {

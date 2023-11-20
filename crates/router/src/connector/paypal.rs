@@ -5,7 +5,7 @@ use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
@@ -111,76 +111,67 @@ where
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let key = &req.attempt_id;
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
-        let headers = match auth {
-            paypal::PaypalAuthType::AuthWithDetails(paypal::PaypalConnectorCredentials {
-                payer_id: Some(payer_id),
-                client_id,
-                ..
-            }) => {
-                let auth_header1 = consts::BASE64_ENGINE
-                    .encode("{\"alg\":\"none\"}")
-                    .to_string();
-                let keys = format!(
-                    "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
-                    client_id.clone().expose(),
-                    payer_id.expose()
-                );
-                let encode = consts::BASE64_ENGINE.encode(keys).to_string();
-                let auth_headers = format!("{}.{}.", auth_header1, encode);
-                vec![
-                    (
-                        headers::CONTENT_TYPE.to_string(),
-                        self.get_content_type().to_string().into(),
-                    ),
-                    (
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", access_token.token.peek()).into_masked(),
-                    ),
-                    (
-                        auth_headers::PREFER.to_string(),
-                        "return=representation".to_string().into(),
-                    ),
-                    (
-                        auth_headers::PAYPAL_REQUEST_ID.to_string(),
-                        key.to_string().into_masked(),
-                    ),
-                    (
-                        auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
-                        auth_headers.to_string().into_masked(),
-                    ),
-                    (
-                        auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
-                        "HyperSwitchPPCP_SP".to_string().into(),
-                    ),
-                ]
-            }
-            _ => {
-                vec![
-                    (
-                        headers::CONTENT_TYPE.to_string(),
-                        self.get_content_type().to_string().into(),
-                    ),
-                    (
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", access_token.token.peek()).into_masked(),
-                    ),
-                    (
-                        auth_headers::PREFER.to_string(),
-                        "return=representation".to_string().into(),
-                    ),
-                    (
-                        auth_headers::PAYPAL_REQUEST_ID.to_string(),
-                        key.to_string().into_masked(),
-                    ),
-                    (
-                        auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
-                        "HyperSwitchlegacy_Ecom".to_string().into(),
-                    ),
-                ]
-            }
-        };
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.peek()).into_masked(),
+            ),
+            (
+                auth_headers::PREFER.to_string(),
+                "return=representation".to_string().into(),
+            ),
+            (
+                auth_headers::PAYPAL_REQUEST_ID.to_string(),
+                key.to_string().into_masked(),
+            ),
+        ];
+        if let Ok(paypal::PaypalConnectorCredentials {
+            payer_id: Some(payer_id),
+            client_id,
+            ..
+        }) = auth.get_credentails()
+        {
+            let auth_assertion_header = construct_auth_assertion_header(payer_id, client_id);
+            headers.extend(vec![
+                (
+                    auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
+                    auth_assertion_header.to_string().into_masked(),
+                ),
+                (
+                    auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
+                    "HyperSwitchPPCP_SP".to_string().into(),
+                ),
+            ])
+        } else {
+            headers.extend(vec![(
+                auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
+                "HyperSwitchlegacy_Ecom".to_string().into(),
+            )])
+        }
         Ok(headers)
     }
+}
+
+fn construct_auth_assertion_header(
+    payer_id: &Secret<String>,
+    client_id: &Secret<String>,
+) -> String {
+    let algorithm = consts::BASE64_ENGINE
+        .encode("{\"alg\":\"none\"}")
+        .to_string();
+    let merchant_credentials = format!(
+        "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
+        client_id.clone().expose(),
+        payer_id.clone().expose()
+    );
+    let encoded_credentials = consts::BASE64_ENGINE
+        .encode(merchant_credentials)
+        .to_string();
+    return format!("{}.{}.", algorithm, encoded_credentials);
 }
 
 impl ConnectorCommon for Paypal {
