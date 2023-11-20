@@ -331,6 +331,10 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         step_up_possible -> Bool,
+        #[max_length = 255]
+        unified_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        unified_message -> Nullable<Varchar>,
     }
 }
 
@@ -585,6 +589,10 @@ diesel::table! {
         merchant_connector_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Json>,
         encoded_data -> Nullable<Text>,
+        #[max_length = 255]
+        unified_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        unified_message -> Nullable<Varchar>,
     }
 }
 

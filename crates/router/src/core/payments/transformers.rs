@@ -685,6 +685,8 @@ where
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
                         .set_merchant_connector_id(payment_attempt.merchant_connector_id)
+                        .set_unified_code(payment_attempt.unified_code)
+                        .set_unified_message(payment_attempt.unified_message)
                         .to_owned(),
                     headers,
                 ))
@@ -745,6 +747,8 @@ where
                 attempt_count: payment_intent.attempt_count,
                 payment_link: payment_link_data,
                 surcharge_details,
+                unified_code: payment_attempt.unified_code,
+                unified_message: payment_attempt.unified_message,
                 ..Default::default()
             },
             headers,

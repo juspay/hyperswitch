@@ -31,9 +31,8 @@ use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, ut
 use time;
 
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
-    PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentReject,
+    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -112,7 +111,12 @@ where
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
 
-    let (operation, mut payment_data, customer_details) = operation
+    let operations::GetTrackerResponse {
+        operation,
+        customer_details,
+        mut payment_data,
+        business_profile,
+    } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
@@ -142,6 +146,7 @@ where
         state,
         &req,
         &merchant_account,
+        &business_profile,
         &key_store,
         &mut payment_data,
         eligible_connectors,
@@ -2012,11 +2017,13 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_connector_choice<F, Req, Ctx>(
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     state: &AppState,
     req: &Req,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
@@ -2054,6 +2061,7 @@ where
                 connector_selection(
                     state,
                     merchant_account,
+                    business_profile,
                     key_store,
                     payment_data,
                     Some(straight_through),
@@ -2066,6 +2074,7 @@ where
                 connector_selection(
                     state,
                     merchant_account,
+                    business_profile,
                     key_store,
                     payment_data,
                     None,
@@ -2089,6 +2098,7 @@ where
 pub async fn connector_selection<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
@@ -2128,6 +2138,7 @@ where
     let decided_connector = decide_connector(
         state.clone(),
         merchant_account,
+        business_profile,
         key_store,
         payment_data,
         request_straight_through,
@@ -2155,9 +2166,11 @@ where
     Ok(decided_connector)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn decide_connector<F>(
     state: AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
@@ -2359,6 +2372,7 @@ where
     route_connector_v1(
         &state,
         merchant_account,
+        business_profile,
         key_store,
         payment_data,
         routing_data,
@@ -2494,6 +2508,7 @@ where
 pub async fn route_connector_v1<F>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     routing_data: &mut storage::RoutingData,
@@ -2502,43 +2517,18 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    #[cfg(not(feature = "business_profile_routing"))]
-    let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
-        .routing_algorithm
-        .clone()
-        .map(|ra| ra.parse_value("RoutingAlgorithmRef"))
+    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
+        business_profile.routing_algorithm.clone()
+    } else {
+        merchant_account.routing_algorithm.clone()
+    };
+
+    let algorithm_ref = routing_algorithm
+        .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode merchant routing algorithm ref")?
         .unwrap_or_default();
-
-    #[cfg(feature = "business_profile_routing")]
-    let algorithm_ref: api::routing::RoutingAlgorithmRef = {
-        let profile_id = payment_data
-            .payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
-
-        let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
-            })?;
-
-        business_profile
-            .routing_algorithm
-            .clone()
-            .map(|ra| ra.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not decode merchant routing algorithm ref")?
-            .unwrap_or_default()
-    };
 
     let connectors = routing::perform_static_routing_v1(
         state,
