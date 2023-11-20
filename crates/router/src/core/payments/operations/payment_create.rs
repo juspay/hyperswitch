@@ -528,6 +528,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_amount_to_capture_in_create_call_request(request)?;
+
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
