@@ -90,7 +90,7 @@ pub struct CybersourceAuthorizationOptions {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentInitiator {
     #[serde(rename = "type")]
-    initator_type: CybersourcePaymentInitiatorTypes,
+    initiator_type: CybersourcePaymentInitiatorTypes,
     credential_stored_on_file: bool,
 }
 
@@ -223,7 +223,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
                     Some(CybersourceAuthorizationOptions {
                         initiator: CybersourcePaymentInitiator {
-                            initator_type: CybersourcePaymentInitiatorTypes::Customer,
+                            initiator_type: CybersourcePaymentInitiatorTypes::Customer,
                             credential_stored_on_file: true,
                         },
                     }),
