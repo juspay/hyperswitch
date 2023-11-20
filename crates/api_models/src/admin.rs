@@ -611,6 +611,9 @@ pub struct MerchantConnectorCreate {
     pub profile_id: Option<String>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -716,6 +719,9 @@ pub struct MerchantConnectorResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: api_enums::ConnectorStatus,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -790,6 +796,9 @@ pub struct MerchantConnectorUpdate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
