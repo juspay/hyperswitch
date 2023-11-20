@@ -492,6 +492,7 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
+        status -> ConnectorStatus,
     }
 }
 
@@ -668,6 +669,7 @@ diesel::table! {
         fulfilment_time -> Nullable<Timestamp>,
         #[max_length = 64]
         custom_merchant_name -> Nullable<Varchar>,
+        payment_link_config -> Nullable<Jsonb>,
     }
 }
 

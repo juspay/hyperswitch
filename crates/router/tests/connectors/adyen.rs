@@ -23,6 +23,7 @@ impl utils::Connector for AdyenTest {
         }
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         use router::connector::Adyen;
         Some(types::api::PayoutConnectorData {
@@ -68,6 +69,7 @@ impl AdyenTest {
         })
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
