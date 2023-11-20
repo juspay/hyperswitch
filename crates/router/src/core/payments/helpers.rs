@@ -600,6 +600,7 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
+/// if confirm = true and capture method = automatic, amount_to_capture(if provided) must be equal to amount
 #[instrument(skip_all)]
 pub fn validate_amount_to_capture_in_create_call_request(
     request: &api_models::payments::PaymentsRequest,
