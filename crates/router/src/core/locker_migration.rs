@@ -106,7 +106,7 @@ pub async fn call_to_locker(
         let (_add_card_rs_resp, _is_duplicate) = cards::add_card_hs(
             state,
             pm_create,
-            card_details,
+            &card_details,
             customer_id.to_string(),
             merchant_account,
             api_enums::LockerChoice::Tartarus,
