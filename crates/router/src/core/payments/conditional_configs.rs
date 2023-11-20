@@ -7,6 +7,7 @@ use api_models::{
 use common_utils::{ext_traits::StringExt, static_cache::StaticCache};
 use error_stack::{IntoReport, ResultExt};
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
+use router_env::{instrument, tracing};
 
 use super::routing::make_dsl_input;
 use crate::{
@@ -18,6 +19,7 @@ static CONF_CACHE: StaticCache<backend::VirInterpreterBackend<ConditionalConfigs
     StaticCache::new();
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
+#[instrument(skip_all)]
 pub async fn perform_decision_management<F: Clone>(
     state: &routes::AppState,
     algorithm_ref: routing::RoutingAlgorithmRef,
@@ -48,6 +50,7 @@ pub async fn perform_decision_management<F: Clone>(
     execute_dsl_and_get_conditional_config(backend_input, interpreter).await
 }
 
+#[instrument(skip_all)]
 pub async fn ensure_algorithm_cached(
     state: &routes::AppState,
     merchant_id: &str,
@@ -71,6 +74,7 @@ pub async fn ensure_algorithm_cached(
     Ok(key)
 }
 
+#[instrument(skip_all)]
 pub async fn refresh_routing_cache(
     state: &routes::AppState,
     key: String,

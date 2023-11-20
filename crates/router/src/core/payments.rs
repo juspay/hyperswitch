@@ -45,9 +45,7 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
-    errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow,
-    utils::persist_individual_surcharge_details_in_redis,
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, utils as core_utils,
 };
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
@@ -364,6 +362,7 @@ where
     ))
 }
 
+#[instrument(skip_all)]
 pub async fn call_decision_manager<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -398,6 +397,7 @@ where
     Ok(())
 }
 
+#[instrument(skip_all)]
 async fn populate_surcharge_details<F>(
     state: &AppState,
     payment_data: &mut PaymentData<F>,
@@ -480,6 +480,8 @@ pub fn get_connector_data(
         .into_report()
         .attach_printable("Connector not found in connectors iterator")
 }
+
+#[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -515,18 +517,23 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode the routing algorithm")?
             .unwrap_or_default();
-        let surcharge_results = perform_surcharge_decision_management_for_session_flow(
-            state,
-            algorithm_ref,
-            payment_data,
-            &payment_method_type_list,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
+        let surcharge_results =
+            surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
+                state,
+                algorithm_ref,
+                payment_data,
+                &payment_method_type_list,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decision operation")?;
 
-        persist_individual_surcharge_details_in_redis(state, merchant_account, &surcharge_results)
-            .await?;
+        core_utils::persist_individual_surcharge_details_in_redis(
+            state,
+            merchant_account,
+            &surcharge_results,
+        )
+        .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None

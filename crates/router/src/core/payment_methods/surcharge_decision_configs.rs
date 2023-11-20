@@ -12,6 +12,7 @@ use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
 };
+use router_env::{instrument, tracing};
 
 use crate::{core::payments::PaymentData, db::StorageInterface, types::storage as oss_storage};
 static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
@@ -236,6 +237,7 @@ fn get_surcharge_details_response(
     })
 }
 
+#[instrument(skip_all)]
 pub async fn ensure_algorithm_cached(
     store: &dyn StorageInterface,
     merchant_id: &str,
@@ -247,7 +249,7 @@ pub async fn ensure_algorithm_cached(
         .present(&key)
         .into_report()
         .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error checking presece of DSL")?;
+        .attach_printable("Error checking presence of DSL")?;
     let expired = CONF_CACHE
         .expired(&key, timestamp)
         .into_report()
@@ -260,6 +262,7 @@ pub async fn ensure_algorithm_cached(
     Ok(key)
 }
 
+#[instrument(skip_all)]
 pub async fn refresh_surcharge_algorithm_cache(
     store: &dyn StorageInterface,
     key: String,

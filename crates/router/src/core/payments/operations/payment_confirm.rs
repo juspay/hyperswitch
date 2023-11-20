@@ -440,6 +440,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         helpers::get_connector_default(state, request.routing.clone()).await
     }
 
+    #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
         state: &AppState,

@@ -1082,6 +1082,7 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .to_string())
 }
 
+#[instrument(skip_all)]
 pub async fn persist_individual_surcharge_details_in_redis(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1121,6 +1122,7 @@ pub async fn persist_individual_surcharge_details_in_redis(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn get_individual_surcharge_detail_from_redis(
     state: &AppState,
     payment_method: &euclid_enums::PaymentMethod,
