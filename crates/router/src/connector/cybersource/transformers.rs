@@ -356,9 +356,22 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     instrument_identifier,
                 }
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Cybersource"),
-            ))?,
+            payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))?
+            }
         };
         Ok(Self {
             processing_information,
