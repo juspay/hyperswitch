@@ -529,14 +529,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             )?;
         }
 
-        let given_payment_id = match &request.payment_id {
-            Some(id_type) => Some(
-                id_type
-                    .get_payment_intent_id()
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
-            ),
-            None => None,
-        };
+        let payment_id = request.payment_id.clone().ok_or(error_stack::report!(
+            errors::ApiErrorResponse::PaymentNotFound
+        ))?;
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
@@ -554,8 +549,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
-
-        let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
@@ -583,7 +576,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
+                payment_id,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(

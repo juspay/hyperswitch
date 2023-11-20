@@ -6,7 +6,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
-use error_stack::ResultExt;
+use error_stack::{report, IntoReport, ResultExt};
 use futures::FutureExt;
 use redis_interface::errors::RedisError;
 use router_derive::PaymentOperation;
@@ -19,7 +19,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils::get_individual_surcharge_detail_from_redis,
+        utils::{self as core_utils, get_individual_surcharge_detail_from_redis},
     },
     db::StorageInterface,
     routes::AppState,
@@ -820,14 +820,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        let given_payment_id = match &request.payment_id {
-            Some(id_type) => Some(
-                id_type
-                    .get_payment_intent_id()
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
-            ),
-            None => None,
-        };
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
@@ -840,14 +832,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
-        let payment_id =
-            crate::core::utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+
+        let payment_id = request
+            .payment_id
+            .clone()
+            .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
+                payment_id: payment_id
+                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
+                    .into_report()?,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
