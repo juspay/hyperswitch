@@ -646,7 +646,14 @@ pub async fn retrieve_default_routing_config(
 
     helpers::get_merchant_default_config(db, &merchant_account.merchant_id)
         .await
-        .map(service_api::ApplicationResponse::Json)
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[],
+            );
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
 }
 
 pub async fn retrieve_linked_routing_config(
