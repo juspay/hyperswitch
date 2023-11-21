@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-ALTER table payment_link ADD COLUMN IF NOT EXISTS description VARCHAR (255);
+ALTER TABLE payment_link DROP COLUMN IF EXISTS description;

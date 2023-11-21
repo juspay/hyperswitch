@@ -3210,10 +3210,6 @@ pub struct PaymentLinkDetails {
 #[serde(deny_unknown_fields)]
 
 pub struct PaymentLinkListConstraints {
-    /// The identifier for customer
-    #[schema(example = "cus_meowuwunwiuwiwqw")]
-    pub customer_id: Option<String>,
-
     /// limit on the number of objects to return
     pub limit: Option<i64>,
 
