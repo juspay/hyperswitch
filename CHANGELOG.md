@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.85.0 (2023-11-21)
+
+### Features
+
+- **mca:** Add new `auth_type` and a status field for mca ([#2883](https://github.com/juspay/hyperswitch/pull/2883)) ([`25cef38`](https://github.com/juspay/hyperswitch/commit/25cef386b8876b43893f20b93cd68ece6e68412d))
+- **router:** Add unified_code, unified_message in payments response ([#2918](https://github.com/juspay/hyperswitch/pull/2918)) ([`3954001`](https://github.com/juspay/hyperswitch/commit/39540015fde476ad8492a9142c2c1bfda8444a27))
+
+### Bug Fixes
+
+- **connector:**
+  - [fiserv] fix metadata deserialization in merchant_connector_account ([#2746](https://github.com/juspay/hyperswitch/pull/2746)) ([`644709d`](https://github.com/juspay/hyperswitch/commit/644709d95f6ecaab497cf0cf3788b9e2ed88b855))
+  - [CASHTOCODE] Fix Error Response Handling ([#2926](https://github.com/juspay/hyperswitch/pull/2926)) ([`938b63a`](https://github.com/juspay/hyperswitch/commit/938b63a1fceb87b4aae4211dac4d051e024028b1))
+- **router:** Associate parent payment token with `payment_method_id` as hyperswitch token for saved cards ([#2130](https://github.com/juspay/hyperswitch/pull/2130)) ([`efeebc0`](https://github.com/juspay/hyperswitch/commit/efeebc0f2365f0900de3dd3e10a1539621c9933d))
+- Api lock on PaymentsCreate ([#2916](https://github.com/juspay/hyperswitch/pull/2916)) ([`cfabfa6`](https://github.com/juspay/hyperswitch/commit/cfabfa60db4d275066be72ee64153a34d38f13b8))
+- Merchant_connector_id null in KV flow ([#2810](https://github.com/juspay/hyperswitch/pull/2810)) ([`e566a4e`](https://github.com/juspay/hyperswitch/commit/e566a4eff2270c2a56ec90966f42ccfd79906068))
+
+### Refactors
+
+- **connector:** [Paypal] Add support for both BodyKey and SignatureKey ([#2633](https://github.com/juspay/hyperswitch/pull/2633)) ([`d8fcd3c`](https://github.com/juspay/hyperswitch/commit/d8fcd3c9712480c1230590c4f23b35da79df784d))
+- **core:** Query business profile only once ([#2830](https://github.com/juspay/hyperswitch/pull/2830)) ([`44deeb7`](https://github.com/juspay/hyperswitch/commit/44deeb7e7605cb5320b84c0fac1fd551877803a4))
+- **payment_methods:** Added support for pm_auth_connector field in pm list response ([#2667](https://github.com/juspay/hyperswitch/pull/2667)) ([`be4aa3b`](https://github.com/juspay/hyperswitch/commit/be4aa3b913819698c6c22ddedafe1d90fbe02add))
+- Add mapping for ConnectorError in payouts flow ([#2608](https://github.com/juspay/hyperswitch/pull/2608)) ([`5c4e7c9`](https://github.com/juspay/hyperswitch/commit/5c4e7c9031f62d63af35da2dcab79eac948e7dbb))
+
+### Testing
+
+- **postman:** Update postman collection files ([`ce725ef`](https://github.com/juspay/hyperswitch/commit/ce725ef8c680eea3fe03671c989fd4572cfc0640))
+
+**Full Changelog:** [`v1.84.0...v1.85.0`](https://github.com/juspay/hyperswitch/compare/v1.84.0...v1.85.0)
+
+- - -
+
+
 ## 1.84.0 (2023-11-17)
 
 ### Features
