@@ -6,6 +6,8 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
+use error_stack::IntoReport;
+
 use crate::{metrics, store::kv::TypedSql, KVRouterStore};
 
 pub trait KvStorePartition {
@@ -145,6 +147,8 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                } else {
+                    return Err(RedisError::SetNxFailed).into_report();
                 }
                 Ok(KvResult::HSetNx(result))
             }
@@ -160,6 +164,8 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                } else {
+                    return Err(RedisError::SetNxFailed).into_report();
                 }
 
                 Ok(KvResult::SetNx(result))
