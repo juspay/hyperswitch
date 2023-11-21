@@ -324,7 +324,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_message: None,
             payment_link_data,
             frm_metadata: request.frm_metadata.clone(),
-
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
