@@ -87,6 +87,7 @@ pub struct BankOfAmericaPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
     capture: bool,
+    payment_solution: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -97,8 +98,10 @@ pub struct CaptureOptions {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentInformation {
-    card: Card,
+    card: Option<Card>,
+    fluid_data: Option<FluidData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -110,6 +113,12 @@ pub struct Card {
     security_code: Secret<String>,
     #[serde(rename = "type")]
     card_type: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidData {
+    value: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -183,6 +192,120 @@ pub struct ClientReferenceInformation {
     code: Option<String>,
 }
 
+impl
+    TryFrom<(
+        &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        payments::Card,
+    )> for BankOfAmericaPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+            payments::Card,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, ccard) = value;
+        let email = item.router_data.request.get_email()?;
+        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+
+        let order_information = OrderInformationWithBill {
+            amount_details: Amount {
+                total_amount: item.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            },
+            bill_to,
+        };
+        let card_issuer = ccard.get_card_issuer();
+        let card_type = match card_issuer {
+            Ok(issuer) => Some(String::from(issuer)),
+            Err(_) => None,
+        };
+        let payment_information = PaymentInformation {
+            card: Some(Card {
+                number: ccard.card_number,
+                expiration_month: ccard.card_exp_month,
+                expiration_year: ccard.card_exp_year,
+                security_code: ccard.card_cvc,
+                card_type,
+            }),
+            fluid_data: None,
+        };
+
+        let processing_information = ProcessingInformation {
+            capture: matches!(
+                item.router_data.request.capture_method,
+                Some(enums::CaptureMethod::Automatic) | None
+            ),
+            payment_solution: None,
+        };
+
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        };
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        payments::GooglePayWalletData,
+    )> for BankOfAmericaPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+            payments::GooglePayWalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, google_pay_data) = value;
+        let email = item.router_data.request.get_email()?;
+        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+
+        let order_information = OrderInformationWithBill {
+            amount_details: Amount {
+                total_amount: item.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            },
+            bill_to,
+        };
+
+        let payment_information = PaymentInformation {
+            card: None,
+            fluid_data: Some(FluidData {
+                value: Secret::from(google_pay_data.tokenization_data.token),
+            }),
+        };
+
+        let processing_information = ProcessingInformation {
+            capture: matches!(
+                item.router_data.request.capture_method,
+                Some(enums::CaptureMethod::Automatic) | None
+            ),
+            payment_solution: Some("012".to_string()),
+        };
+
+        let client_reference_information = ClientReferenceInformation {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        };
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+        })
+    }
+}
+
 impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
     for BankOfAmericaPaymentsRequest
 {
@@ -191,52 +314,41 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
-                let email = item.router_data.request.get_email()?;
-                let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
-
-                let order_information = OrderInformationWithBill {
-                    amount_details: Amount {
-                        total_amount: item.amount.to_owned(),
-                        currency: item.router_data.request.currency,
-                    },
-                    bill_to,
-                };
-                let card_issuer = ccard.get_card_issuer();
-                let card_type = match card_issuer {
-                    Ok(issuer) => Some(String::from(issuer)),
-                    Err(_) => None,
-                };
-                let payment_information = PaymentInformation {
-                    card: Card {
-                        number: ccard.card_number,
-                        expiration_month: ccard.card_exp_month,
-                        expiration_year: ccard.card_exp_year,
-                        security_code: ccard.card_cvc,
-                        card_type,
-                    },
-                };
-
-                let processing_information = ProcessingInformation {
-                    capture: matches!(
-                        item.router_data.request.capture_method,
-                        Some(enums::CaptureMethod::Automatic) | None
-                    ),
-                };
-
-                let client_reference_information = ClientReferenceInformation {
-                    code: Some(item.router_data.connector_request_reference_id.clone()),
-                };
-
-                Ok(Self {
-                    processing_information,
-                    payment_information,
-                    order_information,
-                    client_reference_information,
-                })
-            }
+            payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
+            payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                payments::WalletData::GooglePay(google_pay_data) => {
+                    Self::try_from((item, google_pay_data))
+                }
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePay(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::WeChatPayQr(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Bank of America"),
+                )
+                .into()),
+            },
             payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::Wallet(_)
             | payments::PaymentMethodData::PayLater(_)
             | payments::PaymentMethodData::BankRedirect(_)
             | payments::PaymentMethodData::BankDebit(_)
