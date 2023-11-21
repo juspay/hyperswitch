@@ -25,7 +25,7 @@ use crate::{
         storage::enums,
         ErrorResponse, Response,
     },
-    utils::{self as common_utils, ByteSliceExt, Encode},
+    utils::{self as common_utils, ByteSliceExt},
 };
 
 #[derive(Debug, Clone)]
@@ -963,12 +963,13 @@ impl api::IncomingWebhook for Nuvei {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_response = nuvei::NuveiPaymentsResponse::from(body);
-        Encode::<nuvei::NuveiPaymentsResponse>::encode_to_value(&payment_response).switch()
+
+        Ok(Box::new(payment_response))
     }
 }
 

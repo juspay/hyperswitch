@@ -86,6 +86,9 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
+            storage_enums::AttemptStatus::PartialChargedAndChargeable => {
+                Self::PartiallyCapturedAndCapturable
+            }
             storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::Authorizing
@@ -135,7 +138,8 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Unresolved
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable=> {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -193,8 +197,9 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Airwallex => Self::Airwallex,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bambora => Self::Bambora,
+            api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
@@ -229,6 +234,7 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
                 .into_report()?
             }
             api_enums::Connector::Powertranz => Self::Powertranz,
+            api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
@@ -278,8 +284,9 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Adyen => Self::Adyen,
             dsl_enums::Connector::Airwallex => Self::Airwallex,
             dsl_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            dsl_enums::Connector::Bitpay => Self::Bitpay,
             dsl_enums::Connector::Bambora => Self::Bambora,
+            dsl_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            dsl_enums::Connector::Bitpay => Self::Bitpay,
             dsl_enums::Connector::Bluesnap => Self::Bluesnap,
             dsl_enums::Connector::Boku => Self::Boku,
             dsl_enums::Connector::Braintree => Self::Braintree,
@@ -308,6 +315,7 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Paypal => Self::Paypal,
             dsl_enums::Connector::Payu => Self::Payu,
             dsl_enums::Connector::Powertranz => Self::Powertranz,
+            dsl_enums::Connector::Prophetpay => Self::Prophetpay,
             dsl_enums::Connector::Rapyd => Self::Rapyd,
             dsl_enums::Connector::Shift4 => Self::Shift4,
             dsl_enums::Connector::Square => Self::Square,
@@ -416,7 +424,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
             api_enums::IntentStatus::RequiresPaymentMethod
             | api_enums::IntentStatus::RequiresConfirmation
             | api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured => None,
+            | api_enums::IntentStatus::PartiallyCaptured
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
@@ -507,7 +516,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
-            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
+            | api_enums::PaymentMethodType::MomoAtm
+            | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
         }
     }
 }
@@ -848,6 +858,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             profile_id: item.profile_id,
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
+            status: item.status,
         })
     }
 }
@@ -873,6 +884,8 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         }
     }
 }
@@ -1050,6 +1063,26 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
+        }
+    }
+}
+
+impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
         }
     }
 }

@@ -16,7 +16,6 @@ pub trait PaymentAttemptExt {
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
     fn get_total_amount(&self) -> i64;
 }
 
@@ -58,15 +57,6 @@ impl PaymentAttemptExt for PaymentAttempt {
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
-    }
-
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus {
-        let intent_status = enums::IntentStatus::foreign_from(self.status);
-        if intent_status == enums::IntentStatus::Cancelled && amount_captured > Some(0) {
-            enums::IntentStatus::Succeeded
-        } else {
-            intent_status
-        }
     }
 
     fn get_total_amount(&self) -> i64 {

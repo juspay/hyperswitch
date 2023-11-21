@@ -48,6 +48,7 @@ applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
 host = ""
+host_rs = ""
 mock_locker = true
 basilisk_host = ""
 
@@ -59,6 +60,7 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
+rust_locker_encryption_key = ""
 vault_private_key = ""
 tunnel_private_key = ""
 
@@ -353,6 +355,9 @@ debit = { not_available_flows = { capture_method = "manual" } }
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 ach = { currency = "USD" }
+
+[pm_filters.prophetpay]
+card_redirect = { currency = "USD" }
 
 [pm_filters.trustpay]
 credit = { not_available_flows = { capture_method = "manual" } }

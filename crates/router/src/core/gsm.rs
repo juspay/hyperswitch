@@ -10,7 +10,7 @@ use crate::{
     },
     db::gsm::GsmInterface,
     services,
-    types::{self, transformers::ForeignInto},
+    types::transformers::ForeignInto,
     AppState,
 };
 
@@ -18,21 +18,21 @@ use crate::{
 pub async fn create_gsm_rule(
     state: AppState,
     gsm_rule: gsm_api_types::GsmCreateRequest,
-) -> RouterResponse<types::GsmResponse> {
+) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
     GsmInterface::add_gsm_rule(db, gsm_rule.foreign_into())
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "GSM with given key already exists in our records".to_string(),
         })
-        .map(services::ApplicationResponse::Json)
+        .map(|gsm| services::ApplicationResponse::Json(gsm.foreign_into()))
 }
 
 #[instrument(skip_all)]
 pub async fn retrieve_gsm_rule(
     state: AppState,
     gsm_request: gsm_api_types::GsmRetrieveRequest,
-) -> RouterResponse<types::GsmResponse> {
+) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
     let gsm_api_types::GsmRetrieveRequest {
         connector,
@@ -46,14 +46,14 @@ pub async fn retrieve_gsm_rule(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "GSM with given key does not exist in our records".to_string(),
         })
-        .map(services::ApplicationResponse::Json)
+        .map(|gsm| services::ApplicationResponse::Json(gsm.foreign_into()))
 }
 
 #[instrument(skip_all)]
 pub async fn update_gsm_rule(
     state: AppState,
     gsm_request: gsm_api_types::GsmUpdateRequest,
-) -> RouterResponse<types::GsmResponse> {
+) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
     let gsm_api_types::GsmUpdateRequest {
         connector,
@@ -65,6 +65,8 @@ pub async fn update_gsm_rule(
         status,
         router_error,
         step_up_possible,
+        unified_code,
+        unified_message,
     } = gsm_request;
     GsmInterface::update_gsm_rule(
         db,
@@ -78,6 +80,8 @@ pub async fn update_gsm_rule(
             status,
             router_error: Some(router_error),
             step_up_possible,
+            unified_code,
+            unified_message,
         },
     )
     .await
@@ -85,7 +89,7 @@ pub async fn update_gsm_rule(
         message: "GSM with given key does not exist in our records".to_string(),
     })
     .attach_printable("Failed while updating Gsm rule")
-    .map(services::ApplicationResponse::Json)
+    .map(|gsm| services::ApplicationResponse::Json(gsm.foreign_into()))
 }
 
 #[instrument(skip_all)]

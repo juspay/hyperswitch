@@ -420,6 +420,7 @@ pub struct Secrets {
 #[serde(default)]
 pub struct Locker {
     pub host: String,
+    pub host_rs: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
@@ -448,6 +449,7 @@ pub struct Jwekey {
     pub locker_decryption_key1: String,
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
+    pub rust_locker_encryption_key: String,
     pub vault_private_key: String,
     pub tunnel_private_key: String,
 }

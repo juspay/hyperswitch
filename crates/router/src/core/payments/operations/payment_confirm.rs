@@ -6,7 +6,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
-use error_stack::ResultExt;
+use error_stack::{report, IntoReport, ResultExt};
 use futures::FutureExt;
 use redis_interface::errors::RedisError;
 use router_derive::PaymentOperation;
@@ -19,7 +19,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils::get_individual_surcharge_detail_from_redis,
+        utils::{self as core_utils, get_individual_surcharge_detail_from_redis},
     },
     db::StorageInterface,
     routes::AppState,
@@ -50,11 +50,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
-        PaymentData<F>,
-        Option<CustomerDetails>,
-    )> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -65,7 +61,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // Stage 1
-
         let store = state.clone().store;
         let m_merchant_id = merchant_id.clone();
         let payment_intent_fut = tokio::spawn(
@@ -137,8 +132,29 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let customer_details = helpers::get_customer_details_from_request(request);
 
         // Stage 2
-
         let attempt_id = payment_intent.active_attempt.get_id();
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+
+        let store = state.store.clone();
+
+        let business_profile_fut = tokio::spawn(async move {
+            store
+                .find_business_profile_by_profile_id(&profile_id)
+                .map(|business_profile_result| {
+                    business_profile_result.to_not_found_response(
+                        errors::ApiErrorResponse::BusinessProfileNotFound {
+                            id: profile_id.to_string(),
+                        },
+                    )
+                })
+                .await
+        });
+
         let store = state.clone().store;
         let m_payment_id = payment_intent.payment_id.clone();
         let m_merchant_id = merchant_id.clone();
@@ -235,48 +251,72 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .in_current_span(),
         );
 
-        let (mut payment_attempt, shipping_address, billing_address) = match payment_intent.status {
-            api_models::enums::IntentStatus::RequiresCustomerAction
-            | api_models::enums::IntentStatus::RequiresMerchantAction
-            | api_models::enums::IntentStatus::RequiresPaymentMethod
-            | api_models::enums::IntentStatus::RequiresConfirmation => {
-                let (payment_attempt, shipping_address, billing_address, _) = tokio::try_join!(
-                    utils::flatten_join_error(payment_attempt_fut),
-                    utils::flatten_join_error(shipping_address_fut),
-                    utils::flatten_join_error(billing_address_fut),
-                    utils::flatten_join_error(config_update_fut)
-                )?;
+        // Based on whether a retry can be performed or not, fetch relevant entities
+        let (mut payment_attempt, shipping_address, billing_address, business_profile) =
+            match payment_intent.status {
+                api_models::enums::IntentStatus::RequiresCustomerAction
+                | api_models::enums::IntentStatus::RequiresMerchantAction
+                | api_models::enums::IntentStatus::RequiresPaymentMethod
+                | api_models::enums::IntentStatus::RequiresConfirmation => {
+                    // Normal payment
+                    let (payment_attempt, shipping_address, billing_address, business_profile, _) =
+                        tokio::try_join!(
+                            utils::flatten_join_error(payment_attempt_fut),
+                            utils::flatten_join_error(shipping_address_fut),
+                            utils::flatten_join_error(billing_address_fut),
+                            utils::flatten_join_error(business_profile_fut),
+                            utils::flatten_join_error(config_update_fut)
+                        )?;
 
-                (payment_attempt, shipping_address, billing_address)
-            }
-            _ => {
-                let (mut payment_attempt, shipping_address, billing_address, _) = tokio::try_join!(
-                    utils::flatten_join_error(payment_attempt_fut),
-                    utils::flatten_join_error(shipping_address_fut),
-                    utils::flatten_join_error(billing_address_fut),
-                    utils::flatten_join_error(config_update_fut)
-                )?;
-
-                let attempt_type = helpers::get_attempt_type(
-                    &payment_intent,
-                    &payment_attempt,
-                    request,
-                    "confirm",
-                )?;
-
-                (payment_intent, payment_attempt) = attempt_type
-                    .modify_payment_intent_and_payment_attempt(
-                        request,
-                        payment_intent,
+                    (
                         payment_attempt,
-                        &*state.store,
-                        storage_scheme,
+                        shipping_address,
+                        billing_address,
+                        business_profile,
                     )
-                    .await?;
+                }
+                _ => {
+                    // Retry payment
+                    let (
+                        mut payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        business_profile,
+                        _,
+                    ) = tokio::try_join!(
+                        utils::flatten_join_error(payment_attempt_fut),
+                        utils::flatten_join_error(shipping_address_fut),
+                        utils::flatten_join_error(billing_address_fut),
+                        utils::flatten_join_error(business_profile_fut),
+                        utils::flatten_join_error(config_update_fut)
+                    )?;
 
-                (payment_attempt, shipping_address, billing_address)
-            }
-        };
+                    let attempt_type = helpers::get_attempt_type(
+                        &payment_intent,
+                        &payment_attempt,
+                        request,
+                        "confirm",
+                    )?;
+
+                    // 3
+                    (payment_intent, payment_attempt) = attempt_type
+                        .modify_payment_intent_and_payment_attempt(
+                            request,
+                            payment_intent,
+                            payment_attempt,
+                            &*state.store,
+                            storage_scheme,
+                        )
+                        .await?;
+
+                    (
+                        payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        business_profile,
+                    )
+                }
+            };
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -382,6 +422,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm
         });
+
         Self::validate_request_surcharge_details_with_session_surcharge_details(
             state,
             &payment_attempt,
@@ -394,45 +435,50 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &payment_attempt,
         );
 
-        Ok((
-            Box::new(self),
-            PaymentData {
-                flow: PhantomData,
-                payment_intent,
-                payment_attempt,
-                currency,
-                amount,
-                email: request.email.clone(),
-                mandate_id: None,
-                mandate_connector,
-                setup_mandate,
-                token,
-                address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.into()),
-                    billing: billing_address.as_ref().map(|a| a.into()),
-                },
-                confirm: request.confirm,
-                payment_method_data: request.payment_method_data.clone(),
-                force_sync: None,
-                refunds: vec![],
-                disputes: vec![],
-                attempts: None,
-                sessions_token: vec![],
-                card_cvc: request.card_cvc.clone(),
-                creds_identifier,
-                pm_token: None,
-                connector_customer_id: None,
-                recurring_mandate_payment_data,
-                ephemeral_key: None,
-                multiple_capture_data: None,
-                redirect_response: None,
-                surcharge_details,
-                frm_message: None,
-                payment_link_data: None,
-                frm_metadata: request.frm_metadata.clone(),
+        let payment_data = PaymentData {
+            flow: PhantomData,
+            payment_intent,
+            payment_attempt,
+            currency,
+            amount,
+            email: request.email.clone(),
+            mandate_id: None,
+            mandate_connector,
+            setup_mandate,
+            token,
+            address: PaymentAddress {
+                shipping: shipping_address.as_ref().map(|a| a.into()),
+                billing: billing_address.as_ref().map(|a| a.into()),
             },
-            Some(customer_details),
-        ))
+            confirm: request.confirm,
+            payment_method_data: request.payment_method_data.clone(),
+            force_sync: None,
+            refunds: vec![],
+            disputes: vec![],
+            attempts: None,
+            sessions_token: vec![],
+            card_cvc: request.card_cvc.clone(),
+            creds_identifier,
+            pm_token: None,
+            connector_customer_id: None,
+            recurring_mandate_payment_data,
+            ephemeral_key: None,
+            multiple_capture_data: None,
+            redirect_response: None,
+            surcharge_details,
+            frm_message: None,
+            payment_link_data: None,
+            frm_metadata: request.frm_metadata.clone(),
+        };
+
+        let get_trackers_response = operations::GetTrackerResponse {
+            operation: Box::new(self),
+            customer_details: Some(customer_details),
+            payment_data,
+            business_profile,
+        };
+
+        Ok(get_trackers_response)
     }
 }
 
@@ -494,7 +540,27 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         requeue: bool,
         schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
+        // This spawns this futures in a background thread, the exception inside this future won't affect
+        // the current thread and the lifecycle of spawn thread is not handled by runtime.
+        // So when server shutdown won't wait for this thread's completion.
+        let m_payment_attempt = payment_attempt.clone();
+        let m_state = state.clone();
+        let m_self = *self;
+        tokio::spawn(
+            async move {
+                helpers::add_domain_task_to_pt(
+                    &m_self,
+                    m_state.as_ref(),
+                    &m_payment_attempt,
+                    requeue,
+                    schedule_time,
+                )
+                .await
+            }
+            .in_current_span(),
+        );
+
+        Ok(())
     }
 
     async fn get_connector<'a>(
@@ -755,14 +821,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        let given_payment_id = match &request.payment_id {
-            Some(id_type) => Some(
-                id_type
-                    .get_payment_intent_id()
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
-            ),
-            None => None,
-        };
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
@@ -775,14 +833,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
-        let payment_id =
-            crate::core::utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+
+        let payment_id = request
+            .payment_id
+            .clone()
+            .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
+                payment_id: payment_id
+                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
+                    .into_report()?,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
