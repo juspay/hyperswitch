@@ -107,16 +107,15 @@ impl ConnectorCommon for Prophetpay {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayErrorResponse = res
+        let response: serde_json::Value = res
             .response
-            .parse_struct("ProphetpayErrorResponse")
+            .parse_struct("ProphetPayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.to_string(),
-            message: response.title,
-            reason: Some(response.errors.to_string()),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: Some(response.to_string()),
             attempt_status: None,
         })
     }
@@ -436,84 +435,78 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Prophetpay
 {
-    // fn get_headers(
-    //     &self,
-    //     req: &types::PaymentsCancelRouterData,
-    //     connectors: &settings::Connectors,
-    // ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    //     self.build_headers(req, connectors)
-    // }
+    /*
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
 
-    // fn get_content_type(&self) -> &'static str {
-    //     self.common_get_content_type()
-    // }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
 
-    // fn get_url(
-    //     &self,
-    //     _req: &types::PaymentsCancelRouterData,
-    //     connectors: &settings::Connectors,
-    // ) -> CustomResult<String, errors::ConnectorError> {
-    //     Ok(format!(
-    //         "{}hp/api/Transactions/ProcessTransaction",
-    //         self.base_url(connectors)
-    //     ))
-    // }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}hp/api/Transactions/ProcessTransaction",
+            self.base_url(connectors)
+        ))
+    }
 
-    // fn get_request_body(
-    //     &self,
-    //     req: &types::PaymentsCancelRouterData,
-    //     _connectors: &settings::Connectors,
-    // ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-    //     let req_obj = prophetpay::ProphetpayVoidRequest::try_from(req)?;
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = prophetpay::ProphetpayVoidRequest::try_from(req)?;
 
-    //     let prophetpay_req = types::RequestBody::log_and_get_request_body(
-    //         &req_obj,
-    //         utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
-    //     )
-    //     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    //     Ok(Some(prophetpay_req))
-    // }
+        let prophetpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(prophetpay_req))
+    }
+    */
 
-    // fn build_request(
-    //     &self,
-    //     req: &types::PaymentsCancelRouterData,
-    //     connectors: &settings::Connectors,
-    // ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-    //     Ok(Some(
-    //         services::RequestBuilder::new()
-    //             .method(services::Method::Get)
-    //             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-    //             .attach_default_headers()
-    //             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-    //             .body(types::PaymentsVoidType::get_request_body(
-    //                 self, req, connectors,
-    //             )?)
-    //             .build(),
-    //     ))
-    // }
+    fn build_request(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("Void flow not implemented".to_string()).into())
+    }
 
-    // fn handle_response(
-    //     &self,
-    //     data: &types::PaymentsCancelRouterData,
-    //     res: Response,
-    // ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-    //     let response: prophetpay::ProphetpayVoidResponse = res
-    //         .response
-    //         .parse_struct("prophetpay PaymentsCancelResponse")
-    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-    //     types::RouterData::try_from(types::ResponseRouterData {
-    //         response,
-    //         data: data.clone(),
-    //         http_code: res.status_code,
-    //     })
-    // }
+    /*
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: prophetpay::ProphetpayVoidResponse = res
+            .response
+            .parse_struct("prophetpay PaymentsCancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 
-    // fn get_error_response(
-    //     &self,
-    //     res: Response,
-    // ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    //     self.build_error_response(res)
-    // }
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+    */
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>

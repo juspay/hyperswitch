@@ -270,10 +270,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
         Ok(Self {
             amount: item.amount.to_owned(),
             ref_info: item.router_data.connector_request_reference_id.to_owned(),
-            inquiry_reference: format!(
-                "inquiry_{}",
-                item.router_data.connector_request_reference_id
-            ),
+            inquiry_reference: item.router_data.connector_request_reference_id.clone(),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Charge),
             card_token,
@@ -351,7 +348,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
         Ok(Self {
             transaction_id,
             ref_info: item.connector_request_reference_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.connector_request_reference_id),
+            inquiry_reference: item.connector_request_reference_id.clone(),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
@@ -359,46 +356,13 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub enum ProphetpayPaymentStatus {
-    Success,
-    #[serde(rename = "Transaction Approved")]
-    Charged,
-    Failure,
-    #[serde(rename = "Requires a card on file.")]
-    CardTokenNotFound,
-    #[serde(rename = "RefInfo and InquiryReference are duplicated")]
-    DuplicateValue,
-    #[serde(rename = "Profile is missing")]
-    MissingProfile,
-    #[serde(rename = "RefInfo is empty.")]
-    EmptyRef,
-    #[serde(rename = "Transaction declined by issuer")]
-    Declined,
-    #[serde(rename = "Transaction declined - call issuer")]
-    ReachIssuer,
-}
-
-impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
-    fn from(item: ProphetpayPaymentStatus) -> Self {
-        match item {
-            ProphetpayPaymentStatus::Success | ProphetpayPaymentStatus::Charged => Self::Charged,
-            ProphetpayPaymentStatus::Failure
-            | ProphetpayPaymentStatus::CardTokenNotFound
-            | ProphetpayPaymentStatus::DuplicateValue
-            | ProphetpayPaymentStatus::MissingProfile
-            | ProphetpayPaymentStatus::EmptyRef
-            | ProphetpayPaymentStatus::Declined
-            | ProphetpayPaymentStatus::ReachIssuer => Self::Failure,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayCompleteAuthResponse {
-    pub response_text: ProphetpayPaymentStatus,
+    pub success: bool,
+    pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
+    pub response_code: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -425,60 +389,39 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let card_token = get_card_token(item.data.request.redirect_response.clone())?;
-        let card_token_data = ProphetpayCardTokenData {
-            card_token: Secret::from(card_token),
-        };
-        let connector_metadata = serde_json::to_value(card_token_data).ok();
-
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.response_text),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub enum ProphetpaySyncStatus {
-    Success,
-    #[serde(rename = "Transaction Approved")]
-    Charged,
-    Failure,
-    #[serde(rename = "Transaction Voided")]
-    Voided,
-    #[serde(rename = "Requires a card on file.")]
-    CardTokenNotFound,
-    #[serde(rename = "RefInfo and InquiryReference are duplicated")]
-    DuplicateValue,
-    #[serde(rename = "Profile is missing")]
-    MissingProfile,
-    #[serde(rename = "RefInfo is empty.")]
-    EmptyRef,
-    #[serde(rename = "Transaction declined by issuer")]
-    Declined,
-}
-
-impl From<ProphetpaySyncStatus> for enums::AttemptStatus {
-    fn from(item: ProphetpaySyncStatus) -> Self {
-        match item {
-            ProphetpaySyncStatus::Success | ProphetpaySyncStatus::Charged => Self::Charged,
-            ProphetpaySyncStatus::Failure
-            | ProphetpaySyncStatus::CardTokenNotFound
-            | ProphetpaySyncStatus::DuplicateValue
-            | ProphetpaySyncStatus::MissingProfile
-            | ProphetpaySyncStatus::EmptyRef
-            | ProphetpaySyncStatus::Declined => Self::Failure,
-            ProphetpaySyncStatus::Voided => Self::Voided,
+        if item.response.success {
+            let card_token = get_card_token(item.data.request.redirect_response.clone())?;
+            let card_token_data = ProphetpayCardTokenData {
+                card_token: Secret::from(card_token),
+            };
+            let connector_metadata = serde_json::to_value(card_token_data).ok();
+            Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transaction_id,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.response_text.clone(),
+                    reason: Some(item.response.response_text),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                })
+                .into(),
+                ..item.data
+            })
         }
     }
 }
@@ -486,9 +429,11 @@ impl From<ProphetpaySyncStatus> for enums::AttemptStatus {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpaySyncResponse {
-    pub response_text: ProphetpaySyncStatus,
+    success: bool,
+    pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
+    pub response_code: String,
 }
 
 impl<F, T>
@@ -499,47 +444,34 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ProphetpaySyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.response_text),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub enum ProphetpayVoidStatus {
-    Failure,
-    #[serde(rename = "Transaction Voided")]
-    Voided,
-    #[serde(rename = "Requires a card on file.")]
-    CardTokenNotFound,
-    #[serde(rename = "RefInfo and InquiryReference are duplicated")]
-    DuplicateValue,
-    #[serde(rename = "Profile is missing")]
-    MissingProfile,
-    #[serde(rename = "RefInfo is empty.")]
-    EmptyRef,
-}
-
-impl From<ProphetpayVoidStatus> for enums::AttemptStatus {
-    fn from(item: ProphetpayVoidStatus) -> Self {
-        match item {
-            ProphetpayVoidStatus::Failure
-            | ProphetpayVoidStatus::CardTokenNotFound
-            | ProphetpayVoidStatus::DuplicateValue
-            | ProphetpayVoidStatus::MissingProfile
-            | ProphetpayVoidStatus::EmptyRef => Self::Failure,
-            ProphetpayVoidStatus::Voided => Self::Voided,
+        if item.response.success {
+            Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transaction_id,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.response_text.clone(),
+                    reason: Some(item.response.response_text),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                })
+                .into(),
+                ..item.data
+            })
         }
     }
 }
@@ -547,9 +479,11 @@ impl From<ProphetpayVoidStatus> for enums::AttemptStatus {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayVoidResponse {
-    pub response_text: ProphetpayVoidStatus,
+    pub success: bool,
+    pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
+    pub response_code: String,
 }
 
 impl<F, T>
@@ -560,20 +494,35 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ProphetpayVoidResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.response_text),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            ..item.data
-        })
+        if item.response.success {
+            Ok(Self {
+                status: enums::AttemptStatus::Voided,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transaction_id,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::VoidFailed,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.response_text.clone(),
+                    reason: Some(item.response.response_text),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                })
+                .into(),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -595,7 +544,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
         Ok(Self {
             transaction_id,
             ref_info: item.connector_request_reference_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.connector_request_reference_id),
+            inquiry_reference: item.connector_request_reference_id.clone(),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
@@ -631,7 +580,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
                 card_token: card_token_data.card_token,
                 profile: auth_data.profile_id,
                 ref_info: item.router_data.request.refund_id.to_owned(),
-                inquiry_reference: format!("inquiry_{}", item.router_data.request.refund_id),
+                inquiry_reference: item.router_data.connector_request_reference_id.clone(),
                 action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
             })
         } else {
@@ -643,46 +592,13 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-pub enum RefundStatus {
-    Success,
-    Failure,
-    #[serde(rename = "Transaction Voided")]
-    Voided,
-    #[serde(rename = "Requires a card on file.")]
-    CardTokenNotFound,
-    #[serde(rename = "RefInfo and InquiryReference are duplicated")]
-    DuplicateValue,
-    #[serde(rename = "Profile is missing")]
-    MissingProfile,
-    #[serde(rename = "RefInfo is empty.")]
-    EmptyRef,
-    #[serde(rename = "Transaction declined by issuer")]
-    Declined,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Success
-            // in retrieving refund, if it is successful, it is shown as voided
-            | RefundStatus::Voided => Self::Success,
-            RefundStatus::Failure
-            | RefundStatus::CardTokenNotFound
-            | RefundStatus::DuplicateValue
-            | RefundStatus::MissingProfile
-            | RefundStatus::EmptyRef
-            | RefundStatus::Declined => Self::Failure,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundResponse {
-    pub response_text: RefundStatus,
+    pub success: bool,
+    pub response_text: String,
     pub tran_seq_number: String,
+    pub response_code: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>>
@@ -692,46 +608,28 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                // no refund id is generated, rather transaction id is used for referring to status in refund also
-                connector_refund_id: item.response.tran_seq_number,
-                refund_status: enums::RefundStatus::from(item.response.response_text),
-            }),
-            ..item.data
-        })
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-pub enum RefundSyncStatus {
-    Failure,
-    #[serde(rename = "Transaction Voided")]
-    Voided,
-    #[serde(rename = "Requires a card on file.")]
-    CardTokenNotFound,
-    #[serde(rename = "RefInfo and InquiryReference are duplicated")]
-    DuplicateValue,
-    #[serde(rename = "Profile is missing")]
-    MissingProfile,
-    #[serde(rename = "RefInfo is empty.")]
-    EmptyRef,
-    #[serde(rename = "Transaction declined by issuer")]
-    Declined,
-}
-
-impl From<RefundSyncStatus> for enums::RefundStatus {
-    fn from(item: RefundSyncStatus) -> Self {
-        match item {
-            // in retrieving refund, if it is successful, it is shown as voided
-            RefundSyncStatus::Voided => Self::Success,
-            RefundSyncStatus::Failure
-            | RefundSyncStatus::CardTokenNotFound
-            | RefundSyncStatus::DuplicateValue
-            | RefundSyncStatus::MissingProfile
-            | RefundSyncStatus::EmptyRef
-            | RefundSyncStatus::Declined => Self::Failure,
+        if item.response.success {
+            Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    // no refund id is generated, tranSeqNumber is kept for future usage
+                    connector_refund_id: item.response.tran_seq_number,
+                    refund_status: enums::RefundStatus::Success,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.response_text.clone(),
+                    reason: Some(item.response.response_text),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                })
+                .into(),
+                ..item.data
+            })
         }
     }
 }
@@ -739,7 +637,9 @@ impl From<RefundSyncStatus> for enums::RefundStatus {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundSyncResponse {
-    pub response_text: RefundSyncStatus,
+    pub success: bool,
+    pub response_text: String,
+    pub response_code: String,
 }
 
 impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
@@ -749,14 +649,29 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
     fn try_from(
         item: types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                // no refund id is generated, rather transaction id is used for referring to status in refund also
-                connector_refund_id: item.data.request.connector_transaction_id.clone(),
-                refund_status: enums::RefundStatus::from(item.response.response_text),
-            }),
-            ..item.data
-        })
+        if item.response.success {
+            Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    // no refund id is generated, rather transaction id is used for referring to status in refund also
+                    connector_refund_id: item.data.request.connector_transaction_id.clone(),
+                    refund_status: enums::RefundStatus::Success,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.response_text.clone(),
+                    reason: Some(item.response.response_text),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                })
+                .into(),
+                ..item.data
+            })
+        }
     }
 }
 #[derive(Debug, Clone, Serialize)]
@@ -776,36 +691,9 @@ impl TryFrom<&types::RefundSyncRouterData> for ProphetpayRefundSyncRequest {
         Ok(Self {
             transaction_id: item.request.connector_transaction_id.clone(),
             ref_info: item.connector_request_reference_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.connector_request_reference_id),
+            inquiry_reference: item.connector_request_reference_id.clone(),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
     }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, ProphetpayRefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, ProphetpayRefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.data.request.connector_transaction_id.clone(),
-                refund_status: enums::RefundStatus::from(item.response.response_text),
-            }),
-            ..item.data
-        })
-    }
-}
-
-// Error Response body is yet to be confirmed with the connector
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct ProphetpayErrorResponse {
-    pub status: u16,
-    pub title: String,
-    pub trace_id: String,
-    pub errors: serde_json::Value,
 }
