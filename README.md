@@ -101,7 +101,7 @@ You can find the latest list of payment processors, supported methods, and
 features
 [here][supported-connectors-and-features].
 
-[supported-connectors-and-features]: https://hyper-pm-list.vercel.app/
+[supported-connectors-and-features]: https://hyperswitch.io/pm-list
 
 ### 🌟 Hosted Version
 
