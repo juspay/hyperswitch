@@ -147,10 +147,10 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::HSetNx(result))
                 } else {
-                    return Err(RedisError::SetNxFailed).into_report();
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-                Ok(KvResult::HSetNx(result))
             }
 
             KvOperation::SetNx(value, sql) => {
@@ -164,11 +164,10 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::SetNx(result))
                 } else {
-                    return Err(RedisError::SetNxFailed).into_report();
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-
-                Ok(KvResult::SetNx(result))
             }
 
             KvOperation::Get => {
