@@ -4,7 +4,6 @@ pub mod payment_capture;
 pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
-pub mod payment_method_validate;
 pub mod payment_reject;
 pub mod payment_response;
 pub mod payment_session;
@@ -20,10 +19,9 @@ use router_env::{instrument, tracing};
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_method_validate::PaymentMethodValidate,
-    payment_reject::PaymentReject, payment_response::PaymentResponse,
-    payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
-    payment_update::PaymentUpdate,
+    payment_create::PaymentCreate, payment_reject::PaymentReject,
+    payment_response::PaymentResponse, payment_session::PaymentSession,
+    payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
@@ -91,8 +89,15 @@ pub trait ValidateRequest<F, R, Ctx: PaymentMethodRetrieve> {
     ) -> RouterResult<(BoxedOperation<'b, F, R, Ctx>, ValidateResult<'a>)>;
 }
 
+pub struct GetTrackerResponse<'a, F: Clone, R, Ctx> {
+    pub operation: BoxedOperation<'a, F, R, Ctx>,
+    pub customer_details: Option<CustomerDetails>,
+    pub payment_data: PaymentData<F>,
+    pub business_profile: storage::business_profile::BusinessProfile,
+}
+
 #[async_trait]
-pub trait GetTracker<F, D, R, Ctx: PaymentMethodRetrieve>: Send {
+pub trait GetTracker<F: Clone, D, R, Ctx: PaymentMethodRetrieve>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -103,7 +108,7 @@ pub trait GetTracker<F, D, R, Ctx: PaymentMethodRetrieve>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-    ) -> RouterResult<(BoxedOperation<'a, F, R, Ctx>, D, Option<CustomerDetails>)>;
+    ) -> RouterResult<GetTrackerResponse<'a, F, R, Ctx>>;
 }
 
 #[async_trait]

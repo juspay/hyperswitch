@@ -190,11 +190,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
-        PaymentData<F>,
-        Option<CustomerDetails>,
-    )> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>>
+    {
         get_tracker_for_sync(
             payment_id,
             merchant_account,
@@ -221,12 +218,8 @@ async fn get_tracker_for_sync<
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<(
-    BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
-    PaymentData<F>,
-    Option<CustomerDetails>,
-)> {
-    let (payment_intent, mut payment_attempt, currency, amount);
+) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>> {
+    let (payment_intent, payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -250,7 +243,6 @@ async fn get_tracker_for_sync<
 
     let payment_id_str = payment_attempt.payment_id.clone();
 
-    payment_attempt.encoded_data = request.param.clone();
     currency = payment_attempt.currency.get_required_value("currency")?;
     amount = payment_attempt.amount.into();
 
@@ -357,53 +349,74 @@ async fn get_tracker_for_sync<
         })
         .await
         .transpose()?;
-    Ok((
-        Box::new(operation),
-        PaymentData {
-            flow: PhantomData,
-            payment_intent,
-            currency,
-            amount,
-            email: None,
-            mandate_id: payment_attempt.mandate_id.clone().map(|id| {
-                api_models::payments::MandateIds {
-                    mandate_id: id,
-                    mandate_reference_id: None,
-                }
+
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("'profile_id' not set in payment intent")?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+    let payment_data = PaymentData {
+        flow: PhantomData,
+        payment_intent,
+        currency,
+        amount,
+        email: None,
+        mandate_id: payment_attempt
+            .mandate_id
+            .clone()
+            .map(|id| api_models::payments::MandateIds {
+                mandate_id: id,
+                mandate_reference_id: None,
             }),
-            mandate_connector: None,
-            setup_mandate: None,
-            token: None,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-            },
-            confirm: Some(request.force_sync),
-            payment_method_data: None,
-            force_sync: Some(
-                request.force_sync
-                    && (helpers::check_force_psync_precondition(&payment_attempt.status)
-                        || contains_encoded_data),
-            ),
-            payment_attempt,
-            refunds,
-            disputes,
-            attempts,
-            sessions_token: vec![],
-            card_cvc: None,
-            creds_identifier,
-            pm_token: None,
-            connector_customer_id: None,
-            recurring_mandate_payment_data: None,
-            ephemeral_key: None,
-            multiple_capture_data,
-            redirect_response: None,
-            payment_link_data: None,
-            surcharge_details: None,
-            frm_message: frm_response.ok(),
+        mandate_connector: None,
+        setup_mandate: None,
+        token: None,
+        address: PaymentAddress {
+            shipping: shipping_address.as_ref().map(|a| a.into()),
+            billing: billing_address.as_ref().map(|a| a.into()),
         },
-        None,
-    ))
+        confirm: Some(request.force_sync),
+        payment_method_data: None,
+        force_sync: Some(
+            request.force_sync
+                && (helpers::check_force_psync_precondition(&payment_attempt.status)
+                    || contains_encoded_data),
+        ),
+        payment_attempt,
+        refunds,
+        disputes,
+        attempts,
+        sessions_token: vec![],
+        card_cvc: None,
+        creds_identifier,
+        pm_token: None,
+        connector_customer_id: None,
+        recurring_mandate_payment_data: None,
+        ephemeral_key: None,
+        multiple_capture_data,
+        redirect_response: None,
+        payment_link_data: None,
+        surcharge_details: None,
+        frm_message: frm_response.ok(),
+    };
+
+    let get_trackers_response = operations::GetTrackerResponse {
+        operation: Box::new(operation),
+        customer_details: None,
+        payment_data,
+        business_profile,
+    };
+
+    Ok(get_trackers_response)
 }
 
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
