@@ -1,4 +1,5 @@
 pub mod access_token;
+pub mod conditional_configs;
 pub mod customers;
 pub mod flows;
 pub mod helpers;
@@ -13,9 +14,9 @@ pub mod types;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
 use api_models::{
-    enums,
+    self, enums,
     payment_methods::{Surcharge, SurchargeDetailsResponse},
-    payments::HeaderPayload,
+    payments::{self, HeaderPayload},
 };
 use common_utils::{ext_traits::AsyncExt, pii};
 use data_models::mandates::MandateData;
@@ -24,6 +25,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use helpers::ApplePayData;
 use masking::Secret;
+use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
@@ -35,11 +37,15 @@ pub use self::operations::{
     PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
 };
 use self::{
+    conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
+    helpers::get_key_params_for_surcharge_details,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-use super::errors::StorageErrorExt;
+use super::{
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, utils as core_utils,
+};
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
@@ -55,8 +61,8 @@ use crate::{
         self as router_types,
         api::{self, ConnectorCallType},
         domain,
-        storage::{self, enums as storage_enums},
-        transformers::ForeignTryInto,
+        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
+        transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{
         add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
@@ -141,6 +147,8 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    call_decision_manager(state, &merchant_account, &mut payment_data).await?;
+
     let connector = get_connector_choice(
         &operation,
         state,
@@ -167,6 +175,10 @@ where
     let mut connector_http_status_code = None;
     let mut external_latency = None;
     if let Some(connector_details) = connector {
+        operation
+            .to_domain()?
+            .populate_payment_data(state, &mut payment_data, &req, &merchant_account)
+            .await?;
         payment_data = match connector_details {
             api::ConnectorCallType::PreDetermined(connector) => {
                 let schedule_time = if should_add_task_to_process_tracker {
@@ -294,8 +306,14 @@ where
             }
 
             api::ConnectorCallType::SessionMultiple(connectors) => {
-                let session_surcharge_data =
-                    get_session_surcharge_data(&payment_data.payment_attempt);
+                let session_surcharge_details =
+                    call_surcharge_decision_management_for_session_flow(
+                        state,
+                        &merchant_account,
+                        &mut payment_data,
+                        &connectors,
+                    )
+                    .await?;
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -304,7 +322,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                    session_surcharge_data,
+                    session_surcharge_details,
                 )
                 .await?
             }
@@ -348,6 +366,123 @@ where
     ))
 }
 
+#[instrument(skip_all)]
+pub async fn call_decision_manager<O>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<O>,
+) -> RouterResult<()>
+where
+    O: Send + Clone,
+{
+    let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
+        .routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("routing algorithm"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the routing algorithm")?
+        .unwrap_or_default();
+
+    let output = perform_decision_management(
+        state,
+        algorithm_ref,
+        merchant_account.merchant_id.as_str(),
+        payment_data,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Could not decode the conditional config")?;
+    payment_data.payment_attempt.authentication_type = payment_data
+        .payment_attempt
+        .authentication_type
+        .or(output.override_3ds.map(ForeignInto::foreign_into))
+        .or(Some(storage_enums::AuthenticationType::NoThreeDs));
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn populate_surcharge_details<F>(
+    state: &AppState,
+    payment_data: &mut PaymentData<F>,
+    request: &payments::PaymentsRequest,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+{
+    if payment_data
+        .payment_intent
+        .surcharge_applicable
+        .unwrap_or(false)
+    {
+        let payment_method_data = request
+            .payment_method_data
+            .clone()
+            .get_required_value("payment_method_data")?;
+        let (payment_method, payment_method_type, card_network) =
+            get_key_params_for_surcharge_details(payment_method_data)?;
+
+        let calculated_surcharge_details = match utils::get_individual_surcharge_detail_from_redis(
+            state,
+            &payment_method,
+            &payment_method_type,
+            card_network,
+            &payment_data.payment_attempt.attempt_id,
+        )
+        .await
+        {
+            Ok(surcharge_details) => Some(surcharge_details),
+            Err(err) if err.current_context() == &RedisError::NotFound => None,
+            Err(err) => Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?,
+        };
+
+        let request_surcharge_details = request.surcharge_details;
+
+        match (request_surcharge_details, calculated_surcharge_details) {
+            (Some(request_surcharge_details), Some(calculated_surcharge_details)) => {
+                if calculated_surcharge_details
+                    .is_request_surcharge_matching(request_surcharge_details)
+                {
+                    payment_data.surcharge_details = Some(calculated_surcharge_details);
+                } else {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid value provided: 'surcharge_details'. surcharge details provided do not match with surcharge details sent in payment_methods list response".to_string(),
+                    }
+                    .into());
+                }
+            }
+            (None, Some(_calculated_surcharge_details)) => {
+                return Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "surcharge_details",
+                }
+                .into());
+            }
+            (Some(request_surcharge_details), None) => {
+                if request_surcharge_details.is_surcharge_zero() {
+                    return Ok(());
+                } else {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid value provided: 'surcharge_details'. surcharge details provided do not match with surcharge details sent in payment_methods list response".to_string(),
+                    }
+                    .into());
+                }
+            }
+            (None, None) => return Ok(()),
+        };
+    } else {
+        let surcharge_details =
+            payment_data
+                .payment_attempt
+                .get_surcharge_details()
+                .map(|surcharge_details| {
+                    surcharge_details
+                        .get_surcharge_details_object(payment_data.payment_attempt.amount)
+                });
+        payment_data.surcharge_details = surcharge_details;
+    }
+    Ok(())
+}
+
 #[inline]
 pub fn get_connector_data(
     connectors: &mut IntoIter<api::ConnectorData>,
@@ -359,20 +494,66 @@ pub fn get_connector_data(
         .attach_printable("Connector not found in connectors iterator")
 }
 
-pub fn get_session_surcharge_data(
-    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
-) -> Option<api::SessionSurchargeDetails> {
-    payment_attempt.surcharge_amount.map(|surcharge_amount| {
-        let tax_on_surcharge_amount = payment_attempt.tax_amount.unwrap_or(0);
-        let final_amount = payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
-        api::SessionSurchargeDetails::PreDetermined(SurchargeDetailsResponse {
-            surcharge: Surcharge::Fixed(surcharge_amount),
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount,
+#[instrument(skip_all)]
+pub async fn call_surcharge_decision_management_for_session_flow<O>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<O>,
+    session_connector_data: &[api::SessionConnectorData],
+) -> RouterResult<Option<api::SessionSurchargeDetails>>
+where
+    O: Send + Clone + Sync,
+{
+    if let Some(surcharge_amount) = payment_data.payment_attempt.surcharge_amount {
+        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or(0);
+        let final_amount =
+            payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+        Ok(Some(api::SessionSurchargeDetails::PreDetermined(
+            SurchargeDetailsResponse {
+                surcharge: Surcharge::Fixed(surcharge_amount),
+                tax_on_surcharge: None,
+                surcharge_amount,
+                tax_on_surcharge_amount,
+                final_amount,
+            },
+        )))
+    } else {
+        let payment_method_type_list = session_connector_data
+            .iter()
+            .map(|session_connector_data| session_connector_data.payment_method_type)
+            .collect();
+        let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
+            .routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("routing algorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode the routing algorithm")?
+            .unwrap_or_default();
+        let surcharge_results =
+            surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
+                state,
+                algorithm_ref,
+                payment_data,
+                &payment_method_type_list,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decision operation")?;
+
+        core_utils::persist_individual_surcharge_details_in_redis(
+            state,
+            merchant_account,
+            &surcharge_results,
+        )
+        .await?;
+
+        Ok(if surcharge_results.is_empty_result() {
+            None
+        } else {
+            Some(api::SessionSurchargeDetails::Calculated(surcharge_results))
         })
-    })
+    }
 }
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(

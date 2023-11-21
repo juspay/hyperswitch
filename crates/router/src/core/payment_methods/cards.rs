@@ -12,6 +12,7 @@ use api_models::{
         ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
+    surcharge_decision_configs as api_surcharge_decision_configs,
 };
 use common_utils::{
     consts,
@@ -23,6 +24,7 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
+use super::surcharge_decision_configs::perform_surcharge_decision_management_for_payment_method_list;
 use crate::{
     configs::settings,
     core::{
@@ -35,6 +37,7 @@ use crate::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
         },
+        utils::persist_individual_surcharge_details_in_redis,
     },
     db, logger,
     pii::prelude::*,
@@ -1527,6 +1530,21 @@ pub async fn list_payment_methods(
         });
     }
 
+    let merchant_surcharge_configs =
+        if let Some((attempt, payment_intent)) = payment_attempt.as_ref().zip(payment_intent) {
+            Box::pin(call_surcharge_decision_management(
+                state,
+                &merchant_account,
+                attempt,
+                payment_intent,
+                billing_address,
+                &mut payment_method_responses,
+            ))
+            .await?
+        } else {
+            api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
+        };
+
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
@@ -1558,9 +1576,67 @@ pub async fn list_payment_methods(
                     }
                 },
             ),
-            show_surcharge_breakup_screen: false,
+            show_surcharge_breakup_screen: merchant_surcharge_configs
+                .show_surcharge_breakup_screen
+                .unwrap_or_default(),
         },
     ))
+}
+
+pub async fn call_surcharge_decision_management(
+    state: routes::AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: storage::PaymentIntent,
+    billing_address: Option<domain::Address>,
+    response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
+) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
+    if payment_attempt.surcharge_amount.is_some() {
+        Ok(api_surcharge_decision_configs::MerchantSurchargeConfigs::default())
+    } else {
+        let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
+            .routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("routing algorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode the routing algorithm")?
+            .unwrap_or_default();
+        let (surcharge_results, merchant_sucharge_configs) =
+            perform_surcharge_decision_management_for_payment_method_list(
+                &state,
+                algorithm_ref,
+                payment_attempt,
+                &payment_intent,
+                billing_address.as_ref().map(Into::into),
+                response_payment_method_types,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decision operation")?;
+        if !surcharge_results.is_empty_result() {
+            persist_individual_surcharge_details_in_redis(
+                &state,
+                merchant_account,
+                &surcharge_results,
+            )
+            .await?;
+            let _ = state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
+                        surcharge_applicable: true,
+                        updated_by: merchant_account.storage_scheme.to_string(),
+                    },
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Failed to update surcharge_applicable in Payment Intent");
+        }
+        Ok(merchant_sucharge_configs)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
