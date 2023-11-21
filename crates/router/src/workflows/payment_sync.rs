@@ -135,6 +135,8 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                                 consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
                             amount_capturable: Some(0),
+                            surcharge_amount: None,
+                            tax_amount: None,
                             updated_by: merchant_account.storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
