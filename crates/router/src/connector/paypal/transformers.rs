@@ -333,10 +333,8 @@ fn get_payee(auth_type: &PaypalAuthType) -> Option<Payee> {
         .get_credentials()
         .ok()
         .and_then(|credentials| credentials.payer_id.to_owned())
-        .and_then(|payer_id| {
-            Some(Payee {
-                merchant_id: payer_id,
-            })
+        .map(|payer_id| Payee {
+            merchant_id: payer_id,
         })
 }
 

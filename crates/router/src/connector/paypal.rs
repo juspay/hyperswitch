@@ -171,7 +171,7 @@ fn construct_auth_assertion_header(
     let encoded_credentials = consts::BASE64_ENGINE
         .encode(merchant_credentials)
         .to_string();
-    return format!("{}.{}.", algorithm, encoded_credentials);
+    format!("{}.{}.", algorithm, encoded_credentials)
 }
 
 impl ConnectorCommon for Paypal {
