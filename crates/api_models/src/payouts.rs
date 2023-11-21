@@ -382,7 +382,7 @@ pub struct PayoutCreateResponse {
     pub error_code: Option<String>,
 
     /// The business profile that is associated with this payment
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
