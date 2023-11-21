@@ -150,7 +150,11 @@ mod storage {
                         .try_into_get()
                     };
 
-                    db_utils::try_redis_get_else_try_database_get(redis_fut, database_call).await
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                        redis_fut,
+                        database_call,
+                    ))
+                    .await
                 }
             }
         }

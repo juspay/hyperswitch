@@ -410,6 +410,7 @@ mod tests {
             profile_id: None,
             applepay_verified_domains: None,
             pm_auth_config: None,
+            status: api_enums::ConnectorStatus::Inactive,
         };
 
         make_mca_graph(vec![stripe_account]).expect("Failed graph construction")

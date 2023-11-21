@@ -2201,6 +2201,12 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
             payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
+            payments::CardRedirectData::CardRedirect {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -4004,8 +4010,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         iban: Some(b.iban),
                         tax_id: None,
                     },
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfers via ACH or Bacs are not supported".to_string(),
+                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via ACH is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };

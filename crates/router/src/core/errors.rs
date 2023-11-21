@@ -19,7 +19,7 @@ use storage_impl::errors as storage_impl_errors;
 pub use user::*;
 
 pub use self::{
-    api_error_response::ApiErrorResponse,
+    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,

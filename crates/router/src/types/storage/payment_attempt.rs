@@ -16,7 +16,6 @@ pub trait PaymentAttemptExt {
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
     fn get_total_amount(&self) -> i64;
     fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
 }

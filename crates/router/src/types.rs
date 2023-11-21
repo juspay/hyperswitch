@@ -900,6 +900,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 #[derive(Default, Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
+    TemporaryAuth,
     HeaderKey {
         api_key: Secret<String>,
     },
@@ -1213,5 +1214,3 @@ impl<F1, F2>
         }
     }
 }
-
-pub type GsmResponse = storage::GatewayStatusMap;

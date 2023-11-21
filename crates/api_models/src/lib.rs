@@ -14,6 +14,7 @@ pub mod errors;
 pub mod events;
 pub mod files;
 pub mod gsm;
+pub mod locker_migration;
 pub mod mandates;
 pub mod organization;
 pub mod payment_methods;
