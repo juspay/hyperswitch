@@ -28,7 +28,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{ crypto, BytesExt, OptionExt},
+    utils::{crypto, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -74,7 +74,8 @@ impl Worldline {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody> for Worldline
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody>
+    for Worldline
 where
     Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {
@@ -159,8 +160,13 @@ impl ConnectorValidation for Worldline {
 
 impl api::ConnectorAccessToken for Worldline {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        JsonRequestBody,
+    > for Worldline
 {
 }
 
@@ -192,8 +198,13 @@ impl
 
 impl api::PaymentVoid for Worldline {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData, JsonRequestBody,>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     fn get_headers(
         &self,
@@ -260,8 +271,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 }
 
 impl api::PaymentSync for Worldline {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     fn get_http_method(&self) -> services::Method {
         services::Method::Get
@@ -340,8 +356,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl api::PaymentCapture for Worldline {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     fn get_headers(
         &self,
@@ -457,16 +478,26 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
 impl api::PaymentSession for Worldline {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     // Not Implemented
 }
 
 impl api::PaymentAuthorize for Worldline {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     fn get_headers(
         &self,
@@ -568,8 +599,13 @@ impl api::Refund for Worldline {}
 impl api::RefundExecute for Worldline {}
 impl api::RefundSync for Worldline {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     fn get_headers(
         &self,
@@ -653,8 +689,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData, JsonRequestBody>
-    for Worldline
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Worldline
 {
     fn get_http_method(&self) -> services::Method {
         services::Method::Get

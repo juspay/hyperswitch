@@ -32,7 +32,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Worldpay;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody> for Worldpay
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody>
+    for Worldpay
 where
     Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {
@@ -122,7 +123,7 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        JsonRequestBody
+        JsonRequestBody,
     > for Worldpay
 {
 }
@@ -134,7 +135,7 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-        JsonRequestBody
+        JsonRequestBody,
     > for Worldpay
 {
     // Not Implemented (R)
@@ -142,8 +143,13 @@ impl
 
 impl api::PaymentVoid for Worldpay {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldpay
 {
     fn get_headers(
         &self,
@@ -228,14 +234,24 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
 impl api::ConnectorAccessToken for Worldpay {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        JsonRequestBody,
+    > for Worldpay
 {
 }
 
 impl api::PaymentSync for Worldpay {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldpay
 {
     fn get_headers(
         &self,
@@ -317,8 +333,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl api::PaymentCapture for Worldpay {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldpay
 {
     fn get_headers(
         &self,
@@ -400,15 +421,25 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
 impl api::PaymentSession for Worldpay {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldpay
 {
 }
 
 impl api::PaymentAuthorize for Worldpay {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Worldpay
 {
     fn get_headers(
         &self,
@@ -504,8 +535,13 @@ impl api::Refund for Worldpay {}
 impl api::RefundExecute for Worldpay {}
 impl api::RefundSync for Worldpay {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData, JsonRequestBody>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Worldpay
 {
     fn get_headers(
         &self,
@@ -596,7 +632,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData, JsonRequestBody> for Worldpay {
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Worldpay
+{
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,

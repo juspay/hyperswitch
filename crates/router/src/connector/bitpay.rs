@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::JsonRequestBody};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as bitpay;
@@ -47,14 +47,16 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bitpay
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bitpay
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody>
+    for Bitpay
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {
     fn build_headers(
         &self,
@@ -127,14 +129,24 @@ impl ConnectorCommon for Bitpay {
 
 impl ConnectorValidation for Bitpay {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bitpay
 {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        JsonRequestBody,
+    > for Bitpay
 {
 }
 
@@ -143,12 +155,18 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bitpay
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bitpay
 {
     fn get_headers(
         &self,
@@ -174,7 +192,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = bitpay::BitpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -183,12 +201,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
-        let bitpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bitpay_req))
+        Ok(JsonRequestBody(req_obj))
     }
 
     fn build_request(
@@ -237,8 +250,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bitpay
 {
     fn get_headers(
         &self,
@@ -311,8 +329,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bitpay
 {
     fn build_request(
         &self,
@@ -327,12 +350,24 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Bitpay
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bitpay
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Bitpay {
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Bitpay
+{
     fn build_request(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
@@ -345,7 +380,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bitpay {
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Bitpay
+{
     // default implementation of build_request method will be executed
 }
 

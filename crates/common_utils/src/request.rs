@@ -24,6 +24,7 @@ pub enum ContentType {
     Json,
     FormUrlEncoded,
     FormData,
+    Xml,
 }
 
 fn default_request_headers() -> [(String, Maskable<String>); 1] {
@@ -48,6 +49,7 @@ impl std::fmt::Debug for RequestContent {
             Self::Json(_) => "JsonRequestBody",
             Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
             Self::FormData(_) => "FormDataRequestBody",
+            Self::Xml(_) => "XmlRequestBody",
         })
     }
 }
@@ -57,6 +59,7 @@ pub enum RequestContent {
     Json(Box<dyn masking::ErasedMaskSerialize>),
     FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize>),
     FormData(reqwest::multipart::Form),
+    Xml(Box<dyn masking::ErasedMaskSerialize>),
 }
 
 // #[derive(Debug)]
@@ -68,6 +71,8 @@ pub struct FormRequestBody(pub reqwest::multipart::Form);
 // #[derive(Debug)]
 pub struct FormUrlEncodedRequestBody(pub Box<dyn masking::ErasedMaskSerialize>);
 
+pub struct XmlRequestBody(pub Box<dyn masking::ErasedMaskSerialize>);
+
 impl From<JsonRequestBody> for RequestContent {
     fn from(value: JsonRequestBody) -> Self {
         Self::Json(value.0)
@@ -77,6 +82,12 @@ impl From<JsonRequestBody> for RequestContent {
 impl From<FormRequestBody> for RequestContent {
     fn from(value: FormRequestBody) -> Self {
         Self::FormData(value.0)
+    }
+}
+
+impl From<XmlRequestBody> for RequestContent {
+    fn from(value: XmlRequestBody) -> Self {
+        Self::Xml(value.0)
     }
 }
 
@@ -105,6 +116,12 @@ impl HttpRequestBody for FormRequestBody {
 impl HttpRequestBody for FormUrlEncodedRequestBody {
     fn get_content_type(&self) -> ContentType {
         ContentType::FormUrlEncoded
+    }
+}
+
+impl HttpRequestBody for XmlRequestBody {
+    fn get_content_type(&self) -> ContentType {
+        ContentType::Xml
     }
 }
 

@@ -141,8 +141,13 @@ impl ConnectorValidation for Zen {
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData, JsonRequestBody>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Zen
 {
     //TODO: implement sessions flow
 }
@@ -152,14 +157,19 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-        JsonRequestBody
+        JsonRequestBody,
     > for Zen
 {
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken, JsonRequestBody>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        JsonRequestBody,
+    > for Zen
 {
 }
 
@@ -168,13 +178,18 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
-        JsonRequestBody
+        JsonRequestBody,
     > for Zen
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData, JsonRequestBody>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Zen
 {
     fn get_headers(
         &self,
@@ -282,8 +297,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData, JsonRequestBody>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Zen
 {
     fn get_headers(
         &self,
@@ -351,8 +371,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData, JsonRequestBody>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Zen
 {
     fn build_request(
         &self,
@@ -371,8 +396,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData, JsonRequestBody>
-    for Zen
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Zen
 {
     fn build_request(
         &self,
@@ -387,7 +417,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData, JsonRequestBody> for Zen {
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Zen
+{
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -477,7 +514,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData, JsonRequestBody> for Zen {
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Zen
+{
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,

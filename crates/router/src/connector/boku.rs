@@ -2,7 +2,10 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::XmlExt;
+use common_utils::{
+    ext_traits::XmlExt,
+    request::{JsonRequestBody, XmlRequestBody},
+};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
@@ -52,12 +55,13 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        XmlRequestBody,
     > for Boku
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Boku
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, XmlRequestBody> for Boku
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -152,14 +156,24 @@ impl ConnectorValidation for Boku {
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        XmlRequestBody,
+    > for Boku
 {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        XmlRequestBody,
+    > for Boku
 {
 }
 
@@ -168,12 +182,18 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        XmlRequestBody,
     > for Boku
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        XmlRequestBody,
+    > for Boku
 {
     fn get_headers(
         &self,
@@ -269,8 +289,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        XmlRequestBody,
+    > for Boku
 {
     fn get_headers(
         &self,
@@ -358,8 +383,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        XmlRequestBody,
+    > for Boku
 {
     fn get_headers(
         &self,
@@ -438,12 +468,24 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        XmlRequestBody,
+    > for Boku
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Boku {
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        XmlRequestBody,
+    > for Boku
+{
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -526,7 +568,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Boku {
+impl
+    ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData, XmlRequestBody>
+    for Boku
+{
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,

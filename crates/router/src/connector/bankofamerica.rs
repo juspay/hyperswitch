@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::request::JsonRequestBody;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -101,12 +102,14 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bankofamerica
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bankofamerica
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody>
+    for Bankofamerica
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -252,14 +255,24 @@ impl ConnectorValidation for Bankofamerica {
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::Session,
+        types::PaymentsSessionData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::AccessTokenAuth,
+        types::AccessTokenRequestData,
+        types::AccessToken,
+        JsonRequestBody,
+    > for Bankofamerica
 {
 }
 
@@ -268,12 +281,18 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Bankofamerica
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     fn get_headers(
         &self,
@@ -302,7 +321,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -311,12 +330,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         let connector_request =
             bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
-        let bankofamerica_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_payments_request))
+        Ok(JsonRequestBody(Box::new(connector_request)))
     }
 
     fn build_request(
@@ -365,8 +379,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::PSync,
+        types::PaymentsSyncData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     fn get_headers(
         &self,
@@ -439,8 +458,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::Capture,
+        types::PaymentsCaptureData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     fn get_headers(
         &self,
@@ -470,7 +494,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -479,12 +503,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         ))?;
         let connector_request =
             bankofamerica::BankOfAmericaCaptureRequest::try_from(&connector_router_data)?;
-        let bankofamerica_capture_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<bankofamerica::BankOfAmericaCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_capture_request))
+        Ok(JsonRequestBody(Box::new(connector_request)))
     }
 
     fn build_request(
@@ -531,8 +550,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::Void,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     fn get_headers(
         &self,
@@ -562,7 +586,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request
@@ -580,12 +604,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let connector_request =
             bankofamerica::BankOfAmericaVoidRequest::try_from(&connector_router_data)?;
 
-        let bankofamerica_void_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_void_request))
+        Ok(JsonRequestBody(Box::new(connector_request)))
     }
 
     fn build_request(
@@ -630,8 +649,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::Execute,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     fn get_headers(
         &self,
@@ -661,7 +685,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -669,12 +693,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let req_obj = bankofamerica::BankOfAmericaRefundRequest::try_from(&connector_router_data)?;
-        let bankofamerica_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<bankofamerica::BankOfAmericaRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_req))
+        Ok(JsonRequestBody(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -720,8 +739,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Bankofamerica
+impl
+    ConnectorIntegration<
+        api::RSync,
+        types::RefundsData,
+        types::RefundsResponseData,
+        JsonRequestBody,
+    > for Bankofamerica
 {
     fn get_headers(
         &self,
