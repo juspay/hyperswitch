@@ -1696,7 +1696,7 @@ pub enum PaypalResource {
 pub struct PaypalDisputeWebhooks {
     pub dispute_id: String,
     pub dispute_transactions: Vec<DisputeTransaction>,
-    pub dispute_amount: OrderRequestAmount,
+    pub dispute_amount: OrderAmount,
     pub dispute_outcome: DisputeOutcome,
     pub dispute_life_cycle_stage: DisputeLifeCycleStage,
     pub status: DisputeStatus,
