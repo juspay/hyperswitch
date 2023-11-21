@@ -83,31 +83,38 @@ pub async fn call_to_locker(
         .into_iter()
         .filter(|pm| matches!(pm.payment_method, storage_enums::PaymentMethod::Card))
     {
-        let fallible: Result<(), errors::ApiErrorResponse> = {
-            let card =
-                cards::get_card_from_locker(state, customer_id, merchant_id, &pm.payment_method_id)
-                    .await?;
+        let card =
+            cards::get_card_from_locker(state, customer_id, merchant_id, &pm.payment_method_id)
+                .await;
 
-            let card_details = api::CardDetail {
-                card_number: card.card_number,
-                card_exp_month: card.card_exp_month,
-                card_exp_year: card.card_exp_year,
-                card_holder_name: card.name_on_card,
-                nick_name: card.nick_name.map(masking::Secret::new),
-            };
+        let card = match card {
+            Ok(card) => card,
+            Err(err) => {
+                logger::error!("Failed to fetch card from Basilisk HS locker : {:?}", err);
+                continue;
+            }
+        };
 
-            let pm_create = api::PaymentMethodCreate {
-                payment_method: pm.payment_method,
-                payment_method_type: pm.payment_method_type,
-                payment_method_issuer: pm.payment_method_issuer,
-                payment_method_issuer_code: pm.payment_method_issuer_code,
-                card: Some(card_details.clone()),
-                metadata: pm.metadata,
-                customer_id: Some(pm.customer_id),
-                card_network: card.card_brand,
-            };
+        let card_details = api::CardDetail {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.name_on_card,
+            nick_name: card.nick_name.map(masking::Secret::new),
+        };
 
-            let (_add_card_rs_resp, _is_duplicate) = cards::add_card_hs(
+        let pm_create = api::PaymentMethodCreate {
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
+            payment_method_issuer: pm.payment_method_issuer,
+            payment_method_issuer_code: pm.payment_method_issuer_code,
+            card: Some(card_details.clone()),
+            metadata: pm.metadata,
+            customer_id: Some(pm.customer_id),
+            card_network: card.card_brand,
+        };
+
+        let add_card_result = cards::add_card_hs(
                 state,
                 pm_create,
                 &card_details,
@@ -121,21 +128,22 @@ pub async fn call_to_locker(
             .attach_printable(format!(
                 "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
                 pm.payment_method_id
-            ))?;
+            ));
 
-            cards_moved += 1;
+        let (_add_card_rs_resp, _is_duplicate) = match add_card_result {
+            Ok(output) => output,
+            Err(err) => {
+                logger::error!("Failed to add card to Rust locker : {:?}", err);
+                continue;
+            }
+        };
 
-            logger::info!(
+        cards_moved += 1;
+
+        logger::info!(
                 "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
                 pm.payment_method_id
             );
-            Ok(())
-        };
-
-        match fallible {
-            Ok(_) => {}
-            Err(err) => logger::error!(error =? err, "Failed while migrating"),
-        }
     }
 
     Ok(cards_moved)
