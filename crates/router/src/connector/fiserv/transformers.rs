@@ -3,7 +3,10 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
+    connector::utils::{
+        self, CardData as CardDataUtil, PaymentsCancelRequestData, PaymentsSyncRequestData,
+        RouterData,
+    },
     core::errors,
     pii::Secret,
     types::{self, api, storage::enums},
@@ -41,7 +44,7 @@ impl<T>
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservPaymentsRequest {
     amount: Amount,
@@ -51,7 +54,7 @@ pub struct FiservPaymentsRequest {
     transaction_interaction: TransactionInteraction,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(tag = "sourceType")]
 pub enum Source {
     PaymentCard {
@@ -65,7 +68,7 @@ pub enum Source {
     },
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardData {
     card_data: cards::CardNumber,
@@ -74,7 +77,7 @@ pub struct CardData {
     security_code: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayToken {
     signature: String,
@@ -82,14 +85,14 @@ pub struct GooglePayToken {
     protocol_version: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct Amount {
     #[serde(serialize_with = "utils::str_to_f32")]
     total: String,
     currency: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
     capture_flag: Option<bool>,
@@ -97,14 +100,14 @@ pub struct TransactionDetails {
     merchant_transaction_id: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: Secret<String>,
     terminal_id: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionInteraction {
     origin: TransactionInteractionOrigin,
@@ -112,19 +115,19 @@ pub struct TransactionInteraction {
     pos_condition_code: TransactionInteractionPosConditionCode,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TransactionInteractionOrigin {
     #[default]
     Ecom,
 }
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionInteractionEciIndicator {
     #[default]
     ChannelEncrypted,
 }
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionInteractionPosConditionCode {
     #[default]
@@ -174,7 +177,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                 let card = CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.card_exp_year.clone(),
+                    expiration_year: ccard.get_expiry_year_4_digit(),
                     security_code: ccard.card_cvc.clone(),
                 };
                 Source::PaymentCard { card }
@@ -219,7 +222,7 @@ impl TryFrom<&types::ConnectorAuthType> for FiservAuthType {
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservCancelRequest {
     transaction_details: TransactionDetails,
@@ -406,7 +409,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservCaptureRequest {
     amount: Amount,
@@ -415,7 +418,7 @@ pub struct FiservCaptureRequest {
     reference_transaction_details: ReferenceTransactionDetails,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReferenceTransactionDetails {
     reference_transaction_id: String,
@@ -478,7 +481,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservSyncRequest {
     merchant_details: MerchantDetails,

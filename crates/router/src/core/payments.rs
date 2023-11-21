@@ -1663,10 +1663,24 @@ where
         .unwrap_or(false);
 
     let payment_data_and_tokenization_action = match connector {
-        Some(_) if is_mandate => (
-            payment_data.to_owned(),
-            TokenizationAction::SkipConnectorTokenization,
-        ),
+        Some(connector_name) if is_mandate => {
+            if connector_name == *"cybersource" {
+                let (_operation, payment_method_data) = operation
+                    .to_domain()?
+                    .make_pm_data(
+                        state,
+                        payment_data,
+                        validate_result.storage_scheme,
+                        merchant_key_store,
+                    )
+                    .await?;
+                payment_data.payment_method_data = payment_method_data;
+            }
+            (
+                payment_data.to_owned(),
+                TokenizationAction::SkipConnectorTokenization,
+            )
+        }
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
@@ -1749,7 +1763,7 @@ where
             };
             (payment_data.to_owned(), connector_tokenization_action)
         }
-        _ => (
+        Some(_) | None => (
             payment_data.to_owned(),
             TokenizationAction::SkipConnectorTokenization,
         ),
