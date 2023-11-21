@@ -569,14 +569,14 @@ impl<'a> KnowledgeGraphBuilder<'a> {
 
     pub fn make_any_aggregator<M: KgraphMetadata>(
         &mut self,
-        nodes: &[(NodeId, Relation)],
+        nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
         domain: Vec<DomainIdentifier<'_>>,
     ) -> Result<NodeId, GraphError> {
         nodes
             .iter()
-            .try_for_each(|(node_id, _)| self.ensure_node_exists(*node_id))?;
+            .try_for_each(|(node_id, _, _)| self.ensure_node_exists(*node_id))?;
 
         let mut domain_ids: Vec<DomainId> = Vec::new();
         domain
@@ -597,8 +597,8 @@ impl<'a> KnowledgeGraphBuilder<'a> {
             .node_metadata
             .push(metadata.map(|meta| -> Arc<dyn KgraphMetadata> { Arc::new(meta) }));
 
-        for (node_id, relation) in nodes {
-            self.make_edge(*node_id, aggregator_id, Strength::Strong, *relation)?;
+        for (node_id, relation, strength) in nodes {
+            self.make_edge(*node_id, aggregator_id, *strength, *relation)?;
         }
 
         Ok(aggregator_id)

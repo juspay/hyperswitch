@@ -20,7 +20,7 @@ fn compile_request_pm_types(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     pm_types: RequestPaymentMethodTypes,
     pm: api_enums::PaymentMethod,
-) -> Result<graph::NodeId, KgraphError> {
+) -> Result<(graph::NodeId, graph::Relation, graph::Strength), KgraphError> {
     let mut agg_nodes: Vec<(graph::NodeId, graph::Relation, graph::Strength)> = Vec::new();
 
     let pmt_info = "PaymentMethodType";
@@ -182,8 +182,16 @@ fn compile_request_pm_types(
         let any_aggregator = builder
             .make_any_aggregator(
                 &[
-                    (zero_amt_id, graph::Relation::Positive),
-                    (or_node_neighbor_id, graph::Relation::Positive),
+                    (
+                        zero_amt_id,
+                        graph::Relation::Positive,
+                        graph::Strength::Strong,
+                    ),
+                    (
+                        or_node_neighbor_id,
+                        graph::Relation::Positive,
+                        graph::Strength::Strong,
+                    ),
                 ],
                 Some("zero_plus_limits_amount_aggregator"),
                 None::<()>,
@@ -198,15 +206,20 @@ fn compile_request_pm_types(
         ));
     }
 
-    let pmt_all_aggregator_info = "All Aggregator for PaymentMethodType";
-    builder
-        .make_all_aggregator(
-            &agg_nodes,
-            Some(pmt_all_aggregator_info),
-            None::<()>,
-            Vec::new(),
-        )
-        .map_err(KgraphError::GraphConstructionError)
+    if agg_nodes.len() == 1 {
+        agg_nodes.pop().ok_or(KgraphError::IndexingError)
+    } else {
+        let pmt_all_aggregator_info = "All Aggregator for PaymentMethodType";
+        builder
+            .make_all_aggregator(
+                &agg_nodes,
+                Some(pmt_all_aggregator_info),
+                None::<()>,
+                Vec::new(),
+            )
+            .map_err(KgraphError::GraphConstructionError)
+            .map(|node_id| (node_id, graph::Relation::Positive, graph::Strength::Strong))
+    }
 }
 
 fn compile_payment_method_enabled(
@@ -229,12 +242,13 @@ fn compile_payment_method_enabled(
             )
             .map_err(KgraphError::GraphConstructionError)?;
 
-        let mut agg_nodes: Vec<(graph::NodeId, graph::Relation)> = Vec::new();
+        let mut agg_nodes: Vec<(graph::NodeId, graph::Relation, graph::Strength)> = Vec::new();
 
         if let Some(pm_types) = enabled.payment_method_types {
             for pm_type in pm_types {
-                let node_id = compile_request_pm_types(builder, pm_type, enabled.payment_method)?;
-                agg_nodes.push((node_id, graph::Relation::Positive));
+                let (node_id, relation, strength) =
+                    compile_request_pm_types(builder, pm_type, enabled.payment_method)?;
+                agg_nodes.push((node_id, relation, strength));
             }
         }
 
@@ -280,13 +294,17 @@ fn compile_merchant_connector_graph(
     let connector = dir_enums::Connector::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
-    let mut agg_nodes: Vec<(graph::NodeId, graph::Relation)> = Vec::new();
+    let mut agg_nodes: Vec<(graph::NodeId, graph::Relation, graph::Strength)> = Vec::new();
 
     if let Some(pms_enabled) = mca.payment_methods_enabled {
         for pm_enabled in pms_enabled {
             let maybe_pm_enabled_id = compile_payment_method_enabled(builder, pm_enabled)?;
             if let Some(pm_enabled_id) = maybe_pm_enabled_id {
-                agg_nodes.push((pm_enabled_id, graph::Relation::Positive));
+                agg_nodes.push((
+                    pm_enabled_id,
+                    graph::Relation::Positive,
+                    graph::Strength::Strong,
+                ));
             }
         }
     }
