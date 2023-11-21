@@ -350,8 +350,8 @@ impl TryFrom<&types::PaymentsSyncRouterData> for ProphetpaySyncRequest {
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(Self {
             transaction_id,
-            ref_info: item.attempt_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.attempt_id),
+            ref_info: item.connector_request_reference_id.to_owned(),
+            inquiry_reference: format!("inquiry_{}", item.connector_request_reference_id),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
@@ -374,6 +374,8 @@ pub enum ProphetpayPaymentStatus {
     EmptyRef,
     #[serde(rename = "Transaction declined by issuer")]
     Declined,
+    #[serde(rename = "Transaction declined - call issuer")]
+    ReachIssuer,
 }
 
 impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
@@ -385,7 +387,8 @@ impl From<ProphetpayPaymentStatus> for enums::AttemptStatus {
             | ProphetpayPaymentStatus::DuplicateValue
             | ProphetpayPaymentStatus::MissingProfile
             | ProphetpayPaymentStatus::EmptyRef
-            | ProphetpayPaymentStatus::Declined => Self::Failure,
+            | ProphetpayPaymentStatus::Declined
+            | ProphetpayPaymentStatus::ReachIssuer => Self::Failure,
         }
     }
 }
@@ -513,9 +516,6 @@ impl<F, T>
     }
 }
 
-// This is Void Implementation for Prophetpay
-// Since Prophetpay does not have capture this have been commented out but kept if it is required for future usage
-/*
 #[derive(Debug, Clone, Deserialize)]
 pub enum ProphetpayVoidStatus {
     Failure,
@@ -594,14 +594,13 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ProphetpayVoidRequest {
         let transaction_id = item.request.connector_transaction_id.to_owned();
         Ok(Self {
             transaction_id,
-            ref_info: item.attempt_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.attempt_id),
+            ref_info: item.connector_request_reference_id.to_owned(),
+            inquiry_reference: format!("inquiry_{}", item.connector_request_reference_id),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
     }
 }
-*/
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -620,20 +619,27 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
     fn try_from(
         item: &ProphetpayRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let transaction_id = item.router_data.request.connector_transaction_id.to_owned();
-        let card_token_data: ProphetpayCardTokenData =
-            to_connector_meta(item.router_data.request.connector_metadata.clone())?;
+        if item.router_data.request.payment_amount == item.router_data.request.refund_amount {
+            let auth_data = ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
+            let transaction_id = item.router_data.request.connector_transaction_id.to_owned();
+            let card_token_data: ProphetpayCardTokenData =
+                to_connector_meta(item.router_data.request.connector_metadata.clone())?;
 
-        Ok(Self {
-            transaction_id,
-            amount: item.amount.to_owned(),
-            card_token: card_token_data.card_token,
-            profile: auth_data.profile_id,
-            ref_info: item.router_data.request.refund_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.router_data.request.refund_id),
-            action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
-        })
+            Ok(Self {
+                transaction_id,
+                amount: item.amount.to_owned(),
+                card_token: card_token_data.card_token,
+                profile: auth_data.profile_id,
+                ref_info: item.router_data.request.refund_id.to_owned(),
+                inquiry_reference: format!("inquiry_{}", item.router_data.request.refund_id),
+                action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
+            })
+        } else {
+            Err(errors::ConnectorError::NotImplemented(
+                "Partial Refund is Not Supported".to_string(),
+            )
+            .into())
+        }
     }
 }
 
@@ -676,6 +682,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct ProphetpayRefundResponse {
     pub response_text: RefundStatus,
+    pub tran_seq_number: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>>
@@ -688,7 +695,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 // no refund id is generated, rather transaction id is used for referring to status in refund also
-                connector_refund_id: item.data.request.connector_transaction_id.clone(),
+                connector_refund_id: item.response.tran_seq_number,
                 refund_status: enums::RefundStatus::from(item.response.response_text),
             }),
             ..item.data
@@ -768,8 +775,8 @@ impl TryFrom<&types::RefundSyncRouterData> for ProphetpayRefundSyncRequest {
         let auth_data = ProphetpayAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             transaction_id: item.request.connector_transaction_id.clone(),
-            ref_info: item.attempt_id.to_owned(),
-            inquiry_reference: format!("inquiry_{}", item.attempt_id),
+            ref_info: item.connector_request_reference_id.to_owned(),
+            inquiry_reference: format!("inquiry_{}", item.connector_request_reference_id),
             profile: auth_data.profile_id,
             action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Inquiry),
         })
