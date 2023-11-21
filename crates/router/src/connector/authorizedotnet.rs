@@ -27,7 +27,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Authorizedotnet;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Authorizedotnet
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody> for Authorizedotnet
 where
     Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {

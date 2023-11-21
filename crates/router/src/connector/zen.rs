@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::JsonRequestBody};
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as zen;
@@ -27,7 +27,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         domain, ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -52,9 +52,9 @@ impl Zen {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Zen
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody> for Zen
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {
     fn build_headers(
         &self,
@@ -141,7 +141,7 @@ impl ConnectorValidation for Zen {
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData, JsonRequestBody>
     for Zen
 {
     //TODO: implement sessions flow
@@ -152,12 +152,13 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        JsonRequestBody
     > for Zen
 {
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken, JsonRequestBody>
     for Zen
 {
 }
@@ -167,11 +168,12 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        JsonRequestBody
     > for Zen
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData, JsonRequestBody>
     for Zen
 {
     fn get_headers(
@@ -217,7 +219,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = zen::ZenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -225,12 +227,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let req_obj = zen::ZenPaymentsRequest::try_from(&connector_router_data)?;
-        let zen_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(zen_req))
+        // let zen_req = types::RequestBody::log_and_get_request_body(
+        //     &req_obj,
+        //     utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(JsonRequestBody(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -248,7 +250,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -280,7 +282,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData, JsonRequestBody>
     for Zen
 {
     fn get_headers(
@@ -349,7 +351,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData, JsonRequestBody>
     for Zen
 {
     fn build_request(
@@ -369,7 +371,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData, JsonRequestBody>
     for Zen
 {
     fn build_request(
@@ -385,7 +387,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Zen {
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData, JsonRequestBody> for Zen {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -415,7 +417,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = zen::ZenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -423,12 +425,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let req_obj = zen::ZenRefundRequest::try_from(&connector_router_data)?;
-        let zen_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(zen_req))
+        // let zen_req = types::RequestBody::log_and_get_request_body(
+        //     &req_obj,
+        //     utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(JsonRequestBody(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -443,7 +445,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -475,7 +477,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Zen {
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData, JsonRequestBody> for Zen {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -513,7 +515,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

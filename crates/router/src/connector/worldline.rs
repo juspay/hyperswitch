@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::JsonRequestBody};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -28,7 +28,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt, OptionExt},
+    utils::{ crypto, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -74,9 +74,9 @@ impl Worldline {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldline
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response, JsonRequestBody> for Worldline
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response, JsonRequestBody>,
 {
     fn build_headers(
         &self,
@@ -159,7 +159,7 @@ impl ConnectorValidation for Worldline {
 
 impl api::ConnectorAccessToken for Worldline {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken, JsonRequestBody>
     for Worldline
 {
 }
@@ -172,6 +172,7 @@ impl
         api::SetupMandate,
         types::SetupMandateRequestData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Worldline
 {
 }
@@ -183,6 +184,7 @@ impl
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
+        JsonRequestBody,
     > for Worldline
 {
     // Not Implemented (R)
@@ -190,7 +192,7 @@ impl
 
 impl api::PaymentVoid for Worldline {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData, JsonRequestBody,>
     for Worldline
 {
     fn get_headers(
@@ -258,7 +260,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 }
 
 impl api::PaymentSync for Worldline {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData, JsonRequestBody>
     for Worldline
 {
     fn get_http_method(&self) -> services::Method {
@@ -338,7 +340,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl api::PaymentCapture for Worldline {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData, JsonRequestBody>
     for Worldline
 {
     fn get_headers(
@@ -379,15 +381,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             types::PaymentsResponseData,
         >,
         _connectors: &Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_req = worldline::ApproveRequest::try_from(req)?;
 
-        let worldline_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<worldline::ApproveRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(worldline_req))
+        // let worldline_req = types::RequestBody::log_and_get_request_body(
+        //     &connector_req,
+        //     utils::Encode::<worldline::ApproveRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(JsonRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -407,7 +409,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -455,7 +457,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
 impl api::PaymentSession for Worldline {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData, JsonRequestBody>
     for Worldline
 {
     // Not Implemented
@@ -463,7 +465,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
 impl api::PaymentAuthorize for Worldline {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData, JsonRequestBody>
     for Worldline
 {
     fn get_headers(
@@ -493,7 +495,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_router_data = worldline::WorldlineRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -501,12 +503,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = worldline::PaymentsRequest::try_from(&connector_router_data)?;
-        let worldline_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(worldline_req))
+        // let worldline_req = types::RequestBody::log_and_get_request_body(
+        //     &connector_req,
+        //     utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(JsonRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -528,7 +530,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -566,7 +568,7 @@ impl api::Refund for Worldline {}
 impl api::RefundExecute for Worldline {}
 impl api::RefundSync for Worldline {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData, JsonRequestBody>
     for Worldline
 {
     fn get_headers(
@@ -595,14 +597,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         let connector_req = worldline::WorldlineRefundRequest::try_from(req)?;
-        let refund_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<worldline::WorldlineRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(refund_req))
+        // let refund_req = types::RequestBody::log_and_get_request_body(
+        //     &connector_req,
+        //     utils::Encode::<worldline::WorldlineRefundRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(JsonRequestBody(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -617,7 +619,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -651,7 +653,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData, JsonRequestBody>
     for Worldline
 {
     fn get_http_method(&self) -> services::Method {
@@ -689,7 +691,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<JsonRequestBody, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(types::RefundSyncType::get_http_method(self))
