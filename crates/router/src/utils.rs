@@ -24,6 +24,7 @@ use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -754,21 +755,30 @@ where
             payments_response
         {
             let m_state = state.clone();
-
-            Box::pin(
-                webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                    m_state,
-                    merchant_account,
-                    business_profile,
-                    event_type,
-                    diesel_models::enums::EventClass::Payments,
-                    None,
-                    payment_id,
-                    diesel_models::enums::EventObjectType::PaymentDetails,
-                    webhooks::OutgoingWebhookContent::PaymentDetails(payments_response_json),
-                ),
-            )
-            .await?;
+            // This spawns this futures in a background thread, the exception inside this future won't affect
+            // the current thread and the lifecycle of spawn thread is not handled by runtime.
+            // So when server shutdown won't wait for this thread's completion.
+            tokio::spawn(
+                async move {
+                    Box::pin(
+                        webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
+                            m_state,
+                            merchant_account,
+                            business_profile,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            None,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
+                            ),
+                        ),
+                    )
+                    .await
+                }
+                .in_current_span(),
+            );
         }
     }
 

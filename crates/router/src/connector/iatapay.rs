@@ -691,13 +691,13 @@ impl api::IncomingWebhook for Iatapay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: IatapayPaymentsResponse =
             request
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<IatapayPaymentsResponse>::encode_to_value(&notif)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif))
     }
 }
