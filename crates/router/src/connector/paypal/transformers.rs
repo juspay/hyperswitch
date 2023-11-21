@@ -779,7 +779,7 @@ pub enum PaypalAuthType {
 #[derive(Debug)]
 pub enum PaypalConnectorCredentials {
     StandardIntegration(StandardFlowCredentials),
-    PartnerIntegration(PartnerFlowCredentails),
+    PartnerIntegration(PartnerFlowCredentials),
 }
 
 impl PaypalConnectorCredentials {
@@ -821,7 +821,7 @@ pub struct StandardFlowCredentials {
 }
 
 #[derive(Debug)]
-pub struct PartnerFlowCredentails {
+pub struct PartnerFlowCredentials {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
     pub(super) payer_id: Secret<String>,
@@ -856,7 +856,7 @@ impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
                 key1,
                 api_secret,
             } => Ok(Self::AuthWithDetails(
-                PaypalConnectorCredentials::PartnerIntegration(PartnerFlowCredentails {
+                PaypalConnectorCredentials::PartnerIntegration(PartnerFlowCredentials {
                     client_id: key1.to_owned(),
                     client_secret: api_key.to_owned(),
                     payer_id: api_secret.to_owned(),
