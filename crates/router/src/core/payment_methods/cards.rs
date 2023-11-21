@@ -1384,6 +1384,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
                 surcharge_details: None,
+                pm_auth_connector: None,
             })
         }
 
@@ -1418,6 +1419,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
                 surcharge_details: None,
+                pm_auth_connector: None,
             })
         }
 
@@ -1447,6 +1449,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
+                pm_auth_connector: None,
             }
         })
     }
@@ -1479,6 +1482,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
+                pm_auth_connector: None,
             }
         })
     }
@@ -1511,6 +1515,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
+                pm_auth_connector: None,
             }
         })
     }
