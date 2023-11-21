@@ -237,7 +237,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 surcharge_details: None,
                 frm_message: None,
                 payment_link_data: None,
-                frm_metadata: request.frm_metadata.clone(),
+                frm_metadata: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
