@@ -11310,8 +11310,7 @@
           "link_to_pay",
           "amount",
           "created_at",
-          "status",
-          "currency"
+          "status"
         ],
         "properties": {
           "payment_link_id": {
@@ -11344,7 +11343,12 @@
             "type": "string"
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
           }
         }
       },

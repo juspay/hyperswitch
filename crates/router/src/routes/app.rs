@@ -670,7 +670,7 @@ impl PaymentLink {
         let mut route = web::scope("/payment_link").app_data(web::Data::new(state));
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(payments_link_list)));
+            route = route.service(web::resource("/list").route(web::post().to(payments_link_list)));
         }
         route
             .service(

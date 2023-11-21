@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 use crate::{
     admin, disputes,
-    enums::{self as api_enums, enums as storage_enums},
+    enums::{self as api_enums, enums as common_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
     payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
@@ -3203,8 +3203,8 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub status: String,
-    #[schema(value_type = Currency)]
-    pub currency: Option<storage_enums::Currency>,
+    #[schema(value_type = Option<Currency>)]
+    pub currency: Option<common_enums::Currency>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3237,12 +3237,12 @@ pub struct PaymentLinkListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
 
-    /// The time at which payment is created
+    /// The time at which payment link is created
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 
-    /// Time less than the payment created time
+    /// Time less than the payment link created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(
         default,
@@ -3251,7 +3251,7 @@ pub struct PaymentLinkListConstraints {
     )]
     pub created_lt: Option<PrimitiveDateTime>,
 
-    /// Time greater than the payment created time
+    /// Time greater than the payment link created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(
         default,
@@ -3260,7 +3260,7 @@ pub struct PaymentLinkListConstraints {
     )]
     pub created_gt: Option<PrimitiveDateTime>,
 
-    /// Time less than or equals to the payment created time
+    /// Time less than or equals to the payment link created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(
         default,
@@ -3269,7 +3269,7 @@ pub struct PaymentLinkListConstraints {
     )]
     pub created_lte: Option<PrimitiveDateTime>,
 
-    /// Time greater than or equals to the payment created time
+    /// Time greater than or equals to the payment link created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gte")]
