@@ -71,7 +71,7 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresCapture,
             storage_enums::IntentStatus::RequiresMerchantAction,
         ],
-        "create payment link",
+        "use payment link for",
     )?;
 
     let payment_link = db
