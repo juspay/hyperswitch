@@ -251,20 +251,29 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
-        payment_data.payment_attempt = match &payment_data.multiple_capture_data {
-            Some(multiple_capture_data) => db
-                .store
+        payment_data.payment_attempt = if payment_data.multiple_capture_data.is_some()
+            || payment_data.payment_attempt.amount_to_capture.is_some()
+        {
+            let multiple_capture_count = payment_data
+                .multiple_capture_data
+                .as_ref()
+                .map(|multiple_capture_data| multiple_capture_data.get_captures_count())
+                .transpose()?;
+            let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
+            db.store
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt,
-                    storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
-                        multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                    storage::PaymentAttemptUpdate::CaptureUpdate {
+                        amount_to_capture,
+                        multiple_capture_count,
                         updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-            None => payment_data.payment_attempt,
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+        } else {
+            payment_data.payment_attempt
         };
         Ok((Box::new(self), payment_data))
     }

@@ -152,6 +152,16 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
+
+    async fn populate_payment_data<'a>(
+        &'a self,
+        _state: &AppState,
+        _payment_data: &mut PaymentData<F>,
+        _request: &R,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
 }
 
 #[async_trait]
