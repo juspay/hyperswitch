@@ -205,7 +205,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
-                errors::ConnectorError::FailedToObtainAuthType | errors::ConnectorError::TemporaryConnectorCredentails =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
+                errors::ConnectorError::FailedToObtainAuthType | errors::ConnectorError::TemporaryConnectorCredentials =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
                 errors::ConnectorError::InvalidConnectorConfig { config }  => errors::ApiErrorResponse::InvalidConnectorConfiguration { config: config.to_string() },
                 errors::ConnectorError::FailedToObtainIntegrationUrl |
                 errors::ConnectorError::RequestEncodingFailed |
@@ -277,7 +277,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::MissingRequiredField { field_name }
                 }
                 errors::ConnectorError::FailedToObtainIntegrationUrl
-                | errors::ConnectorError::TemporaryConnectorCredentails => {
+                | errors::ConnectorError::TemporaryConnectorCredentials => {
                     errors::ApiErrorResponse::InvalidConnectorConfiguration {
                         config: "connector_account_details".to_string(),
                     }

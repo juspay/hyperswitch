@@ -133,7 +133,7 @@ where
             payer_id: Some(payer_id),
             client_id,
             ..
-        }) = auth.get_credentails()
+        }) = auth.get_credentials()
         {
             let auth_assertion_header = construct_auth_assertion_header(payer_id, client_id);
             headers.extend(vec![
@@ -196,7 +196,7 @@ impl ConnectorCommon for Paypal {
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(auth_type)?;
-        let credentials = auth.get_credentails()?;
+        let credentials = auth.get_credentials()?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -303,12 +303,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
-        let credentails = auth.get_credentails()?;
+        let credentials = auth.get_credentials()?;
 
-        let auth_id = credentails
+        let auth_id = credentials
             .client_id
             .clone()
-            .zip(credentails.client_secret.clone())
+            .zip(credentials.client_secret.clone())
             .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
 
@@ -1041,12 +1041,12 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
-        let credentails = auth.get_credentails()?;
+        let credentials = auth.get_credentials()?;
 
-        let auth_id = credentails
+        let auth_id = credentials
             .client_id
             .clone()
-            .zip(credentails.client_secret.clone())
+            .zip(credentials.client_secret.clone())
             .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
 

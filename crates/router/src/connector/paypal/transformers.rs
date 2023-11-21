@@ -330,7 +330,7 @@ fn get_payment_source(
 
 fn get_payee(auth_type: &PaypalAuthType) -> Option<Payee> {
     auth_type
-        .get_credentails()
+        .get_credentials()
         .ok()
         .and_then(|credentials| credentials.payer_id.to_owned())
         .and_then(|payer_id| {
@@ -802,12 +802,12 @@ pub struct PaypalConnectorCredentials {
 }
 
 impl PaypalAuthType {
-    pub fn get_credentails(
+    pub fn get_credentials(
         &self,
     ) -> CustomResult<&PaypalConnectorCredentials, errors::ConnectorError> {
         match self {
             Self::TemporaryAuth => {
-                Err(errors::ConnectorError::TemporaryConnectorCredentails.into())
+                Err(errors::ConnectorError::TemporaryConnectorCredentials.into())
             }
             Self::AuthWithDetails(credentials) => Ok(credentials),
         }
