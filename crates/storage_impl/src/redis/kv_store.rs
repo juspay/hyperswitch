@@ -1,12 +1,11 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use error_stack::IntoReport;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
-
-use error_stack::IntoReport;
 
 use crate::{metrics, store::kv::TypedSql, KVRouterStore};
 
