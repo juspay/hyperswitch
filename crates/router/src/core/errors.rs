@@ -184,8 +184,6 @@ pub enum ConnectorError {
     },
     #[error("Invalid Configuration")]
     InvalidConnectorConfig { config: &'static str },
-    #[error("Temporary Credentials")]
-    TemporaryConnectorCredentials,
 }
 
 #[derive(Debug, thiserror::Error)]

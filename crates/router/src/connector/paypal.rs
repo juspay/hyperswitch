@@ -129,13 +129,11 @@ where
                 key.to_string().into_masked(),
             ),
         ];
-        if let Ok(paypal::PaypalConnectorCredentials {
-            payer_id: Some(payer_id),
-            client_id,
-            ..
-        }) = auth.get_credentials()
+        if let Ok(paypal::PaypalConnectorCredentials::PartnerIntegration(credentials)) =
+            auth.get_credentials()
         {
-            let auth_assertion_header = construct_auth_assertion_header(payer_id, client_id);
+            let auth_assertion_header =
+                construct_auth_assertion_header(&credentials.payer_id, &credentials.client_id);
             headers.extend(vec![
                 (
                     auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
@@ -171,7 +169,7 @@ fn construct_auth_assertion_header(
     let encoded_credentials = consts::BASE64_ENGINE
         .encode(merchant_credentials)
         .to_string();
-    format!("{}.{}.", algorithm, encoded_credentials)
+    format!("{algorithm}.{encoded_credentials}.")
 }
 
 impl ConnectorCommon for Paypal {
@@ -200,7 +198,7 @@ impl ConnectorCommon for Paypal {
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            credentials.client_secret.clone().into_masked(),
+            credentials.get_client_secret().into_masked(),
         )])
     }
 
@@ -304,13 +302,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
         let credentials = auth.get_credentials()?;
-
-        let auth_id = credentials
-            .client_id
-            .clone()
-            .zip(credentials.client_secret.clone())
-            .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
-        let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
+        let auth_val = credentials.generate_authorization_value();
 
         Ok(vec![
             (
@@ -1042,13 +1034,7 @@ impl
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
         let credentials = auth.get_credentials()?;
-
-        let auth_id = credentials
-            .client_id
-            .clone()
-            .zip(credentials.client_secret.clone())
-            .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
-        let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
+        let auth_val = credentials.generate_authorization_value();
 
         Ok(vec![
             (
