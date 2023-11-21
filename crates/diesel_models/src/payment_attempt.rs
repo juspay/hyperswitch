@@ -359,7 +359,9 @@ impl PaymentAttemptUpdate {
                 .amount_capturable
                 .unwrap_or(source.amount_capturable),
             updated_by: pa_update.updated_by,
-            merchant_connector_id: pa_update.merchant_connector_id,
+            merchant_connector_id: pa_update
+                .merchant_connector_id
+                .or(source.merchant_connector_id),
             authentication_data: pa_update.authentication_data.or(source.authentication_data),
             encoded_data: pa_update.encoded_data.or(source.encoded_data),
             unified_code: pa_update.unified_code.unwrap_or(source.unified_code),
