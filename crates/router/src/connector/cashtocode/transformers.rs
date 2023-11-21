@@ -289,7 +289,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: String,
+    pub error: serde_json::Value,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
