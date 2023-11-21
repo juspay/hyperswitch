@@ -76,8 +76,8 @@ pub enum PaypalPaymentIntent {
 
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
-    currency_code: storage_enums::Currency,
-    value: String,
+    pub currency_code: storage_enums::Currency,
+    pub value: String,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -129,6 +129,22 @@ pub struct ItemDetails {
     name: String,
     quantity: u16,
     unit_amount: OrderAmount,
+}
+
+impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetails {
+    fn from(item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
+        Self {
+            name: format!(
+                "Payment for invoice {}",
+                item.router_data.connector_request_reference_id
+            ),
+            quantity: 1,
+            unit_amount: OrderAmount {
+                currency_code: item.router_data.request.currency,
+                value: item.amount.to_string(),
+            },
+        }
+    }
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -401,14 +417,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let connector_request_reference_id =
                     item.router_data.connector_request_reference_id.clone();
                 let shipping_address = ShippingAddress::try_from(item)?;
-                let item_details = vec![ItemDetails {
-                    name: format!("Payment for invoice {}", connector_request_reference_id),
-                    quantity: 1,
-                    unit_amount: OrderAmount {
-                        currency_code: item.router_data.request.currency,
-                        value: item.amount.to_string(),
-                    },
-                }];
+                let item_details = vec![ItemDetails::from(item)];
 
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id: Some(connector_request_reference_id.clone()),
@@ -458,14 +467,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     let connector_req_reference_id =
                         item.router_data.connector_request_reference_id.clone();
                     let shipping_address = ShippingAddress::try_from(item)?;
-                    let item_details = vec![ItemDetails {
-                        name: format!("Payment for invoice {}", connector_req_reference_id),
-                        quantity: 1,
-                        unit_amount: OrderAmount {
-                            currency_code: item.router_data.request.currency,
-                            value: item.amount.to_string(),
-                        },
-                    }];
+                    let item_details = vec![ItemDetails::from(item)];
 
                     let purchase_units = vec![PurchaseUnitRequest {
                         reference_id: Some(connector_req_reference_id.clone()),
@@ -536,14 +538,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let connector_req_reference_id =
                     item.router_data.connector_request_reference_id.clone();
                 let shipping_address = ShippingAddress::try_from(item)?;
-                let item_details = vec![ItemDetails {
-                    name: format!("Payment for invoice {}", connector_req_reference_id),
-                    quantity: 1,
-                    unit_amount: OrderAmount {
-                        currency_code: item.router_data.request.currency,
-                        value: item.amount.to_string(),
-                    },
-                }];
+                let item_details = vec![ItemDetails::from(item)];
 
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id: Some(connector_req_reference_id.clone()),
