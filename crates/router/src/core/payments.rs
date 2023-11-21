@@ -62,7 +62,7 @@ use crate::{
         self as router_types,
         api::{self, ConnectorCallType},
         domain,
-        storage::{self, enums as storage_enums},
+        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{
@@ -465,8 +465,17 @@ where
             }
             (None, None) => return Ok(()),
         };
+    } else {
+        let surcharge_details =
+            payment_data
+                .payment_attempt
+                .get_surcharge_details()
+                .map(|surcharge_details| {
+                    surcharge_details
+                        .get_surcharge_details_object(payment_data.payment_attempt.amount)
+                });
+        payment_data.surcharge_details = surcharge_details;
     }
-
     Ok(())
 }
 
