@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.86.0 (2023-11-21)
+
+### Features
+
+- **connector:** [Prophetpay] Save card token for Refund and remove Void flow ([#2927](https://github.com/juspay/hyperswitch/pull/2927)) ([`15a255e`](https://github.com/juspay/hyperswitch/commit/15a255ea60dffad9e4cf20d642636028c27c7c00))
+- Add support for 3ds and surcharge decision through routing rules ([#2869](https://github.com/juspay/hyperswitch/pull/2869)) ([`f8618e0`](https://github.com/juspay/hyperswitch/commit/f8618e077065d94aa27d7153fc5ea6f93870bd81))
+
+### Bug Fixes
+
+- **mca:** Change the check for `disabled` field in mca create and update ([#2938](https://github.com/juspay/hyperswitch/pull/2938)) ([`e66ccde`](https://github.com/juspay/hyperswitch/commit/e66ccde4cf6d055b7d02c5e982d2e09364845602))
+- Status goes from pending to partially captured in psync ([#2915](https://github.com/juspay/hyperswitch/pull/2915)) ([`3f3b797`](https://github.com/juspay/hyperswitch/commit/3f3b797dc65c1bc6f710b122ef00d5bcb409e600))
+
+### Testing
+
+- **postman:** Update postman collection files ([`245e489`](https://github.com/juspay/hyperswitch/commit/245e489d13209da19d6e9af01219056eec04e897))
+
+**Full Changelog:** [`v1.85.0...v1.86.0`](https://github.com/juspay/hyperswitch/compare/v1.85.0...v1.86.0)
+
+- - -
+
+
 ## 1.85.0 (2023-11-21)
 
 ### Features
