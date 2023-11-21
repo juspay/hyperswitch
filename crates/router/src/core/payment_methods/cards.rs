@@ -156,7 +156,7 @@ pub async fn add_payment_method(
         .await?;
     }
 
-    Ok(resp).map(services::ApplicationResponse::Json)
+    Ok(services::ApplicationResponse::Json(resp))
 }
 
 #[instrument(skip_all)]
