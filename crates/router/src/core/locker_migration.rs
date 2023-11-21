@@ -83,7 +83,7 @@ pub async fn call_to_locker(
         .into_iter()
         .filter(|pm| matches!(pm.payment_method, storage_enums::PaymentMethod::Card))
     {
-        let falliable: Result<(), errors::ApiErrorResponse> = {
+        let fallible: Result<(), errors::ApiErrorResponse> = {
             let card =
                 cards::get_card_from_locker(state, customer_id, merchant_id, &pm.payment_method_id)
                     .await?;
@@ -132,7 +132,7 @@ pub async fn call_to_locker(
             Ok(())
         };
 
-        match falliable {
+        match fallible {
             Ok(_) => {}
             Err(err) => logger::error!(error =? err, "Failed while migrating"),
         }
