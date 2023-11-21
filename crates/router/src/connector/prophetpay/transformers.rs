@@ -418,8 +418,7 @@ impl<F>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
-                })
-                .into(),
+                }),
                 ..item.data
             })
         }
@@ -468,8 +467,7 @@ impl<F, T>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
-                })
-                .into(),
+                }),
                 ..item.data
             })
         }
@@ -518,8 +516,7 @@ impl<F, T>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
-                })
-                .into(),
+                }),
                 ..item.data
             })
         }
@@ -579,7 +576,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
                 amount: item.amount.to_owned(),
                 card_token: card_token_data.card_token,
                 profile: auth_data.profile_id,
-                ref_info: item.router_data.request.refund_id.to_owned(),
+                ref_info: item.router_data.connector_request_reference_id.to_owned(),
                 inquiry_reference: item.router_data.connector_request_reference_id.clone(),
                 action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
             })
@@ -626,8 +623,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
-                })
-                .into(),
+                }),
                 ..item.data
             })
         }
@@ -667,8 +663,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
-                })
-                .into(),
+                }),
                 ..item.data
             })
         }
