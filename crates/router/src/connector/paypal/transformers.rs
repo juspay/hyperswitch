@@ -780,22 +780,22 @@ pub enum PaypalConnectorCredentials {
 impl PaypalConnectorCredentials {
     pub fn get_client_id(&self) -> Secret<String> {
         match self {
-            PaypalConnectorCredentials::StandardIntegration(item) => item.client_id.clone(),
-            PaypalConnectorCredentials::PartnerIntegration(item) => item.client_id.clone(),
+            Self::StandardIntegration(item) => item.client_id.clone(),
+            Self::PartnerIntegration(item) => item.client_id.clone(),
         }
     }
 
     pub fn get_client_secret(&self) -> Secret<String> {
         match self {
-            PaypalConnectorCredentials::StandardIntegration(item) => item.client_secret.clone(),
-            PaypalConnectorCredentials::PartnerIntegration(item) => item.client_secret.clone(),
+            Self::StandardIntegration(item) => item.client_secret.clone(),
+            Self::PartnerIntegration(item) => item.client_secret.clone(),
         }
     }
 
     pub fn get_payer_id(&self) -> Option<Secret<String>> {
         match self {
-            PaypalConnectorCredentials::StandardIntegration(_) => None,
-            PaypalConnectorCredentials::PartnerIntegration(item) => Some(item.payer_id.clone()),
+            Self::StandardIntegration(_) => None,
+            Self::PartnerIntegration(item) => Some(item.payer_id.clone()),
         }
     }
 
