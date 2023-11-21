@@ -254,11 +254,18 @@ pub async fn add_card_to_locker(
         &metrics::CARD_ADD_TIME,
         &[],
     )
-    .await?;
+    .await;
 
-    logger::debug!("card added to rust locker");
-
-    Ok(add_card_to_rs_resp)
+    match add_card_to_rs_resp {
+        value @ Ok(_) => {
+            logger::debug!("Card added successfully");
+            value
+        }
+        Err(err) => {
+            logger::debug!(error =? err,"failed to add card");
+            Ok(add_card_to_hs_resp)
+        }
+    }
 }
 
 pub async fn get_card_from_locker(
