@@ -1,4 +1,5 @@
 use api_models::payments;
+use base64::Engine;
 use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -281,7 +282,9 @@ impl
         let payment_information = PaymentInformation {
             card: None,
             fluid_data: Some(FluidData {
-                value: Secret::from(google_pay_data.tokenization_data.token),
+                value: Secret::from(
+                    consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
+                ),
             }),
         };
 
