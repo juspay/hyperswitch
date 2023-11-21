@@ -600,6 +600,29 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
+/// if confirm = true and capture method = automatic, amount_to_capture(if provided) must be equal to amount
+#[instrument(skip_all)]
+pub fn validate_amount_to_capture_in_create_call_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic
+        && request.confirm.unwrap_or(false)
+    {
+        if let Some((amount_to_capture, amount)) = request.amount_to_capture.zip(request.amount) {
+            let amount_int: i64 = amount.into();
+            utils::when(amount_to_capture != amount_int, || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "amount_to_capture must be equal to amount when confirm = true and capture_method = automatic".into()
+                }))
+            })
+        } else {
+            Ok(())
+        }
+    } else {
+        Ok(())
+    }
+}
+
 #[instrument(skip_all)]
 pub fn validate_card_data(
     payment_method_data: Option<api::PaymentMethodData>,

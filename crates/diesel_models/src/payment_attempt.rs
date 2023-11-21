@@ -232,10 +232,13 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
-    MultipleCaptureCountUpdate {
-        multiple_capture_count: i16,
+    CaptureUpdate {
+        amount_to_capture: Option<i64>,
+        multiple_capture_count: Option<i16>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
@@ -517,6 +520,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self {
                 connector,
@@ -527,6 +532,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -596,12 +603,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::MultipleCaptureCountUpdate {
+            PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
+                amount_to_capture,
             } => Self {
-                multiple_capture_count: Some(multiple_capture_count),
+                multiple_capture_count,
                 updated_by,
+                amount_to_capture,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {

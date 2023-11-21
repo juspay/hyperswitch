@@ -545,13 +545,16 @@ pub struct AccessTokenRequestData {
 
 pub trait Capturable {
     fn get_capture_amount(&self) -> Option<i64> {
-        Some(0)
+        None
     }
     fn get_surcharge_amount(&self) -> Option<i64> {
         None
     }
     fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
         None
+    }
+    fn is_psync(&self) -> bool {
+        false
     }
 }
 
@@ -591,7 +594,11 @@ impl Capturable for PaymentsCancelData {}
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsSyncData {}
+impl Capturable for PaymentsSyncData {
+    fn is_psync(&self) -> bool {
+        true
+    }
+}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,

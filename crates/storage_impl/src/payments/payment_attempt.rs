@@ -1306,6 +1306,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                tax_amount,
+                surcharge_amount,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
@@ -1314,14 +1316,18 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
-            Self::MultipleCaptureCountUpdate {
+            Self::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
-            } => DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
+                amount_to_capture,
+            } => DieselPaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
+                amount_to_capture,
             },
             Self::PreprocessingUpdate {
                 status,
@@ -1555,6 +1561,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self::ErrorUpdate {
                 connector,
@@ -1564,11 +1572,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
             },
-            DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
+            DieselPaymentAttemptUpdate::CaptureUpdate {
+                amount_to_capture,
                 multiple_capture_count,
                 updated_by,
-            } => Self::MultipleCaptureCountUpdate {
+            } => Self::CaptureUpdate {
+                amount_to_capture,
                 multiple_capture_count,
                 updated_by,
             },
