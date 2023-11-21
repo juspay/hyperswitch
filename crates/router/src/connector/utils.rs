@@ -1287,11 +1287,6 @@ pub fn collect_and_sort_values_by_removing_signature(
     values
 }
 
-#[inline]
-pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str) -> String {
-    format!("whsec_verification_{connector_label}_{merchant_id}")
-}
-
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {

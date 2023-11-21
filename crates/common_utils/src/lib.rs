@@ -11,6 +11,7 @@ pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod pii;
+pub mod redis;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 #[cfg(feature = "signals")]
@@ -19,7 +20,6 @@ pub mod signals;
 pub mod static_cache;
 pub mod types;
 pub mod validation;
-
 /// Date-time utilities.
 pub mod date_time {
     use std::{marker::PhantomData, num::NonZeroU8};

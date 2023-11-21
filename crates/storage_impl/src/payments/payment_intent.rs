@@ -1,6 +1,6 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::{date_time, ext_traits::Encode};
+use common_utils::{date_time, ext_traits::Encode, redis::RedisKey};
 #[cfg(feature = "olap")]
 use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
 use data_models::{
@@ -204,7 +204,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let key = RedisKey::MerchantPaymentId {
+                    merchant_id,
+                    payment_id,
+                }
+                .to_string();
                 let field = format!("pi_{payment_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {

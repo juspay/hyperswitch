@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, redis::RedisKey};
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
@@ -35,7 +35,13 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
             PartitionKey::MerchantIdPaymentId {
                 merchant_id,
                 payment_id,
-            } => f.write_str(&format!("mid_{merchant_id}_pid_{payment_id}")),
+            } => f.write_str(
+                &RedisKey::MerchantPaymentId {
+                    merchant_id,
+                    payment_id,
+                }
+                .to_string(),
+            ),
             PartitionKey::MerchantIdPaymentIdCombination { combination } => {
                 f.write_str(combination)
             }

@@ -267,7 +267,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
+    use common_utils::{date_time, redis::RedisKey};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
@@ -663,8 +663,14 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
+
+                    let key = RedisKey::MerchantPaymentId {
+                        merchant_id,
+                        payment_id,
+                    }
+                    .to_string();
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
+
                         async {
                             kv_wrapper(
                                 self,

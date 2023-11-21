@@ -1,4 +1,7 @@
-use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
+use common_utils::{
+    ext_traits::{AsyncExt, ByteSliceExt, Encode},
+    redis::RedisKey,
+};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache;
@@ -44,7 +47,11 @@ impl ConnectorAccessToken for Store {
         //TODO: Handle race condition
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
-        let key = format!("access_token_{merchant_id}_{connector_name}");
+        let key = RedisKey::AccessToken {
+            merchant_id,
+            connector_name,
+        }
+        .to_string();
         let maybe_token = self
             .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
@@ -68,7 +75,11 @@ impl ConnectorAccessToken for Store {
         connector_name: &str,
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        let key = format!("access_token_{merchant_id}_{connector_name}");
+        let key = RedisKey::AccessToken {
+            merchant_id,
+            connector_name,
+        }
+        .to_string();
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
