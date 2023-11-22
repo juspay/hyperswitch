@@ -144,6 +144,8 @@ impl PaymentAttemptInterface for MockDb {
             authentication_data: payment_attempt.authentication_data,
             encoded_data: payment_attempt.encoded_data,
             merchant_connector_id: payment_attempt.merchant_connector_id,
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

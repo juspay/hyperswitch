@@ -1,6 +1,7 @@
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
+use router_env::{instrument, tracing};
 
 use super::helpers;
 use crate::{
@@ -20,6 +21,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[instrument(skip_all)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -181,8 +183,8 @@ pub async fn save_in_locker(
         Some(card) => payment_methods::cards::add_card_to_locker(
             state,
             payment_method_request,
-            card,
-            customer_id,
+            &card,
+            &customer_id,
             merchant_account,
         )
         .await

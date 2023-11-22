@@ -846,6 +846,15 @@ pub async fn create_payment_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
 
+    let (connector_status, disabled) = validate_status_and_disabled(
+        req.status,
+        req.disabled,
+        auth,
+        // The validate_status_and_disabled function will use this value only
+        // when the status can be active. So we are passing this as fallback.
+        api_enums::ConnectorStatus::Active,
+    )?;
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -864,7 +873,7 @@ pub async fn create_payment_connector(
         .attach_printable("Unable to encrypt connector account details")?,
         payment_methods_enabled,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         metadata: req.metadata,
         frm_configs,
         connector_label: Some(connector_label),
@@ -889,10 +898,14 @@ pub async fn create_payment_connector(
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
+        status: connector_status,
     };
 
     let mut default_routing_config =
         routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
+
+    let mut default_routing_config_for_profile =
+        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
 
     let mca = state
         .store
@@ -900,7 +913,7 @@ pub async fn create_payment_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id,
+                profile_id: profile_id.clone(),
                 connector_name: req.connector_name.to_string(),
             },
         )?;
@@ -917,11 +930,20 @@ pub async fn create_payment_connector(
         };
 
         if !default_routing_config.contains(&choice) {
-            default_routing_config.push(choice);
+            default_routing_config.push(choice.clone());
             routing_helpers::update_merchant_default_config(
                 &*state.store,
                 merchant_id,
                 default_routing_config,
+            )
+            .await?;
+        }
+        if !default_routing_config_for_profile.contains(&choice.clone()) {
+            default_routing_config_for_profile.push(choice);
+            routing_helpers::update_merchant_default_config(
+                &*state.store,
+                &profile_id.clone(),
+                default_routing_config_for_profile,
             )
             .await?;
         }
@@ -1049,6 +1071,19 @@ pub async fn update_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    let auth: types::ConnectorAuthType = req
+        .connector_account_details
+        .clone()
+        .unwrap_or(mca.connector_account_details.clone().into_inner())
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details".to_string(),
+            expected_format: "auth_type and api_key".to_string(),
+        })?;
+
+    let (connector_status, disabled) =
+        validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1064,7 +1099,7 @@ pub async fn update_payment_connector(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
@@ -1081,6 +1116,7 @@ pub async fn update_payment_connector(
         },
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
+        status: Some(connector_status),
     };
 
     let updated_mca = db
@@ -1457,10 +1493,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Bankofamerica => {
-        //     bankofamerica::transformers::BankofamericaAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Bankofamerica => {
+            bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())
@@ -1511,6 +1547,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Fiserv => {
             fiserv::transformers::FiservAuthType::try_from(val)?;
+            fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Forte => {
@@ -1583,6 +1620,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Powertranz => {
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Prophetpay => {
+            prophetpay::transformers::ProphetpayAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Rapyd => {
@@ -1663,4 +1704,38 @@ pub async fn validate_dummy_connector_enabled(
     } else {
         Ok(())
     }
+}
+
+pub fn validate_status_and_disabled(
+    status: Option<api_enums::ConnectorStatus>,
+    disabled: Option<bool>,
+    auth: types::ConnectorAuthType,
+    current_status: api_enums::ConnectorStatus,
+) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
+    let connector_status = match (status, auth) {
+        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
+            }
+            .into());
+        }
+        (Some(status), _) => status,
+        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
+        (None, _) => current_status,
+    };
+
+    let disabled = match (disabled, connector_status) {
+        (Some(false), common_enums::ConnectorStatus::Inactive) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
+                    .to_string(),
+            }
+            .into());
+        }
+        (Some(disabled), _) => Some(disabled),
+        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
+        (None, _) => None,
+    };
+
+    Ok((connector_status, disabled))
 }

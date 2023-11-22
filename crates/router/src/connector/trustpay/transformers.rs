@@ -715,6 +715,7 @@ fn handle_cards_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: msg,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -776,6 +777,7 @@ fn handle_bank_redirects_error_response(
         message: response.payment_result_info.result_code.to_string(),
         reason: response.payment_result_info.additional_info,
         status_code,
+        attempt_status: None,
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
@@ -811,6 +813,7 @@ fn handle_bank_redirects_sync_response(
             message: reason_info.reason.code,
             reason: reason_info.reason.reject_reason,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -937,6 +940,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                     message: item.response.result_info.result_code.to_string(),
                     reason: item.response.result_info.additional_info,
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 ..item.data
             }),
@@ -1408,6 +1412,7 @@ fn handle_cards_refund_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: msg,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -1446,6 +1451,7 @@ fn handle_bank_redirects_refund_response(
             message: response.result_info.result_code.to_string(),
             reason: msg.map(|message| message.to_string()),
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -1473,6 +1479,7 @@ fn handle_bank_redirects_refund_sync_response(
             message: reason_info.reason.code,
             reason: reason_info.reason.reject_reason,
             status_code,
+            attempt_status: None,
         })
     } else {
         None
@@ -1494,6 +1501,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         message: response.payment_result_info.result_code.to_string(),
         reason: response.payment_result_info.additional_info,
         status_code,
+        attempt_status: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = types::RefundsResponseData {

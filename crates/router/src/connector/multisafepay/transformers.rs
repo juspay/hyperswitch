@@ -260,13 +260,13 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Maestro => Ok(Self::Maestro),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: issuer.to_string(),
-                    connector: "Multisafe pay",
-                }
-                .into())
+            utils::CardIssuer::DinersClub
+            | utils::CardIssuer::JCB
+            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotSupported {
+                message: issuer.to_string(),
+                connector: "Multisafe pay",
             }
+            .into()),
         }
     }
 }
@@ -702,6 +702,7 @@ impl<F, T>
                     message: error_response.error_info.clone(),
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 ..item.data
             }),
@@ -808,6 +809,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
                     message: error_response.error_info.clone(),
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 ..item.data
             }),
@@ -844,6 +846,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                     message: error_response.error_info.clone(),
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
+                    attempt_status: None,
                 }),
                 ..item.data
             }),
