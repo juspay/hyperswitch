@@ -75,6 +75,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 db,
                 state,
                 amount,
+                request.description.clone(),
             )
             .await?
         } else {
@@ -779,6 +780,7 @@ pub fn payments_create_request_validation(
     Ok((amount, currency))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_object: api_models::payments::PaymentLinkObject,
@@ -787,6 +789,7 @@ async fn create_payment_link(
     db: &dyn StorageInterface,
     state: &AppState,
     amount: api::Amount,
+    description: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
@@ -817,6 +820,7 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
+        description,
         payment_link_config,
         custom_merchant_name: payment_link_object.custom_merchant_name,
     };
