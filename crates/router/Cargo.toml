@@ -101,6 +101,7 @@ tracing-futures = { version = "0.2.5", features = ["tokio"] }
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+analytics = { version = "0.1.0", path = "../analytics" }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }

@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -15,6 +16,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
+use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
@@ -107,6 +109,7 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    pub report_download_config: ReportConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -484,23 +487,6 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum QueueStrategy {
-    #[default]
-    Fifo,
-    Lifo,
-}
-
-impl From<QueueStrategy> for bb8::QueueStrategy {
-    fn from(value: QueueStrategy) -> Self {
-        match value {
-            QueueStrategy::Fifo => Self::Fifo,
-            QueueStrategy::Lifo => Self::Lifo,
-        }
-    }
 }
 
 #[cfg(not(feature = "kms"))]

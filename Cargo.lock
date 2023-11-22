@@ -333,6 +333,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
+name = "analytics"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "api_models",
+ "async-trait",
+ "aws-config",
+ "aws-sdk-lambda",
+ "aws-smithy-types",
+ "bigdecimal",
+ "common_utils",
+ "diesel_models",
+ "error-stack",
+ "external_services",
+ "futures 0.3.28",
+ "masking",
+ "once_cell",
+ "reqwest",
+ "router_env",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "storage_impl",
+ "strum 0.24.1",
+ "thiserror",
+ "time",
+ "tokio 1.32.0",
+]
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -709,6 +739,31 @@ name = "aws-sdk-kms"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "545335abd7c6ef7285d2972a67b9f8279ff5fec8bbb3ffc637fa436ba1e6e434"
+dependencies = [
+ "aws-credential-types",
+ "aws-endpoint",
+ "aws-http",
+ "aws-sig-auth",
+ "aws-smithy-async",
+ "aws-smithy-client",
+ "aws-smithy-http",
+ "aws-smithy-http-tower",
+ "aws-smithy-json",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes 1.5.0",
+ "http",
+ "regex",
+ "tokio-stream",
+ "tower",
+ "tracing",
+]
+
+[[package]]
+name = "aws-sdk-lambda"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3ad176ffaa3aafa532246eb6a9f18a7d68da19950704ecc95d33d9dc3c62a9b"
 dependencies = [
  "aws-credential-types",
  "aws-endpoint",
@@ -1148,6 +1203,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -4738,6 +4794,7 @@ dependencies = [
  "actix-multipart",
  "actix-rt",
  "actix-web",
+ "analytics",
  "api_models",
  "argon2",
  "async-bb8-diesel",
