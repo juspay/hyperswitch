@@ -1,10 +1,16 @@
+#[cfg(feature = "payouts")]
 use api_models::payments::{Address, AddressDetails};
+#[cfg(feature = "payouts")]
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types;
+#[cfg(feature = "payouts")]
+use router::types::{api, storage::enums, PaymentAddress};
 
+#[cfg(feature = "payouts")]
+use crate::utils::PaymentInfo;
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions, PaymentInfo},
+    utils::{self, ConnectorActions},
 };
 
 struct WiseTest;
@@ -16,9 +22,11 @@ impl utils::Connector for WiseTest {
             connector: Box::new(&Adyen),
             connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         use router::connector::Wise;
         Some(types::api::PayoutConnectorData {
@@ -43,6 +51,7 @@ impl utils::Connector for WiseTest {
 }
 
 impl WiseTest {
+    #[cfg(feature = "payouts")]
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
@@ -74,6 +83,7 @@ impl WiseTest {
     }
 }
 
+#[cfg(feature = "payouts")]
 static CONNECTOR: WiseTest = WiseTest {};
 
 /******************** Payouts test cases ********************/

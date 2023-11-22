@@ -55,6 +55,12 @@ where
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
+
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -212,6 +218,47 @@ impl MerchantAccountInterface for Store {
         })
     }
 
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        use futures::future::try_join_all;
+        let conn = connection::pg_connection_read(self).await?;
+
+        let encrypted_merchant_accounts =
+            storage::MerchantAccount::list_by_organization_id(&conn, organization_id)
+                .await
+                .map_err(Into::into)
+                .into_report()?;
+
+        let db_master_key = self.get_master_key().to_vec().into();
+
+        let merchant_key_stores =
+            try_join_all(encrypted_merchant_accounts.iter().map(|merchant_account| {
+                self.get_merchant_key_store_by_merchant_id(
+                    &merchant_account.merchant_id,
+                    &db_master_key,
+                )
+            }))
+            .await?;
+
+        let merchant_accounts = try_join_all(
+            encrypted_merchant_accounts
+                .into_iter()
+                .zip(merchant_key_stores.iter())
+                .map(|(merchant_account, key_store)| async {
+                    merchant_account
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+
+        Ok(merchant_accounts)
+    }
+
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -337,6 +384,14 @@ impl MerchantAccountInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        _organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
 }
 
 #[cfg(feature = "accounts_cache")]
@@ -344,19 +399,17 @@ async fn publish_and_redact_merchant_account_cache(
     store: &dyn super::StorageInterface,
     merchant_account: &storage::MerchantAccount,
 ) -> CustomResult<(), errors::StorageError> {
-    super::cache::publish_into_redact_channel(
-        store,
-        CacheKind::Accounts(merchant_account.merchant_id.as_str().into()),
-    )
-    .await?;
-    merchant_account
+    let publishable_key = merchant_account
         .publishable_key
         .as_ref()
-        .async_map(|pub_key| async {
-            super::cache::publish_into_redact_channel(store, CacheKind::Accounts(pub_key.into()))
-                .await
-        })
-        .await
-        .transpose()?;
+        .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
+
+    let mut cache_keys = vec![CacheKind::Accounts(
+        merchant_account.merchant_id.as_str().into(),
+    )];
+
+    cache_keys.extend(publishable_key.into_iter());
+
+    super::cache::publish_into_redact_channel(store, cache_keys).await?;
     Ok(())
 }

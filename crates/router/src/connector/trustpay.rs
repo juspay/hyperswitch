@@ -138,6 +138,7 @@ impl ConnectorCommon for Trustpay {
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: reason.or(response_data.description),
+                    attempt_status: None,
                 })
             }
             Err(error_msg) => {
@@ -148,7 +149,11 @@ impl ConnectorCommon for Trustpay {
     }
 }
 
-impl ConnectorValidation for Trustpay {}
+impl ConnectorValidation for Trustpay {
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+}
 
 impl api::Payment for Trustpay {}
 
@@ -231,6 +236,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayAuthUpdateRequest::try_from(req)?;
         let trustpay_req = types::RequestBody::log_and_get_request_body(
@@ -252,7 +258,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(req)
@@ -289,6 +297,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
             reason: response.result_info.additional_info,
+            attempt_status: None,
         })
     }
 }
@@ -362,6 +371,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             // message vary for the same code, so relying on code alone as it is unique
             message: response.status.to_string(),
             reason: Some(response.payment_description),
+            attempt_status: None,
         })
     }
 
@@ -429,9 +439,15 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let amount = req.request.get_amount()?;
         let currency = req.request.get_currency()?;
+        let amount = req
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(req.request.get_amount()?);
         let connector_router_data = trustpay::TrustpayRouterData::try_from((
             &self.get_currency_unit(),
             currency,
@@ -464,7 +480,7 @@ impl
                     self, req, connectors,
                 )?)
                 .body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req,
+                    self, req, connectors,
                 )?)
                 .build(),
         );
@@ -541,11 +557,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let amount = req
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(req.request.amount);
         let connector_router_data = trustpay::TrustpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            amount,
             req,
         ))?;
         let connector_req = trustpay::TrustpayPaymentsRequest::try_from(&connector_router_data)?;
@@ -581,7 +604,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -650,6 +675,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = trustpay::TrustpayRouterData::try_from((
             &self.get_currency_unit(),
@@ -688,7 +714,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -878,16 +906,12 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
-        let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
-            &details.payment_information,
-        )
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+        Ok(Box::new(details.payment_information))
     }
 
     fn get_webhook_source_verification_algorithm(

@@ -8,7 +8,6 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    logger,
     routes::AppState,
     types::{api::payouts, domain, storage},
     utils,
@@ -24,8 +23,6 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     let payout = db
         .find_payout_by_merchant_id_payout_id(merchant_id, payout_id)
         .await;
-
-    logger::debug!(?payout);
     match payout {
         Err(err) => {
             if err.current_context().is_db_not_found() {
@@ -57,7 +54,8 @@ pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
-) -> RouterResult<(String, Option<payouts::PayoutMethodData>)> {
+    merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
     let merchant_id = &merchant_account.merchant_id;
 
     // Merchant ID
@@ -103,11 +101,23 @@ pub async fn validate_create_request(
                 &merchant_account.merchant_id,
                 payout_id.as_ref(),
                 req.payout_type.as_ref(),
+                merchant_key_store,
             )
             .await?
         }
         None => None,
     };
 
-    Ok((payout_id, payout_method_data))
+    // Profile ID
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        merchant_account,
+        req.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await?;
+
+    Ok((payout_id, payout_method_data, profile_id))
 }

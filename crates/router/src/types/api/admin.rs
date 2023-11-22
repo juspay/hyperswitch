@@ -4,8 +4,8 @@ pub use api_models::admin::{
     MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
     MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
     MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
-    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm,
-    RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm, ToggleKVRequest,
+    ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
@@ -46,6 +46,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
+            payment_link_config: item.payment_link_config,
         })
     }
 }

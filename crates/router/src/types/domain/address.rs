@@ -35,9 +35,10 @@ pub struct Address {
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    pub customer_id: String,
+    pub customer_id: Option<String>,
     pub merchant_id: String,
     pub payment_id: Option<String>,
+    pub updated_by: String,
 }
 
 #[async_trait]
@@ -65,6 +66,7 @@ impl behaviour::Conversion for Address {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             payment_id: self.payment_id,
+            updated_by: self.updated_by,
         })
     }
 
@@ -93,6 +95,7 @@ impl behaviour::Conversion for Address {
                 customer_id: other.customer_id,
                 merchant_id: other.merchant_id,
                 payment_id: other.payment_id,
+                updated_by: other.updated_by,
             })
         }
         .await
@@ -121,6 +124,7 @@ impl behaviour::Conversion for Address {
             payment_id: self.payment_id,
             created_at: now,
             modified_at: now,
+            updated_by: self.updated_by,
         })
     }
 }
@@ -139,6 +143,7 @@ pub enum AddressUpdate {
         last_name: crypto::OptionalEncryptableSecretString,
         phone_number: crypto::OptionalEncryptableSecretString,
         country_code: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -157,6 +162,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 last_name,
                 phone_number,
                 country_code,
+                updated_by,
             } => Self {
                 city,
                 country,
@@ -170,6 +176,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 phone_number: phone_number.map(Encryption::from),
                 country_code,
                 modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
+                updated_by,
             },
         }
     }

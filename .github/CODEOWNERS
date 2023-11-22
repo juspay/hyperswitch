@@ -1,16 +1,15 @@
-* @juspay/hyperswitch-maintainers @jarnura @ashokkjag
+* @juspay/hyperswitch-maintainers
 
 docs/ @juspay/hyperswitch-maintainers
-openapi/ @juspay/hyperswitch-maintainers
-postman/ @juspay/hyperswitch-maintainers
 scripts/ @juspay/hyperswitch-maintainers
 *.md @juspay/hyperswitch-maintainers
 *.sh @juspay/hyperswitch-maintainers
 LICENSE @juspay/hyperswitch-maintainers
 NOTICE @juspay/hyperswitch-maintainers
-.github/ @juspay/hyperswitch-maintainers
 .gitignore @juspay/hyperswitch-maintainers
 Makefile @juspay/hyperswitch-maintainers
+
+.github/ @juspay/hyperswitch-devops
 
 config/ @juspay/hyperswitch-framework
 crates/ @juspay/hyperswitch-framework
@@ -20,6 +19,9 @@ crates/router/src/db/ @juspay/hyperswitch-framework
 crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
 openapi/ @juspay/hyperswitch-framework
+postman/ @juspay/hyperswitch-framework
+Cargo.toml @juspay/hyperswitch-framework
+Cargo.lock @juspay/hyperswitch-framework
 
 connector-template/ @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
@@ -30,6 +32,17 @@ crates/test_utils/tests/sample_auth.toml @juspay/hyperswitch-connector
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
 crates/router/src/core/ @juspay/hyperswitch-core
+
+crates/api_models/src/routing.rs @juspay/hyperswitch-routing
+crates/euclid @juspay/hyperswitch-routing
+crates/euclid_macros @juspay/hyperswitch-routing
+crates/euclid_wasm @juspay/hyperswitch-routing
+crates/kgraph_utils @juspay/hyperswitch-routing
+crates/router/src/routes/routing.rs @juspay/hyperswitch-routing
+crates/router/src/core/routing @juspay/hyperswitch-routing
+crates/router/src/core/routing.rs @juspay/hyperswitch-routing
+crates/router/src/core/payments/routing @juspay/hyperswitch-routing
+crates/router/src/core/payments/routing.rs @juspay/hyperswitch-routing
 
 crates/router/src/scheduler/ @juspay/hyperswitch-process-tracker
 

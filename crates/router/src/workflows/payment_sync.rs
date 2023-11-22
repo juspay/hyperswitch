@@ -61,7 +61,13 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .await?;
 
         let (mut payment_data, _, customer, _, _) =
-            payment_flows::payments_operation_core::<api::PSync, _, _, _, Oss>(
+            Box::pin(payment_flows::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 merchant_account.clone(),
                 key_store,
@@ -69,8 +75,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
+                None,
                 api::HeaderPayload::default(),
-            )
+            ))
             .await?;
 
         let terminal_status = [
@@ -117,7 +124,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed };
+                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string() };
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -128,6 +135,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                                 consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
                             amount_capturable: Some(0),
+                            surcharge_amount: None,
+                            tax_amount: None,
+                            updated_by: merchant_account.storage_scheme.to_string(),
+                            unified_code: None,
+                            unified_message: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -148,16 +160,38 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+                    let profile_id = payment_data
+                        .payment_intent
+                        .profile_id
+                        .as_ref()
+                        .get_required_value("profile_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Could not find profile_id in payment intent")?;
+
+                    let business_profile = db
+                        .find_business_profile_by_profile_id(profile_id)
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::BusinessProfileNotFound {
+                                id: profile_id.to_string(),
+                            },
+                        )?;
+
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    utils::trigger_payments_webhook::<_, api_models::payments::PaymentsRequest, _>(
+                    Box::pin(utils::trigger_payments_webhook::<
+                        _,
+                        api_models::payments::PaymentsRequest,
+                        _,
+                    >(
                         merchant_account,
+                        business_profile,
                         payment_data,
                         None,
                         customer,
                         state,
                         operation,
-                    )
+                    ))
                     .await
                     .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
                     .ok();

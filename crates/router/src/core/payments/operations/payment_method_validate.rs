@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, PaymentCreate, UpdateTracker, ValidateRequest};
+use super::{BoxedOperation, Domain, GetTracker, UpdateTracker, ValidateRequest};
 use crate::{
     consts,
     core::{
@@ -89,7 +89,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
-        let (payment_intent, payment_attempt, connector_response);
+        let (payment_intent, payment_attempt);
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -104,6 +104,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     request.payment_method,
                     request,
                     state,
+                    merchant_account.storage_scheme,
                 ),
                 storage_scheme,
             )
@@ -122,25 +123,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     merchant_id,
                     request,
                     payment_attempt.attempt_id.clone(),
+                    merchant_account.storage_scheme,
                 ),
                 storage_scheme,
             )
             .await
         {
             Ok(payment_intent) => Ok(payment_intent),
-            Err(err) => {
-                Err(err.change_context(errors::ApiErrorResponse::VerificationFailed { data: None }))
-            }
-        }?;
-
-        connector_response = match db
-            .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt),
-                storage_scheme,
-            )
-            .await
-        {
-            Ok(connector_resp) => Ok(connector_resp),
             Err(err) => {
                 Err(err.change_context(errors::ApiErrorResponse::VerificationFailed { data: None }))
             }
@@ -178,7 +167,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 mandate_connector: None,
                 setup_mandate: request.mandate_data.clone().map(Into::into),
                 token: request.payment_token.clone(),
-                connector_response,
                 payment_method_data: request.payment_method_data.clone(),
                 confirm: Some(true),
                 address: types::PaymentAddress::default(),
@@ -217,7 +205,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -237,7 +225,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::ReturnUrlUpdate {
@@ -246,6 +235,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -294,12 +284,12 @@ where
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data, key_store).await
+        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
     }
 
     async fn get_connector<'a>(
@@ -322,6 +312,7 @@ impl PaymentMethodValidate {
         payment_method: Option<api_enums::PaymentMethod>,
         _request: &api::VerifyRequest,
         state: &AppState,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = storage_enums::AttemptStatus::Pending;
@@ -348,6 +339,7 @@ impl PaymentMethodValidate {
             created_at,
             modified_at,
             last_synced,
+            updated_by: storage_scheme.to_string(),
             ..Default::default()
         }
     }
@@ -357,6 +349,7 @@ impl PaymentMethodValidate {
         merchant_id: &str,
         request: &api::VerifyRequest,
         active_attempt_id: String,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));
@@ -396,7 +389,9 @@ impl PaymentMethodValidate {
             profile_id: Default::default(),
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
+            surcharge_applicable: Default::default(),
             payment_link_id: Default::default(),
+            updated_by: storage_scheme.to_string(),
         }
     }
 }

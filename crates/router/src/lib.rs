@@ -1,12 +1,14 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
+#[cfg(feature = "olap")]
+pub mod analytics;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
 pub mod connection;
 pub mod connector;
-pub(crate) mod consts;
+pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
@@ -15,6 +17,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod workflows;
 
+pub mod events;
 pub mod middleware;
 pub mod openapi;
 pub mod services;
@@ -140,6 +143,11 @@ pub fn mk_app(
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))
             .service(routes::Disputes::server(state.clone()))
+            .service(routes::Analytics::server(state.clone()))
+            .service(routes::Routing::server(state.clone()))
+            .service(routes::LockerMigrate::server(state.clone()))
+            .service(routes::Gsm::server(state.clone()))
+            .service(routes::User::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]
@@ -182,7 +190,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = routes::AppState::new(conf, tx, api_client).await;
+    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?

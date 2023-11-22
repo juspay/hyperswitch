@@ -6,7 +6,7 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen airwallex applepay authorizedotnet bambora bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector fiserv forte globalpay globepay gocardless helcim iatapay klarna mollie multisafepay nexinets noon nuvei opayo opennode payeezy payme paypal payu powertranz rapyd shift4 square stax stripe trustpay tsys volt wise worldline worldpay "$1")
+    connectors=(aci adyen airwallex applepay authorizedotnet bambora bankofamerica bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector fiserv forte globalpay globepay gocardless helcim iatapay klarna mollie multisafepay nexinets noon nuvei opayo opennode payeezy payme paypal payu powertranz prophetpay rapyd shift4 square stax stripe trustpay tsys volt wise worldline worldpay "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
@@ -78,7 +78,7 @@ git checkout ${tests}/main.rs ${test_utils}/connector_auth.rs ${tests}/sample_au
 
 # Add enum for this connector in test folder
 sed -i'' -e "s/mod utils;/mod ${payment_gateway};\nmod utils;/" ${tests}/main.rs
-sed -i'' -e "s/    pub $previous_connector: \(.*\)/\tpub $previous_connector: \1\n\tpub ${payment_gateway}: Option<HeaderKey>,/; s/auth.toml/sample_auth.toml/" ${test_utils}/connector_auth.rs
+sed -i'' -e "s/    pub $previous_connector: \(.*\)/\tpub $previous_connector: \1\n\tpub ${payment_gateway}: Option<HeaderKey>,/" ${test_utils}/connector_auth.rs
 echo "\n\n[${payment_gateway}]\napi_key=\"API Key\"" >> ${tests}/sample_auth.toml
 
 # Remove temporary files created in above step

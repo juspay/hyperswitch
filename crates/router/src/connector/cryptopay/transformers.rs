@@ -69,9 +69,23 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            )),
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::MandatePayment {}
+            | api_models::payments::PaymentMethodData::Reward {}
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "CryptoPay",
+                })
+            }
         }?;
         Ok(cryptopay_request)
     }
@@ -97,10 +111,9 @@ impl TryFrom<&types::ConnectorAuthType> for CryptopayAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CryptopayPaymentStatus {
-    #[default]
     New,
     Completed,
     Unresolved,
@@ -114,13 +127,14 @@ impl From<CryptopayPaymentStatus> for enums::AttemptStatus {
             CryptopayPaymentStatus::New => Self::AuthenticationPending,
             CryptopayPaymentStatus::Completed => Self::Charged,
             CryptopayPaymentStatus::Cancelled => Self::Failure,
-            CryptopayPaymentStatus::Unresolved => Self::Unresolved,
-            _ => Self::Voided,
+            CryptopayPaymentStatus::Unresolved | CryptopayPaymentStatus::Refunded => {
+                Self::Unresolved
+            } //mapped refunded to Unresolved because refund api is not available, also merchant has done the action on the connector dashboard.
         }
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CryptopayPaymentsResponse {
     data: CryptopayPaymentResponseData,
 }
@@ -176,7 +190,7 @@ pub struct CryptopayErrorResponse {
     pub error: CryptopayErrorData,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CryptopayPaymentResponseData {
     pub id: String,
     pub custom_id: Option<String>,

@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 error-stack = "0.3.1"
-fred = { version = "6.3.0", features = ["metrics", "partial-tracing","subscriber-client"] }
+fred = { version = "6.3.0", features = ["metrics", "partial-tracing", "subscriber-client"] }
 futures = "0.3"
 serde = { version = "1.0.163", features = ["derive"] }
 thiserror = "1.0.40"

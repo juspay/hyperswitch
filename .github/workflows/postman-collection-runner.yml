@@ -143,7 +143,7 @@ jobs:
 
           for i in $(echo "$CONNECTORS" | tr "," "\n"); do
             echo $i
-            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+            if ! cargo run --bin test_utils -- --connector-name="$i" --base-url="$BASE_URL" --admin-api-key="$ADMIN_API_KEY"; then
               failed_connectors+=("$i")
             fi
           done

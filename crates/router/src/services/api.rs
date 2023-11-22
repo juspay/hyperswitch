@@ -13,7 +13,10 @@ use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, Re
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
-use common_utils::{consts::X_HS_LATENCY, errors::ReportSwitchExt};
+use common_utils::{
+    consts::X_HS_LATENCY,
+    errors::{ErrorSwitch, ReportSwitchExt},
+};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
@@ -22,6 +25,7 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
+use super::authentication::AuthenticateAndFetch;
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
@@ -30,13 +34,13 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
     logger,
     routes::{
         app::AppStateInfo,
         metrics::{self, request as metrics_request},
         AppState,
     },
-    services::authentication as auth,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -92,6 +96,10 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
+
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(format!("Surcharge for {}", self.id())).into())
+    }
 }
 
 #[async_trait::async_trait]
@@ -124,6 +132,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_request_body(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
@@ -214,6 +223,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
             message: error_message.to_string(),
             reason: String::from_utf8(res.response.to_vec()).ok(),
             status_code: res.status_code,
+            attempt_status: None,
         })
     }
 
@@ -291,6 +301,7 @@ where
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
                     reason: None,
+                    attempt_status: None,
                 })
             } else {
                 None
@@ -391,7 +402,14 @@ where
                                         500..=511 => {
                                             connector_integration.get_5xx_error_response(body)?
                                         }
-                                        _ => connector_integration.get_error_response(body)?,
+                                        _ => {
+                                            let error_res =
+                                                connector_integration.get_error_response(body)?;
+                                            if let Some(status) = error_res.attempt_status {
+                                                router_data.status = status;
+                                            };
+                                            error_res
+                                        }
                                     };
 
                                     router_data.response = Err(error);
@@ -408,6 +426,7 @@ where
                                     message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
                                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                                     status_code: 504,
+                                    attempt_status: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -663,6 +682,7 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentLinkFormData {
     pub js_script: String,
+    pub css_script: String,
     pub sdk_url: String,
 }
 
@@ -738,37 +758,44 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, A>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
-    Q: Serialize + Debug + 'a,
-    T: Debug,
+    Q: Serialize + Debug + 'a + ApiEventMetric,
+    T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
-    U: auth::AuthInfo,
-    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
-    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
-    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
-    OErr: ResponseError + Sync + Send + 'static,
+    E: ErrorSwitch<OErr> + error_stack::Context,
+    OErr: ResponseError + error_stack::Context + Serialize,
+    errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
         .await
-        .ok()
-        .map(|id| id.as_hyphenated().to_string());
+        .into_report()
+        .attach_printable("Unable to extract request id from request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut request_state = state.get_ref().clone();
 
     request_state.add_request_id(request_id);
+    let start_instant = Instant::now();
+    let serialized_request = masking::masked_serialize(&payload)
+        .into_report()
+        .attach_printable("Failed to serialize json request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    let auth_out = api_auth
+    let mut event_type = payload.get_api_event_type();
+
+    // Currently auth failures are not recorded as API events
+    let (auth_out, auth_type) = api_auth
         .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
 
-    let merchant_id = auth_out
+    let merchant_id = auth_type
         .get_merchant_id()
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
@@ -794,11 +821,75 @@ where
             .switch()?;
         res
     };
+    let request_duration = Instant::now()
+        .saturating_duration_since(start_instant)
+        .as_millis();
+
+    let mut serialized_response = None;
+    let mut error = None;
+    let mut overhead_latency = None;
 
     let status_code = match output.as_ref() {
-        Ok(res) => metrics::request::track_response_status_code(res),
-        Err(err) => err.current_context().status_code().as_u16().into(),
+        Ok(res) => {
+            if let ApplicationResponse::Json(data) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+            } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+
+                if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
+                    if let Ok(external_latency) = value.parse::<u128>() {
+                        overhead_latency.replace(external_latency);
+                    }
+                }
+            }
+            event_type = res.get_api_event_type().or(event_type);
+
+            metrics::request::track_response_status_code(res)
+        }
+        Err(err) => {
+            error.replace(
+                serde_json::to_value(err.current_context())
+                    .into_report()
+                    .attach_printable("Failed to serialize json response")
+                    .change_context(errors::ApiErrorResponse::InternalServerError.switch())
+                    .ok()
+                    .into(),
+            );
+            err.current_context().status_code().as_u16().into()
+        }
     };
+
+    let api_event = ApiEvent::new(
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+        serialized_request,
+        serialized_response,
+        overhead_latency,
+        auth_type,
+        error,
+        event_type.unwrap_or(ApiEventsType::Miscellaneous),
+        request,
+    );
+    match api_event.clone().try_into() {
+        Ok(event) => {
+            state.event_handler().log_event(event);
+        }
+        Err(err) => {
+            logger::error!(error=?err, event=?api_event, "Error Logging API Event");
+        }
+    }
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
@@ -815,19 +906,17 @@ pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    api_auth: &dyn AuthenticateAndFetch<U, A>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
-    Q: Serialize + Debug + 'a,
-    T: Debug,
-    U: auth::AuthInfo,
+    Q: Serialize + Debug + ApiEventMetric + 'a,
+    T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
-    CustomResult<ApplicationResponse<Q>, E>:
-        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
+    E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -1378,6 +1467,7 @@ pub fn build_payment_link_html(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
+    context.insert("css_color_scheme", &payment_link_data.css_script);
     context.insert("payment_details_js_script", &payment_link_data.js_script);
 
     match tera.render("payment_link", &context) {

@@ -439,6 +439,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub browser_info: Option<BrowserInformation>,
 }
 
@@ -544,13 +545,36 @@ pub struct AccessTokenRequestData {
 
 pub trait Capturable {
     fn get_capture_amount(&self) -> Option<i64> {
-        Some(0)
+        None
+    }
+    fn get_surcharge_amount(&self) -> Option<i64> {
+        None
+    }
+    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
+        None
+    }
+    fn is_psync(&self) -> bool {
+        false
     }
 }
 
 impl Capturable for PaymentsAuthorizeData {
     fn get_capture_amount(&self) -> Option<i64> {
-        Some(self.amount)
+        let final_amount = self
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount);
+        final_amount.or(Some(self.amount))
+    }
+    fn get_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount)
+    }
+    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
     }
 }
 
@@ -570,7 +594,11 @@ impl Capturable for PaymentsCancelData {}
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsSyncData {}
+impl Capturable for PaymentsSyncData {
+    fn is_psync(&self) -> bool {
+        true
+    }
+}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -833,10 +861,12 @@ pub struct DefendDisputeResponse {
     pub connector_status: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct UploadFileRequestData {
     pub file_key: String,
+    #[serde(skip)]
     pub file: Vec<u8>,
+    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
     pub file_type: mime::Mime,
     pub file_size: i32,
 }
@@ -877,6 +907,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 #[derive(Default, Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
+    TemporaryAuth,
     HeaderKey {
         api_key: Secret<String>,
     },
@@ -920,6 +951,7 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
+    pub attempt_status: Option<storage_enums::AttemptStatus>,
 }
 
 impl ErrorResponse {
@@ -935,6 +967,7 @@ impl ErrorResponse {
             .error_message(),
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            attempt_status: None,
         }
     }
 }
@@ -955,6 +988,11 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: Some(key1),
             }),
+            ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
+                app_id: api_key,
+                id: Some(key1),
+            }),
+
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
             }),
@@ -972,6 +1010,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => status_code,
                 _ => 500,
             },
+            attempt_status: None,
         }
     }
 }

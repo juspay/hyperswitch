@@ -1,5 +1,4 @@
 pub mod utils;
-use actix_web::web;
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::{errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
@@ -18,7 +17,7 @@ const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: web::Json<verifications::ApplepayMerchantVerificationRequest>,
+    body: verifications::ApplepayMerchantVerificationRequest,
     kms_config: &kms::KmsConfig,
     merchant_id: String,
 ) -> CustomResult<
@@ -85,7 +84,7 @@ pub async fn verify_merchant_creds_for_applepay(
         response.change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
 
     // Error is already logged
-    Ok(match applepay_response {
+    match applepay_response {
         Ok(_) => {
             utils::check_existence_and_add_domain_to_db(
                 &state,
@@ -95,17 +94,20 @@ pub async fn verify_merchant_creds_for_applepay(
             )
             .await
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
-            services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-                status_message: "Applepay verification Completed".to_string(),
-            })
+            Ok(services::api::ApplicationResponse::Json(
+                ApplepayMerchantResponse {
+                    status_message: "Applepay verification Completed".to_string(),
+                },
+            ))
         }
         Err(error) => {
             logger::error!(?error);
-            services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-                status_message: "Applepay verification Failed".to_string(),
-            })
+            Err(api_error_response::ApiErrorResponse::InvalidRequestData {
+                message: "Applepay verification Failed".to_string(),
+            }
+            .into())
         }
-    })
+    }
 }
 
 pub async fn get_verified_apple_domains_with_mid_mca_id(

@@ -16,6 +16,7 @@ use crate::{
     admin, disputes,
     enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
+    payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
 };
 
@@ -226,6 +227,7 @@ pub struct PaymentsRequest {
         "product_name": "gillete creme",
         "quantity": 15,
         "amount" : 900
+        "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
@@ -301,9 +303,38 @@ pub struct PaymentsRequest {
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
 
+    /// surcharge_details for this payment
+    #[schema(value_type = Option<RequestSurchargeDetails>)]
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+}
+
+#[derive(
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
+)]
+pub struct RequestSurchargeDetails {
+    pub surcharge_amount: i64,
+    pub tax_amount: Option<i64>,
+}
+
+impl RequestSurchargeDetails {
+    pub fn is_surcharge_zero(&self) -> bool {
+        self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
+    }
+    pub fn get_surcharge_details_object(&self, original_amount: i64) -> SurchargeDetailsResponse {
+        let surcharge_amount = self.surcharge_amount;
+        let tax_on_surcharge_amount = self.tax_amount.unwrap_or(0);
+        SurchargeDetailsResponse {
+            surcharge: Surcharge::Fixed(self.surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+            final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -360,6 +391,10 @@ pub struct PaymentAttemptResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -673,6 +708,7 @@ pub enum CardRedirectData {
     Knet {},
     Benefit {},
     MomoAtm {},
+    CardRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -797,6 +833,36 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
+impl PaymentMethodData {
+    pub fn get_payment_method_type_if_session_token_type(
+        &self,
+    ) -> Option<api_enums::PaymentMethodType> {
+        match self {
+            Self::Wallet(wallet) => match wallet {
+                WalletData::ApplePay(_) => Some(api_enums::PaymentMethodType::ApplePay),
+                WalletData::GooglePay(_) => Some(api_enums::PaymentMethodType::GooglePay),
+                WalletData::PaypalSdk(_) => Some(api_enums::PaymentMethodType::Paypal),
+                _ => None,
+            },
+            Self::PayLater(pay_later) => match pay_later {
+                PayLaterData::KlarnaSdk { .. } => Some(api_enums::PaymentMethodType::Klarna),
+                _ => None,
+            },
+            Self::Card(_)
+            | Self::CardRedirect(_)
+            | Self::BankRedirect(_)
+            | Self::BankDebit(_)
+            | Self::BankTransfer(_)
+            | Self::Crypto(_)
+            | Self::MandatePayment
+            | Self::Reward
+            | Self::Upi(_)
+            | Self::Voucher(_)
+            | Self::GiftCard(_) => None,
+        }
+    }
+}
+
 pub trait GetPaymentMethodType {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType;
 }
@@ -807,6 +873,7 @@ impl GetPaymentMethodType for CardRedirectData {
             Self::Knet {} => api_enums::PaymentMethodType::Knet,
             Self::Benefit {} => api_enums::PaymentMethodType::Benefit,
             Self::MomoAtm {} => api_enums::PaymentMethodType::MomoAtm,
+            Self::CardRedirect {} => api_enums::PaymentMethodType::CardRedirect,
         }
     }
 }
@@ -1612,6 +1679,20 @@ impl std::fmt::Display for PaymentIdType {
     }
 }
 
+impl PaymentIdType {
+    pub fn and_then<F, E>(self, f: F) -> Result<Self, E>
+    where
+        F: FnOnce(String) -> Result<String, E>,
+    {
+        match self {
+            Self::PaymentIntentId(s) => f(s).map(Self::PaymentIntentId),
+            Self::ConnectorTransactionId(s) => f(s).map(Self::ConnectorTransactionId),
+            Self::PaymentAttemptId(s) => f(s).map(Self::PaymentAttemptId),
+            Self::PreprocessingId(s) => f(s).map(Self::PreprocessingId),
+        }
+    }
+}
+
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
@@ -2026,6 +2107,12 @@ pub struct PaymentsResponse {
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
 
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
+
     /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
@@ -2085,14 +2172,20 @@ pub struct PaymentsResponse {
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
+    /// details of surcharge applied on this payment
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
 
     /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+
+    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    pub merchant_connector_id: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for customer
@@ -2168,7 +2261,7 @@ pub struct PaymentListResponseV2 {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
@@ -2213,7 +2306,9 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -2408,6 +2503,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    /// The image URL of the product
+    pub product_img_link: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2418,6 +2515,8 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    /// The image URL of the product
+    pub product_img_link: Option<String>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -3075,9 +3174,13 @@ pub struct PaymentLinkObject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
     pub merchant_custom_domain_name: Option<String>,
+    #[schema(value_type = PaymentLinkConfig)]
+    pub payment_link_config: Option<admin::PaymentLinkConfig>,
+    /// Custom merchant name for payment link
+    pub custom_merchant_name: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
@@ -3105,8 +3208,25 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentLinkDetails {
+    pub amount: i64,
+    pub currency: api_enums::Currency,
+    pub pub_key: String,
+    pub client_secret: String,
+    pub payment_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
+    pub merchant_logo: String,
+    pub return_url: String,
+    pub merchant_name: String,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub max_items_visible_after_collapse: i8,
+    pub sdk_theme: Option<String>,
 }

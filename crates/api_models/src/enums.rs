@@ -75,8 +75,9 @@ pub enum Connector {
     Adyen,
     Airwallex,
     Authorizedotnet,
-    Bitpay,
     Bambora,
+    Bankofamerica,
+    Bitpay,
     Bluesnap,
     Boku,
     Braintree,
@@ -107,6 +108,7 @@ pub enum Connector {
     Paypal,
     Payu,
     Powertranz,
+    Prophetpay,
     Rapyd,
     Shift4,
     Square,
@@ -115,7 +117,7 @@ pub enum Connector {
     Trustpay,
     // Tsys,
     Tsys,
-    //Volt, added as template code for future usage,
+    Volt,
     Wise,
     Worldline,
     Worldpay,
@@ -134,6 +136,7 @@ impl Connector {
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
+                | (Self::Volt, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -193,6 +196,7 @@ pub enum RoutableConnectors {
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bankofamerica,
     Bitpay,
     Bambora,
     Bluesnap,
@@ -225,6 +229,7 @@ pub enum RoutableConnectors {
     Paypal,
     Payu,
     Powertranz,
+    Prophetpay,
     Rapyd,
     Shift4,
     Square,
@@ -233,7 +238,7 @@ pub enum RoutableConnectors {
     Trustpay,
     // Tsys,
     Tsys,
-    // Volt, added as template code for future usage
+    Volt,
     Wise,
     Worldline,
     Worldpay,
@@ -556,4 +561,10 @@ pub enum RetryAction {
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
+}
+
+#[derive(Clone, Copy)]
+pub enum LockerChoice {
+    Basilisk,
+    Tartarus,
 }
