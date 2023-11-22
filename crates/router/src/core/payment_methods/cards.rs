@@ -7,9 +7,10 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes, PaymentMethodsData,
-        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
-        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+        BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes, MaskedBankDetails,
+        PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
     surcharge_decision_configs as api_surcharge_decision_configs,
@@ -2210,11 +2211,39 @@ pub async fn list_customer_payment_method(
                 )
             }
 
+            enums::PaymentMethod::BankDebit => {
+                // Retrieve the pm_auth connector details so that it can be tokenized
+                let bank_account_connector_details = get_bank_account_connector_details(&pm, key)
+                    .await
+                    .unwrap_or_else(|err| {
+                        logger::error!(error=?err);
+                        None
+                    });
+                if let Some(connector_details) = bank_account_connector_details {
+                    let token_data = PaymentTokenData::AuthBankDebit(connector_details);
+                    (None, None, token_data)
+                } else {
+                    continue;
+                }
+            }
+
             _ => (
                 None,
                 None,
                 PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
             ),
+        };
+
+        // Retrieve the masked bank details to be sent as a response
+        let bank_details = if pm.payment_method == enums::PaymentMethod::BankDebit {
+            get_masked_bank_details(&pm, key)
+                .await
+                .unwrap_or_else(|err| {
+                    logger::error!(error=?err);
+                    None
+                })
+        } else {
+            None
         };
 
         //Need validation for enabled payment method ,querying MCA
@@ -2232,6 +2261,7 @@ pub async fn list_customer_payment_method(
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
             bank_transfer: pmd,
+            bank: bank_details,
             requires_cvv,
         };
         customer_pms.push(pma.to_owned());
@@ -2354,6 +2384,84 @@ pub async fn get_lookup_key_from_locker(
     )
     .await?;
     Ok(resp)
+}
+
+async fn get_masked_bank_details(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+) -> errors::RouterResult<Option<MaskedBankDetails>> {
+    let payment_method_data =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to decrypt bank details")?
+            .map(|x| x.into_inner().expose())
+            .map(
+                |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
+                    v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize Payment Method Auth config")
+                },
+            )
+            .transpose()?;
+
+    match payment_method_data {
+        Some(pmd) => match pmd {
+            PaymentMethodsData::Card(_) => Ok(None),
+            PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
+                mask: bank_details.mask,
+            })),
+        },
+        None => Err(errors::ApiErrorResponse::InternalServerError.into())
+            .attach_printable("Unable to fetch payment method data"),
+    }
+}
+
+async fn get_bank_account_connector_details(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+) -> errors::RouterResult<Option<BankAccountConnectorDetails>> {
+    let payment_method_data =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to decrypt bank details")?
+            .map(|x| x.into_inner().expose())
+            .map(
+                |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
+                    v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize Payment Method Auth config")
+                },
+            )
+            .transpose()?;
+
+    match payment_method_data {
+        Some(pmd) => match pmd {
+            PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Card is not a valid entity".to_string(),
+            })
+            .into_report(),
+            PaymentMethodsData::BankDetails(bank_details) => {
+                let connector_details = bank_details
+                    .connector_details
+                    .first()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                Ok(Some(BankAccountConnectorDetails {
+                    connector: connector_details.connector.clone(),
+                    account_id: connector_details.account_id.clone(),
+                    mca_id: connector_details.mca_id.clone(),
+                    access_token: connector_details.access_token.clone(),
+                }))
+            }
+        },
+        None => Err(errors::ApiErrorResponse::InternalServerError.into())
+            .attach_printable("Unable to fetch payment method data"),
+    }
 }
 
 #[cfg(feature = "payouts")]
