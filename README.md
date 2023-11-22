@@ -100,7 +100,7 @@ You can find the latest list of payment processors, supported methods, and
 features
 [here][supported-connectors-and-features].
 
-[supported-connectors-and-features]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=0&single=true
+[supported-connectors-and-features]: https://hyperswitch.io/pm-list
 
 ### 🌟 Hosted Version
 
