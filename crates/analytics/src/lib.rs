@@ -6,7 +6,7 @@ pub mod payments;
 mod query;
 pub mod refunds;
 
-// TODO: We can't declare routes here since authentication is defined in router_vas crate
+// TODO: We can't declare routes here since authentication is defined in router crate
 // completely move this here once authentication dependencies are resolved
 // https://github.com/juspay/hyperswitch-cloud/issues/660
 // pub mod routes;

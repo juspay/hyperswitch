@@ -2,6 +2,7 @@ use serde::Serialize;
 
 pub mod api_logs;
 pub mod event_logger;
+pub mod kafka_handler;
 
 pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
     fn log_event(&self, event: RawEvent);
