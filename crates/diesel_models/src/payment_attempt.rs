@@ -238,12 +238,15 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
     },
-    MultipleCaptureCountUpdate {
-        multiple_capture_count: i16,
+    CaptureUpdate {
+        amount_to_capture: Option<i64>,
+        multiple_capture_count: Option<i16>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
@@ -359,7 +362,9 @@ impl PaymentAttemptUpdate {
                 .amount_capturable
                 .unwrap_or(source.amount_capturable),
             updated_by: pa_update.updated_by,
-            merchant_connector_id: pa_update.merchant_connector_id,
+            merchant_connector_id: pa_update
+                .merchant_connector_id
+                .or(source.merchant_connector_id),
             authentication_data: pa_update.authentication_data.or(source.authentication_data),
             encoded_data: pa_update.encoded_data.or(source.encoded_data),
             unified_code: pa_update.unified_code.unwrap_or(source.unified_code),
@@ -533,6 +538,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 unified_code,
                 unified_message,
@@ -545,6 +552,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                surcharge_amount,
+                tax_amount,
                 unified_code,
                 unified_message,
                 ..Default::default()
@@ -616,12 +625,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::MultipleCaptureCountUpdate {
+            PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
+                amount_to_capture,
             } => Self {
-                multiple_capture_count: Some(multiple_capture_count),
+                multiple_capture_count,
                 updated_by,
+                amount_to_capture,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {

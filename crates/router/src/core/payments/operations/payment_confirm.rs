@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    enums::FrmSuggestion,
-    payment_methods::{self, SurchargeDetailsResponse},
-};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{report, IntoReport, ResultExt};
@@ -18,7 +15,10 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
+            PaymentData,
+        },
         utils::{self as core_utils, get_individual_surcharge_detail_from_redis},
     },
     db::StorageInterface,
@@ -430,11 +430,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let surcharge_details = Self::get_surcharge_details_from_payment_request_or_payment_attempt(
-            request,
-            &payment_attempt,
-        );
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -465,7 +460,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response: None,
-            surcharge_details,
+            surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
         };
@@ -573,6 +568,17 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
         helpers::get_connector_default(state, request.routing.clone()).await
+    }
+
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        state: &AppState,
+        payment_data: &mut PaymentData<F>,
+        request: &api::PaymentsRequest,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        populate_surcharge_details(state, payment_data, request).await
     }
 }
 
@@ -920,27 +926,5 @@ impl PaymentConfirm {
             }
             _ => Ok(()),
         }
-    }
-
-    fn get_surcharge_details_from_payment_request_or_payment_attempt(
-        payment_request: &api::PaymentsRequest,
-        payment_attempt: &storage::PaymentAttempt,
-    ) -> Option<SurchargeDetailsResponse> {
-        payment_request
-            .surcharge_details
-            .map(|surcharge_details| {
-                surcharge_details.get_surcharge_details_object(payment_attempt.amount)
-            }) // if not passed in confirm request, look inside payment_attempt
-            .or(payment_attempt
-                .surcharge_amount
-                .map(|surcharge_amount| SurchargeDetailsResponse {
-                    surcharge: payment_methods::Surcharge::Fixed(surcharge_amount),
-                    tax_on_surcharge: None,
-                    surcharge_amount,
-                    tax_on_surcharge_amount: payment_attempt.tax_amount.unwrap_or(0),
-                    final_amount: payment_attempt.amount
-                        + surcharge_amount
-                        + payment_attempt.tax_amount.unwrap_or(0),
-                }))
     }
 }

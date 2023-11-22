@@ -10570,7 +10570,8 @@
           "entity_type",
           "status",
           "error_message",
-          "error_code"
+          "error_code",
+          "profile_id"
         ],
         "properties": {
           "payout_id": {
@@ -10702,8 +10703,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment",
-            "nullable": true
+            "description": "The business profile that is associated with this payment"
           }
         }
       },
