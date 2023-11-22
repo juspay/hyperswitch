@@ -22,6 +22,7 @@ pub struct PaymentLink {
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
+    pub description: Option<String>,
 }
 
 #[derive(
@@ -51,4 +52,5 @@ pub struct PaymentLinkNew {
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
+    pub description: Option<String>,
 }

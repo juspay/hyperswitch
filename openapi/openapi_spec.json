@@ -11306,18 +11306,14 @@
         "type": "object",
         "required": [
           "payment_link_id",
-          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
           "created_at",
-          "last_modified_at"
+          "status"
         ],
         "properties": {
           "payment_link_id": {
-            "type": "string"
-          },
-          "payment_id": {
             "type": "string"
           },
           "merchant_id": {
@@ -11330,25 +11326,28 @@
             "type": "integer",
             "format": "int64"
           },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "last_modified_at": {
             "type": "string",
             "format": "date-time"
           },
           "link_expiry": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
             "nullable": true
           }
         }

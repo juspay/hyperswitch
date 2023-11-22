@@ -4356,8 +4356,8 @@ impl Default for super::settings::ApiKeys {
             #[cfg(feature = "kms")]
             kms_encrypted_hash_key: KmsValue::default(),
 
-            /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
-            /// hashes of API keys
+            // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
+            // hashes of API keys
             #[cfg(not(feature = "kms"))]
             hash_key: String::new(),
 

@@ -223,6 +223,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// Payment Link List flow
+    PaymentLinkList,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -247,6 +249,12 @@ pub enum Flow {
     GsmRuleDelete,
     /// User connect account
     UserConnectAccount,
+    /// Upsert Decision Manager Config
+    DecisionManagerUpsertConfig,
+    /// Delete Decision Manager Config
+    DecisionManagerDeleteConfig,
+    /// Retrieve Decision Manager Config
+    DecisionManagerRetrieveConfig,
 }
 
 ///

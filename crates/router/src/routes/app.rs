@@ -19,8 +19,11 @@ use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, user::*};
-use super::{cache::*, health::*, payment_link::*};
+use super::{
+    admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
+    user::*,
+};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -324,6 +327,20 @@ impl Routing {
             .service(
                 web::resource("/deactivate")
                     .route(web::post().to(cloud_routing::routing_unlink_config)),
+            )
+            .service(
+                web::resource("/decision")
+                    .route(web::put().to(cloud_routing::upsert_decision_manager_config))
+                    .route(web::get().to(cloud_routing::retrieve_decision_manager_config))
+                    .route(web::delete().to(cloud_routing::delete_decision_manager_config)),
+            )
+            .service(
+                web::resource("/decision/surcharge")
+                    .route(web::put().to(cloud_routing::upsert_surcharge_decision_manager_config))
+                    .route(web::get().to(cloud_routing::retrieve_surcharge_decision_manager_config))
+                    .route(
+                        web::delete().to(cloud_routing::delete_surcharge_decision_manager_config),
+                    ),
             )
             .service(
                 web::resource("/{algorithm_id}")
@@ -661,11 +678,12 @@ impl Cache {
 }
 
 pub struct PaymentLink;
-
+#[cfg(feature = "olap")]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::post().to(payments_link_list)))
             .service(
                 web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
             )

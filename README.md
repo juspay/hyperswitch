@@ -66,7 +66,6 @@ The fastest and easiest way to try hyperswitch is via our CDK scripts
 
 &emsp;&emsp; <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
 
-
 2. Sign-in to your AWS console.
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
@@ -101,7 +100,7 @@ You can find the latest list of payment processors, supported methods, and
 features
 [here][supported-connectors-and-features].
 
-[supported-connectors-and-features]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=0&single=true
+[supported-connectors-and-features]: https://hyperswitch.io/pm-list
 
 ### 🌟 Hosted Version
 
