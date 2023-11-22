@@ -1,11 +1,17 @@
-version: "3.8"
+version: "3.7"
 
 volumes:
+  cargo_cache:
   pg_data:
+  cargo_build_cache:
+  p_cargo_build_cache:
+  c_cargo_build_cache:
   redisinsight_store:
+
 
 networks:
   router_net:
+
 
 services:
   promtail:
@@ -64,7 +70,7 @@ services:
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
 
   pg:
-    image: postgres:latest
+    image: postgres:14.5
     ports:
       - "5432:5432"
     networks:
@@ -77,48 +83,51 @@ services:
       - POSTGRES_DB=hyperswitch_db
 
   migration_runner:
-    image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    image: rust:1.70
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features \"postgres\" && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
     working_dir: /app
     networks:
       - router_net
     volumes:
       - ./:/app
-    environment:
-      - DATABASE_USER=db_user
-      - DATABASE_PASSWORD=db_pass
-      - DATABASE_HOST=pg
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=hyperswitch_db
 
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
-    command: /local/bin/router -f /local/config/docker_compose.toml
+    image: rust:1.70
+    command: cargo run -- -f ./config/docker_compose.toml
+    working_dir: /app
     ports:
       - "8080:8080"
     networks:
       - router_net
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
     labels:
       logs: "promtail"
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
-      interval: 10s
+      interval: 100s
       retries: 3
-      start_period: 5s
+      start_period: 20s
       timeout: 10s
 
   hyperswitch-producer:
-    image: juspaydotin/hyperswitch-producer:standalone
-    command: /local/bin/scheduler -f /local/config/docker_compose.toml
+    image: rust:1.70
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
     networks:
       - router_net
     profiles:
       - scheduler
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - p_cargo_build_cache:/cargo_build_cache
     environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
       - SCHEDULER_FLOW=producer
     depends_on:
       hyperswitch-consumer:
@@ -127,57 +136,43 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: juspaydotin/hyperswitch-consumer:standalone
-    command: /local/bin/scheduler -f /local/config/docker_compose.toml
+    image: rust:1.70
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
     networks:
       - router_net
     profiles:
       - scheduler
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - c_cargo_build_cache:/cargo_build_cache
     environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
         condition: service_started
+
     labels:
       logs: "promtail"
+
     healthcheck:
       test: (ps -e | grep scheduler) || exit 1
-      interval: 10s
+      interval: 120s
       retries: 3
-      start_period: 5s
+      start_period: 30s
       timeout: 10s
-
-  hyperswitch-drainer:
-    image: juspaydotin/hyperswitch-drainer:standalone
-    command: /local/bin/drainer -f /local/config/docker_compose.toml
-    deploy:
-      replicas: ${DRAINER_INSTANCE_COUNT:-1}
-    networks:
-      - router_net
-    profiles:
-      - full_kv
-    volumes:
-      - ./config:/local/config
-    restart: unless-stopped
-    depends_on:
-      hyperswitch-server:
-        condition: service_started
-    labels:
-      logs: "promtail"
 
   redis-cluster:
     image: redis:7
     deploy:
       replicas: ${REDIS_CLUSTER_COUNT:-3}
     command: redis-server /usr/local/etc/redis/redis.conf
-    profiles:
-      - clustered_redis
     volumes:
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    # labels:
-    #   - redis
+    labels:
+      - redis
     networks:
       - router_net
     ports:
@@ -186,8 +181,8 @@ services:
 
   redis-standalone:
     image: redis:7
-    # labels:
-    #   - redis
+    labels:
+      - redis
     networks:
       - router_net
     ports:
@@ -195,8 +190,6 @@ services:
 
   redis-init:
     image: redis:7
-    profiles:
-      - clustered_redis
     depends_on:
       - redis-cluster
     networks:
@@ -243,7 +236,6 @@ services:
       - "8001:8001"
     volumes:
       - redisinsight_store:/db
-
   prometheus:
     image: prom/prometheus:latest
     networks:
@@ -269,3 +261,25 @@ services:
       - "3200" # tempo
       - "4317" # otlp grpc
     restart: unless-stopped
+  hyperswitch-drainer:
+    image: rust:1.70
+    command: cargo run --bin drainer -- -f ./config/docker_compose.toml
+    working_dir: /app
+    deploy:
+      replicas: ${DRAINER_INSTANCE_COUNT:-1}
+    networks:
+      - router_net
+    profiles:
+      - full_kv
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
+    restart: unless-stopped
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+    labels:
+      logs: "promtail"
