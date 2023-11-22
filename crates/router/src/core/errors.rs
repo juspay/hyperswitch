@@ -375,3 +375,23 @@ pub enum RoutingError {
     #[error("Unable to parse metadata")]
     MetadataParsingError,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ConditionalConfigError {
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Error constructing the Input")]
+    InputConstructionError,
+}
