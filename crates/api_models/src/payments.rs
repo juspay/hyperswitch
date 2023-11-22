@@ -3194,18 +3194,17 @@ pub struct PaymentLinkResponse {
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
-    pub payment_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
     pub amount: i64,
-    #[schema(value_type = Option<Currency>, example = "USD")]
-    pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
+    pub description: Option<String>,
+    pub status: String,
+    #[schema(value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3229,4 +3228,58 @@ pub struct PaymentLinkDetails {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub sdk_theme: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+
+pub struct PaymentLinkListConstraints {
+    /// limit on the number of objects to return
+    pub limit: Option<i64>,
+
+    /// The time at which payment link is created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+
+    /// Time less than the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lt"
+    )]
+    pub created_lt: Option<PrimitiveDateTime>,
+
+    /// Time greater than the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.gt"
+    )]
+    pub created_gt: Option<PrimitiveDateTime>,
+
+    /// Time less than or equals to the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lte"
+    )]
+    pub created_lte: Option<PrimitiveDateTime>,
+
+    /// Time greater than or equals to the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.gte")]
+    pub created_gte: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PaymentLinkListResponse {
+    /// The number of payment links included in the list
+    pub size: usize,
+    // The list of payment link response objects
+    pub data: Vec<PaymentLinkResponse>,
 }

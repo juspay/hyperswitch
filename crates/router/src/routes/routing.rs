@@ -12,7 +12,7 @@ use router_env::{
 };
 
 use crate::{
-    core::{api_locking, routing},
+    core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
     services::{api as oss_api, authentication as auth},
 };
@@ -238,6 +238,172 @@ pub async fn routing_retrieve_default_config(
         (),
         |state, auth: auth::AuthenticationData, _| {
             routing::retrieve_default_routing_config(state, auth.merchant_account)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn upsert_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::surcharge_decision_configs::SurchargeDecisionConfigReq>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, update_decision| {
+            surcharge_decision_config::upsert_surcharge_decision_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                update_decision,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn delete_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerDeleteConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, ()| {
+            surcharge_decision_config::delete_surcharge_decision_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn retrieve_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _| {
+            surcharge_decision_config::retrieve_surcharge_decision_config(
+                state,
+                auth.merchant_account,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn upsert_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::conditional_configs::DecisionManager>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, update_decision| {
+            conditional_config::upsert_conditional_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                update_decision,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn delete_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerDeleteConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, ()| {
+            conditional_config::delete_conditional_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn retrieve_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _| {
+            conditional_config::retrieve_conditional_config(state, auth.merchant_account)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),

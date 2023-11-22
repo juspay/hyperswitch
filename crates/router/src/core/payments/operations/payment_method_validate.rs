@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "verify")]
+#[operation(operations = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::VerifyRequest, Ctx>

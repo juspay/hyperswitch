@@ -1767,7 +1767,7 @@ pub fn validate_status_and_disabled(
     };
 
     let disabled = match (disabled, connector_status) {
-        (Some(true), common_enums::ConnectorStatus::Inactive) => {
+        (Some(false), common_enums::ConnectorStatus::Inactive) => {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
                     .to_string(),
