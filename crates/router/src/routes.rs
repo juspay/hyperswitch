@@ -4,6 +4,8 @@ pub mod app;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod currency;
 pub mod customers;
 pub mod disputes;
 #[cfg(feature = "dummy_connector")]
@@ -41,7 +43,7 @@ pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
     Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount, MerchantConnectorAccount,
-    PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
+    PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks, Forex,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

@@ -3,7 +3,7 @@ pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "olap")]
 pub mod user;
-
+pub mod currency;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 

@@ -18,6 +18,8 @@ use super::payouts::*;
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, user::*};
 use super::{cache::*, health::*, payment_link::*};
@@ -25,7 +27,7 @@ use super::{cache::*, health::*, payment_link::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-use crate::{
+pub use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
@@ -296,6 +298,22 @@ impl Payments {
                 );
         }
         route
+    }
+}
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub struct Forex;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Forex {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/forex")
+            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/rates").route(web::get().to(currency::retrieve_forex)))
+            .service(
+                web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
+            )
     }
 }
 
