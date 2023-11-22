@@ -254,7 +254,7 @@ impl
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             ),
-            payment_solution: solution.map(|s| String::from(s)),
+            payment_solution: solution.map(String::from),
         }
     }
 }
