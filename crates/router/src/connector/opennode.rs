@@ -1,9 +1,8 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::crypto;
+use common_utils::{crypto, request::RequestContent};
 use error_stack::{IntoReport, ResultExt};
 use transformers as opennode;
 
@@ -23,7 +22,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{BytesExt, Encode},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]

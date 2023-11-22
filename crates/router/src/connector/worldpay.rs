@@ -3,9 +3,8 @@ mod response;
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as worldpay;
@@ -27,7 +26,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self as ext_traits, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]

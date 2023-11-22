@@ -4,9 +4,9 @@ use std::fmt::Debug;
 
 use ::common_utils::{
     crypto,
-    request::RequestContent,
     errors::ReportSwitchExt,
     ext_traits::{BytesExt, ValueExt},
+    request::RequestContent,
 };
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
@@ -26,7 +26,7 @@ use crate::{
         storage::enums,
         ErrorResponse, Response,
     },
-    utils::{self as common_utils, ByteSliceExt},
+    utils::ByteSliceExt,
 };
 
 #[derive(Debug, Clone)]

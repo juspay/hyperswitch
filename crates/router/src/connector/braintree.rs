@@ -12,10 +12,9 @@ use ring::hmac;
 use sha1::{Digest, Sha1};
 
 use self::transformers as braintree;
-use super::utils::PaymentsAuthorizeRequestData;
+use super::utils::{self as connector_utils, PaymentsAuthorizeRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -324,8 +323,7 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req =
-            braintree_graphql_transformers::BraintreeTokenRequest::try_from(req)?;
+        let connector_req = braintree_graphql_transformers::BraintreeTokenRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -770,11 +768,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
                         &connector_router_data,
                     )?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
             false => {
                 let connector_req = braintree::BraintreePaymentsRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
         }
     }
@@ -922,7 +920,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
-                let connector_req=
+                let connector_req =
                     braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
@@ -1176,7 +1174,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             true => {
                 let connector_req =
                     braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
             false => Err(errors::ConnectorError::RequestEncodingFailed).into_report(),
         }
@@ -1570,7 +1568,7 @@ impl
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
-                let connector_req=
+                let connector_req =
                     braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
                         &connector_router_data,
                     )?;

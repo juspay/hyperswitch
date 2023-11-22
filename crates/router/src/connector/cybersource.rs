@@ -1,9 +1,9 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -27,7 +27,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -184,7 +184,8 @@ where
             .skip(base_url.len() - 1)
             .collect();
         let sha256 = self.generate_digest(
-                    types::RequestBody::get_inner_value(cybersource_req).expose()
+            types::RequestBody::get_inner_value(cybersource_req)
+                .expose()
                 .as_bytes(),
         );
         let http_method = self.get_http_method();

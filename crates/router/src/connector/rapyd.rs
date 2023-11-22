@@ -1,9 +1,8 @@
 pub mod transformers;
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
-use common_utils::{date_time, ext_traits::StringExt};
+use common_utils::{date_time, ext_traits::StringExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -11,9 +10,9 @@ use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
 
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -209,8 +208,7 @@ impl
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
-        let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
         let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &req_body, &timestamp, &salt)?;
@@ -517,8 +515,7 @@ impl
             "/v1/payments/{}/capture",
             req.request.connector_transaction_id
         );
-        let body = types::PaymentsCaptureType::get_request_body(self, req, connectors)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let body = types::PaymentsCaptureType::get_request_body(self, req, connectors)?;
         let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
             self.generate_signature(&auth, "post", &url_path, &req_body, &timestamp, &salt)?;
@@ -649,8 +646,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let body = types::RefundExecuteType::get_request_body(self, req, connectors)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let body = types::RefundExecuteType::get_request_body(self, req, connectors)?;
         let req_body = types::RequestBody::get_inner_value(body).expose();
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let signature =
@@ -736,7 +732,7 @@ impl api::IncomingWebhook for Rapyd {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = conn_utils::get_header_key_value("signature", request.headers)?;
+        let base64_signature = connector_utils::get_header_key_value("signature", request.headers)?;
         let signature = consts::BASE64_ENGINE_URL_SAFE
             .decode(base64_signature.as_bytes())
             .into_report()
@@ -750,11 +746,11 @@ impl api::IncomingWebhook for Rapyd {
         merchant_id: &str,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let host = conn_utils::get_header_key_value("host", request.headers)?;
+        let host = connector_utils::get_header_key_value("host", request.headers)?;
         let connector = self.id();
         let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
-        let salt = conn_utils::get_header_key_value("salt", request.headers)?;
-        let timestamp = conn_utils::get_header_key_value("timestamp", request.headers)?;
+        let salt = connector_utils::get_header_key_value("salt", request.headers)?;
+        let timestamp = connector_utils::get_header_key_value("timestamp", request.headers)?;
         let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)

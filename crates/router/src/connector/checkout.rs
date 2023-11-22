@@ -1,9 +1,8 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -30,7 +29,8 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::{self, BytesExt},
+    utils,
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -952,7 +952,6 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
         let connector_req = transformers::construct_file_upload_request(req.clone())?;
         Ok(RequestContent::FormData(connector_req))
     }
-    
 
     fn build_request(
         &self,
@@ -965,7 +964,9 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
                 .url(&types::UploadFileType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::UploadFileType::get_headers(self, req, connectors)?)
-                .set_body(types::UploadFileType::get_request_body(self, req, connectors)?)
+                .set_body(types::UploadFileType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }

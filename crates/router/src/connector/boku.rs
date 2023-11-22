@@ -1,9 +1,7 @@
 pub mod transformers;
-
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::ext_traits::XmlExt;
+use common_utils::{ext_traits::XmlExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
@@ -12,9 +10,9 @@ use roxmltree;
 use time::OffsetDateTime;
 use transformers as boku;
 
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -29,7 +27,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]

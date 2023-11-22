@@ -1,9 +1,9 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -28,7 +28,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
@@ -135,7 +135,8 @@ where
             .skip(base_url.len() - 1)
             .collect();
         let sha256 = self.generate_digest(
-                    types::RequestBody::get_inner_value(            boa_req).expose()
+            types::RequestBody::get_inner_value(boa_req)
+                .expose()
                 .as_bytes(),
         );
         let signature = self.generate_signature(

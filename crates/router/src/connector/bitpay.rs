@@ -1,9 +1,8 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as bitpay;
@@ -24,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]

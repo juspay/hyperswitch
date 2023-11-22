@@ -1,10 +1,9 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -12,10 +11,9 @@ use ring::hmac;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
-use super::utils::RefundsRequestData;
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings::Connectors,
-    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -29,7 +27,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt, OptionExt},
+    utils::{crypto, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -733,7 +731,8 @@ impl api::IncomingWebhook for Worldline {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let header_value = conn_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
+        let header_value =
+            connector_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
             .decode(header_value.as_bytes())
             .into_report()

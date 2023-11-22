@@ -1,17 +1,15 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nmi;
 
-use self::transformers::NmiCaptureRequest;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
@@ -19,7 +17,6 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils,
 };
 
 #[derive(Clone, Debug)]

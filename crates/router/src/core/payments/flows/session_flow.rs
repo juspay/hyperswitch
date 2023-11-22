@@ -15,7 +15,7 @@ use crate::{
     routes::{self, metrics},
     services,
     types::{self, api, domain},
-    utils::{OptionExt},
+    utils::OptionExt,
 };
 
 #[async_trait]
@@ -124,7 +124,6 @@ fn build_apple_pay_session_request(
     apple_pay_merchant_cert: String,
     apple_pay_merchant_cert_key: String,
 ) -> RouterResult<services::Request> {
-
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
 

@@ -28,14 +28,14 @@ use crate::{
     events::api_logs::ApiEvent,
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
-    services::{self},
+    services::{self, authentication as auth},
     types::{
         api::{self, mandates::MandateResponseExt},
         domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
-    utils::{generate_id, OptionExt, ValueExt},
+    utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
@@ -741,7 +741,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         // may have an actix arbiter
         tokio::spawn(async move {
             let result =
-                trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, &state).await;
+                trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, state).await;
 
             if let Err(e) = result {
                 logger::error!(?e);
@@ -752,10 +752,10 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     Ok(())
 }
 
-pub async fn trigger_webhook_to_merchant<'a, W: types::OutgoingWebhookType + 'a>(
+pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     business_profile: diesel_models::business_profile::BusinessProfile,
     webhook: api::OutgoingWebhook,
-    state: &'a AppState,
+    state: AppState,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = business_profile
         .webhook_details
@@ -806,7 +806,7 @@ pub async fn trigger_webhook_to_merchant<'a, W: types::OutgoingWebhookType + 'a>
 
     let response = state
         .api_client
-        .send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS), false)
+        .send_request(&state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS), false)
         .await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(

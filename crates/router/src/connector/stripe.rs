@@ -27,7 +27,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
+    utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -1458,8 +1458,8 @@ impl
         req: &types::UploadFileRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req =  transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::FormUrlEncoded(connector_req))
+        let connector_req = transformers::construct_file_upload_request(req.clone())?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -1473,7 +1473,9 @@ impl
                 .url(&types::UploadFileType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::UploadFileType::get_headers(self, req, connectors)?)
-                .set_body(types::UploadFileType::get_request_body(self, req, connectors))
+                .set_body(types::UploadFileType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -1684,7 +1686,7 @@ impl
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req =  stripe::Evidence::try_from(req)?;
+        let connector_req = stripe::Evidence::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 

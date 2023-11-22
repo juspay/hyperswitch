@@ -19,7 +19,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeOptionInterface, PeekInterface};
+use masking::PeekInterface;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -475,7 +475,7 @@ pub async fn send_request(
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
-    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
+    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
         .into_report()
@@ -501,59 +501,90 @@ pub async fn send_request(
         value: url.host_str().unwrap_or_default().to_string().into(),
     };
 
-    let send_request = async {
-        match request.method {
-            Method::Get => client.get(url),
-            Method::Post => {
-                let client = client.post(url);
-                match request.body {
-                    Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
-                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload).into_report().change_context(errors::ApiClientError::BodySerializationFailed)?;
-                        client.body(body)
-                        .header("Content-Type", "application/xml")
-                    },
-                    None => client,
+    let send_request =
+        async {
+            match request.method {
+                Method::Get => client.get(url),
+                Method::Post => {
+                    let client = client.post(url);
+                    match request.body {
+                        Some(RequestContent::Json(payload)) => client.json(
+                            &payload
+                                .raw_serialize()
+                                .into_report()
+                                .change_context(errors::ApiClientError::BodySerializationFailed)?,
+                        ),
+                        Some(RequestContent::FormData(form)) => client.multipart(form),
+                        Some(RequestContent::FormUrlEncoded(payload)) => client.form(
+                            &payload
+                                .raw_serialize()
+                                .into_report()
+                                .change_context(errors::ApiClientError::BodySerializationFailed)?,
+                        ),
+                        Some(RequestContent::Xml(payload)) => {
+                            let body = quick_xml::se::to_string(
+                                &payload.raw_serialize().into_report().change_context(
+                                    errors::ApiClientError::BodySerializationFailed,
+                                )?,
+                            )
+                            .into_report()
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                            client.body(body).header("Content-Type", "application/xml")
+                        }
+                        None => client,
+                    }
                 }
-            }
-            Method::Put => {
-                let client = client.put(url);
-                match request.body {
-                    Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
-                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload).into_report().change_context(errors::ApiClientError::BodySerializationFailed)?;
-                        client.body(body)
-                        .header("Content-Type", "application/xml")
-                    },
-                    None => client,
+                Method::Put => {
+                    let client = client.put(url);
+                    match request.body {
+                        Some(RequestContent::Json(payload)) => client.json(
+                            &payload
+                                .raw_serialize()
+                                .into_report()
+                                .change_context(errors::ApiClientError::BodySerializationFailed)?,
+                        ),
+                        Some(RequestContent::FormData(form)) => client.multipart(form),
+                        Some(RequestContent::FormUrlEncoded(payload)) => client.form(
+                            &payload
+                                .raw_serialize()
+                                .into_report()
+                                .change_context(errors::ApiClientError::BodySerializationFailed)?,
+                        ),
+                        Some(RequestContent::Xml(payload)) => {
+                            let body = quick_xml::se::to_string(
+                                &payload.raw_serialize().into_report().change_context(
+                                    errors::ApiClientError::BodySerializationFailed,
+                                )?,
+                            )
+                            .into_report()
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                            client.body(body).header("Content-Type", "application/xml")
+                        }
+                        None => client,
+                    }
                 }
-                },
-            Method::Delete => client.delete(url),
-        }
-        .add_headers(headers)
-        .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
-        ))
-        .send()
-        .await
-        .map_err(|error| match error {
-            error if error.is_timeout() => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::RequestTimeoutReceived
+                Method::Delete => client.delete(url),
             }
-            error if is_connection_closed(&error) => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::ConnectionClosed
-            }
-            _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-        })
-        .into_report()
-        .attach_printable("Unable to send request to connector")
-    };
+            .add_headers(headers)
+            .timeout(Duration::from_secs(
+                option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+            ))
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosed
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
+        };
 
     metrics_request::record_operation_time(
         send_request,

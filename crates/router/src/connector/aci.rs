@@ -1,8 +1,8 @@
 mod result_codes;
 pub mod transformers;
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
@@ -21,7 +21,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]

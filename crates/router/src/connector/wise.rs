@@ -1,7 +1,7 @@
 pub mod transformers;
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
@@ -25,7 +25,7 @@ use crate::{
     utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payments, routes, utils};
+use crate::{core::payments, routes};
 
 #[derive(Debug, Clone)]
 pub struct Wise;

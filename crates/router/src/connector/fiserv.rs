@@ -1,9 +1,9 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -28,7 +28,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -70,8 +70,7 @@ where
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
-        let fiserv_req = self
-            .get_request_body(req, connectors)?;
+        let fiserv_req = self.get_request_body(req, connectors)?;
 
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self

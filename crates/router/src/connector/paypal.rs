@@ -33,7 +33,7 @@ use crate::{
         transformers::ForeignFrom,
         ConnectorAuthType, ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]

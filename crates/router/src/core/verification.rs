@@ -1,16 +1,11 @@
 pub mod utils;
 use api_models::verifications::{self, ApplepayMerchantResponse};
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 #[cfg(feature = "kms")]
 use external_services::kms;
 
-use crate::{
-    core::errors::{self, api_error_response},
-    headers, logger,
-    routes::AppState,
-    services, types,
-};
+use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
@@ -66,7 +61,6 @@ pub async fn verify_merchant_creds_for_applepay(
             "application/json".to_string().into(),
         )])
         .set_body(RequestContent::Json(Box::new(request_body)))
-
         .add_certificate(Some(cert_data))
         .add_certificate_key(Some(key_data))
         .build();

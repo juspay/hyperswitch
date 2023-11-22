@@ -1,12 +1,12 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
 use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
+    request::RequestContent,
 };
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
@@ -35,7 +35,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merchant-transaction:";

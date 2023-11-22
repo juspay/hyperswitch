@@ -57,9 +57,9 @@ impl std::fmt::Debug for RequestContent {
 
 pub enum RequestContent {
     Json(Box<dyn masking::ErasedMaskSerialize + Send>),
-    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize  + Send>),
+    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize + Send>),
     FormData(reqwest::multipart::Form),
-    Xml(Box<dyn masking::ErasedMaskSerialize  + Send>),
+    Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
 }
 
 impl Request {
@@ -195,7 +195,13 @@ impl RequestBody {
 
     pub fn get_inner_value(request_body: RequestContent) -> Secret<String> {
         match request_body {
-            RequestContent::Json(i) | RequestContent::FormUrlEncoded(i) | RequestContent::Xml(i) => serde_json::to_string(&i.raw_serialize().unwrap_or(json!(""))).unwrap_or_default().into(),
+            RequestContent::Json(i)
+            | RequestContent::FormUrlEncoded(i)
+            | RequestContent::Xml(i) => {
+                serde_json::to_string(&i.raw_serialize().unwrap_or(json!("")))
+                    .unwrap_or_default()
+                    .into()
+            }
             RequestContent::FormData(_) => String::new().into(),
         }
     }

@@ -2,16 +2,18 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{ext_traits::{ByteSliceExt, ValueExt}, request::RequestContent};
+use common_utils::{
+    ext_traits::{ByteSliceExt, ValueExt},
+    request::RequestContent,
+};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as airwallex;
 
-use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
+use super::utils::{self as connector_utils, AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -27,7 +29,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response, RouterData,
     },
-    utils::{self, crypto, BytesExt},
+    utils::{crypto, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -632,7 +634,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = airwallex::AirwallexPaymentsCaptureRequest::try_from(req)?;
-
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

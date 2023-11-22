@@ -1,8 +1,8 @@
 pub mod transformers;
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use api_models::payments as api_payments;
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -22,7 +22,7 @@ use crate::{
         api::{self, ConnectorCommon},
         storage::enums as storage_enums,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]

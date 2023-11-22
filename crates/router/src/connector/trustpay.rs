@@ -1,10 +1,11 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
-use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::{
+    crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent,
+};
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
@@ -563,11 +564,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = trustpay::TrustpayPaymentsRequest::try_from(&connector_router_data)?;
-        let trustpay_req_string = match req.payment_method {
+        match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
-        };
-        Ok(RequestContent::Json(Box::new(connector_req)))
+            _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req))),
+        }
     }
 
     fn build_request(
@@ -669,7 +671,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             diesel_models::enums::PaymentMethod::BankRedirect => {
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req))),
         }
     }
 

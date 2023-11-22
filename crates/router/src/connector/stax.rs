@@ -1,9 +1,8 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -26,7 +25,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         domain, ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -164,7 +163,7 @@ impl
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req =  stax::StaxCustomerRequest::try_from(req)?;
+        let connector_req = stax::StaxCustomerRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -251,7 +250,7 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req =  stax::StaxTokenRequest::try_from(req)?;
+        let connector_req = stax::StaxTokenRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

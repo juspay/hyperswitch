@@ -97,7 +97,7 @@ pub struct DeleteCardResp {
 #[serde(rename_all = "camelCase")]
 pub struct AddCardRequest<'a> {
     pub card_number: cards::CardNumber,
-    pub customer_id: &'a str,
+    pub customer_id: String,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub merchant_id: &'a str,
@@ -400,7 +400,7 @@ pub fn mk_add_card_request(
     card: &api::CardDetail,
     customer_id: &str,
     _req: &api::PaymentMethodCreate,
-    locker_id: &str,
+    locker_id: &'static str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let customer_id = if cfg!(feature = "release") {
@@ -410,7 +410,7 @@ pub fn mk_add_card_request(
     };
     let add_card_req = AddCardRequest {
         card_number: card.card_number.clone(),
-        customer_id: &customer_id,
+        customer_id,
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
@@ -473,10 +473,10 @@ pub async fn mk_get_card_request_hs(
     Ok(request)
 }
 
-pub fn mk_get_card_request<'a>(
+pub fn mk_get_card_request(
     locker: &settings::Locker,
-    locker_id: &'a str,
-    card_id: &'a str,
+    locker_id: &'static str,
+    card_id: &'static str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let get_card_req = GetCard {
         merchant_id: locker_id,
@@ -547,10 +547,10 @@ pub async fn mk_delete_card_request_hs(
     Ok(request)
 }
 
-pub fn mk_delete_card_request<'a>(
+pub fn mk_delete_card_request(
     locker: &settings::Locker,
-    merchant_id: &'a str,
-    card_id: &'a str,
+    merchant_id: &'static str,
+    card_id: &'static str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let delete_card_req = GetCard {
         merchant_id,

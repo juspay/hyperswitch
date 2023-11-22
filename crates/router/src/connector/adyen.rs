@@ -1,19 +1,19 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::{
         self,
@@ -31,7 +31,7 @@ use crate::{
         domain,
         transformers::ForeignFrom,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
+    utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -397,58 +397,48 @@ impl
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-
-
         let encoded_data = req
             .request
             .encoded_data
             .clone()
-            .get_required_value("encoded_data")?;
-                let adyen_redirection_type = serde_urlencoded::from_str::<
-                    transformers::AdyenRedirectRequestTypes,
-                >(encoded_data.as_str())
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .get_required_value("encoded_data")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let adyen_redirection_type = serde_urlencoded::from_str::<
+            transformers::AdyenRedirectRequestTypes,
+        >(encoded_data.as_str())
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                let connector_req = match adyen_redirection_type {
-                    adyen::AdyenRedirectRequestTypes::AdyenRedirection(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenRedirection(
-                                adyen::AdyenRedirection {
-                                    redirect_result: req.redirect_result,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
-                    adyen::AdyenRedirectRequestTypes::AdyenThreeDS(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenThreeDS(
-                                adyen::AdyenThreeDS {
-                                    three_ds_result: req.three_ds_result,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
-                    adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(
-                                adyen::AdyenRefusal {
-                                    payload: req.payload,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
-                };
+        let connector_req = match adyen_redirection_type {
+            adyen::AdyenRedirectRequestTypes::AdyenRedirection(req) => {
+                adyen::AdyenRedirectRequest {
+                    details: adyen::AdyenRedirectRequestTypes::AdyenRedirection(
+                        adyen::AdyenRedirection {
+                            redirect_result: req.redirect_result,
+                            type_of_redirection_result: None,
+                            result_code: None,
+                        },
+                    ),
+                }
+            }
+            adyen::AdyenRedirectRequestTypes::AdyenThreeDS(req) => adyen::AdyenRedirectRequest {
+                details: adyen::AdyenRedirectRequestTypes::AdyenThreeDS(adyen::AdyenThreeDS {
+                    three_ds_result: req.three_ds_result,
+                    type_of_redirection_result: None,
+                    result_code: None,
+                }),
+            },
+            adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => adyen::AdyenRedirectRequest {
+                details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(adyen::AdyenRefusal {
+                    payload: req.payload,
+                    type_of_redirection_result: None,
+                    result_code: None,
+                }),
+            },
+        };
 
-
-                Ok(RequestContent::Json(Box::new(connector_req)))
-        }
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
 
     fn get_url(
         &self,
@@ -476,22 +466,22 @@ impl
             .encoded_data
             .clone()
             .get_required_value("encoded_data")
-            .is_ok() {
-                Ok(Some(
-                    services::RequestBuilder::new()
-                        .method(services::Method::Post)
-                        .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                        .attach_default_headers()
-                        .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                        .set_body(types::PaymentsSyncType::get_request_body(
-                            self, req, connectors,
-                        )?)
-                        .build(),
-                ))
-            } else  {
-                Ok(None)
-            }
-
+            .is_ok()
+        {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                    .set_body(types::PaymentsSyncType::get_request_body(
+                        self, req, connectors,
+                    )?)
+                    .build(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_response(

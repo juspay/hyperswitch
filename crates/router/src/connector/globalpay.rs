@@ -1,4 +1,5 @@
 mod requests;
+use super::utils as connector_utils;
 mod response;
 pub mod transformers;
 
@@ -20,7 +21,6 @@ use self::{
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils as conn_utils},
     core::{
         errors::{self, CustomResult},
         payments,
@@ -36,7 +36,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt},
+    utils::{crypto, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -847,7 +847,7 @@ impl api::IncomingWebhook for Globalpay {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature = conn_utils::get_header_key_value("x-gp-signature", request.headers)?;
+        let signature = connector_utils::get_header_key_value("x-gp-signature", request.headers)?;
         Ok(signature.as_bytes().to_vec())
     }
 

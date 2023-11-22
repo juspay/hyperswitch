@@ -1,11 +1,11 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use common_utils::{
     crypto::{self, SignMessage},
     date_time,
+    request::RequestContent,
 };
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
@@ -28,7 +28,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -58,7 +58,7 @@ where
     ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
     {
         let dlocal_req = self.get_request_body(req, connectors)?;
-        
+
         let date = date_time::date_as_yyyymmddthhmmssmmmz()
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;

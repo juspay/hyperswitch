@@ -1,13 +1,13 @@
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
 use base64::Engine;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     date_time,
     ext_traits::ByteSliceExt,
+    request::RequestContent,
 };
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
@@ -31,7 +31,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{BytesExt, Encode},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -69,9 +69,10 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let api_method;
-        let body = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?).peek().to_owned();
-        api_method = "POST".to_string();
+        let api_method = "POST".to_string();
+        let body = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?)
+            .peek()
+            .to_owned();
         let md5_payload = crypto::Md5
             .generate_digest(body.as_bytes())
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
