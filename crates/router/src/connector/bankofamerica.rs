@@ -302,21 +302,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_request =
+        let connector_req =
             bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
         let bankofamerica_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_payments_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -470,21 +470,21 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount_to_capture,
             req,
         ))?;
-        let connector_request =
+        let connector_req =
             bankofamerica::BankOfAmericaCaptureRequest::try_from(&connector_router_data)?;
         let bankofamerica_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<bankofamerica::BankOfAmericaCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_capture_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -562,7 +562,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request
@@ -577,7 +577,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 })?,
             req,
         ))?;
-        let connector_request =
+        let connector_req =
             bankofamerica::BankOfAmericaVoidRequest::try_from(&connector_router_data)?;
 
         let bankofamerica_void_request = types::RequestBody::log_and_get_request_body(
@@ -585,7 +585,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             utils::Encode::<bankofamerica::BankOfAmericaPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_void_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -661,20 +661,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = bankofamerica::BankOfAmericaRefundRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            bankofamerica::BankOfAmericaRefundRequest::try_from(&connector_router_data)?;
         let bankofamerica_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<bankofamerica::BankOfAmericaRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bankofamerica_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

@@ -174,20 +174,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = opennode::OpennodeRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
         let opennode_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<opennode::OpennodePaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(opennode_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

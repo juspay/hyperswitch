@@ -175,15 +175,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = volt::VoltAuthUpdateRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = volt::VoltAuthUpdateRequest::try_from(req)?;
         let volt_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<volt::VoltAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(volt_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -266,20 +266,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = volt::VoltRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = volt::VoltPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = volt::VoltPaymentsRequest::try_from(&connector_router_data)?;
         let volt_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<volt::VoltPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(volt_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -425,7 +425,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -507,20 +507,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = volt::VoltRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = volt::VoltRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = volt::VoltRefundRequest::try_from(&connector_router_data)?;
         let volt_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<volt::VoltRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(volt_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

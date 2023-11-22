@@ -194,7 +194,7 @@ impl
         &self,
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = helcim::HelcimVerifyRequest::try_from(req)?;
 
         let helcim_req = types::RequestBody::log_and_get_request_body(
@@ -202,7 +202,7 @@ impl
             utils::Encode::<helcim::HelcimVerifyRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(helcim_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -274,20 +274,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = helcim::HelcimRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = helcim::HelcimPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = helcim::HelcimPaymentsRequest::try_from(&connector_router_data)?;
         let helcim_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<helcim::HelcimPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(helcim_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -448,7 +448,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = helcim::HelcimRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -461,7 +461,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             utils::Encode::<helcim::HelcimCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(helcim_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -535,14 +535,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = helcim::HelcimVoidRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = helcim::HelcimVoidRequest::try_from(req)?;
         let helcim_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<helcim::HelcimVoidRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(helcim_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -613,20 +613,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = helcim::HelcimRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = helcim::HelcimRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = helcim::HelcimRefundRequest::try_from(&connector_router_data)?;
         let helcim_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<helcim::HelcimRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(helcim_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

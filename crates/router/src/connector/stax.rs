@@ -162,7 +162,7 @@ impl
         &self,
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_request = stax::StaxCustomerRequest::try_from(req)?;
 
         let stax_req = types::RequestBody::log_and_get_request_body(
@@ -170,7 +170,7 @@ impl
             utils::Encode::<stax::StaxCustomerRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stax_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -254,7 +254,7 @@ impl
         &self,
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_request = stax::StaxTokenRequest::try_from(req)?;
 
         let stax_req = types::RequestBody::log_and_get_request_body(
@@ -262,7 +262,7 @@ impl
             utils::Encode::<stax::StaxTokenRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stax_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -358,21 +358,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stax::StaxRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = stax::StaxPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = stax::StaxPaymentsRequest::try_from(&connector_router_data)?;
 
         let stax_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<stax::StaxPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stax_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -523,7 +523,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stax::StaxRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -536,7 +536,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             utils::Encode::<stax::StaxCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stax_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -686,20 +686,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stax::StaxRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = stax::StaxRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = stax::StaxRefundRequest::try_from(&connector_router_data)?;
         let stax_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<stax::StaxRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stax_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

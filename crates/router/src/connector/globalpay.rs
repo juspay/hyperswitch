@@ -166,10 +166,10 @@ impl
         &self,
         _req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let globalpay_req = types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -275,14 +275,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = GlobalpayRefreshTokenRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = GlobalpayRefreshTokenRequest::try_from(req)?;
         let globalpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
@@ -398,14 +398,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = requests::GlobalpayCancelRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = requests::GlobalpayCancelRequest::try_from(req)?;
         let globalpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
@@ -549,14 +549,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = requests::GlobalpayCaptureRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = requests::GlobalpayCaptureRequest::try_from(req)?;
         let globalpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -641,14 +641,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = GlobalpayPaymentsRequest::try_from(req)?;
         let globalpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -734,14 +734,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = requests::GlobalpayRefundRequest::try_from(req)?;
         let globalpay_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

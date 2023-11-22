@@ -318,15 +318,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = paypal::PaypalAuthUpdateRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = paypal::PaypalAuthUpdateRequest::try_from(req)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<paypal::PaypalAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(paypal_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -420,7 +420,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -430,13 +430,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .map_or(req.request.amount, |surcharge| surcharge.final_amount),
             req,
         ))?;
-        let req_obj = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<paypal::PaypalPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(paypal_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -730,7 +730,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -743,7 +743,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             utils::Encode::<paypal::PaypalPaymentsCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(paypal_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -894,20 +894,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<paypal::PaypalRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(paypal_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1095,14 +1095,14 @@ impl
             types::VerifyWebhookSourceResponseData,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<paypal::PaypalSourceVerificationRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(paypal_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(

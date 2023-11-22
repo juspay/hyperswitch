@@ -263,20 +263,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(multisafepay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -367,21 +368,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = multisafepay::MultisafepayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
+        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
 
         let multisafepay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(multisafepay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

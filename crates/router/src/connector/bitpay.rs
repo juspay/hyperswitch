@@ -174,21 +174,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = bitpay::BitpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
         let bitpay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bitpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

@@ -155,7 +155,7 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
         let klarna_req = types::RequestBody::log_and_get_request_body(
@@ -163,7 +163,7 @@ impl
             utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(klarna_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -415,7 +415,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = klarna::KlarnaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -428,7 +428,7 @@ impl
             utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(klarna_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

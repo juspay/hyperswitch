@@ -184,20 +184,20 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = rapyd::RapydPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = rapyd::RapydPaymentsRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::RapydPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(rapyd_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -497,20 +497,20 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount_to_capture,
             req,
         ))?;
-        let req_obj = rapyd::CaptureRequest::try_from(&connector_router_data)?;
+        let connector_req = rapyd::CaptureRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(rapyd_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -638,21 +638,21 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = rapyd::RapydRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
         let rapyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<rapyd::RapydRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(rapyd_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

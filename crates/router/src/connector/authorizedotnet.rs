@@ -146,7 +146,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -161,7 +161,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(authorizedotnet_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -244,7 +244,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
         let sync_request = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -332,7 +332,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -347,7 +347,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(authorizedotnet_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -434,7 +434,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
@@ -442,7 +442,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(authorizedotnet_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -526,7 +526,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -540,7 +540,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             utils::Encode::<authorizedotnet::CreateRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(authorizedotnet_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -622,7 +622,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundsRouterData<api::RSync>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -720,7 +720,7 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -735,7 +735,7 @@ impl
             utils::Encode::<authorizedotnet::PaypalConfirmRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(authorizedotnet_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

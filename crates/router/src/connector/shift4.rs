@@ -187,14 +187,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
         let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     async fn execute_pretasks(
@@ -478,14 +478,14 @@ impl
         &self,
         req: &types::PaymentsInitRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
         let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -563,14 +563,14 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
         let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -644,7 +644,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = shift4::Shift4RefundRequest::try_from(req)?;
         let shift4_req = types::RequestBody::log_and_get_request_body(
             &connector_req,

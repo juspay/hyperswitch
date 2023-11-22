@@ -185,14 +185,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = coinbase::CoinbasePaymentsRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = coinbase::CoinbasePaymentsRequest::try_from(req)?;
         let coinbase_payment_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_payment_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

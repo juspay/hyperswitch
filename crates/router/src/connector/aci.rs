@@ -2,6 +2,7 @@ mod result_codes;
 pub mod transformers;
 use std::fmt::Debug;
 
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
@@ -283,7 +284,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         // encode only for for urlencoded things.
         let connector_router_data = aci::AciRouterData::try_from((
             &self.get_currency_unit(),
@@ -298,7 +299,7 @@ impl
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(aci_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -392,14 +393,14 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = aci::AciCancelRequest::try_from(req)?;
         let aci_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<aci::AciCancelRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(aci_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -488,7 +489,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = aci::AciRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -501,7 +502,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             utils::Encode::<aci::AciRefundRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(body))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

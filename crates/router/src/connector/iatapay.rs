@@ -179,14 +179,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = iatapay::IatapayAuthUpdateRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = iatapay::IatapayAuthUpdateRequest::try_from(req)?;
         let iatapay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<iatapay::IatapayAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(iatapay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -280,20 +280,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = iatapay::IatapayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = iatapay::IatapayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = iatapay::IatapayPaymentsRequest::try_from(&connector_router_data)?;
         let iatapay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<iatapay::IatapayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(iatapay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -469,20 +469,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = iatapay::IatapayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.payment_amount,
             req,
         ))?;
-        let req_obj = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
         let iatapay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(iatapay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

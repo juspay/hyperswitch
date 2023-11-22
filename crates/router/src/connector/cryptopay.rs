@@ -218,21 +218,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = cryptopay::CryptopayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_request =
-            cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
         let cryptopay_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             Encode::<cryptopay::CryptopayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(cryptopay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

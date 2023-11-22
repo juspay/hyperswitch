@@ -435,20 +435,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_request = WorldpayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = WorldpayPaymentsRequest::try_from(&connector_router_data)?;
         let worldpay_payment_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(worldpay_payment_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -521,14 +521,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = WorldpayRefundRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = WorldpayRefundRequest::try_from(req)?;
         let fiserv_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_refund_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn get_url(

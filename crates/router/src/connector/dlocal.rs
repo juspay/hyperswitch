@@ -212,20 +212,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = dlocal::DlocalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_request = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         let dlocal_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<dlocal::DlocalPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dlocal_payments_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -373,14 +373,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
         let dlocal_payments_capture_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<dlocal::DlocalPaymentsCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dlocal_payments_capture_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -525,20 +525,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = dlocal::DlocalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let connector_request = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         let dlocal_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<dlocal::DlocalRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dlocal_refund_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

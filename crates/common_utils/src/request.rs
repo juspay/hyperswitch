@@ -24,6 +24,7 @@ pub enum ContentType {
     Json,
     FormUrlEncoded,
     FormData,
+    Xml,
 }
 
 fn default_request_headers() -> [(String, Maskable<String>); 1] {
@@ -36,12 +37,28 @@ fn default_request_headers() -> [(String, Maskable<String>); 1] {
 pub struct Request {
     pub url: String,
     pub headers: Headers,
-    pub payload: Option<Secret<String>>,
     pub method: Method,
-    pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub form_data: Option<reqwest::multipart::Form>,
+    pub body: Option<RequestContent>,
+}
+
+impl std::fmt::Debug for RequestContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Json(_) => "JsonRequestBody",
+            Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
+            Self::FormData(_) => "FormDataRequestBody",
+            Self::Xml(_) => "XmlRequestBody",
+        })
+    }
+}
+
+pub enum RequestContent {
+    Json(Box<dyn masking::ErasedMaskSerialize>),
+    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize>),
+    FormData(reqwest::multipart::Form),
+    Xml(Box<dyn masking::ErasedMaskSerialize>),
 }
 
 impl Request {
@@ -50,16 +67,14 @@ impl Request {
             method,
             url: String::from(url),
             headers: std::collections::HashSet::new(),
-            payload: None,
-            content_type: None,
             certificate: None,
             certificate_key: None,
-            form_data: None,
+            body: None,
         }
     }
 
-    pub fn set_body(&mut self, body: String) {
-        self.payload = Some(body.into());
+    pub fn set_body<T: Into<RequestContent>>(&mut self, body: T) {
+        self.body.replace(body.into());
     }
 
     pub fn add_default_headers(&mut self) {
@@ -70,10 +85,6 @@ impl Request {
         self.headers.insert((String::from(header), value));
     }
 
-    pub fn add_content_type(&mut self, content_type: ContentType) {
-        self.content_type = Some(content_type);
-    }
-
     pub fn add_certificate(&mut self, certificate: Option<String>) {
         self.certificate = certificate;
     }
@@ -81,22 +92,16 @@ impl Request {
     pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
         self.certificate = certificate_key;
     }
-
-    pub fn set_form_data(&mut self, form_data: reqwest::multipart::Form) {
-        self.form_data = Some(form_data);
-    }
 }
 
 #[derive(Debug)]
 pub struct RequestBuilder {
     pub url: String,
     pub headers: Headers,
-    pub payload: Option<Secret<String>>,
     pub method: Method,
-    pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub form_data: Option<reqwest::multipart::Form>,
+    pub body: Option<RequestContent>,
 }
 
 impl RequestBuilder {
@@ -105,11 +110,9 @@ impl RequestBuilder {
             method: Method::Get,
             url: String::with_capacity(1024),
             headers: std::collections::HashSet::new(),
-            payload: None,
-            content_type: None,
             certificate: None,
             certificate_key: None,
-            form_data: None,
+            body: None,
         }
     }
 
@@ -139,18 +142,8 @@ impl RequestBuilder {
         self
     }
 
-    pub fn form_data(mut self, form_data: Option<reqwest::multipart::Form>) -> Self {
-        self.form_data = form_data;
-        self
-    }
-
-    pub fn body(mut self, option_body: Option<RequestBody>) -> Self {
-        self.payload = option_body.map(RequestBody::get_inner_value);
-        self
-    }
-
-    pub fn content_type(mut self, content_type: ContentType) -> Self {
-        self.content_type = Some(content_type);
+    pub fn set_body<T: Into<RequestContent>>(mut self, body: T) -> Self {
+        self.body.replace(body.into());
         self
     }
 
@@ -169,11 +162,9 @@ impl RequestBuilder {
             method: self.method,
             url: self.url,
             headers: self.headers,
-            payload: self.payload,
-            content_type: self.content_type,
             certificate: self.certificate,
             certificate_key: self.certificate_key,
-            form_data: self.form_data,
+            body: self.body,
         }
     }
 }
