@@ -67,7 +67,6 @@ pub async fn start_drainer(
                 (stream_index, jobs_picked) = utils::increment_stream_index(
                     (stream_index, jobs_picked),
                     number_of_streams,
-                    &mut loop_interval,
                 )
                 .await;
                 loop_interval.tick().await;

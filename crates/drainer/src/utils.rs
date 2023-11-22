@@ -130,7 +130,6 @@ pub fn parse_stream_entries<'a>(
 pub async fn increment_stream_index(
     (index, jobs_picked): (u8, u8),
     total_streams: u8,
-    interval: &mut tokio::time::Interval,
 ) -> (u8, u8) {
     if index == total_streams - 1 {
         match jobs_picked {
