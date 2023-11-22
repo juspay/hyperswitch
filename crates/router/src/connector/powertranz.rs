@@ -87,6 +87,10 @@ impl ConnectorCommon for Powertranz {
         "application/json"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.powertranz.base_url.as_ref()
     }
@@ -377,6 +381,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data = powertranz::PowertranzRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
         let req_obj = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
         let powertranz_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
