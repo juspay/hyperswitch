@@ -904,7 +904,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
