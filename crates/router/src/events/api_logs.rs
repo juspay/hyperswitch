@@ -36,6 +36,7 @@ pub struct ApiEvent {
     ip_addr: Option<String>,
     url_path: String,
     response: Option<serde_json::Value>,
+    error: Option<serde_json::Value>,
     #[serde(flatten)]
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
@@ -52,6 +53,7 @@ impl ApiEvent {
         response: Option<serde_json::Value>,
         hs_latency: Option<u128>,
         auth_type: AuthenticationType,
+        error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
     ) -> Self {
@@ -64,6 +66,7 @@ impl ApiEvent {
             request,
             response,
             auth_type,
+            error,
             ip_addr: http_req
                 .connection_info()
                 .realip_remote_addr()

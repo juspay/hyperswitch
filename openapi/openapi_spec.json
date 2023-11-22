@@ -4147,6 +4147,13 @@
           }
         }
       },
+      "ConnectorStatus": {
+        "type": "string",
+        "enum": [
+          "inactive",
+          "active"
+        ]
+      },
       "ConnectorType": {
         "type": "string",
         "enum": [
@@ -5927,6 +5934,14 @@
           },
           "step_up_possible": {
             "type": "boolean"
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -6032,6 +6047,14 @@
           },
           "step_up_possible": {
             "type": "boolean"
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -6105,6 +6128,14 @@
           },
           "step_up_possible": {
             "type": "boolean",
+            "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -6871,7 +6902,8 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name"
+          "connector_name",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7002,6 +7034,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7087,7 +7122,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7230,6 +7266,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7237,7 +7276,8 @@
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
-          "connector_type"
+          "connector_type",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7335,6 +7375,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -8135,6 +8178,16 @@
             "type": "string",
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
+            "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
             "nullable": true
           }
         }
@@ -10022,6 +10075,16 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "payment_experience": {
             "allOf": [
               {
@@ -10507,7 +10570,8 @@
           "entity_type",
           "status",
           "error_message",
-          "error_code"
+          "error_code",
+          "profile_id"
         ],
         "properties": {
           "payout_id": {
@@ -10639,8 +10703,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment",
-            "nullable": true
+            "description": "The business profile that is associated with this payment"
           }
         }
       },

@@ -107,16 +107,15 @@ impl ConnectorCommon for Prophetpay {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayErrorResponse = res
+        let response: serde_json::Value = res
             .response
-            .parse_struct("ProphetpayErrorResponse")
+            .parse_struct("ProphetPayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.to_string(),
-            message: response.title,
-            reason: Some(response.errors.to_string()),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: Some(response.to_string()),
             attempt_status: None,
         })
     }
@@ -324,7 +323,7 @@ impl
     where
         types::PaymentsResponseData: Clone,
     {
-        let response: prophetpay::ProphetpayResponse = res
+        let response: prophetpay::ProphetpayCompleteAuthResponse = res
             .response
             .parse_struct("prophetpay ProphetpayResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -407,9 +406,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayResponse = res
+        let response: prophetpay::ProphetpaySyncResponse = res
             .response
-            .parse_struct("prophetpay ProphetpayResponse")
+            .parse_struct("prophetpay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -431,9 +430,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 {
 }
 
+// This is Void Implementation for Prophetpay
+// Since Prophetpay does not have capture this have been commented out but kept if it is required for future usage
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Prophetpay
 {
+    /*
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -471,33 +473,25 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(prophetpay_req))
     }
+    */
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::NotImplemented("Void flow not implemented".to_string()).into())
     }
 
+    /*
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayResponse = res
+        let response: prophetpay::ProphetpayVoidResponse = res
             .response
-            .parse_struct("prophetpay ProphetpayResponse")
+            .parse_struct("prophetpay PaymentsCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -512,6 +506,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+    */
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
@@ -652,7 +647,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Get)
+                .method(services::Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -668,7 +663,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: prophetpay::ProphetpayRefundResponse = res
+        let response: prophetpay::ProphetpayRefundSyncResponse = res
             .response
             .parse_struct("prophetpay ProphetpayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

@@ -3,6 +3,7 @@ pub mod api_keys;
 pub mod api_locking;
 pub mod cache;
 pub mod cards_info;
+pub mod conditional_config;
 pub mod configs;
 pub mod customers;
 pub mod disputes;
@@ -19,6 +20,7 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod routing;
+pub mod surcharge_decision_config;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod utils;
