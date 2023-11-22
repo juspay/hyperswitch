@@ -60,7 +60,7 @@ pub enum KvOperation<'a, S: serde::Serialize + Debug> {
 }
 
 #[derive(TryGetEnumVariant)]
-#[error(RedisError(UnknownResult))]
+#[error(RedisError::UnknownResult)]
 pub enum KvResult<T: de::DeserializeOwned> {
     HGet(T),
     Get(T),

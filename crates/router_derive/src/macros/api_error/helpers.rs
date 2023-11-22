@@ -1,3 +1,5 @@
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 use syn::{
     parse::Parse, spanned::Spanned, DeriveInput, Field, Fields, LitStr, Token, TypePath, Variant,
 };
@@ -38,10 +40,10 @@ impl Parse for EnumMeta {
     }
 }
 
-impl Spanned for EnumMeta {
-    fn span(&self) -> proc_macro2::Span {
+impl ToTokens for EnumMeta {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::ErrorTypeEnum { keyword, .. } => keyword.span(),
+            Self::ErrorTypeEnum { keyword, .. } => keyword.to_tokens(tokens),
         }
     }
 }
@@ -143,13 +145,13 @@ impl Parse for VariantMeta {
     }
 }
 
-impl Spanned for VariantMeta {
-    fn span(&self) -> proc_macro2::Span {
+impl ToTokens for VariantMeta {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::ErrorType { keyword, .. } => keyword.span,
-            Self::Code { keyword, .. } => keyword.span,
-            Self::Message { keyword, .. } => keyword.span,
-            Self::Ignore { keyword, .. } => keyword.span,
+            Self::ErrorType { keyword, .. } => keyword.to_tokens(tokens),
+            Self::Code { keyword, .. } => keyword.to_tokens(tokens),
+            Self::Message { keyword, .. } => keyword.to_tokens(tokens),
+            Self::Ignore { keyword, .. } => keyword.to_tokens(tokens),
         }
     }
 }

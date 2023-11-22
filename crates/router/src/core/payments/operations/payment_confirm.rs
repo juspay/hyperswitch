@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 #[async_trait]
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
