@@ -7,7 +7,7 @@ use diesel_models::enums::{
 };
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-use external_services_oss::kms::{self, decrypt::KmsDecrypt};
+use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use sqlx::{

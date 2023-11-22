@@ -110,6 +110,7 @@ pub struct Settings {
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
     pub report_download_config: ReportConfig,
+    pub kafka: KafkaSettings,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 use error_stack::{report, IntoReport, ResultExt};
-use hyperswitch_oss::events::EventType;
 use rdkafka::{
     config::FromClientConfig,
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
+
+use crate::events::EventType;
 mod api_event;
 pub mod outgoing_request;
 mod payment_attempt;
@@ -89,12 +90,13 @@ pub struct KafkaSettings {
 }
 
 impl KafkaSettings {
-    pub(crate) fn validate(&self) -> Result<(), hyperswitch_oss::core::errors::ApplicationError> {
+    pub(crate) fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
         if !self.enabled {
             return Ok(());
         }
         use common_utils::ext_traits::ConfigExt;
-        use hyperswitch_oss::core::errors::ApplicationError;
+
+        use crate::core::errors::ApplicationError;
 
         common_utils::fp_utils::when(self.brokers.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(

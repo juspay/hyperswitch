@@ -3,8 +3,8 @@ pub mod authentication;
 pub mod encryption;
 #[cfg(feature = "olap")]
 pub mod jwt;
-pub mod logger;
 pub mod kafka;
+pub mod logger;
 
 #[cfg(feature = "kms")]
 use data_models::errors::StorageError;

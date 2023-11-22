@@ -1,6 +1,6 @@
-use super::events::{EventHandler, RawEvent};
 use router_env::tracing;
 
+use super::events::{EventHandler, RawEvent};
 use crate::services::kafka::KafkaProducer;
 
 impl EventHandler for KafkaProducer {
