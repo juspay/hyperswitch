@@ -27,6 +27,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
+use self::models::CreatePaymentRequest;
+
 #[derive(Debug, Clone)]
 pub struct Stancer;
 
@@ -202,10 +204,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let req_obj = stancer::StancerPaymentsRequest::try_from(&connector_router_data)?;
+        let req_obj = CreatePaymentRequest::try_from(&connector_router_data)?;
         let stancer_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<stancer::StancerPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<CreatePaymentRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stancer_req))

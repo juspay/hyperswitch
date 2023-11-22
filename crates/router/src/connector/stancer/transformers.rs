@@ -1,15 +1,17 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use super::models::{
+    CreatePaymentRequest, CreatePaymentRequestAuth, CreatePaymentRequestCard,
+    CreatePaymentRequestDevice,
+};
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct StancerRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: i32,
     pub router_data: T,
 }
 
@@ -30,51 +32,89 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
-            amount,
+            amount: amount
+                .try_into()
+                .map_err(|_| errors::ConnectorError::ParsingFailed)?,
             router_data: item,
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct StancerPaymentsRequest {
-    amount: i64,
-    card: StancerCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct StancerCard {
-    name: Secret<String>,
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for StancerPaymentsRequest {
+// CreatePaymentRequest
+impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for CreatePaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &StancerRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = StancerCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
-                })
-            }
+        let StancerRouterData {
+            amount,
+            router_data,
+        } = item;
+        let request = CreatePaymentRequest {
+            description: router_data.description.to_owned(),
+            order_id: Some(router_data.connector_request_reference_id.to_owned()),
+            unique_id: Some(router_data.payment_id.to_owned()),
+            capture: router_data.request.capture_method.map(
+                |capture_method| match capture_method {
+                    common_enums::CaptureMethod::Automatic => true,
+                    common_enums::CaptureMethod::Manual
+                    | common_enums::CaptureMethod::ManualMultiple
+                    | common_enums::CaptureMethod::Scheduled => false,
+                },
+            ),
+            customer: router_data.connector_customer.to_owned(),
+            ..CreatePaymentRequest::new(
+                *amount,
+                router_data.request.currency.to_string().to_lowercase(),
+            )
+        };
+        let use_3ds = matches!(
+            router_data.auth_type,
+            common_enums::AuthenticationType::ThreeDs
+        );
+
+        match &router_data.request.payment_method_data {
+            api::PaymentMethodData::Card(card) => Ok(CreatePaymentRequest {
+                card: Some(
+                    CreatePaymentRequestCard {
+                        number: card.card_number.to_owned(),
+                        cvc: card.card_cvc.to_owned(),
+                        exp_year: card.card_exp_year.to_owned(),
+                        exp_month: card.card_exp_month.to_owned(),
+                    }
+                    .into(),
+                ),
+                auth: use_3ds
+                    .then(|| {
+                        router_data
+                            .return_url
+                            .to_owned()
+                            .map(|return_url| CreatePaymentRequestAuth { return_url }.into())
+                    })
+                    .flatten(),
+                device: use_3ds
+                    .then(|| {
+                        router_data
+                            .request
+                            .browser_info
+                            .as_ref()
+                            .and_then(|browser_info| {
+                                Some(
+                                    CreatePaymentRequestDevice {
+                                        ip: browser_info.ip_address.as_ref()?.to_string(),
+                                        port: None,
+                                        user_agent: browser_info.user_agent.to_owned(),
+                                        http_accept: browser_info.accept_header.to_owned(),
+                                        languages: browser_info.language.to_owned(),
+                                    }
+                                    .into(),
+                                )
+                            })
+                    })
+                    .flatten(),
+                ..request
+            }),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -162,7 +202,10 @@ impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for StancerRef
         item: &StancerRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: item
+                .amount
+                .try_into()
+                .map_err(|_| errors::ConnectorError::ParsingFailed)?,
         })
     }
 }
