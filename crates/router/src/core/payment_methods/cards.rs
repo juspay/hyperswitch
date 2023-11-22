@@ -2234,7 +2234,7 @@ pub async fn list_customer_payment_method(
             ),
         };
 
-        // Retrieve the masked bank details to be sent as a response 
+        // Retrieve the masked bank details to be sent as a response
         let bank_details = if pm.payment_method == enums::PaymentMethod::BankDebit {
             get_masked_bank_details(&pm, key)
                 .await
