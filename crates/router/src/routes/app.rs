@@ -10,6 +10,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
@@ -18,8 +20,6 @@ use super::payouts::*;
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::currency;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, user::*};
 use super::{cache::*, health::*, payment_link::*};

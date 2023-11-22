@@ -2,7 +2,7 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
 use crate::{
-    core::errors::ApiErrorResponse, 
+    core::errors::ApiErrorResponse,
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates},
     AppState,
@@ -49,4 +49,3 @@ pub async fn convert_forex(
         .change_context(ApiErrorResponse::InternalServerError)?,
     ))
 }
-

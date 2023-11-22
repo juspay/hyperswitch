@@ -7,6 +7,9 @@ use std::{
 };
 
 use api_models::{admin as admin_api, routing::ConnectorSelection};
+use currency_conversion::{
+    conversion::convert as convert_currency, types as currency_conversion_types,
+};
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{
@@ -19,9 +22,6 @@ use euclid::{
         ast,
         dir::{self, enums as dir_enums},
     },
-};
-use currency_conversion::{
-    conversion::convert as convert_currency, types as currency_conversion_types,
 };
 use once_cell::sync::OnceCell;
 use strum::{EnumMessage, EnumProperty, VariantNames};
