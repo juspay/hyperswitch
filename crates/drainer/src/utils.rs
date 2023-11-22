@@ -1,13 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::tracing;
-
 use error_stack::IntoReport;
 use redis_interface as redis;
 
 use crate::{
     errors::{self, DrainerError},
-    logger, metrics, services,
+    logger, metrics, services, tracing,
 };
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
