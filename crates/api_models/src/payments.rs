@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 use crate::{
     admin, disputes,
-    enums::{self as api_enums, enums as common_enums},
+    enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
     payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
@@ -3204,7 +3204,7 @@ pub struct RetrievePaymentLinkResponse {
     pub description: Option<String>,
     pub status: String,
     #[schema(value_type = Option<Currency>)]
-    pub currency: Option<common_enums::Currency>,
+    pub currency: Option<api_enums::Currency>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

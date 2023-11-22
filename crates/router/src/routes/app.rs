@@ -667,12 +667,9 @@ pub struct PaymentLink;
 #[cfg(feature = "olap")]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/payment_link").app_data(web::Data::new(state));
-        #[cfg(feature = "olap")]
-        {
-            route = route.service(web::resource("/list").route(web::post().to(payments_link_list)));
-        }
-        route
+        web::scope("/payment_link")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::post().to(payments_link_list)))
             .service(
                 web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
             )
