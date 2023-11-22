@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.84.0+hotfix.1 (2023-11-22)
+
+### Features
+
+- **router:** Migrate `payment_method_data` to rust locker only if `payment_method` is card ([#2931](https://github.com/juspay/hyperswitch/pull/2931)) ([`b6251fa`](https://github.com/juspay/hyperswitch/commit/b6251fa719d352e4ad0cc72b7bab259c0420973a))
+
+### Bug Fixes
+
+- Status goes from pending to partially captured in psync ([#2935](https://github.com/juspay/hyperswitch/pull/2935)) ([`2461675`](https://github.com/juspay/hyperswitch/commit/246167546e9bd2e8ea8eda95b5512b45c7b4df39))
+
+**Full Changelog:** [`v1.84.0...v1.84.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.84.0...v1.84.0+hotfix.1)
+
+- - -
+
 ## 1.84.0 (2023-11-17)
 
 ### Features
