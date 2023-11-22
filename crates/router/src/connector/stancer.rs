@@ -27,7 +27,7 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-use self::models::CreatePaymentRequest;
+use self::models::{CreatePaymentRequest, Payment};
 
 #[derive(Debug, Clone)]
 pub struct Stancer;
@@ -240,9 +240,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: stancer::StancerPaymentsResponse = res
+        let response: Payment = res
             .response
-            .parse_struct("Stancer PaymentsAuthorizeResponse")
+            .parse_struct("stancer Payment")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -302,9 +302,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: stancer::StancerPaymentsResponse = res
+        let response: Payment = res
             .response
-            .parse_struct("stancer PaymentsSyncResponse")
+            .parse_struct("stancer Payment")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -377,9 +377,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: stancer::StancerPaymentsResponse = res
+        let response: Payment = res
             .response
-            .parse_struct("Stancer PaymentsCaptureResponse")
+            .parse_struct("Stancer Payment")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

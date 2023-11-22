@@ -2,11 +2,12 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::models::{
-    CreatePaymentRequest, CreatePaymentRequestAuth, CreatePaymentRequestCard,
-    CreatePaymentRequestDevice,
+    payment, payment_auth, CreatePaymentRequest, CreatePaymentRequestAuth,
+    CreatePaymentRequestCard, CreatePaymentRequestDevice, Payment,
 };
 use crate::{
     core::errors,
+    services,
     types::{self, api, storage::enums},
 };
 
@@ -120,7 +121,6 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Create
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct StancerAuthType {
     pub(super) api_key: Secret<String>,
@@ -137,51 +137,69 @@ impl TryFrom<&types::ConnectorAuthType> for StancerAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum StancerPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<StancerPaymentStatus> for enums::AttemptStatus {
-    fn from(item: StancerPaymentStatus) -> Self {
-        match item {
-            StancerPaymentStatus::Succeeded => Self::Charged,
-            StancerPaymentStatus::Failed => Self::Failure,
-            StancerPaymentStatus::Processing => Self::Authorizing,
+// Payment
+impl From<payment::Status> for enums::AttemptStatus {
+    fn from(value: payment::Status) -> Self {
+        match value {
+            payment::Status::Authorized => Self::Authorized,
+            payment::Status::Canceled | payment::Status::Expired => Self::Voided,
+            payment::Status::Captured => Self::Charged,
+            payment::Status::ToCapture | payment::Status::CaptureSent => Self::CaptureInitiated,
+            payment::Status::Refused | payment::Status::Failed => Self::Failure,
+            payment::Status::Disputed => Self::AutoRefunded,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct StancerPaymentsResponse {
-    status: StancerPaymentStatus,
-    id: String,
+impl From<payment_auth::Status> for enums::AttemptStatus {
+    fn from(value: payment_auth::Status) -> Self {
+        match value {
+            payment_auth::Status::Attempted
+            | payment_auth::Status::Available
+            | payment_auth::Status::Requested => Self::AuthenticationPending,
+            payment_auth::Status::Declined
+            | payment_auth::Status::Failed
+            | payment_auth::Status::Unavailable => Self::AuthenticationFailed,
+            payment_auth::Status::Expired => Self::Voided,
+            payment_auth::Status::Success => Self::AuthenticationSuccessful,
+        }
+    }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, StancerPaymentsResponse, T, types::PaymentsResponseData>>
+impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, StancerPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let types::ResponseRouterData::<_, _, _, _> { response, .. } = item;
+        let Payment {
+            status, auth, id, ..
+        } = response;
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: status
+                .map(Into::into)
+                .or(auth.as_ref().map(|auth| auth.status).map(Into::into))
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "status",
+                })?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
+                resource_id: types::ResponseId::ConnectorTransactionId(id.to_owned()),
+                redirection_data: auth
+                    .map(|auth| {
+                        url::Url::parse(&auth.redirect_url)
+                            .map_err(|_| errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?
+                    .map(|redirect_url| {
+                        services::RedirectForm::from((redirect_url, services::Method::Get))
+                    }),
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(id),
             }),
             ..item.data
         })
