@@ -913,6 +913,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         Some(response_value),
         None,
         auth_type,
+        None,
         api_event,
         req,
     );
