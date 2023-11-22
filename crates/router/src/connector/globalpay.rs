@@ -3,9 +3,8 @@ mod response;
 pub mod transformers;
 
 use std::fmt::Debug;
-use common_utils::request::RequestContent;
 
-use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -168,7 +167,7 @@ impl
         _req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(serde_json::json!({})))
+        Ok(RequestContent::Json(Box::new(serde_json::json!({}))))
     }
 
     fn build_request(

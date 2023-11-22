@@ -476,7 +476,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -488,7 +488,6 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
-                .content_type(request::ContentType::FormUrlEncoded)
                 .attach_default_headers()
                 .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
                 .set_body(types::PaymentsInitType::get_request_body(
@@ -632,7 +631,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = shift4::Shift4RefundRequest::try_from(req)?;
-        Ok(Some(shift4_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

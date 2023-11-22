@@ -397,25 +397,20 @@ impl
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // Adyen doesn't support PSync flow. We use PSync flow to fetch payment details,
-        // specifically the redirect URL that takes the user to their Payment page. In non-redirection flows,
-        // we rely on webhooks to obtain the payment status since there is no encoded data available.
-        // encoded_data only includes the redirect URL and is only relevant in redirection flows.
-        let encoded_value = req
+
+
+        let encoded_data = req
             .request
             .encoded_data
             .clone()
-            .get_required_value("encoded_data");
-
-        match encoded_value {
-            Ok(encoded_data) => {
+            .get_required_value("encoded_data")?;
                 let adyen_redirection_type = serde_urlencoded::from_str::<
                     transformers::AdyenRedirectRequestTypes,
                 >(encoded_data.as_str())
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                let redirection_request = match adyen_redirection_type {
+                let connector_req = match adyen_redirection_type {
                     adyen::AdyenRedirectRequestTypes::AdyenRedirection(req) => {
                         adyen::AdyenRedirectRequest {
                             details: adyen::AdyenRedirectRequestTypes::AdyenRedirection(
@@ -452,11 +447,8 @@ impl
                 };
 
 
-                Ok(Some(adyen_request))
-            }
-            Err(_) => Ok(None),
+                Ok(RequestContent::Json(Box::new(connector_req)))
         }
-    }
 
     fn get_url(
         &self,
@@ -475,21 +467,31 @@ impl
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request_body = self.get_request_body(req, connectors)?;
-        match request_body {
-            Some(_) => Ok(Some(
-                services::RequestBuilder::new()
-                    .method(services::Method::Post)
-                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                    .attach_default_headers()
-                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                    .set_body(types::PaymentsSyncType::get_request_body(
-                        self, req, connectors,
-                    )?)
-                    .build(),
-            )),
-            None => Ok(None),
-        }
+        // Adyen doesn't support PSync flow. We use PSync flow to fetch payment details,
+        // specifically the redirect URL that takes the user to their Payment page. In non-redirection flows,
+        // we rely on webhooks to obtain the payment status since there is no encoded data available.
+        // encoded_data only includes the redirect URL and is only relevant in redirection flows.
+        if req
+            .request
+            .encoded_data
+            .clone()
+            .get_required_value("encoded_data")
+            .is_ok() {
+                Ok(Some(
+                    services::RequestBuilder::new()
+                        .method(services::Method::Post)
+                        .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                        .attach_default_headers()
+                        .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                        .set_body(types::PaymentsSyncType::get_request_body(
+                            self, req, connectors,
+                        )?)
+                        .build(),
+                ))
+            } else  {
+                Ok(None)
+            }
+
     }
 
     fn handle_response(
@@ -636,7 +638,7 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
-        Ok(Some(request_body))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

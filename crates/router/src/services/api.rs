@@ -135,7 +135,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(None)
+        Ok(RequestContent::Json(Box::new(json!(r#""#))))
     }
 
     fn get_request_form_data(
@@ -506,43 +506,32 @@ pub async fn send_request(
             Method::Get => client.get(url),
             Method::Post => {
                 let client = client.post(url);
-                match request.content_type {
-                    Some(ContentType::Json) => client.json(&request.payload),
-
-                    Some(ContentType::FormData) => {
-                        client.multipart(request.form_data.unwrap_or_default())
-                    }
-
-                    // Currently this is not used remove this if not required
-                    // If using this then handle the serde_part
-                    Some(ContentType::FormUrlEncoded) => {
-                        let payload = match request.payload.clone() {
-                            Some(req) => serde_json::from_str(req.peek())
-                                .into_report()
-                                .change_context(errors::ApiClientError::UrlEncodingFailed)?,
-                            _ => json!(r#""#),
-                        };
-                        let url_encoded_payload = serde_urlencoded::to_string(&payload)
-                            .into_report()
-                            .change_context(errors::ApiClientError::UrlEncodingFailed)
-                            .attach_printable_lazy(|| {
-                                format!(
-                                    "Unable to do url encoding on request: {:?}",
-                                    &request.payload
-                                )
-                            })?;
-
-                        logger::debug!(?url_encoded_payload);
-                        client.body(url_encoded_payload)
-                    }
-                    // If payload needs processing the body cannot have default
-                    None => client.body(request.payload.expose_option().unwrap_or_default()),
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload).into_report().change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body)
+                        .header("Content-Type", "application/xml")
+                    },
+                    None => client,
                 }
             }
-
-            Method::Put => client
-                .put(url)
-                .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
+            Method::Put => {
+                let client = client.put(url);
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload).into_report().change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body)
+                        .header("Content-Type", "application/xml")
+                    },
+                    None => client,
+                }
+                },
             Method::Delete => client.delete(url),
         }
         .add_headers(headers)

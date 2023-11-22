@@ -242,7 +242,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
 
-        Ok(Some(sync_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -607,7 +607,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let connector_req =
             authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(&connector_router_data)?;
 
-        Ok(Some(sync_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

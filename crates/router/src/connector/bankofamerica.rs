@@ -135,10 +135,7 @@ where
             .skip(base_url.len() - 1)
             .collect();
         let sha256 = self.generate_digest(
-            boa_req
-                .map_or("{}".to_string(), |s| {
-                    types::RequestBody::get_inner_value(s).expose()
-                })
+                    types::RequestBody::get_inner_value(            boa_req).expose()
                 .as_bytes(),
         );
         let signature = self.generate_signature(

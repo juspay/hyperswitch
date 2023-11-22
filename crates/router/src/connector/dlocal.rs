@@ -59,6 +59,9 @@ where
     {
         let dlocal_req = self.get_request_body(req, connectors)?;
         
+        let date = date_time::date_as_yyyymmddthhmmssmmmz()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let sign_req: String = format!(
             "{}{}{}",

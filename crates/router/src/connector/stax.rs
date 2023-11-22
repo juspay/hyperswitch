@@ -164,7 +164,7 @@ impl
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_request = stax::StaxCustomerRequest::try_from(req)?;
+        let connector_req =  stax::StaxCustomerRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -251,7 +251,7 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_request = stax::StaxTokenRequest::try_from(req)?;
+        let connector_req =  stax::StaxTokenRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

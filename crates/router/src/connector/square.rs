@@ -249,7 +249,7 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_request = square::SquareTokenRequest::try_from(req)?;
+        let connector_req =  square::SquareTokenRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

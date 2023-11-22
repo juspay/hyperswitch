@@ -665,12 +665,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = trustpay::TrustpayRefundRequest::try_from(&connector_router_data)?;
-        let trustpay_req_string = match req.payment_method {
+        match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            _ =>
-        };
-        Ok(RequestContent::Json(Box::new(connector_req)))
+            _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        }
     }
 
     fn build_request(

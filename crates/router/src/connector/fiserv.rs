@@ -71,8 +71,7 @@ where
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
         let fiserv_req = self
-            .get_request_body(req, connectors)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+            .get_request_body(req, connectors)?;
 
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self
@@ -250,7 +249,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = fiserv::FiservCancelRequest::try_from(req)?;
-        Ok(Some(fiserv_payments_cancel_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

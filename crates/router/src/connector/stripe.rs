@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -148,7 +149,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
 
-        Ok(Some(pre_processing_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -268,8 +269,8 @@ impl
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        connector_req = stripe::CustomerRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = stripe::CustomerRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -393,8 +394,8 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        connector_req = stripe::TokenRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = stripe::TokenRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -520,8 +521,8 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        connector_req = stripe::CaptureRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = stripe::CaptureRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -810,7 +811,7 @@ impl
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
-                Ok(Some(request))
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
         }
     }
@@ -942,8 +943,8 @@ impl
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        connector_req = stripe::CancelRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = stripe::CancelRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1075,7 +1076,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::SetupIntentRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1206,8 +1207,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        connector_req = stripe::RefundRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = stripe::RefundRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1452,12 +1453,13 @@ impl
         ))
     }
 
-    fn get_request_form_data(
+    fn get_request_body(
         &self,
         req: &types::UploadFileRouterData,
-    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
-        let stripe_req = transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req =  transformers::construct_file_upload_request(req.clone())?;
+        Ok(RequestContent::FormUrlEncoded(connector_req))
     }
 
     fn build_request(
@@ -1471,8 +1473,7 @@ impl
                 .url(&types::UploadFileType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::UploadFileType::get_headers(self, req, connectors)?)
-                .form_data(types::UploadFileType::get_request_form_data(self, req)?)
-                .content_type(services::request::ContentType::FormData)
+                .set_body(types::UploadFileType::get_request_body(self, req, connectors))
                 .build(),
         ))
     }
@@ -1683,8 +1684,8 @@ impl
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let stripe_req = stripe::Evidence::try_from(req)?;
-        Ok(Some(stripe_req_string))
+        let connector_req =  stripe::Evidence::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(

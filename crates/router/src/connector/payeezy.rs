@@ -43,10 +43,7 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
-        let option_request_payload = self.get_request_body(req, connectors)?;
-        let request_payload = option_request_payload.map_or("{}".to_string(), |payload| {
-            types::RequestBody::get_inner_value(payload).expose()
-        });
+        let request_payload = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?).expose();
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .ok()
@@ -204,7 +201,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
-        Ok(Some(payeezy_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

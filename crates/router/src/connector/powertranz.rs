@@ -285,7 +285,7 @@ impl
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let spi_token = format!(r#""{}""#, redirect_payload.spi_token);
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(spi_token)))
     }
 
     fn build_request(

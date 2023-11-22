@@ -184,10 +184,7 @@ where
             .skip(base_url.len() - 1)
             .collect();
         let sha256 = self.generate_digest(
-            cybersource_req
-                .map_or("{}".to_string(), |s| {
-                    types::RequestBody::get_inner_value(s).expose()
-                })
+                    types::RequestBody::get_inner_value(cybersource_req).expose()
                 .as_bytes(),
         );
         let http_method = self.get_http_method();
@@ -471,7 +468,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!({}))))
+        Ok(RequestContent::Json(Box::new(serde_json::json!({}))))
     }
     fn build_request(
         &self,
@@ -641,7 +638,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(serde_json::json!({})))
+        Ok(RequestContent::Json(Box::new(serde_json::json!({}))))
     }
 
     fn build_request(
@@ -734,7 +731,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         ))?;
         let connector_req =
             cybersource::CybersourceRefundRequest::try_from(&connector_router_data)?;
-        Ok(Some(cybersource_refund_request))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,

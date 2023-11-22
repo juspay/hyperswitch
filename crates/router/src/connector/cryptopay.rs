@@ -70,20 +70,12 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let api_method;
-        let payload = match self.get_request_body(req, connectors)? {
-            Some(val) => {
-                let body = types::RequestBody::get_inner_value(val).peek().to_owned();
-                api_method = "POST".to_string();
-                let md5_payload = crypto::Md5
-                    .generate_digest(body.as_bytes())
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                encode(md5_payload)
-            }
-            None => {
-                api_method = "GET".to_string();
-                String::default()
-            }
-        };
+        let body = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?).peek().to_owned();
+        api_method = "POST".to_string();
+        let md5_payload = crypto::Md5
+            .generate_digest(body.as_bytes())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payload = encode(md5_payload);
 
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .into_report()

@@ -680,7 +680,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = checkout::RefundRequest::try_from(&connector_router_data)?;
-        Ok(Some(body))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -944,13 +944,15 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
         Ok(format!("{}{}", self.base_url(connectors), "files"))
     }
 
-    fn get_request_form_data(
+    fn get_request_body(
         &self,
         req: &types::UploadFileRouterData,
-    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
-        let checkout_req = transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = transformers::construct_file_upload_request(req.clone())?;
+        Ok(RequestContent::FormData(connector_req))
     }
+    
 
     fn build_request(
         &self,
@@ -963,8 +965,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
                 .url(&types::UploadFileType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::UploadFileType::get_headers(self, req, connectors)?)
-                .form_data(types::UploadFileType::get_request_form_data(self, req)?)
-                .content_type(services::request::ContentType::FormData)
+                .set_body(types::UploadFileType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -1040,8 +1041,8 @@ impl
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let checkout_req = checkout::Evidence::try_from(req)?;
-        Ok(Some(checkout_req_string))
+        let connector_req = checkout::Evidence::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::enums as api_enums;
-use common_utils::{ext_traits::StringExt, pii::Email};
+use common_utils::{ext_traits::StringExt, pii::Email, request::RequestContent};
 use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
@@ -323,7 +323,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(body.to_string());
+    request.set_body(RequestContent::Json(Box::new(body.to_string())));
     Ok(request)
 }
 
@@ -421,16 +421,10 @@ pub fn mk_add_card_request(
         name_on_card: Some("John Doe".to_string().into()), // [#256]
         nickname: Some("router".to_string()),              //
     };
-    let body = utils::Encode::<AddCardRequest<'_>>::url_encode(&add_card_req)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/addCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(
-        headers::CONTENT_TYPE,
-        "application/x-www-form-urlencoded".into(),
-    );
-    request.set_body(body);
+    request.set_body(RequestContent::FormUrlEncoded(Box::new(add_card_req)));
     Ok(request)
 }
 
@@ -475,7 +469,7 @@ pub async fn mk_get_card_request_hs(
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(body.to_string());
+    request.set_body(RequestContent::Json(Box::new(body.to_string())));
     Ok(request)
 }
 
@@ -489,16 +483,10 @@ pub fn mk_get_card_request<'a>(
         card_id,
     };
 
-    let body = utils::Encode::<GetCard<'_>>::url_encode(&get_card_req)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(
-        headers::CONTENT_TYPE,
-        "application/x-www-form-urlencoded".into(),
-    );
-    request.set_body(body);
+    request.set_body(RequestContent::FormUrlEncoded(Box::new(get_card_req)));
     Ok(request)
 }
 
@@ -555,7 +543,7 @@ pub async fn mk_delete_card_request_hs(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(body.to_string());
+    request.set_body(RequestContent::Json(Box::new(body.to_string())));
     Ok(request)
 }
 
@@ -568,18 +556,12 @@ pub fn mk_delete_card_request<'a>(
         merchant_id,
         card_id,
     };
-    let body = utils::Encode::<GetCard<'_>>::url_encode(&delete_card_req)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
-    request.add_header(
-        headers::CONTENT_TYPE,
-        "application/x-www-form-urlencoded".into(),
-    );
 
-    request.set_body(body);
+    request.set_body(RequestContent::FormUrlEncoded(Box::new(delete_card_req)));
     Ok(request)
 }
 
@@ -627,7 +609,7 @@ pub fn mk_crud_locker_request(
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(body.to_string());
+    request.set_body(RequestContent::Json(Box::new(body.to_string())));
     Ok(request)
 }
 

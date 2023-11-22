@@ -56,10 +56,10 @@ impl std::fmt::Debug for RequestContent {
 }
 
 pub enum RequestContent {
-    Json(Box<dyn masking::ErasedMaskSerialize>),
-    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize>),
+    Json(Box<dyn masking::ErasedMaskSerialize + Send>),
+    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize  + Send>),
     FormData(reqwest::multipart::Form),
-    Xml(Box<dyn masking::ErasedMaskSerialize>),
+    Xml(Box<dyn masking::ErasedMaskSerialize  + Send>),
 }
 
 impl Request {
@@ -192,12 +192,6 @@ impl RequestBody {
         logger::info!(connector_request_body=?body);
         Ok(Self(Secret::new(encoder(body)?)))
     }
-    // pub fn get_inner_value(request_body: Self) -> Secret<String> {
-    //     request_body.0
-    // }
-    // pub fn get_inner_value(request_body: Self) -> Secret<String> {
-    //     request_body.0
-    // }
 
     pub fn get_inner_value(request_body: RequestContent) -> Secret<String> {
         match request_body {
