@@ -2212,6 +2212,7 @@ pub async fn list_customer_payment_method(
             }
 
             enums::PaymentMethod::BankDebit => {
+                // Retrieve the pm_auth connector details so that it can be tokenized
                 let bank_account_connector_details = get_bank_account_connector_details(&pm, key)
                     .await
                     .unwrap_or_else(|err| {
@@ -2233,6 +2234,7 @@ pub async fn list_customer_payment_method(
             ),
         };
 
+        // Retrieve the masked bank details to be sent as a response 
         let bank_details = if pm.payment_method == enums::PaymentMethod::BankDebit {
             get_masked_bank_details(&pm, key)
                 .await
