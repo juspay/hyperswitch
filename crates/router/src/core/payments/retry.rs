@@ -410,6 +410,8 @@ where
                     status: storage_enums::AttemptStatus::Failure,
                     error_reason: Some(error_response.reason.clone()),
                     amount_capturable: Some(0),
+                    surcharge_amount: None,
+                    tax_amount: None,
                     updated_by: storage_scheme.to_string(),
                     unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
