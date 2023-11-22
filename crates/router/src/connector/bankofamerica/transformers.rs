@@ -199,6 +199,22 @@ impl From<CardIssuer> for String {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub enum PaymentSolution {
+    ApplePay,
+    GooglePay,
+}
+
+impl From<PaymentSolution> for String {
+    fn from(solution: PaymentSolution) -> Self {
+        let payment_solution = match solution {
+            PaymentSolution::ApplePay => "001",
+            PaymentSolution::GooglePay => "012",
+        };
+        payment_solution.to_string()
+    }
+}
+
 impl
     From<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -206,12 +222,11 @@ impl
     )> for OrderInformationWithBill
 {
     fn from(
-        value: (
+        (item, bill_to): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             BillTo,
         ),
     ) -> Self {
-        let (item, bill_to) = value;
         Self {
             amount_details: Amount {
                 total_amount: item.amount.to_owned(),
@@ -225,22 +240,21 @@ impl
 impl
     From<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
-        Option<String>,
+        Option<PaymentSolution>,
     )> for ProcessingInformation
 {
     fn from(
-        value: (
+        (item, solution): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
-            Option<String>,
+            Option<PaymentSolution>,
         ),
     ) -> Self {
-        let (item, payment_solution) = value;
         Self {
             capture: matches!(
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             ),
-            payment_solution,
+            payment_solution: solution.map(|s| String::from(s)),
         }
     }
 }
@@ -269,13 +283,11 @@ impl
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (
+        (item, ccard): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             payments::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, ccard) = value;
-
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
@@ -316,13 +328,11 @@ impl
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (
+        (item, google_pay_data): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             payments::GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, google_pay_data) = value;
-
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
@@ -335,8 +345,8 @@ impl
             },
         });
 
-        let payment_solution = Some("012".to_string());
-        let processing_information = ProcessingInformation::from((item, payment_solution));
+        let processing_information =
+            ProcessingInformation::from((item, Some(PaymentSolution::GooglePay)));
         let client_reference_information = ClientReferenceInformation::from(item);
 
         Ok(Self {
