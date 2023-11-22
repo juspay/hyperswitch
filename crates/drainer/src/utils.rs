@@ -1,5 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::tracing;
+
 use error_stack::IntoReport;
 use redis_interface as redis;
 
@@ -11,6 +13,7 @@ use crate::{
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
+#[router_env::instrument(skip_all)]
 pub async fn is_stream_available(stream_index: u8, store: Arc<services::Store>) -> bool {
     let stream_key_flag = get_stream_key_flag(store.clone(), stream_index);
 
@@ -132,7 +135,6 @@ pub async fn increment_stream_index(
     interval: &mut tokio::time::Interval,
 ) -> (u8, u8) {
     if index == total_streams - 1 {
-        interval.tick().await;
         match jobs_picked {
             0 => metrics::CYCLES_COMPLETED_UNSUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
             _ => metrics::CYCLES_COMPLETED_SUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
