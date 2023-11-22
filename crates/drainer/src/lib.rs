@@ -64,11 +64,9 @@ pub async fn start_drainer(
                     ));
                     jobs_picked += 1;
                 }
-                (stream_index, jobs_picked) = utils::increment_stream_index(
-                    (stream_index, jobs_picked),
-                    number_of_streams,
-                )
-                .await;
+                (stream_index, jobs_picked) =
+                    utils::increment_stream_index((stream_index, jobs_picked), number_of_streams)
+                        .await;
                 loop_interval.tick().await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
