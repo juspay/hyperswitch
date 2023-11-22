@@ -100,9 +100,21 @@ pub struct CaptureOptions {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentInformation {
-    card: Option<Card>,
-    fluid_data: Option<FluidData>,
+pub struct CardPaymentInformation {
+    card: Card,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentInformation {
+    fluid_data: FluidData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaymentInformation {
+    Cards(CardPaymentInformation),
+    GooglePay(GooglePayPaymentInformation),
 }
 
 #[derive(Debug, Serialize)]
@@ -187,6 +199,62 @@ impl From<CardIssuer> for String {
     }
 }
 
+impl
+    From<(
+        &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        BillTo,
+    )> for OrderInformationWithBill
+{
+    fn from(
+        value: (
+            &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+            BillTo,
+        ),
+    ) -> Self {
+        let (item, bill_to) = value;
+        Self {
+            amount_details: Amount {
+                total_amount: item.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            },
+            bill_to,
+        }
+    }
+}
+
+impl
+    From<(
+        &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        Option<String>,
+    )> for ProcessingInformation
+{
+    fn from(
+        value: (
+            &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+            Option<String>,
+        ),
+    ) -> Self {
+        let (item, payment_solution) = value;
+        Self {
+            capture: matches!(
+                item.router_data.request.capture_method,
+                Some(enums::CaptureMethod::Automatic) | None
+            ),
+            payment_solution,
+        }
+    }
+}
+
+impl From<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
+    for ClientReferenceInformation
+{
+    fn from(item: &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
+        Self {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
@@ -207,43 +275,29 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, ccard) = value;
+
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let order_information = OrderInformationWithBill::from((item, bill_to));
 
-        let order_information = OrderInformationWithBill {
-            amount_details: Amount {
-                total_amount: item.amount.to_owned(),
-                currency: item.router_data.request.currency,
-            },
-            bill_to,
-        };
         let card_issuer = ccard.get_card_issuer();
         let card_type = match card_issuer {
             Ok(issuer) => Some(String::from(issuer)),
             Err(_) => None,
         };
-        let payment_information = PaymentInformation {
-            card: Some(Card {
+
+        let payment_information = PaymentInformation::Cards(CardPaymentInformation {
+            card: Card {
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
                 security_code: ccard.card_cvc,
                 card_type,
-            }),
-            fluid_data: None,
-        };
+            },
+        });
 
-        let processing_information = ProcessingInformation {
-            capture: matches!(
-                item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
-            ),
-            payment_solution: None,
-        };
-
-        let client_reference_information = ClientReferenceInformation {
-            code: Some(item.router_data.connector_request_reference_id.clone()),
-        };
+        let processing_information = ProcessingInformation::from((item, None));
+        let client_reference_information = ClientReferenceInformation::from(item);
 
         Ok(Self {
             processing_information,
@@ -268,37 +322,22 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, google_pay_data) = value;
+
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let order_information = OrderInformationWithBill::from((item, bill_to));
 
-        let order_information = OrderInformationWithBill {
-            amount_details: Amount {
-                total_amount: item.amount.to_owned(),
-                currency: item.router_data.request.currency,
-            },
-            bill_to,
-        };
-
-        let payment_information = PaymentInformation {
-            card: None,
-            fluid_data: Some(FluidData {
+        let payment_information = PaymentInformation::GooglePay(GooglePayPaymentInformation {
+            fluid_data: FluidData {
                 value: Secret::from(
                     consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
                 ),
-            }),
-        };
+            },
+        });
 
-        let processing_information = ProcessingInformation {
-            capture: matches!(
-                item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
-            ),
-            payment_solution: Some("012".to_string()),
-        };
-
-        let client_reference_information = ClientReferenceInformation {
-            code: Some(item.router_data.connector_request_reference_id.clone()),
-        };
+        let payment_solution = Some("012".to_string());
+        let processing_information = ProcessingInformation::from((item, payment_solution));
+        let client_reference_information = ClientReferenceInformation::from(item);
 
         Ok(Self {
             processing_information,
