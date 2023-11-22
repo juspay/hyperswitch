@@ -28,7 +28,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "sync")]
+#[operation(operations = "all", flow = "sync")]
 pub struct PaymentStatus;
 
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> Operation<F, api::PaymentsRequest, Ctx>

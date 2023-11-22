@@ -132,9 +132,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileDelete
             | Flow::BusinessProfileList => Self::Business,
 
+            Flow::PaymentLinkRetrieve | Flow::PaymentLinkInitiate | Flow::PaymentLinkList => {
+                Self::PaymentLink
+            }
+
             Flow::Verification => Self::Verification,
 
-            Flow::PaymentLinkInitiate | Flow::PaymentLinkRetrieve => Self::PaymentLink,
             Flow::RustLockerMigration => Self::RustLockerMigration,
             Flow::GsmRuleCreate
             | Flow::GsmRuleRetrieve

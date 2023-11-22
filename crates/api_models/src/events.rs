@@ -36,6 +36,7 @@ impl_misc_api_event_type!(
     MandateResponse,
     MandateRevokedResponse,
     RetrievePaymentLinkRequest,
+    PaymentLinkListConstraints,
     MandateId,
     DisputeListConstraints,
     RetrieveApiKeyResponse,
