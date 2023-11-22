@@ -1,5 +1,6 @@
 pub mod transformers;
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use api_models::payments as api_payments;
 use error_stack::{IntoReport, ResultExt};
@@ -158,11 +159,6 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
-        let klarna_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -179,7 +175,7 @@ impl
                 .headers(types::PaymentsSessionType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsSessionType::get_request_body(
+                .set_body(types::PaymentsSessionType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -423,11 +419,6 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
-        let klarna_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -446,7 +437,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

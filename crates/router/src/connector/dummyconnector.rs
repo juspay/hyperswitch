@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
@@ -191,11 +192,6 @@ impl<const T: u8>
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = transformers::DummyConnectorPaymentsRequest::<T>::try_from(req)?;
-        let dummmy_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<transformers::DummyConnectorPaymentsRequest::<T>>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -214,7 +210,7 @@ impl<const T: u8>
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -437,11 +433,6 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = transformers::DummyConnectorRefundRequest::try_from(req)?;
-        let dummmy_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<transformers::DummyConnectorRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -457,7 +448,7 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -528,7 +519,7 @@ impl<const T: u8> ConnectorIntegration<api::RSync, types::RefundsData, types::Re
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

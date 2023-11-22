@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use api_models::enums;
 use base64::Engine;
@@ -250,11 +251,6 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_request = square::SquareTokenRequest::try_from(req)?;
 
-        let square_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<square::SquareTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -269,7 +265,7 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(
+                .set_body(types::TokenizationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -420,11 +416,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = square::SquarePaymentsRequest::try_from(req)?;
 
-        let square_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<square::SquarePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -443,7 +434,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -712,11 +703,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = square::SquareRefundRequest::try_from(req)?;
-        let square_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<square::SquareRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -732,7 +718,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

@@ -1,5 +1,6 @@
 pub mod transformers;
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
@@ -192,11 +193,6 @@ impl
             req,
         ))?;
         let connector_req = rapyd::RapydPaymentsRequest::try_from(&connector_router_data)?;
-        let rapyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<rapyd::RapydPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -234,7 +230,7 @@ impl
                 self, req, connectors,
             )?)
             .headers(headers)
-            .body(types::PaymentsAuthorizeType::get_request_body(
+            .set_body(types::PaymentsAuthorizeType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -505,11 +501,6 @@ impl
             req,
         ))?;
         let connector_req = rapyd::CaptureRequest::try_from(&connector_router_data)?;
-        let rapyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -545,7 +536,7 @@ impl
                 self, req, connectors,
             )?)
             .headers(headers)
-            .body(types::PaymentsCaptureType::get_request_body(
+            .set_body(types::PaymentsCaptureType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -646,11 +637,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req,
         ))?;
         let connector_req = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
-        let rapyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<rapyd::RapydRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -680,7 +666,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(headers)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -153,11 +154,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = mollie::MollieCardTokenRequest::try_from(req)?;
-        let mollie_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<mollie::MollieCardTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -171,7 +167,7 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(
+                .set_body(types::TokenizationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -245,11 +241,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = mollie::MolliePaymentsRequest::try_from(&router_obj)?;
-        let mollie_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<mollie::MolliePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -268,7 +259,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -442,11 +433,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = mollie::MollieRefundRequest::try_from(&router_obj)?;
-        let mollie_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -462,7 +448,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

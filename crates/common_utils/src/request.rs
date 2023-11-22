@@ -2,6 +2,7 @@ use masking::{Maskable, Secret};
 #[cfg(feature = "logs")]
 use router_env::logger;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::errors;
 
@@ -191,7 +192,17 @@ impl RequestBody {
         logger::info!(connector_request_body=?body);
         Ok(Self(Secret::new(encoder(body)?)))
     }
-    pub fn get_inner_value(request_body: Self) -> Secret<String> {
-        request_body.0
+    // pub fn get_inner_value(request_body: Self) -> Secret<String> {
+    //     request_body.0
+    // }
+    // pub fn get_inner_value(request_body: Self) -> Secret<String> {
+    //     request_body.0
+    // }
+
+    pub fn get_inner_value(request_body: RequestContent) -> Secret<String> {
+        match request_body {
+            RequestContent::Json(i) | RequestContent::FormUrlEncoded(i) | RequestContent::Xml(i) => serde_json::to_string(&i.raw_serialize().unwrap_or(json!(""))).unwrap_or_default().into(),
+            RequestContent::FormData(_) => String::new().into(),
+        }
     }
 }

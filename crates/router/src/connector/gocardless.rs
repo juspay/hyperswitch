@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use api_models::enums::enums;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
@@ -156,11 +157,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = gocardless::GocardlessCustomerRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessCustomerRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -179,7 +175,7 @@ impl
                 .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::ConnectorCustomerType::get_request_body(
+                .set_body(types::ConnectorCustomerType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -254,11 +250,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = gocardless::GocardlessBankAccountRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessBankAccountRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -273,7 +264,7 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(
+                .set_body(types::TokenizationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -375,11 +366,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = gocardless::GocardlessMandateRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessMandateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -396,7 +382,7 @@ impl
                     .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                    .body(types::SetupMandateType::get_request_body(
+                    .set_body(types::SetupMandateType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -466,11 +452,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         let connector_req =
             gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -489,7 +470,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -634,11 +615,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -654,7 +630,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

@@ -242,7 +242,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
                         .headers(types::PaymentsSessionType::get_headers(
                             self, req, connectors,
                         )?)
-                        .body(types::PaymentsSessionType::get_request_body(
+                        .set_body(types::PaymentsSessionType::get_request_body(
                             self, req, connectors,
                         )?)
                         .build(),
@@ -265,11 +265,6 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_request = braintree::BraintreeSessionRequest::try_from(req)?;
-        let braintree_session_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree::BraintreeSessionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -332,11 +327,6 @@ impl
         let connector_request =
             braintree_graphql_transformers::BraintreeTokenRequest::try_from(req)?;
 
-        let braintree_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree_graphql_transformers::BraintreeTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -353,7 +343,7 @@ impl
                     .url(&types::TokenizationType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                    .body(types::TokenizationType::get_request_body(
+                    .set_body(types::TokenizationType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -462,11 +452,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                         &connector_router_data,
                     )?;
 
-                let braintree_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree_graphql_transformers::BraintreeCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
             false => Err(errors::ConnectorError::NotImplemented(
@@ -491,7 +476,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     .headers(types::PaymentsCaptureType::get_headers(
                         self, req, connectors,
                     )?)
-                    .body(types::PaymentsCaptureType::get_request_body(
+                    .set_body(types::PaymentsCaptureType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -606,11 +591,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 let connector_request =
                     braintree_graphql_transformers::BraintreePSyncRequest::try_from(req)?;
 
-                let braintree_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree_graphql_transformers::BraintreePSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
             false => Ok(None),
@@ -630,7 +610,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                    .body(types::PaymentsSyncType::get_request_body(
+                    .set_body(types::PaymentsSyncType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -641,7 +621,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                    .body(types::PaymentsSyncType::get_request_body(
+                    .set_body(types::PaymentsSyncType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -764,7 +744,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -790,20 +770,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
                         &connector_router_data,
                     )?;
-                let braintree_payment_request = types::RequestBody::log_and_get_request_body(
-                    &connector_request,
-                    utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(braintree_payment_request))
             }
             false => {
                 let connector_request = braintree::BraintreePaymentsRequest::try_from(req)?;
-                let braintree_payment_request = types::RequestBody::log_and_get_request_body(
-                    &connector_request,
-                    utils::Encode::<braintree::BraintreePaymentsRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(braintree_payment_request))
             }
         }
@@ -937,7 +907,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -954,11 +924,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             true => {
                 let connector_request =
                     braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
-                let braintree_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree_graphql_transformers::BraintreeCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
             false => Ok(None),
@@ -1093,20 +1058,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                     braintree_graphql_transformers::BraintreeRefundRequest::try_from(
                         connector_router_data,
                     )?;
-                let braintree_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree_graphql_transformers::BraintreeRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(braintree_refund_request))
             }
             false => {
                 let connector_request = braintree::BraintreeRefundRequest::try_from(req)?;
-                let braintree_refund_request = types::RequestBody::log_and_get_request_body(
-                    &connector_request,
-                    utils::Encode::<braintree::BraintreeRefundRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(braintree_refund_request))
             }
         }
@@ -1124,7 +1079,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1221,11 +1176,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             true => {
                 let connector_request =
                     braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
-                let braintree_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<braintree_graphql_transformers::BraintreeRSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(braintree_refund_request))
             }
             false => Ok(None),
@@ -1245,7 +1195,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                    .body(types::RefundSyncType::get_request_body(
+                    .set_body(types::RefundSyncType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -1624,11 +1574,6 @@ impl
                     braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
                         &connector_router_data,
                     )?;
-                let braintree_payment_request = types::RequestBody::log_and_get_request_body(
-                    &connector_request,
-                    utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(braintree_payment_request))
             }
             false => Err(errors::ConnectorError::NotImplemented(
@@ -1653,7 +1598,7 @@ impl
                     .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                         self, req, connectors,
                     )?)
-                    .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),

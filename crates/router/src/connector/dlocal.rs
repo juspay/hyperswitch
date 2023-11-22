@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use common_utils::{
     crypto::{self, SignMessage},
@@ -56,16 +57,8 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
     {
-        let dlocal_req = match self.get_request_body(req, connectors)? {
-            Some(val) => val,
-            None => types::RequestBody::log_and_get_request_body("".to_string(), Ok)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-        };
-
-        let date = date_time::date_as_yyyymmddthhmmssmmmz()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let dlocal_req = self.get_request_body(req, connectors)?;
+        
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let sign_req: String = format!(
             "{}{}{}",
@@ -220,11 +213,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
-        let dlocal_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<dlocal::DlocalPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -243,7 +231,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -375,11 +363,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
-        let dlocal_payments_capture_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<dlocal::DlocalPaymentsCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -396,7 +379,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -533,11 +516,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
-        let dlocal_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<dlocal::DlocalRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -553,7 +531,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

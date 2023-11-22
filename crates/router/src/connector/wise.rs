@@ -1,5 +1,6 @@
 pub mod transformers;
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "payouts")]
@@ -329,11 +330,6 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WisePayoutQuoteRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WisePayoutQuoteRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -347,7 +343,7 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
             .url(&types::PayoutQuoteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutQuoteType::get_headers(self, req, connectors)?)
-            .body(types::PayoutQuoteType::get_request_body(
+            .set_body(types::PayoutQuoteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -407,11 +403,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WiseRecipientCreateRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WiseRecipientCreateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -427,7 +418,7 @@ impl
             .headers(types::PayoutRecipientType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutRecipientType::get_request_body(
+            .set_body(types::PayoutRecipientType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -525,11 +516,6 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WisePayoutCreateRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WisePayoutCreateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -543,7 +529,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCreateType::get_request_body(
+            .set_body(types::PayoutCreateType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -624,11 +610,6 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WisePayoutFulfillRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WisePayoutFulfillRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -644,7 +625,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .headers(types::PayoutFulfillType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutFulfillType::get_request_body(
+            .set_body(types::PayoutFulfillType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

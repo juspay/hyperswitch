@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use base64::Engine;
 use diesel_models::enums;
@@ -275,11 +276,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = cybersource::CybersourceZeroMandateRequest::try_from(req)?;
-        let cybersource_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<cybersource::CybersourceZeroMandateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -294,7 +290,7 @@ impl
                 .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .body(types::SetupMandateType::get_request_body(
+                .set_body(types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -382,11 +378,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         ))?;
         let connector_req =
             cybersource::CybersourcePaymentsCaptureRequest::try_from(&connector_router_data)?;
-        let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -402,7 +393,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -480,10 +471,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(Some(
-            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-        ))
+        Ok(RequestContent::Json(Box::new(json!({}))))
     }
     fn build_request(
         &self,
@@ -567,11 +555,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         let connector_req =
             cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
-        let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -589,7 +572,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .headers(types::PaymentsAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
-            .body(self.get_request_body(req, connectors)?)
+            .set_body(self.get_request_body(req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -658,10 +641,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(Some(
-            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-        ))
+        Ok(RequestContent::Json(serde_json::json!({})))
     }
 
     fn build_request(
@@ -675,7 +655,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(self.get_request_body(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -754,11 +734,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         ))?;
         let connector_req =
             cybersource::CybersourceRefundRequest::try_from(&connector_router_data)?;
-        let cybersource_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<cybersource::CybersourceRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(cybersource_refund_request))
     }
     fn build_request(
@@ -774,7 +749,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(self.get_request_body(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -843,7 +818,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

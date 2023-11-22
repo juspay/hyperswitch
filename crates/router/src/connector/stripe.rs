@@ -147,11 +147,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
-        let pre_processing_request = types::RequestBody::log_and_get_request_body(
-            &req,
-            utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Some(pre_processing_request))
     }
@@ -171,7 +166,7 @@ impl
                 .headers(types::PaymentsPreProcessingType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsPreProcessingType::get_request_body(
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -274,11 +269,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         connector_req = stripe::CustomerRequest::try_from(req)?;
-        let stripe_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<stripe::CustomerRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -297,7 +287,7 @@ impl
                 .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::ConnectorCustomerType::get_request_body(
+                .set_body(types::ConnectorCustomerType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -404,11 +394,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         connector_req = stripe::TokenRequest::try_from(req)?;
-        let stripe_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<stripe::TokenRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -423,7 +408,7 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(
+                .set_body(types::TokenizationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -536,11 +521,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         connector_req = stripe::CaptureRequest::try_from(req)?;
-        let stripe_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<stripe::CaptureRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -557,7 +537,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -681,7 +661,7 @@ impl
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(
+                .set_body(types::PaymentsSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -830,11 +810,6 @@ impl
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
-                let request = types::RequestBody::log_and_get_request_body(
-                    &req,
-                    utils::Encode::<stripe::PaymentIntentRequest>::url_encode,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(request))
             }
         }
@@ -855,7 +830,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -968,11 +943,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         connector_req = stripe::CancelRequest::try_from(req)?;
-        let stripe_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<stripe::CancelRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -986,7 +956,7 @@ impl
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-            .body(types::PaymentsVoidType::get_request_body(
+            .set_body(types::PaymentsVoidType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1105,11 +1075,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::SetupIntentRequest::try_from(req)?;
-        let stripe_req = types::RequestBody::log_and_get_request_body(
-            &req,
-            utils::Encode::<stripe::SetupIntentRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1128,7 +1093,7 @@ impl
                 .url(&Verify::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(Verify::get_headers(self, req, connectors)?)
-                .body(Verify::get_request_body(self, req, connectors)?)
+                .set_body(Verify::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -1242,11 +1207,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         connector_req = stripe::RefundRequest::try_from(req)?;
-        let stripe_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<stripe::RefundRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1262,7 +1222,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1365,7 +1325,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1724,11 +1684,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let stripe_req = stripe::Evidence::try_from(req)?;
-        let stripe_req_string = types::RequestBody::log_and_get_request_body(
-            &stripe_req,
-            utils::Encode::<stripe::Evidence>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req_string))
     }
 
@@ -1744,7 +1699,7 @@ impl
             .headers(types::SubmitEvidenceType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::SubmitEvidenceType::get_request_body(
+            .set_body(types::SubmitEvidenceType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

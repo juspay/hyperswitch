@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
@@ -184,11 +185,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         let connector_req = prophetpay::ProphetpayTokenRequest::try_from(&connector_router_data)?;
 
-        let prophetpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -207,7 +203,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -286,11 +282,6 @@ impl
         let connector_req =
             prophetpay::ProphetpayCompleteRequest::try_from(&connector_router_data)?;
 
-        let prophetpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -309,7 +300,7 @@ impl
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -376,11 +367,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = prophetpay::ProphetpaySyncRequest::try_from(req)?;
 
-        let prophetpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -395,7 +381,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(
+                .set_body(types::PaymentsSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -467,11 +453,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req =prophetpay::ProphetpayVoidRequest::try_from(req)?;
 
-        let prophetpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     */
@@ -548,11 +529,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = prophetpay::ProphetpayRefundRequest::try_from(&connector_router_data)?;
-        let prophetpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<prophetpay::ProphetpayRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -568,7 +544,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -633,11 +609,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = prophetpay::ProphetpayRefundSyncRequest::try_from(req)?;
 
-        let prophetpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<prophetpay::ProphetpayTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -652,7 +623,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use std::fmt::Debug;
+use common_utils::request::RequestContent;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
@@ -186,11 +187,6 @@ impl
         ))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -204,7 +200,7 @@ impl
                 .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .body(types::SetupMandateType::get_request_body(
+                .set_body(types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -318,11 +314,6 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenCaptureRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -338,7 +329,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -460,11 +451,6 @@ impl
                     }
                 };
 
-                let adyen_request = types::RequestBody::log_and_get_request_body(
-                    &redirection_request,
-                    utils::Encode::<adyen::AdyenRedirectRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                 Ok(Some(adyen_request))
             }
@@ -497,7 +483,7 @@ impl
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                    .body(types::PaymentsSyncType::get_request_body(
+                    .set_body(types::PaymentsSyncType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -650,11 +636,6 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
-        let request_body = types::RequestBody::log_and_get_request_body(
-        &connector_req,
-        common_utils::ext_traits::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
-    )
-    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(request_body))
     }
 
@@ -674,7 +655,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -768,11 +749,6 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenBalanceRequest<'_>>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -789,7 +765,7 @@ impl
                 .headers(types::PaymentsBalanceType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsBalanceType::get_request_body(
+                .set_body(types::PaymentsBalanceType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -864,11 +840,6 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenCancelRequest::try_from(req)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -882,7 +853,7 @@ impl
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -976,11 +947,6 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutCancelRequest::try_from(req)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -994,7 +960,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .url(&types::PayoutCancelType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCancelType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCancelType::get_request_body(
+            .set_body(types::PayoutCancelType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1070,11 +1036,6 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             req,
         ))?;
         let connector_req = adyen::AdyenPayoutCreateRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutCreateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1088,7 +1049,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCreateType::get_request_body(
+            .set_body(types::PayoutCreateType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1165,11 +1126,6 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutEligibilityRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1187,7 +1143,7 @@ impl
             .headers(types::PayoutEligibilityType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutEligibilityType::get_request_body(
+            .set_body(types::PayoutEligibilityType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1277,11 +1233,6 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             req,
         ))?;
         let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutFulfillRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1297,7 +1248,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .headers(types::PayoutFulfillType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutFulfillType::get_request_body(
+            .set_body(types::PayoutFulfillType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1379,11 +1330,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         ))?;
         let connector_req = adyen::AdyenRefundRequest::try_from(&connector_router_data)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1400,7 +1346,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::RefundExecuteType::get_request_body(
+                .set_body(types::RefundExecuteType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

@@ -1,8 +1,8 @@
 mod result_codes;
 pub mod transformers;
 use std::fmt::Debug;
-
 use common_utils::request::RequestContent;
+
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
@@ -202,7 +202,7 @@ impl
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(
+                .set_body(types::PaymentsSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -293,11 +293,6 @@ impl
             req,
         ))?;
         let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
-        let aci_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciPaymentsRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -321,7 +316,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -395,11 +390,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = aci::AciCancelRequest::try_from(req)?;
-        let aci_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciCancelRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -413,7 +403,7 @@ impl
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -497,11 +487,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req,
         ))?;
         let connector_req = aci::AciRefundRequest::try_from(&connector_router_data)?;
-        let body = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciRefundRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -518,7 +503,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::RefundExecuteType::get_request_body(
+                .set_body(types::RefundExecuteType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
