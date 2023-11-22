@@ -326,6 +326,20 @@ impl Routing {
                     .route(web::post().to(cloud_routing::routing_unlink_config)),
             )
             .service(
+                web::resource("/decision")
+                    .route(web::put().to(cloud_routing::upsert_decision_manager_config))
+                    .route(web::get().to(cloud_routing::retrieve_decision_manager_config))
+                    .route(web::delete().to(cloud_routing::delete_decision_manager_config)),
+            )
+            .service(
+                web::resource("/decision/surcharge")
+                    .route(web::put().to(cloud_routing::upsert_surcharge_decision_manager_config))
+                    .route(web::get().to(cloud_routing::retrieve_surcharge_decision_manager_config))
+                    .route(
+                        web::delete().to(cloud_routing::delete_surcharge_decision_manager_config),
+                    ),
+            )
+            .service(
                 web::resource("/{algorithm_id}")
                     .route(web::get().to(cloud_routing::routing_retrieve_config)),
             )
