@@ -678,6 +678,8 @@ diesel::table! {
         #[max_length = 64]
         custom_merchant_name -> Nullable<Varchar>,
         payment_link_config -> Nullable<Jsonb>,
+        #[max_length = 255]
+        description -> Nullable<Varchar>,
     }
 }
 
@@ -755,7 +757,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
     }

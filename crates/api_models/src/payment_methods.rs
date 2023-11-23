@@ -325,6 +325,9 @@ pub struct ResponsePaymentMethodTypes {
         }
     "#)]
     pub surcharge_details: Option<SurchargeDetailsResponse>,
+
+    /// auth service connector label for this payment method type, if exists
+    pub pm_auth_connector: Option<String>,
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -808,10 +811,20 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
 
+    /// Masked bank details from PM auth services
+    #[schema(example = json!({"mask": "0000"}))]
+    pub bank: Option<MaskedBankDetails>,
+
     /// Whether this payment method requires CVV to be collected
     #[schema(example = true)]
     pub requires_cvv: bool,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct MaskedBankDetails {
+    pub mask: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payment_methods};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentCreate;
 
 /// The `get_trackers` function for `PaymentsCreate` is an entrypoint for new payments
@@ -75,6 +75,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 db,
                 state,
                 amount,
+                request.description.clone(),
             )
             .await?
         } else {
@@ -279,15 +280,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let setup_mandate = setup_mandate.map(MandateData::from);
 
         let surcharge_details = request.surcharge_details.map(|surcharge_details| {
-            payment_methods::SurchargeDetailsResponse {
-                surcharge: payment_methods::Surcharge::Fixed(surcharge_details.surcharge_amount),
-                tax_on_surcharge: None,
-                surcharge_amount: surcharge_details.surcharge_amount,
-                tax_on_surcharge_amount: surcharge_details.tax_amount.unwrap_or(0),
-                final_amount: payment_attempt.amount
-                    + surcharge_details.surcharge_amount
-                    + surcharge_details.tax_amount.unwrap_or(0),
-            }
+            surcharge_details.get_surcharge_details_object(payment_attempt.amount)
         });
 
         let payment_data = PaymentData {
@@ -546,6 +539,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_amount_to_capture_in_create_call_request(request)?;
+
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
@@ -785,6 +780,7 @@ pub fn payments_create_request_validation(
     Ok((amount, currency))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_object: api_models::payments::PaymentLinkObject,
@@ -793,6 +789,7 @@ async fn create_payment_link(
     db: &dyn StorageInterface,
     state: &AppState,
     amount: api::Amount,
+    description: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
@@ -823,6 +820,7 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         fulfilment_time: payment_link_object.link_expiry,
+        description,
         payment_link_config,
         custom_merchant_name: payment_link_object.custom_merchant_name,
     };
