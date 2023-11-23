@@ -49,12 +49,7 @@ In addition to the database, Hyperswitch incorporates Redis for two main purpose
 
 ## Locker
 
-The application utilizes a Locker, which consists of two distinct services: Temporary Locker and Permanent Locker. These services are responsible for securely storing payment-method information and adhere strictly to **Payment Card Industry Data Security Standard (PCI DSS)** compliance standards, ensuring that all payment-related data is handled and stored securely.
-
-- **Temporary Locker:** The Temporary Locker service handles the temporary storage of payment-method information. This temporary storage facilitates the smooth processing of transactions and reduces the exposure of sensitive information.
-- **Permanent Locker:** The Permanent Locker service is responsible for the long-term storage of payment-method related data. It securely stores card details, such as cardholder information or payment method details, for future reference or recurring payments.
-
-> Currently, Locker service is not part of open-source
+The application utilizes a rust locker (Tarturus) which is built with a GDPR compliant personal identifiable information (PII) storage and secure encryption algorithms to be fully compliant with **Payment Card Industry Data Security Standard (PCI DSS)** requirements ensuring that all payment-related data is handled and stored securely. You can find the source code of locker [here](https://github.com/juspay/hyperswitch-card-vault).
 
 ## Monitoring
 
