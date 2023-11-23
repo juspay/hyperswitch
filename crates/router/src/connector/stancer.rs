@@ -29,6 +29,8 @@ use crate::{
 
 use self::models::{CreatePaymentRequest, CreateRefundRequest, Payment, Refund};
 
+use super::utils::PaymentsSyncRequestData;
+
 #[derive(Debug, Clone)]
 pub struct Stancer;
 
@@ -276,10 +278,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
+        req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(_connectors),
+            "v1/checkout",
+            req.request.get_connector_transaction_id()?
+        ))
     }
 
     fn build_request(
