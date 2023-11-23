@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.84.0+hotfix.2 (2023-11-23)
+
+### Bug Fixes
+
+- Amount_captured goes to 0 for 3ds payments ([#2955](https://github.com/juspay/hyperswitch/pull/2955)) ([`5c9e4f5`](https://github.com/juspay/hyperswitch/commit/5c9e4f58e3c2ce0817253abb5f5878cc374ae74e))
+
+**Full Changelog:** [`v1.84.0+hotfix.1...v1.84.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.84.0+hotfix.1...v1.84.0+hotfix.2)
+
+- - -
+
 ## 1.84.0+hotfix.1 (2023-11-22)
 
 ### Features
