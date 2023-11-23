@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{atomic, Arc},
+};
 
 use error_stack::IntoReport;
 use redis_interface as redis;
@@ -127,19 +130,20 @@ pub fn parse_stream_entries<'a>(
 // Here the output is in the format (stream_index, jobs_picked),
 // similar to the first argument of the function
 pub async fn increment_stream_index(
-    (index, jobs_picked): (u8, u8),
+    (index, jobs_picked): (u8, Arc<atomic::AtomicU8>),
     total_streams: u8,
     interval: &mut tokio::time::Interval,
-) -> (u8, u8) {
+) -> u8 {
     if index == total_streams - 1 {
         interval.tick().await;
-        match jobs_picked {
+        match jobs_picked.load(atomic::Ordering::SeqCst) {
             0 => metrics::CYCLES_COMPLETED_UNSUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
             _ => metrics::CYCLES_COMPLETED_SUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
         }
-        (0, 0)
+        jobs_picked.store(0, atomic::Ordering::SeqCst);
+        0
     } else {
-        (index + 1, jobs_picked)
+        index + 1
     }
 }
 
