@@ -49,7 +49,7 @@ In addition to the database, Hyperswitch incorporates Redis for two main purpose
 
 ## Locker
 
-The application utilizes a rust locker (Tarturus) which is built with a GDPR compliant personal identifiable information (PII) storage and secure encryption algorithms to be fully compliant with **Payment Card Industry Data Security Standard (PCI DSS)** requirements ensuring that all payment-related data is handled and stored securely. You can find the source code of locker [here](https://github.com/juspay/hyperswitch-card-vault).
+The application utilizes a Rust locker built with a GDPR compliant PII (personal identifiable information) storage. It also uses secure encryption algorithms to be fully compliant with **PCI DSS** (Payment Card Industry Data Security Standard) requirements, this ensures that all payment-related data is handled and stored securely. You can find the source code of locker [here](https://github.com/juspay/hyperswitch-card-vault).
 
 ## Monitoring
 
