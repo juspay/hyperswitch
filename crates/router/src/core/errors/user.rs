@@ -27,6 +27,10 @@ pub enum UserErrors {
     InvalidEmailError,
     #[error("DuplicateOrganizationId")]
     DuplicateOrganizationId,
+    #[error("MerchantIdNotFound")]
+    MerchantIdNotFound,
+    #[error("InvalidOldPassword")]
+    InvalidOldPassword,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -71,6 +75,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 sub_code,
                 21,
                 "An Organization with the id already exists",
+                None,
+            )),
+            Self::MerchantIdNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
+            }
+            Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
+                sub_code,
+                6,
+                "Old password incorrect. Please enter the correct password",
                 None,
             )),
         }

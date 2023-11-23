@@ -17,10 +17,10 @@ use crate::{
     configs::settings,
     core::{
         api_keys,
-        errors::{self, utils::StorageErrorExt, RouterResult},
+        errors::{self, utils::StorageErrorExt, RouterResult, UserErrors, UserResult},
     },
-    db::StorageInterface,
-    routes::app::AppStateInfo,
+    db::{user::UserInterface, StorageInterface},
+    routes::{app::AppStateInfo, AppState},
     services::api,
     types::domain,
     utils::OptionExt,
@@ -96,7 +96,7 @@ impl AuthToken {
         role_id: String,
         settings: &settings::Settings,
         org_id: String,
-    ) -> errors::UserResult<String> {
+    ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let token_payload = Self {
@@ -107,6 +107,55 @@ impl AuthToken {
             org_id,
         };
         jwt::generate_jwt(&token_payload, settings).await
+    }
+}
+
+#[derive(Clone)]
+pub struct UserFromToken {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub org_id: String,
+}
+
+impl UserFromToken {
+    pub async fn get_merchant_account_from_db(
+        &self,
+        state: AppState,
+    ) -> UserResult<domain::MerchantAccount> {
+        let key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                &self.merchant_id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(UserErrors::MerchantIdNotFound)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(UserErrors::MerchantIdNotFound)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+        Ok(merchant_account)
+    }
+
+    pub async fn get_user(&self, state: AppState) -> UserResult<diesel_models::user::User> {
+        let user = UserInterface::find_user_by_id(&*state.store, &self.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+        Ok(user)
     }
 }
 
@@ -408,6 +457,34 @@ where
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
         Ok((
             (),
+            AuthenticationType::MerchantJWT {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
             AuthenticationType::MerchantJWT {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
