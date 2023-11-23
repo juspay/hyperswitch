@@ -612,6 +612,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             .clone()
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(order_details.to_owned(), request.amount)?;
+        }
+
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
