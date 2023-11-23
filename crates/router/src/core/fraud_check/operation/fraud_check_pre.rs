@@ -136,7 +136,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
-        state_vas: &'a AppState,
+        state: &'a AppState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -144,7 +144,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         key_store: domain::MerchantKeyStore,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _>(
-            state_vas,
+            state,
             payment_data,
             frm_data.to_owned(),
             merchant_account,
@@ -170,7 +170,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
 
     async fn pre_payment_frm<'a>(
         &'a self,
-        state_vas: &'a AppState,
+        state: &'a AppState,
         payment_data: &mut payments::PaymentData<F>,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
@@ -178,7 +178,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         key_store: domain::MerchantKeyStore,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _>(
-            state_vas,
+            state,
             payment_data,
             frm_data.to_owned(),
             merchant_account,

@@ -28,11 +28,13 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(all(feature = "frm", feature = "oltp"))]
+use crate::routes::fraud_check as frm_routes;
 use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
-    routes::{cards_info::card_iin_info, fraud_check as frm_routes},
+    routes::cards_info::card_iin_info,
     services::get_store,
 };
 
@@ -578,6 +580,7 @@ impl Webhooks {
     pub fn server(config: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
 
+        #[allow(unused_mut)]
         let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(

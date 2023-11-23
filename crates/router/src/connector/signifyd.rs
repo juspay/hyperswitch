@@ -9,12 +9,16 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
-        api::{self, fraud_check as frm_api, ConnectorCommon, ConnectorCommonExt},
-        fraud_check as frm_types, ErrorResponse, Response,
+        api::{self, ConnectorCommon, ConnectorCommonExt},
     },
+};
+#[cfg(feature = "frm")]
+use crate::{
+    services,
+    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::{self, BytesExt},
 };
 
@@ -67,6 +71,7 @@ impl ConnectorCommon for Signifyd {
         )])
     }
 
+    #[cfg(feature = "frm")]
     fn build_error_response(
         &self,
         res: Response,
@@ -155,13 +160,20 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Signifyd {}
 
-impl frm_api::FraudCheck for Signifyd {}
+#[cfg(feature = "frm")]
+impl api::FraudCheck for Signifyd {}
+#[cfg(feature = "frm")]
 impl frm_api::FraudCheckSale for Signifyd {}
+#[cfg(feature = "frm")]
 impl frm_api::FraudCheckCheckout for Signifyd {}
+#[cfg(feature = "frm")]
 impl frm_api::FraudCheckTransaction for Signifyd {}
+#[cfg(feature = "frm")]
 impl frm_api::FraudCheckFulfillment for Signifyd {}
+#[cfg(feature = "frm")]
 impl frm_api::FraudCheckRecordReturn for Signifyd {}
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         frm_api::Sale,
@@ -248,6 +260,7 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         frm_api::Checkout,
@@ -336,6 +349,7 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         frm_api::Transaction,
@@ -426,6 +440,7 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         frm_api::Fulfillment,
@@ -516,6 +531,7 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         frm_api::RecordReturn,

@@ -10,6 +10,8 @@ pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 
+#[cfg(feature = "frm")]
+use crate::types::fraud_check as frm_types;
 use crate::{
     connector,
     core::{
@@ -18,7 +20,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain, fraud_check as frm_types},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -1663,6 +1665,7 @@ default_imp_for_fraud_check!(
     connector::Zen
 );
 
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_sale {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1678,8 +1681,10 @@ macro_rules! default_imp_for_frm_sale {
     };
 }
 
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheckSale for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -1690,6 +1695,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Aci,
     connector::Adyen,
@@ -1743,6 +1749,7 @@ default_imp_for_frm_sale!(
     connector::Zen
 );
 
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_checkout {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1758,8 +1765,10 @@ macro_rules! default_imp_for_frm_checkout {
     };
 }
 
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheckCheckout for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -1770,6 +1779,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Aci,
     connector::Adyen,
@@ -1823,6 +1833,7 @@ default_imp_for_frm_checkout!(
     connector::Zen
 );
 
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_transaction {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1838,8 +1849,10 @@ macro_rules! default_imp_for_frm_transaction {
     };
 }
 
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheckTransaction for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -1850,6 +1863,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Aci,
     connector::Adyen,
@@ -1903,6 +1917,7 @@ default_imp_for_frm_transaction!(
     connector::Zen
 );
 
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_fulfillment {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1918,8 +1933,10 @@ macro_rules! default_imp_for_frm_fulfillment {
     };
 }
 
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheckFulfillment for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -1930,6 +1947,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Aci,
     connector::Adyen,
@@ -1983,6 +2001,7 @@ default_imp_for_frm_fulfillment!(
     connector::Zen
 );
 
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_record_return {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1998,8 +2017,10 @@ macro_rules! default_imp_for_frm_record_return {
     };
 }
 
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheckRecordReturn for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -2010,6 +2031,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Aci,
     connector::Adyen,

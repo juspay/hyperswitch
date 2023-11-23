@@ -17,6 +17,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 
+#[cfg(feature = "frm")]
+use crate::types::{fraud_check, storage::enums as storage_enums};
 use crate::{
     consts,
     core::{
@@ -25,9 +27,7 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api, fraud_check,
-        storage::{enums as storage_enums, payment_attempt::PaymentAttemptExt},
-        transformers::ForeignTryFrom,
+        self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
         PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
@@ -1577,10 +1577,11 @@ pub fn validate_currency(
     Ok(())
 }
 
+#[cfg(feature = "frm")]
 pub trait FraudCheckSaleRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
 }
-
+#[cfg(feature = "frm")]
 impl FraudCheckSaleRequest for fraud_check::FraudCheckSaleData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
@@ -1589,9 +1590,11 @@ impl FraudCheckSaleRequest for fraud_check::FraudCheckSaleData {
     }
 }
 
+#[cfg(feature = "frm")]
 pub trait FraudCheckCheckoutRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
 }
+#[cfg(feature = "frm")]
 impl FraudCheckCheckoutRequest for fraud_check::FraudCheckCheckoutData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
@@ -1600,20 +1603,22 @@ impl FraudCheckCheckoutRequest for fraud_check::FraudCheckCheckoutData {
     }
 }
 
+#[cfg(feature = "frm")]
 pub trait FraudCheckTransactionRequest {
     fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
 }
-
+#[cfg(feature = "frm")]
 impl FraudCheckTransactionRequest for fraud_check::FraudCheckTransactionData {
     fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
 
+#[cfg(feature = "frm")]
 pub trait FraudCheckRecordReturnRequest {
     fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
 }
-
+#[cfg(feature = "frm")]
 impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
     fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))

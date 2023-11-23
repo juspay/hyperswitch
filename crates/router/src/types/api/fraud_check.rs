@@ -4,7 +4,7 @@ use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 
-use super::{BoxedConnector, ConnectorCommon, ConnectorData, SessionConnectorData};
+use super::{BoxedConnector, ConnectorData, SessionConnectorData};
 use crate::{
     connector,
     core::errors,
@@ -14,16 +14,6 @@ use crate::{
         FraudCheckResponseData, FraudCheckSaleData, FraudCheckTransactionData,
     },
 };
-
-pub trait FraudCheck:
-    ConnectorCommon
-    + FraudCheckSale
-    + FraudCheckTransaction
-    + FraudCheckCheckout
-    + FraudCheckFulfillment
-    + FraudCheckRecordReturn
-{
-}
 
 #[derive(Debug, Clone)]
 pub struct Sale;
