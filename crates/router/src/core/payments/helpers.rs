@@ -3687,7 +3687,7 @@ pub async fn get_gsm_record(
 }
 
 pub fn validate_order_details_amount(
-    order_details: &Vec<api_models::payments::OrderDetailsWithAmount>,
+    order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: Option<api_models::payments::Amount>,
 ) -> Result<(), errors::ApiErrorResponse> {
     let total_order_details_amount: i64 = order_details.iter().map(|order| order.amount).sum();

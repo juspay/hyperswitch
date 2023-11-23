@@ -828,7 +828,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_customer_details_in_request(request)?;
 
         if let Some(order_details) = &request.order_details {
-            helpers::validate_order_details_amount(order_details, request.amount)?;
+            helpers::validate_order_details_amount(order_details.to_owned(), request.amount)?;
         }
 
         let request_merchant_id = request.merchant_id.as_deref();
