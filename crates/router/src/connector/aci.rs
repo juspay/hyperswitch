@@ -79,6 +79,7 @@ impl ConnectorCommon for Aci {
                     .join("; ")
             }),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
