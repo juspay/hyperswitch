@@ -44,7 +44,7 @@ use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, Mo
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
-use crate::{
+pub use crate::{
     errors::CustomResult,
     services::{
         kafka::{KafkaError, KafkaProducer, MQResult},
@@ -166,7 +166,6 @@ where
     T: serde::de::DeserializeOwned,
 {
     use common_utils::ext_traits::ByteSliceExt;
-    use error_stack::ResultExt;
 
     let bytes = db.get_key(key).await?;
     bytes

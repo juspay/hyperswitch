@@ -12,6 +12,7 @@ use router::{
 use tokio::sync::oneshot;
 
 use crate::{connector_auth::ConnectorAuthentication, utils};
+use services::kafka::KafkaProducer;
 
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
@@ -160,11 +161,16 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+            .await
+            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+            .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        kafka_producer,
     )
     .await;
 
@@ -204,11 +210,16 @@ async fn payments_create_failure() {
         let conf = Settings::new().unwrap();
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let kafka_producer = KafkaProducer::create(&conf.kafka)
+            .await
+            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+            .unwrap();
         let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            kafka_producer,
         )
         .await;
         let connector = types::api::ConnectorData {
@@ -265,11 +276,16 @@ async fn refund_for_successful_payments() {
         merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+            .await
+            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+            .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        kafka_producer,
     )
     .await;
     let connector_integration: services::BoxedConnectorIntegration<
@@ -333,11 +349,16 @@ async fn refunds_create_failure() {
         merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+            .await
+            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+            .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        kafka_producer,
     )
     .await;
     let connector_integration: services::BoxedConnectorIntegration<

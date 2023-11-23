@@ -15,6 +15,7 @@ use router::{
 use time::macros::datetime;
 use tokio::sync::oneshot;
 use uuid::Uuid;
+use db::kafka::KafkaProducer;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid
 // do we'll test refund and payment in same tests and later implement thread_local variables.
@@ -275,11 +276,16 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+            .await
+            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+            .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        kafka_producer,
     )
     .await;
 
@@ -451,11 +457,16 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+            .await
+            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+            .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        kafka_producer,
     )
     .await;
 
