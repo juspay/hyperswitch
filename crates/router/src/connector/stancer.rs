@@ -114,12 +114,16 @@ impl ConnectorCommon for Stancer {
             .response
             .parse_struct("StancerErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let stancer::StancerErrorResponse::Error {
+            message,
+            error_type,
+        } = response;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: error_type,
+            message: message.to_string(),
+            reason: None,
             attempt_status: None,
         })
     }
