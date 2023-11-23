@@ -1,4 +1,4 @@
-use storage_models::{enums as storage_enums, refund::Refund};
+use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]

@@ -23,6 +23,7 @@ use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    services::kafka::KafkaSettings,
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;

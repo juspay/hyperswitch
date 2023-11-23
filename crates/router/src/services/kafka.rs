@@ -15,14 +15,13 @@ mod payment_intent;
 mod refund;
 pub use api_event::{ApiCallEventType, ApiEvents, ApiEventsType};
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use diesel_models::refund::Refund;
 use serde::Serialize;
-use storage_models::refund::Refund;
 use time::OffsetDateTime;
 
 use self::{
     payment_attempt::KafkaPaymentAttempt, payment_intent::KafkaPaymentIntent, refund::KafkaRefund,
 };
-use crate::events::EventType;
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
 
@@ -296,10 +295,10 @@ impl KafkaProducer {
 
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
-            EventType::OSS(EventType::ApiLogs) => &self.api_logs_v2_topic,
-            EventType::OSS(EventType::PaymentAttempt) => &self.attempt_analytics_topic,
-            EventType::OSS(EventType::PaymentIntent) => &self.intent_analytics_topic,
-            EventType::OSS(EventType::Refund) => &self.refund_analytics_topic,
+            EventType::ApiLogs => &self.api_logs_v2_topic,
+            EventType::PaymentAttempt => &self.attempt_analytics_topic,
+            EventType::PaymentIntent => &self.intent_analytics_topic,
+            EventType::Refund => &self.refund_analytics_topic,
         }
     }
 }

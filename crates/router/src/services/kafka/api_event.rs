@@ -1,4 +1,4 @@
-use api_models_oss::enums as api_enums;
+use api_models::enums as api_enums;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 

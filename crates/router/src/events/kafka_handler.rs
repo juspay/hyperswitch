@@ -1,7 +1,7 @@
 use router_env::tracing;
 
-use super::events::{EventHandler, RawEvent};
-use crate::services::kafka::KafkaProducer;
+use super::{EventHandler, RawEvent};
+use crate::services::kafka::{KafkaMessage, KafkaProducer};
 
 impl EventHandler for KafkaProducer {
     fn log_event(&self, event: RawEvent) {
@@ -9,5 +9,11 @@ impl EventHandler for KafkaProducer {
         if let Err(er) = self.log_kafka_event(topic, &event) {
             tracing::error!("Failed to log event to kafka: {:?}", er);
         }
+    }
+}
+
+impl KafkaMessage for RawEvent {
+    fn key(&self) -> String {
+        self.key.clone()
     }
 }
