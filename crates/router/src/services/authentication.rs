@@ -119,7 +119,7 @@ pub struct UserFromToken {
     pub role_id: String,
     pub org_id: String,
 }
-
+#[cfg(feature = "olap")]
 impl UserFromToken {
     pub async fn get_merchant_account_from_db(
         &self,
