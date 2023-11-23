@@ -13,11 +13,13 @@ use serde::Serialize;
 use super::jwt;
 #[cfg(feature = "olap")]
 use crate::consts;
+#[cfg(feature = "olap")]
+use crate::core::errors::{UserErrors, UserResult};
 use crate::{
     configs::settings,
     core::{
         api_keys,
-        errors::{self, utils::StorageErrorExt, RouterResult, UserErrors, UserResult},
+        errors::{self, utils::StorageErrorExt, RouterResult},
     },
     db::{user::UserInterface, StorageInterface},
     routes::{app::AppStateInfo, AppState},
