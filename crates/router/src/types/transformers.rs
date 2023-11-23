@@ -852,6 +852,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             profile_id: item.profile_id,
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
+            status: item.status,
         })
     }
 }
@@ -877,6 +878,8 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         }
     }
 }
@@ -989,18 +992,20 @@ impl
     }
 }
 
-impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
-    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
+impl ForeignFrom<(storage::PaymentLink, String)>
+    for api_models::payments::RetrievePaymentLinkResponse
+{
+    fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
         Self {
             payment_link_id: payment_link_object.payment_link_id,
-            payment_id: payment_link_object.payment_id,
             merchant_id: payment_link_object.merchant_id,
             link_to_pay: payment_link_object.link_to_pay,
             amount: payment_link_object.amount,
-            currency: payment_link_object.currency,
             created_at: payment_link_object.created_at,
-            last_modified_at: payment_link_object.last_modified_at,
             link_expiry: payment_link_object.fulfilment_time,
+            description: payment_link_object.description,
+            currency: payment_link_object.currency,
+            status,
         }
     }
 }
@@ -1054,6 +1059,8 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
         }
     }
 }
@@ -1070,6 +1077,8 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
         }
     }
 }

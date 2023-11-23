@@ -312,6 +312,18 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
+impl PaymentsRequest {
+    pub fn get_total_capturable_amount(&self) -> Option<i64> {
+        let surcharge_amount = self
+            .surcharge_details
+            .map(|surcharge_details| {
+                surcharge_details.surcharge_amount + surcharge_details.tax_amount.unwrap_or(0)
+            })
+            .unwrap_or(0);
+        self.amount
+            .map(|amount| i64::from(amount) + surcharge_amount)
+    }
+}
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
@@ -391,6 +403,10 @@ pub struct PaymentAttemptResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -1675,6 +1691,20 @@ impl std::fmt::Display for PaymentIdType {
     }
 }
 
+impl PaymentIdType {
+    pub fn and_then<F, E>(self, f: F) -> Result<Self, E>
+    where
+        F: FnOnce(String) -> Result<String, E>,
+    {
+        match self {
+            Self::PaymentIntentId(s) => f(s).map(Self::PaymentIntentId),
+            Self::ConnectorTransactionId(s) => f(s).map(Self::ConnectorTransactionId),
+            Self::PaymentAttemptId(s) => f(s).map(Self::PaymentAttemptId),
+            Self::PreprocessingId(s) => f(s).map(Self::PreprocessingId),
+        }
+    }
+}
+
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
@@ -2088,6 +2118,12 @@ pub struct PaymentsResponse {
     /// If there was an error while calling the connector the error message is received here
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
+
+    /// error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+
+    /// error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
 
     /// Payment Experience for the current payment
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
@@ -3170,18 +3206,17 @@ pub struct PaymentLinkResponse {
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
-    pub payment_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
     pub amount: i64,
-    #[schema(value_type = Option<Currency>, example = "USD")]
-    pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
+    pub description: Option<String>,
+    pub status: String,
+    #[schema(value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3205,4 +3240,58 @@ pub struct PaymentLinkDetails {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub sdk_theme: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+
+pub struct PaymentLinkListConstraints {
+    /// limit on the number of objects to return
+    pub limit: Option<i64>,
+
+    /// The time at which payment link is created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+
+    /// Time less than the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lt"
+    )]
+    pub created_lt: Option<PrimitiveDateTime>,
+
+    /// Time greater than the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.gt"
+    )]
+    pub created_gt: Option<PrimitiveDateTime>,
+
+    /// Time less than or equals to the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lte"
+    )]
+    pub created_lte: Option<PrimitiveDateTime>,
+
+    /// Time greater than or equals to the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.gte")]
+    pub created_gte: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PaymentLinkListResponse {
+    /// The number of payment links included in the list
+    pub size: usize,
+    // The list of payment link response objects
+    pub data: Vec<PaymentLinkResponse>,
 }

@@ -23,7 +23,7 @@
       "confirm": true,
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 6540,
+      "amount_to_capture": 8040,
       "customer_id": "StripeCustomer",
       "email": "guest@example.com",
       "name": "John Doe",
