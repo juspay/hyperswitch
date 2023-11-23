@@ -43,8 +43,10 @@ pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
     Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount, MerchantConnectorAccount,
-    PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks, Forex,
+    PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
 };
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub use self::app::Forex;
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
