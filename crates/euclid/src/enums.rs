@@ -120,6 +120,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Shift4,
+    Signifyd,
     Square,
     Stax,
     Stripe,

@@ -25,7 +25,9 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
+        self, api, fraud_check,
+        storage::{enums as storage_enums, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
         PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
@@ -1579,4 +1581,47 @@ pub fn validate_currency(
         })?
     }
     Ok(())
+}
+
+pub trait FraudCheckSaleRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+
+impl FraudCheckSaleRequest for fraud_check::FraudCheckSaleData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+pub trait FraudCheckCheckoutRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+impl FraudCheckCheckoutRequest for fraud_check::FraudCheckCheckoutData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+pub trait FraudCheckTransactionRequest {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
+}
+
+impl FraudCheckTransactionRequest for fraud_check::FraudCheckTransactionData {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub trait FraudCheckRecordReturnRequest {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
+}
+
+impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
 }

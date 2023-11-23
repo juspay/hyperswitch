@@ -255,6 +255,9 @@ pub enum Flow {
     DecisionManagerDeleteConfig,
     /// Retrieve Decision Manager Config
     DecisionManagerRetrieveConfig,
+    #[cfg(feature = "frm")]
+    /// Manual payment fullfilment acknowledgement
+    FrmFulfillment,
 }
 
 ///

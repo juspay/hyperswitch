@@ -337,3 +337,6 @@ pool_size = 5
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
+
+[frm]
+is_frm_enabled = true

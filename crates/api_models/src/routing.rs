@@ -340,6 +340,7 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
                 RoutableConnectors::Prophetpay => euclid_enums::Connector::Prophetpay,
                 RoutableConnectors::Rapyd => euclid_enums::Connector::Rapyd,
                 RoutableConnectors::Shift4 => euclid_enums::Connector::Shift4,
+                RoutableConnectors::Signifyd => euclid_enums::Connector::Signifyd,
                 RoutableConnectors::Square => euclid_enums::Connector::Square,
                 RoutableConnectors::Stax => euclid_enums::Connector::Stax,
                 RoutableConnectors::Stripe => euclid_enums::Connector::Stripe,

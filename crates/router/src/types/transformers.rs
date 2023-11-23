@@ -312,6 +312,7 @@ impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
             dsl_enums::Connector::Prophetpay => Self::Prophetpay,
             dsl_enums::Connector::Rapyd => Self::Rapyd,
             dsl_enums::Connector::Shift4 => Self::Shift4,
+            dsl_enums::Connector::Signifyd => Self::Signifyd,
             dsl_enums::Connector::Square => Self::Square,
             dsl_enums::Connector::Stax => Self::Stax,
             dsl_enums::Connector::Stripe => Self::Stripe,
