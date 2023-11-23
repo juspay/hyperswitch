@@ -253,7 +253,6 @@ We welcome contributions from the community. Please read through our
 Included are directions for opening issues, coding standards, and notes on
 development.
 
-- [Discord server][discord] - Best for discussions and queries around open source, contributions, community, project showcase, and a quick chat with the dev team and open source contributors.
 - We appreciate all types of contributions: code, documentation, demo creation, or something new way you want to contribute to us. We will reward every contribution with a Hyperswitch branded t-shirt. 
 - 🦀 **Important note for Rust developers**: We aim for contributions from the community
 across a broad range of tracks. Hence, we have prioritised simplicity and code
@@ -267,6 +266,7 @@ pure-idiomatic.
 
 Get updates on Hyperswitch development and chat with the community:
 
+- [Discord server][discord] - Join to contribute to the hyperswitch open source.
 - [Slack workspace][slack] - Real-time chat with the Hyperswitch crew. Meet fellow users, contributors, and our developer advocates. Perfect for quick questions.
 - [GitHub Discussions][github-discussions] - Drop feature requests or suggest anything payments-related you need for your stack. Got questions? Ask away!
 
