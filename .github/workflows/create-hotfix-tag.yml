@@ -9,13 +9,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.AUTO_RELEASE_PAT }}
 
       - name: Install git-cliff
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: git-cliff
           version: 1.2.0
