@@ -346,7 +346,7 @@ fn get_payout_bank_details(
         }),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Wise"),
-        ))?
+        ))?,
     }
 }
 
@@ -597,7 +597,7 @@ impl TryFrom<PayoutMethodData> for RecipientType {
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Wise"),
             )
-            .into())
+            .into()),
         }
     }
 }
