@@ -788,6 +788,8 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         self.lock_settings.validate()?;
+        self.kafka.validate()?;
+        self.report_download_config.validate()?;
         Ok(())
     }
 }

@@ -10,7 +10,7 @@ pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
 
 dyn_clone::clone_trait_object!(EventHandler);
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RawEvent {
     pub event_type: EventType,
     pub key: String,
