@@ -4,7 +4,6 @@ use std::{
     str::FromStr,
 };
 
-use rust_decimal::Decimal;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -14,6 +13,7 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 

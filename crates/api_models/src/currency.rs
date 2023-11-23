@@ -19,4 +19,3 @@ pub struct CurrencyConversionResponse {
 
 impl ApiEventMetric for CurrencyConversionResponse {}
 impl ApiEventMetric for CurrencyConversionParams {}
-

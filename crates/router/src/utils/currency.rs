@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc, time::Duration};
 
 use api_models::enums;
-use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt, events::ApiEventMetric};
+use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
 use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
@@ -10,8 +10,8 @@ use masking::PeekInterface;
 use once_cell::sync::Lazy;
 use redis_interface::DelReply;
 use rust_decimal::Decimal;
-use tokio::{sync::RwLock, time::sleep};
 use strum::IntoEnumIterator;
+use tokio::{sync::RwLock, time::sleep};
 
 use crate::{
     logger,

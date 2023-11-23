@@ -1,7 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::Flow;
+
 use crate::{
-    core::{currency, api_locking},
+    core::{api_locking, currency},
     routes::AppState,
     services::{api, authentication as auth},
 };
@@ -53,4 +54,3 @@ pub async fn convert_forex(
     ))
     .await
 }
-
