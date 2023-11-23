@@ -28,7 +28,8 @@ use crate::{
 };
 
 use self::models::{
-    CreatePaymentRequest, CreateRefundRequest, Payment, Refund, UpdatePaymentRequest,
+    CreateCustomerRequest, CreatePaymentRequest, CreateRefundRequest, Customer, Payment, Refund,
+    UpdatePaymentRequest,
 };
 
 use super::utils::{PaymentsSyncRequestData, RefundsRequestData};
@@ -48,6 +49,7 @@ impl api::Refund for Stancer {}
 impl api::RefundExecute for Stancer {}
 impl api::RefundSync for Stancer {}
 impl api::PaymentToken for Stancer {}
+impl api::ConnectorCustomer for Stancer {}
 
 impl
     ConnectorIntegration<
@@ -565,6 +567,95 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: Refund = res
             .response
             .parse_struct("stancer Refund")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Stancer
+{
+    fn get_headers(
+        &self,
+        req: &types::ConnectorCustomerRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::ConnectorCustomerRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "v1/customers",))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::ConnectorCustomerRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = CreateCustomerRequest::try_from(req)?;
+        let stancer_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<CreateCustomerRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(stancer_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::ConnectorCustomerRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::ConnectorCustomerType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(types::ConnectorCustomerType::get_headers(
+                self, req, connectors,
+            )?)
+            .body(types::ConnectorCustomerType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::ConnectorCustomerRouterData,
+        res: Response,
+    ) -> CustomResult<types::ConnectorCustomerRouterData, errors::ConnectorError>
+    where
+        types::PaymentsResponseData: Clone,
+    {
+        let response: Customer = res
+            .response
+            .parse_struct("stancer Customer")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

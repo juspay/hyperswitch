@@ -328,7 +328,6 @@ default_imp_for_create_customer!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
-    connector::Stancer,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,

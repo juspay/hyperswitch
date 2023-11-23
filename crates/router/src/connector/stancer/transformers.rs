@@ -2,9 +2,10 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::models::{
-    payment, payment_auth, refund, update_payment_request, CreatePaymentRequest,
-    CreatePaymentRequestAuth, CreatePaymentRequestCard, CreatePaymentRequestDevice,
-    CreateRefundRequest, Payment, Refund, UpdatePaymentRequest,
+    payment, payment_auth, refund, update_payment_request, CreateCustomerRequest,
+    CreatePaymentRequest, CreatePaymentRequestAuth, CreatePaymentRequestCard,
+    CreatePaymentRequestDevice, CreateRefundRequest, Customer, Payment, Refund,
+    UpdatePaymentRequest,
 };
 use crate::{
     core::errors,
@@ -281,6 +282,35 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, Refund>>
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+// CreateCustomerRequest
+impl TryFrom<&types::ConnectorCustomerRouterData> for CreateCustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: item.request.name.to_owned(),
+            email: item.request.email.to_owned(),
+            mobile: item.request.phone.to_owned(),
+        })
+    }
+}
+
+// Customer
+impl<F, T> TryFrom<types::ResponseRouterData<F, Customer, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, Customer, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
+                connector_customer_id: item.response.id,
             }),
             ..item.data
         })
