@@ -522,6 +522,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             )?;
         }
 
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(order_details, request.amount)?;
+        }
+
         let payment_id = request.payment_id.clone().ok_or(error_stack::report!(
             errors::ApiErrorResponse::PaymentNotFound
         ))?;
