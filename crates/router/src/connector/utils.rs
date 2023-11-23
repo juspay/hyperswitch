@@ -24,7 +24,10 @@ use crate::{
         payments::PaymentData,
     },
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{
+        self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
+        PaymentsCancelData, ResponseId,
+    },
     utils::{OptionExt, ValueExt},
 };
 
@@ -108,11 +111,14 @@ where
                 }
             }
             enums::AttemptStatus::Charged => {
-                let captured_amount = types::Capturable::get_capture_amount(&self.request);
-                if Some(payment_data.payment_intent.amount) == captured_amount {
+                let captured_amount =
+                    types::Capturable::get_capture_amount(&self.request, payment_data);
+                if Some(payment_data.payment_attempt.get_total_amount()) == captured_amount {
                     enums::AttemptStatus::Charged
-                } else {
+                } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged
+                } else {
+                    self.status
                 }
             }
             _ => self.status,
@@ -310,6 +316,7 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
 
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
 }
 
 impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
@@ -317,6 +324,9 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 pub trait PaymentsAuthorizeRequestData {
@@ -857,6 +867,7 @@ impl CryptoData for api::CryptoData {
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
+    fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -869,6 +880,11 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.number
             .clone()
             .ok_or_else(missing_field_err("billing.phone.number"))
+    }
+    fn get_number_with_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self.get_country_code()?;
+        Ok(Secret::new(format!("{}{}", country_code, number.peek())))
     }
 }
 

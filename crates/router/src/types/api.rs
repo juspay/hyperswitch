@@ -7,6 +7,7 @@ pub mod enums;
 pub mod ephemeral_key;
 pub mod files;
 pub mod mandates;
+pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
@@ -20,8 +21,8 @@ use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
-    payments::*, payouts::*, refunds::*, webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
+    payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
