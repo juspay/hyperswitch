@@ -41,13 +41,21 @@ jobs:
     name: Check formatting
     runs-on: ubuntu-latest
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
@@ -71,8 +79,8 @@ jobs:
           cargo +nightly fmt --all
           if ! git diff --exit-code --quiet -- crates; then
             echo "::notice::Formatting check failed"
-            git config --local user.name 'github-actions[bot]'
-            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add crates
             git commit --message 'chore: run formatter'
             git push
@@ -299,6 +307,14 @@ jobs:
         # - windows-latest
 
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         uses: actions/checkout@v4
@@ -309,7 +325,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: "Fetch base branch"
         shell: bash
@@ -360,8 +376,8 @@ jobs:
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- Cargo.lock ; then
-            git config --local user.name 'github-actions[bot]'
-            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add Cargo.lock
             git commit --message 'chore: update Cargo.lock'
             git push
