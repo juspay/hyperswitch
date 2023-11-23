@@ -35,8 +35,8 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
-    ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,approvedata,rejectdata,setupmandatedata,sessiondata"
+    operations = "post_update_tracker",
+    flow = "sync_data, authorize_data, cancel_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data"
 )]
 pub struct PaymentResponse;
 
@@ -751,7 +751,7 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
         None => {
             //Non multiple capture
-            let amount = request.get_capture_amount();
+            let amount = request.get_capture_amount(payment_data);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {
                     amount

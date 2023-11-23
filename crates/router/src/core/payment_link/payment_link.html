@@ -46,6 +46,7 @@
         width: 100%;
         height: 100%;
         max-width: 1900px;
+        overflow: scroll;
       }
 
       #hyper-footer {
@@ -418,6 +419,7 @@
         margin-top: 20px;
         border-radius: 3px;
         border: 1px solid #e6e6e6;
+        width: 90vw;
       }
 
       .hyper-checkout-status-item {
@@ -432,12 +434,15 @@
       }
 
       .hyper-checkout-item-header {
-        width: 15ch;
+        min-width: 13ch;
         font-size: 12px;
       }
 
       .hyper-checkout-item-value {
         font-size: 12px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        word-wrap: break-word;
       }
 
       @keyframes loading {

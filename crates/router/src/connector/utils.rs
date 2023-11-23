@@ -111,14 +111,8 @@ where
                 }
             }
             enums::AttemptStatus::Charged => {
-                let captured_amount = if self.request.is_psync() {
-                    payment_data
-                        .payment_attempt
-                        .amount_to_capture
-                        .or(Some(payment_data.payment_attempt.get_total_amount()))
-                } else {
-                    types::Capturable::get_capture_amount(&self.request)
-                };
+                let captured_amount =
+                    types::Capturable::get_capture_amount(&self.request, payment_data);
                 if Some(payment_data.payment_attempt.get_total_amount()) == captured_amount {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {

@@ -19,8 +19,11 @@ use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, user::*};
-use super::{cache::*, health::*, payment_link::*};
+use super::{
+    admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
+    user::*,
+};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -675,11 +678,12 @@ impl Cache {
 }
 
 pub struct PaymentLink;
-
+#[cfg(feature = "olap")]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::post().to(payments_link_list)))
             .service(
                 web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
             )
