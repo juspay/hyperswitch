@@ -27,7 +27,7 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-use self::models::{CreatePaymentRequest, Payment};
+use self::models::{CreatePaymentRequest, CreateRefundRequest, Payment, Refund};
 
 #[derive(Debug, Clone)]
 pub struct Stancer;
@@ -435,10 +435,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = stancer::StancerRefundRequest::try_from(&connector_router_data)?;
+        let req_obj = CreateRefundRequest::try_from(&connector_router_data)?;
         let stancer_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<stancer::StancerRefundRequest>::encode_to_string_of_json,
+            utils::Encode::<CreateRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stancer_req))
@@ -468,9 +468,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: stancer::RefundResponse = res
+        let response: Refund = res
             .response
-            .parse_struct("stancer RefundResponse")
+            .parse_struct("stancer Refund")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -531,9 +531,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: stancer::RefundResponse = res
+        let response: Refund = res
             .response
-            .parse_struct("stancer RefundSyncResponse")
+            .parse_struct("stancer Refund")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

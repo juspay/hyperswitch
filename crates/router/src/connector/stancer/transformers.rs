@@ -2,8 +2,8 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::models::{
-    payment, payment_auth, CreatePaymentRequest, CreatePaymentRequestAuth,
-    CreatePaymentRequestCard, CreatePaymentRequestDevice, Payment,
+    payment, payment_auth, refund, CreatePaymentRequest, CreatePaymentRequestAuth,
+    CreatePaymentRequestCard, CreatePaymentRequestDevice, CreateRefundRequest, Payment, Refund,
 };
 use crate::{
     core::errors,
@@ -206,67 +206,45 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct StancerRefundRequest {
-    pub amount: i64,
-}
-
-impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for StancerRefundRequest {
+// CreateRefundRequest
+impl<F> TryFrom<&StancerRouterData<&types::RefundsRouterData<F>>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &StancerRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
+        let StancerRouterData {
+            amount,
+            router_data,
+        } = item;
+
         Ok(Self {
-            amount: item
-                .amount
-                .try_into()
-                .map_err(|_| errors::ConnectorError::ParsingFailed)?,
+            amount: *amount,
+            payment: router_data.request.connector_transaction_id.to_owned(),
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+// Refund
+impl From<refund::Status> for enums::RefundStatus {
+    fn from(item: refund::Status) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            refund::Status::Failed | refund::Status::NotHonored => Self::Failure,
+            refund::Status::RefundSent | refund::Status::ToRefund => Self::Pending,
+            refund::Status::Refunded => Self::Success,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, Refund>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, Refund>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
@@ -274,16 +252,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, Refund>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, Refund>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
