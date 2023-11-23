@@ -31,7 +31,7 @@ use self::models::{
     CreatePaymentRequest, CreateRefundRequest, Payment, Refund, UpdatePaymentRequest,
 };
 
-use super::utils::PaymentsSyncRequestData;
+use super::utils::{PaymentsSyncRequestData, RefundsRequestData};
 
 #[derive(Debug, Clone)]
 pub struct Stancer;
@@ -447,7 +447,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(_connectors), "v1/refunds"))
     }
 
     fn get_request_body(
@@ -528,10 +528,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(connectors),
+            "v1/refunds",
+            req.request.get_connector_refund_id()?
+        ))
     }
 
     fn build_request(
