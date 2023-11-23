@@ -58,13 +58,12 @@ pub async fn refund_create_core(
     )?;
 
     // Amount is not passed in request refer from payment intent.
-    amount = req.amount.unwrap_or(
-        payment_intent
-            .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("amount captured is none in a successful payment")?,
-    );
+    amount = req
+        .amount
+        .or(payment_intent.amount_captured)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
