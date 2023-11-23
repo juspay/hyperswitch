@@ -34,6 +34,8 @@ pub mod webhooks;
 pub mod locker_migration;
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub use self::app::Forex;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
 #[cfg(feature = "olap")]
@@ -45,8 +47,6 @@ pub use self::app::{
     Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount, MerchantConnectorAccount,
     PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
 };
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub use self::app::Forex;
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
