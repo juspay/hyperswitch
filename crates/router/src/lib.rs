@@ -37,6 +37,7 @@ pub use self::env::logger;
 use crate::{
     configs::settings,
     core::errors::{self},
+    services::kafka::KafkaProducer,
 };
 
 #[cfg(feature = "mimalloc")]
@@ -189,7 +190,11 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
+    let state = Box::pin(routes::AppState::new(conf, tx, api_client, kafka_producer)).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?

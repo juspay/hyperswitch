@@ -33,7 +33,7 @@ use crate::{
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
     routes::cards_info::card_iin_info,
-    services::get_store,
+    services::{get_store, kafka::KafkaProducer},
 };
 
 #[derive(Clone)]
@@ -114,18 +114,34 @@ impl AppState {
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        kafka_client: KafkaProducer,
     ) -> Self {
         Box::pin(async move {
             #[cfg(feature = "kms")]
             let kms_client = kms::get_kms_client(&conf.kms).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             let store: Box<dyn StorageInterface> = match storage_impl {
-                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
-                    #[allow(clippy::expect_used)]
-                    get_store(&conf, shut_down_signal, testable)
-                        .await
-                        .expect("Failed to create store"),
-                ),
+                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
+                    if conf.kafka.enabled {
+                        Box::new(
+                            crate::db::KafkaStore::new(
+                                #[allow(clippy::expect_used)]
+                                get_store(&conf.clone(), shut_down_signal, testable)
+                                    .await
+                                    .expect("Failed to create store"),
+                                kafka_client.clone(),
+                            )
+                            .await,
+                        )
+                    } else {
+                        Box::new(
+                            #[allow(clippy::expect_used)]
+                            get_store(&conf, shut_down_signal, testable)
+                                .await
+                                .expect("Failed to create store"),
+                        )
+                    }
+                }
                 #[allow(clippy::expect_used)]
                 StorageImpl::Mock => Box::new(
                     MockDb::new(&conf.redis)
@@ -174,12 +190,14 @@ impl AppState {
         conf: settings::Settings,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        kafka_client: KafkaProducer,
     ) -> Self {
         Box::pin(Self::with_storage(
             conf,
             StorageImpl::Postgresql,
             shut_down_signal,
             api_client,
+            kafka_client,
         ))
         .await
     }
