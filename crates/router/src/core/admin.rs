@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use api_models::{
     admin::{self as admin_types},
-    enums as api_enums,
+    enums as api_enums, routing as routing_types,
 };
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
@@ -18,6 +20,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
+        routing::helpers as routing_helpers,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -89,7 +92,7 @@ pub async fn create_merchant_account(
             .transpose()?;
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -178,7 +181,10 @@ pub async fn create_merchant_account(
                 .await?,
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
-            routing_algorithm: req.routing_algorithm,
+            routing_algorithm: Some(serde_json::json!({
+                "algorithm_id": null,
+                "timestamp": 0
+            })),
             sub_merchants_enabled: req.sub_merchants_enabled,
             parent_merchant_id,
             enable_payment_response_hash,
@@ -470,7 +476,7 @@ pub async fn merchant_account_update(
     }
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -756,6 +762,9 @@ pub async fn create_payment_connector(
     )
     .await?;
 
+    let routable_connector =
+        api_enums::RoutableConnectors::from_str(&req.connector_name.to_string()).ok();
+
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(&profile_id)
@@ -828,6 +837,46 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    // The purpose of this merchant account update is just to update the
+    // merchant account `modified_at` field for KGraph cache invalidation
+    let merchant_account_update = storage::MerchantAccountUpdate::Update {
+        merchant_name: None,
+        merchant_details: None,
+        return_url: None,
+        webhook_details: None,
+        sub_merchants_enabled: None,
+        parent_merchant_id: None,
+        enable_payment_response_hash: None,
+        locker_id: None,
+        payment_response_hash_key: None,
+        primary_business_details: None,
+        metadata: None,
+        publishable_key: None,
+        redirect_to_merchant_with_http_post: None,
+        routing_algorithm: None,
+        intent_fulfillment_time: None,
+        frm_routing_algorithm: None,
+        payout_routing_algorithm: None,
+        default_profile: None,
+        payment_link_config: None,
+    };
+
+    state
+        .store
+        .update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error updating the merchant account when creating payment connector")?;
+
+    let (connector_status, disabled) = validate_status_and_disabled(
+        req.status,
+        req.disabled,
+        auth,
+        // The validate_status_and_disabled function will use this value only
+        // when the status can be active. So we are passing this as fallback.
+        api_enums::ConnectorStatus::Active,
+    )?;
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -846,13 +895,13 @@ pub async fn create_payment_connector(
         .attach_printable("Unable to encrypt connector account details")?,
         payment_methods_enabled,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         metadata: req.metadata,
         frm_configs,
         connector_label: Some(connector_label),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
-        business_sub_label: req.business_sub_label,
+        business_sub_label: req.business_sub_label.clone(),
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         id: None,
@@ -871,7 +920,14 @@ pub async fn create_payment_connector(
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
+        status: connector_status,
     };
+
+    let mut default_routing_config =
+        routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
+
+    let mut default_routing_config_for_profile =
+        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
 
     let mca = state
         .store
@@ -879,10 +935,41 @@ pub async fn create_payment_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id,
+                profile_id: profile_id.clone(),
                 connector_name: req.connector_name.to_string(),
             },
         )?;
+
+    if let Some(routable_connector_val) = routable_connector {
+        let choice = routing_types::RoutableConnectorChoice {
+            #[cfg(feature = "backwards_compatibility")]
+            choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+            connector: routable_connector_val,
+            #[cfg(feature = "connector_choice_mca_id")]
+            merchant_connector_id: Some(mca.merchant_connector_id.clone()),
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            sub_label: req.business_sub_label,
+        };
+
+        if !default_routing_config.contains(&choice) {
+            default_routing_config.push(choice.clone());
+            routing_helpers::update_merchant_default_config(
+                &*state.store,
+                merchant_id,
+                default_routing_config,
+            )
+            .await?;
+        }
+        if !default_routing_config_for_profile.contains(&choice.clone()) {
+            default_routing_config_for_profile.push(choice);
+            routing_helpers::update_merchant_default_config(
+                &*state.store,
+                &profile_id.clone(),
+                default_routing_config_for_profile,
+            )
+            .await?;
+        }
+    }
 
     metrics::MCA_CREATE.add(
         &metrics::CONTEXT,
@@ -1006,6 +1093,19 @@ pub async fn update_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    let auth: types::ConnectorAuthType = req
+        .connector_account_details
+        .clone()
+        .unwrap_or(mca.connector_account_details.clone().into_inner())
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details".to_string(),
+            expected_format: "auth_type and api_key".to_string(),
+        })?;
+
+    let (connector_status, disabled) =
+        validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1020,8 +1120,8 @@ pub async fn update_payment_connector(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
-        test_mode: mca.test_mode,
-        disabled: mca.disabled,
+        test_mode: req.test_mode,
+        disabled,
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
@@ -1038,6 +1138,7 @@ pub async fn update_payment_connector(
         },
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
+        status: Some(connector_status),
     };
 
     let updated_mca = db
@@ -1248,7 +1349,7 @@ pub async fn create_business_profile(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1360,7 +1461,7 @@ pub async fn update_business_profile(
         .transpose()?;
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
             .parse_value("RoutingAlgorithm")
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -1434,6 +1535,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Bankofamerica => {
+            bankofamerica::transformers::BankOfAmericaAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Bitpay => {
             bitpay::transformers::BitpayAuthType::try_from(val)?;
             Ok(())
@@ -1484,6 +1589,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Fiserv => {
             fiserv::transformers::FiservAuthType::try_from(val)?;
+            fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Forte => {
@@ -1556,6 +1662,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Powertranz => {
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Prophetpay => {
+            prophetpay::transformers::ProphetpayAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Rapyd => {
@@ -1636,4 +1746,38 @@ pub async fn validate_dummy_connector_enabled(
     } else {
         Ok(())
     }
+}
+
+pub fn validate_status_and_disabled(
+    status: Option<api_enums::ConnectorStatus>,
+    disabled: Option<bool>,
+    auth: types::ConnectorAuthType,
+    current_status: api_enums::ConnectorStatus,
+) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
+    let connector_status = match (status, auth) {
+        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
+            }
+            .into());
+        }
+        (Some(status), _) => status,
+        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
+        (None, _) => current_status,
+    };
+
+    let disabled = match (disabled, connector_status) {
+        (Some(false), common_enums::ConnectorStatus::Inactive) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
+                    .to_string(),
+            }
+            .into());
+        }
+        (Some(disabled), _) => Some(disabled),
+        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
+        (None, _) => None,
+    };
+
+    Ok((connector_status, disabled))
 }

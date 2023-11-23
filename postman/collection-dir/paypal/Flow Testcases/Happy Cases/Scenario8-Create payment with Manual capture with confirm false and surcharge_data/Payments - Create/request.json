@@ -31,16 +31,6 @@
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
       "return_url": "https://duck.com",
-      "payment_method": "card",
-      "payment_method_data": {
-        "card": {
-          "card_number": "4005519200000004",
-          "card_exp_month": "10",
-          "card_exp_year": "25",
-          "card_holder_name": "joseph Doe",
-          "card_cvc": "123"
-        }
-      },
       "billing": {
         "address": {
           "line1": "1467",

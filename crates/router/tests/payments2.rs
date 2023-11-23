@@ -120,7 +120,7 @@ async fn payments_create_core() {
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
-    let actual_response = router::core::payments::payments_core::<
+    let actual_response = Box::pin(router::core::payments::payments_core::<
         api::Authorize,
         api::PaymentsResponse,
         _,
@@ -135,8 +135,9 @@ async fn payments_create_core() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         api::HeaderPayload::default(),
-    )
+    ))
     .await
     .unwrap();
     assert_eq!(expected_response, actual_response);
@@ -298,7 +299,7 @@ async fn payments_create_core_adyen_no_redirect() {
         },
         vec![],
     ));
-    let actual_response = router::core::payments::payments_core::<
+    let actual_response = Box::pin(router::core::payments::payments_core::<
         api::Authorize,
         api::PaymentsResponse,
         _,
@@ -313,8 +314,9 @@ async fn payments_create_core_adyen_no_redirect() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         api::HeaderPayload::default(),
-    )
+    ))
     .await
     .unwrap();
     assert_eq!(expected_response, actual_response);

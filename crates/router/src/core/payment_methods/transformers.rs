@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use api_models::enums as api_enums;
 use common_utils::{ext_traits::StringExt, pii::Email};
 use error_stack::ResultExt;
 use josekit::jwe;
@@ -26,6 +27,8 @@ pub enum StoreLockerReq<'a> {
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requestor_card_reference: Option<String>,
     pub card: Card,
 }
 
@@ -186,14 +189,27 @@ pub async fn get_decrypted_response_payload(
     #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     jwe_body: encryption::JweBody,
+    locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+
     #[cfg(feature = "kms")]
-    let public_key = jwekey.jwekey.peek().vault_encryption_key.as_bytes();
+    let public_key = match target_locker {
+        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => {
+            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        }
+    };
+
     #[cfg(feature = "kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let public_key = jwekey.vault_encryption_key.as_bytes();
+    let public_key = match target_locker {
+        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+    };
+
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
@@ -224,6 +240,7 @@ pub async fn mk_basilisk_req(
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
     jws: &str,
+    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
 
@@ -241,10 +258,18 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)?;
 
     #[cfg(feature = "kms")]
-    let public_key = jwekey.jwekey.peek().vault_encryption_key.as_bytes();
+    let public_key = match locker_choice {
+        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => {
+            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        }
+    };
 
     #[cfg(not(feature = "kms"))]
-    let public_key = jwekey.vault_encryption_key.as_bytes();
+    let public_key = match locker_choice {
+        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+    };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
         .await
@@ -272,6 +297,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     payload: &StoreLockerReq<'a>,
+    locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -286,11 +312,14 @@ pub async fn mk_add_locker_request_hs<'a>(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
-    let mut url = locker.host.to_owned();
+    let mut url = match locker_choice {
+        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
+        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+    };
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
@@ -412,6 +441,7 @@ pub async fn mk_get_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
+    locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
@@ -432,11 +462,16 @@ pub async fn mk_get_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
-    let mut url = locker.host.to_owned();
+    let mut url = match target_locker {
+        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
+        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+    };
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
@@ -512,7 +547,7 @@ pub async fn mk_delete_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;

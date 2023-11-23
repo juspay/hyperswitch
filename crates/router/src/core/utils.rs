@@ -1,10 +1,18 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{AsyncExt, Encode},
+};
 use error_stack::{report, IntoReport, ResultExt};
+use euclid::enums as euclid_enums;
+use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -40,33 +48,21 @@ pub async fn get_mca_for_payout<'a>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
-) -> RouterResult<(helpers::MerchantConnectorAccountType, String)> {
-    let payout_attempt = &payout_data.payout_attempt;
-    let profile_id = get_profile_id_from_business_details(
-        payout_attempt.business_country,
-        payout_attempt.business_label.as_ref(),
-        merchant_account,
-        payout_attempt.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payout_attempt")?;
+) -> RouterResult<helpers::MerchantConnectorAccountType> {
     match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok((mca, profile_id)),
+        Some(mca) => Ok(mca),
         None => {
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
                 merchant_account.merchant_id.as_str(),
                 None,
                 key_store,
-                &profile_id,
+                &payout_data.profile_id,
                 connector_id,
-                payout_attempt.merchant_connector_id.as_ref(),
+                payout_data.payout_attempt.merchant_connector_id.as_ref(),
             )
             .await?;
-            Ok((merchant_connector_account, profile_id))
+            Ok(merchant_connector_account)
         }
     }
 }
@@ -81,7 +77,7 @@ pub async fn construct_payout_router_data<'a, F>(
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (merchant_connector_account, profile_id) = get_mca_for_payout(
+    let merchant_connector_account = get_mca_for_payout(
         state,
         connector_id,
         merchant_account,
@@ -127,7 +123,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{profile_id}_{}", payout_attempt.connector);
+    let connector_label = format!("{}_{}", payout_data.profile_id, payout_attempt.connector);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
@@ -1072,4 +1068,68 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
+}
+
+#[instrument(skip_all)]
+pub async fn persist_individual_surcharge_details_in_redis(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    surcharge_metadata: &SurchargeMetadata,
+) -> RouterResult<()> {
+    if !surcharge_metadata.is_empty_result() {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = SurchargeMetadata::get_surcharge_metadata_redis_key(
+            &surcharge_metadata.payment_attempt_id,
+        );
+
+        let mut value_list = Vec::with_capacity(surcharge_metadata.get_surcharge_results_size());
+        for (key, value) in surcharge_metadata
+            .get_individual_surcharge_key_value_pairs()
+            .into_iter()
+        {
+            value_list.push((
+                key,
+                Encode::<SurchargeDetailsResponse>::encode_to_string_of_json(&value)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode to string of json")?,
+            ));
+        }
+        let intent_fulfillment_time = merchant_account
+            .intent_fulfillment_time
+            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+        redis_conn
+            .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to write to redis")?;
+    }
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn get_individual_surcharge_detail_from_redis(
+    state: &AppState,
+    payment_method: &euclid_enums::PaymentMethod,
+    payment_method_type: &euclid_enums::PaymentMethodType,
+    card_network: Option<euclid_enums::CardNetwork>,
+    payment_attempt_id: &str,
+) -> CustomResult<SurchargeDetailsResponse, RedisError> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .attach_printable("Failed to get redis connection")?;
+    let redis_key = SurchargeMetadata::get_surcharge_metadata_redis_key(payment_attempt_id);
+    let value_key = SurchargeMetadata::get_surcharge_details_redis_hashset_key(
+        payment_method,
+        payment_method_type,
+        card_network.as_ref(),
+    );
+
+    redis_conn
+        .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetailsResponse")
+        .await
 }

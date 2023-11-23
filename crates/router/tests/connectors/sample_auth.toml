@@ -185,5 +185,10 @@ api_key="API Key"
 [prophetpay]
 api_key="API Key"
 
+[bankofamerica]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"
+
 [stancer]
 api_key="API Key"

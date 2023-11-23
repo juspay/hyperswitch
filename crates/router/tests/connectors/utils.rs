@@ -4,9 +4,11 @@ use async_trait::async_trait;
 use common_utils::pii::Email;
 use error_stack::Report;
 use masking::Secret;
+#[cfg(feature = "payouts")]
+use router::core::utils as core_utils;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments, utils as core_utils},
+    core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
@@ -17,15 +19,21 @@ use wiremock::{Mock, MockServer};
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
+
     fn get_auth_token(&self) -> types::ConnectorAuthType;
+
     fn get_name(&self) -> String;
+
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None
     }
+
     /// interval in seconds to be followed when making the subsequent request whenever needed
     fn get_request_interval(&self) -> u64 {
         5
     }
+
+    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         None
     }
@@ -72,7 +80,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn create_connector_customer(
@@ -96,7 +104,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn create_connector_pm_token(
@@ -120,7 +128,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// For initiating payments when `CaptureMethod` is set to `Automatic`
@@ -148,7 +156,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn sync_payment(
@@ -161,7 +169,7 @@ pub trait ConnectorActions: Connector {
             payment_data.unwrap_or_else(|| PaymentSyncType::default().0),
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// will retry the psync till the given status matches or retry max 3 times
@@ -199,7 +207,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn authorize_and_capture_payment(
@@ -235,7 +243,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn authorize_and_void_payment(
@@ -272,7 +280,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn capture_payment_and_refund(
@@ -392,7 +400,7 @@ pub trait ConnectorActions: Connector {
             }),
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// will retry the rsync till the given status matches or retry max 3 times
@@ -423,6 +431,7 @@ pub trait ConnectorActions: Connector {
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_request<Flow, Res>(
         &self,
         connector_payout_id: Option<String>,
@@ -534,6 +543,7 @@ pub trait ConnectorActions: Connector {
         }
     }
 
+    #[cfg(feature = "payouts")]
     async fn verify_payout_eligibility(
         &self,
         payout_type: enums::PayoutType,
@@ -572,6 +582,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn fulfill_payout(
         &self,
         connector_payout_id: Option<String>,
@@ -611,6 +622,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_payout(
         &self,
         connector_customer: Option<String>,
@@ -651,6 +663,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn cancel_payout(
         &self,
         connector_payout_id: String,
@@ -691,6 +704,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_and_fulfill_payout(
         &self,
         connector_customer: Option<String>,
@@ -714,6 +728,7 @@ pub trait ConnectorActions: Connector {
         Ok(fulfill_res)
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_and_cancel_payout(
         &self,
         connector_customer: Option<String>,
@@ -737,6 +752,7 @@ pub trait ConnectorActions: Connector {
         Ok(cancel_res)
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_payout_recipient(
         &self,
         payout_type: enums::PayoutType,

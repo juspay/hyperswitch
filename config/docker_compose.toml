@@ -44,6 +44,7 @@ recon_admin_api_key = "recon_test_admin"
 
 [locker]
 host = ""
+host_rs = ""
 mock_locker = true
 basilisk_host = ""
 
@@ -55,6 +56,7 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
+rust_locker_encryption_key = ""
 vault_private_key = ""
 
 [redis]
@@ -78,6 +80,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
@@ -146,6 +149,7 @@ cards = [
     "airwallex",
     "authorizedotnet",
     "bambora",
+    "bankofamerica",
     "bitpay",
     "bluesnap",
     "boku",
@@ -283,6 +287,9 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.stripe]
 cashapp = {country = "US", currency = "USD"}
 
+[pm_filters.prophetpay]
+card_redirect = { currency = "USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -318,6 +325,17 @@ supported_connectors = "braintree"
 [lock_settings]
 redis_lock_expiry_seconds = 180 # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
+
+[analytics]
+source = "sqlx"
+
+[analytics.sqlx]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
