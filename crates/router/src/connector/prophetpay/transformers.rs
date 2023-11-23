@@ -8,6 +8,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{self, to_connector_meta},
+    consts as const_val,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -432,7 +433,6 @@ pub struct ProphetpaySyncResponse {
     pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
-    pub response_code: String,
 }
 
 impl<F, T>
@@ -462,7 +462,7 @@ impl<F, T>
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
@@ -481,7 +481,6 @@ pub struct ProphetpayVoidResponse {
     pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
-    pub response_code: String,
 }
 
 impl<F, T>
@@ -511,7 +510,7 @@ impl<F, T>
             Ok(Self {
                 status: enums::AttemptStatus::VoidFailed,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
@@ -595,7 +594,6 @@ pub struct ProphetpayRefundResponse {
     pub success: bool,
     pub response_text: String,
     pub tran_seq_number: Option<String>,
-    pub response_code: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>>
@@ -622,7 +620,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
@@ -639,7 +637,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
 pub struct ProphetpayRefundSyncResponse {
     pub success: bool,
     pub response_text: String,
-    pub response_code: String,
 }
 
 impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
@@ -662,7 +659,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
