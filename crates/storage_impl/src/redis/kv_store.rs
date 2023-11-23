@@ -1,6 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use error_stack::IntoReport;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
@@ -145,8 +146,10 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::HSetNx(result))
+                } else {
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-                Ok(KvResult::HSetNx(result))
             }
 
             KvOperation::SetNx(value, sql) => {
@@ -160,9 +163,10 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::SetNx(result))
+                } else {
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-
-                Ok(KvResult::SetNx(result))
             }
 
             KvOperation::Get => {
