@@ -2,8 +2,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::models::{
-    payment, payment_auth, refund, CreatePaymentRequest, CreatePaymentRequestAuth,
-    CreatePaymentRequestCard, CreatePaymentRequestDevice, CreateRefundRequest, Payment, Refund,
+    payment, payment_auth, refund, update_payment_request, CreatePaymentRequest,
+    CreatePaymentRequestAuth, CreatePaymentRequestCard, CreatePaymentRequestDevice,
+    CreateRefundRequest, Payment, Refund, UpdatePaymentRequest,
 };
 use crate::{
     core::errors,
@@ -118,6 +119,23 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Create
             }),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
+    }
+}
+
+// UpdatePaymentRequest
+impl TryFrom<&StancerRouterData<&types::PaymentsCaptureRouterData>> for UpdatePaymentRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &StancerRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let StancerRouterData { amount, .. } = item;
+
+        Ok(Self {
+            amount: Some(*amount),
+            status: Some(update_payment_request::Status::Capture),
+            ..UpdatePaymentRequest::new()
+        })
     }
 }
 

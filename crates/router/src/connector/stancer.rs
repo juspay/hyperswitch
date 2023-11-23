@@ -27,7 +27,9 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-use self::models::{CreatePaymentRequest, CreateRefundRequest, Payment, Refund};
+use self::models::{
+    CreatePaymentRequest, CreateRefundRequest, Payment, Refund, UpdatePaymentRequest,
+};
 
 use super::utils::PaymentsSyncRequestData;
 
@@ -345,18 +347,35 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(connectors),
+            "v1/checkout",
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_router_data = stancer::StancerRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let req_obj = UpdatePaymentRequest::try_from(&connector_router_data)?;
+        let stancer_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<UpdatePaymentRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(stancer_req))
     }
 
     fn build_request(
