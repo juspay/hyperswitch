@@ -576,8 +576,8 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
                 amount: item.amount.to_owned(),
                 card_token: card_token_data.card_token,
                 profile: auth_data.profile_id,
-                ref_info: item.router_data.connector_request_reference_id.to_owned(),
-                inquiry_reference: item.router_data.connector_request_reference_id.clone(),
+                ref_info: item.router_data.request.refund_id.to_owned(),
+                inquiry_reference: item.router_data.request.refund_id.clone(),
                 action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
             })
         } else {
@@ -594,7 +594,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
 pub struct ProphetpayRefundResponse {
     pub success: bool,
     pub response_text: String,
-    pub tran_seq_number: String,
+    pub tran_seq_number: Option<String>,
     pub response_code: String,
 }
 
@@ -609,7 +609,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
             Ok(Self {
                 response: Ok(types::RefundsResponseData {
                     // no refund id is generated, tranSeqNumber is kept for future usage
-                    connector_refund_id: item.response.tran_seq_number,
+                    connector_refund_id: item.response.tran_seq_number.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "tran_seq_number",
+                        },
+                    )?,
                     refund_status: enums::RefundStatus::Success,
                 }),
                 ..item.data
