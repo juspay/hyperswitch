@@ -4,7 +4,6 @@ use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::ExposeInterface;
 
 use crate::{configs, consts};
-
 #[cfg(any(feature = "olap"))]
 use crate::{core::errors::UserErrors, services::jwt, types::domain::UserEmail};
 
