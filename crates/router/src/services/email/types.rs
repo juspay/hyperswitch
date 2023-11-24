@@ -3,7 +3,10 @@ use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::ExposeInterface;
 
-use crate::{configs, consts, core::errors::UserErrors, services::jwt, types::domain};
+use crate::{configs, consts};
+
+#[cfg(any(feature = "olap"))]
+use crate::{core::errors::UserErrors, services::jwt, types::domain::UserEmail};
 
 pub enum EmailBody {
     Verify { link: String },
@@ -29,7 +32,7 @@ pub struct EmailToken {
 
 impl EmailToken {
     pub async fn new_token(
-        email: domain::UserEmail,
+        email: UserEmail,
         settings: &configs::settings::Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
@@ -43,7 +46,7 @@ impl EmailToken {
 }
 
 pub struct WelcomeEmail<'a> {
-    pub recipient_email: domain::UserEmail,
+    pub recipient_email: UserEmail,
     pub settings: &'a configs::settings::Settings,
 }
 
