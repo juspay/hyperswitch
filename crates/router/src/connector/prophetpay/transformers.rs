@@ -581,7 +581,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
             })
         } else {
             Err(errors::ConnectorError::NotImplemented(
-                "Partial Refund is Not Supported".to_string(),
+                "Partial Refund".to_string(),
             )
             .into())
         }
