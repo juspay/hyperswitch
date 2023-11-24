@@ -32,7 +32,7 @@ pub async fn apple_pay_merchant_registration(
                 merchant_id.clone(),
             )
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -60,7 +60,7 @@ pub async fn retrieve_apple_pay_verified_domains(
                 mca_id.to_string(),
             )
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
     .await

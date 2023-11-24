@@ -1,5 +1,7 @@
 pub mod api;
 pub mod authentication;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod authorization;
 pub mod encryption;
 #[cfg(feature = "olap")]
 pub mod jwt;
