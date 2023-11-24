@@ -2,7 +2,6 @@
 //!
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
-use crate::services::authorization::permissions::Permission;
 use actix_web::{web, HttpRequest, Responder};
 use api_models::routing as routing_types;
 #[cfg(feature = "business_profile_routing")]
@@ -15,7 +14,7 @@ use router_env::{
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
-    services::{api as oss_api, authentication as auth},
+    services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
 };
 
 #[cfg(feature = "olap")]
