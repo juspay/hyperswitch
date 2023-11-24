@@ -543,6 +543,53 @@ where
     }
 }
 
+pub struct DashboardNoPermissionAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJWT {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok(((), AuthenticationType::NoAuth))
+    }
+}
+
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }

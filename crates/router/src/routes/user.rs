@@ -42,7 +42,7 @@ pub async fn change_password(
         &http_req,
         json_payload.into_inner(),
         |state, user, req| user::change_password(state, req, user),
-        &auth::JWTAuth,
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
