@@ -5,11 +5,13 @@ use masking::{ExposeInterface, Secret};
 use router_env::env;
 
 use super::errors::{UserErrors, UserResponse};
-use crate::{consts,
+use crate::{
+    consts,
     db::user::UserInterface,
     routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain};
+    types::domain,
+};
 
 pub async fn connect_account(
     state: AppState,
