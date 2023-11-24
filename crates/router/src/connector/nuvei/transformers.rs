@@ -1580,6 +1580,7 @@ fn get_error_response<T>(
         reason: None,
         status_code: http_code,
         attempt_status: None,
+        connector_transaction_id: None,
     })
 }
 

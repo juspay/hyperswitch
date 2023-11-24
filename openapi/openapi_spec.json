@@ -5372,13 +5372,13 @@
           {
             "type": "string",
             "enum": [
-              "user_addressline1"
+              "user_address_line1"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_addressline2"
+              "user_address_line2"
             ]
           },
           {

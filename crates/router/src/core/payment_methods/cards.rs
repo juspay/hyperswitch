@@ -2459,8 +2459,7 @@ async fn get_bank_account_connector_details(
                 }))
             }
         },
-        None => Err(errors::ApiErrorResponse::InternalServerError.into())
-            .attach_printable("Unable to fetch payment method data"),
+        None => Ok(None),
     }
 }
 
