@@ -6594,14 +6594,6 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
-          },
-          "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentLinkConfig"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -6775,9 +6767,6 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
-          },
-          "payment_link_config": {
-            "nullable": true
           }
         }
       },
