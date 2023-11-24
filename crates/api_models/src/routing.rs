@@ -341,6 +341,7 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
                 RoutableConnectors::Rapyd => euclid_enums::Connector::Rapyd,
                 RoutableConnectors::Shift4 => euclid_enums::Connector::Shift4,
                 RoutableConnectors::Square => euclid_enums::Connector::Square,
+                RoutableConnectors::Stancer => euclid_enums::Connector::Stancer,
                 RoutableConnectors::Stax => euclid_enums::Connector::Stax,
                 RoutableConnectors::Stripe => euclid_enums::Connector::Stripe,
                 RoutableConnectors::Trustpay => euclid_enums::Connector::Trustpay,

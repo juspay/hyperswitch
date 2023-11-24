@@ -575,7 +575,7 @@ pub struct Connectors {
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub square: ConnectorParams,
-	pub stancer: ConnectorParams,
+    pub stancer: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,

@@ -121,6 +121,7 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Square,
+    Stancer,
     Stax,
     Stripe,
     Trustpay,

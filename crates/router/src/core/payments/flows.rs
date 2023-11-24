@@ -142,7 +142,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Bankofamerica,
@@ -171,6 +170,7 @@ default_imp_for_complete_authorize!(
     connector::Payu,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Trustpay,
@@ -208,7 +208,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -249,6 +248,7 @@ default_imp_for_webhook_source_verification!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Trustpay,
@@ -288,7 +288,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -329,6 +328,7 @@ default_imp_for_create_customer!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
@@ -368,7 +368,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -398,6 +397,7 @@ default_imp_for_connector_redirect_response!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Tsys,
     connector::Volt,
@@ -418,7 +418,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -458,6 +457,7 @@ default_imp_for_connector_request_id!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Trustpay,
@@ -500,7 +500,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -541,6 +540,7 @@ default_imp_for_accept_dispute!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Trustpay,
@@ -602,7 +602,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -642,6 +641,7 @@ default_imp_for_file_upload!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Trustpay,
     connector::Tsys,
@@ -681,7 +681,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -721,6 +720,7 @@ default_imp_for_submit_evidence!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Trustpay,
     connector::Tsys,
@@ -760,7 +760,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -800,6 +799,7 @@ default_imp_for_defend_dispute!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Trustpay,
@@ -840,7 +840,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -880,6 +879,7 @@ default_imp_for_pre_processing_steps!(
     connector::Rapyd,
     connector::Shift4,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Tsys,
     connector::Volt,
@@ -901,7 +901,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-	connector::Stancer,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -941,6 +940,7 @@ default_imp_for_payouts!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -981,7 +981,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-	connector::Stancer,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1021,6 +1020,7 @@ default_imp_for_payouts_create!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1064,7 +1064,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-	connector::Stancer,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1104,6 +1103,7 @@ default_imp_for_payouts_eligibility!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1144,7 +1144,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-	connector::Stancer,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1184,6 +1183,7 @@ default_imp_for_payouts_fulfill!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1224,7 +1224,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-	connector::Stancer,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1264,6 +1263,7 @@ default_imp_for_payouts_cancel!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1304,7 +1304,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1345,6 +1344,7 @@ default_imp_for_payouts_quote!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1385,7 +1385,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1426,6 +1425,7 @@ default_imp_for_payouts_recipient!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1465,7 +1465,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1506,6 +1505,7 @@ default_imp_for_approve!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1546,7 +1546,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-	connector::Stancer,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1587,6 +1586,7 @@ default_imp_for_reject!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
+    connector::Stancer,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,

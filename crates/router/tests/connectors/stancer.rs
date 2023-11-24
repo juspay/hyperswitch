@@ -1,11 +1,11 @@
 use masking::Secret;
 use router::{
     core::utils as core_utils,
-    types::{self, api, storage::enums,
-}};
+    types::{self, api, storage::enums},
+};
+use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
-use test_utils::connector_auth;
 
 #[derive(Clone, Copy)]
 struct StancerTest;
@@ -17,6 +17,7 @@ impl utils::Connector for StancerTest {
             connector: Box::new(&Stancer),
             connector_name: types::Connector::Stancer,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -24,7 +25,8 @@ impl utils::Connector for StancerTest {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .stancer
-                .expect("Missing connector authentication configuration").into(),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -127,7 +129,12 @@ async fn should_void_authorized_payment() {
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
-        .capture_payment_and_refund(payment_method_details(), None, None, get_default_payment_info())
+        .capture_payment_and_refund(
+            payment_method_details(),
+            None,
+            None,
+            get_default_payment_info(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -161,7 +168,12 @@ async fn should_partially_refund_manually_captured_payment() {
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
-        .capture_payment_and_refund(payment_method_details(), None, None, get_default_payment_info())
+        .capture_payment_and_refund(
+            payment_method_details(),
+            None,
+            None,
+            get_default_payment_info(),
+        )
         .await
         .unwrap();
     let response = CONNECTOR
@@ -182,14 +194,20 @@ async fn should_sync_manually_captured_refund() {
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_make_payment() {
-    let authorize_response = CONNECTOR.make_payment(payment_method_details(), get_default_payment_info()).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_default_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
-    let authorize_response = CONNECTOR.make_payment(payment_method_details(), get_default_payment_info()).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_default_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
@@ -350,7 +368,10 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
-    let authorize_response = CONNECTOR.make_payment(payment_method_details(), get_default_payment_info()).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_default_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");

@@ -109,6 +109,7 @@ impl ForeignFrom<api_enums::RoutableConnectors> for dsl_enums::Connector {
             api_enums::RoutableConnectors::Rapyd => Self::Rapyd,
             api_enums::RoutableConnectors::Shift4 => Self::Shift4,
             api_enums::RoutableConnectors::Square => Self::Square,
+            api_enums::RoutableConnectors::Stancer => Self::Stancer,
             api_enums::RoutableConnectors::Stax => Self::Stax,
             api_enums::RoutableConnectors::Stripe => Self::Stripe,
             api_enums::RoutableConnectors::Trustpay => Self::Trustpay,
