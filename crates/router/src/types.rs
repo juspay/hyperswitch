@@ -976,6 +976,7 @@ pub struct ErrorResponse {
     pub reason: Option<String>,
     pub status_code: u16,
     pub attempt_status: Option<storage_enums::AttemptStatus>,
+    pub connector_transaction_id: Option<String>,
 }
 
 impl ErrorResponse {
@@ -992,6 +993,7 @@ impl ErrorResponse {
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -1035,6 +1037,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 _ => 500,
             },
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }

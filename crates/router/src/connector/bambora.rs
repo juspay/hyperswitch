@@ -96,6 +96,7 @@ impl ConnectorCommon for Bambora {
             message: response.message,
             reason: Some(serde_json::to_string(&response.details).unwrap_or_default()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
