@@ -326,6 +326,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,

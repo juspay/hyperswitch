@@ -95,6 +95,7 @@ impl ConnectorCommon for Wise {
                         message: e.message.clone(),
                         reason: None,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 } else {
                     Ok(types::ErrorResponse {
@@ -103,6 +104,7 @@ impl ConnectorCommon for Wise {
                         message: response.message.unwrap_or_default(),
                         reason: None,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 }
             }
@@ -112,6 +114,7 @@ impl ConnectorCommon for Wise {
                 message: response.message.unwrap_or_default(),
                 reason: None,
                 attempt_status: None,
+                connector_transaction_id: None,
             }),
         }
     }
@@ -293,6 +296,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
