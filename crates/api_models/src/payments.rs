@@ -301,7 +301,7 @@ pub struct PaymentsRequest {
     #[schema(default = false, example = true)]
     pub payment_link: Option<bool>,
 
-    /// custom payment link config for the particulae payment
+    /// custom payment link config for the particular payment
     pub payment_link_config: Option<admin::PaymentLinkConfig>,
 
     /// The business profile to use for this payment, if not passed the default business profile
