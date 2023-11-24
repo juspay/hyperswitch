@@ -9,6 +9,7 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
+use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
 #[cfg(feature = "olap")]
@@ -387,7 +388,7 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth;
+pub(crate) struct JWTAuth(pub Permission);
 
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchUnit {
@@ -406,6 +407,10 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
         Ok((
             (),
             AuthenticationType::MerchantJWT {
@@ -418,6 +423,7 @@ where
 
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: String,
+    pub required_permission: Permission,
 }
 
 #[async_trait]
@@ -431,6 +437,9 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.required_permission, permissions)?;
 
         // Check if token has access to merchantID that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -460,6 +469,7 @@ where
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchMerchantAccount {
     merchant_id: String,
+    role_id: String,
 }
 
 #[async_trait]
@@ -475,6 +485,10 @@ where
         let payload =
             parse_jwt_payload::<A, JwtAuthPayloadFetchMerchantAccount>(request_headers, state)
                 .await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
