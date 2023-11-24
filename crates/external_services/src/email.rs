@@ -3,7 +3,8 @@
 use common_utils::{errors::CustomResult, pii};
 use serde::Deserialize;
 
-mod ses;
+/// Implementation of aws ses client
+pub mod ses;
 
 /// Custom Result type alias for Email operations.
 pub type EmailResult<T> = CustomResult<T, EmailError>;
@@ -86,9 +87,6 @@ dyn_clone::clone_trait_object!(EmailClient);
 /// Struct that contains the settings required to construct an EmailClient.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct EmailSettings {
-    /// Sender email.
-    pub from_email: String,
-
     /// The AWS region to send SES requests to.
     pub aws_region: String,
 

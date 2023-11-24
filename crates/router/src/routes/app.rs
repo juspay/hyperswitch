@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
-use external_services::email::{AwsSes, EmailClient};
+use external_services::email::{ses::AwsSes, EmailClient};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use router_env::tracing_actix_web::RequestId;
