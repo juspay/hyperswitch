@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.88.0 (2023-11-23)
+
+### Features
+
+- **connector:** [BANKOFAMERICA] Implement Google Pay ([#2940](https://github.com/juspay/hyperswitch/pull/2940)) ([`f91d4ae`](https://github.com/juspay/hyperswitch/commit/f91d4ae11b02def92c1dde743a0c01b5aac5703f))
+- **router:** Allow billing and shipping address update in payments confirm flow ([#2963](https://github.com/juspay/hyperswitch/pull/2963)) ([`59ef162`](https://github.com/juspay/hyperswitch/commit/59ef162219db3e4650dde65710850bc9f3280530))
+
+### Bug Fixes
+
+- **connector:** [Prophetpay] Use refund_id as reference_id for Refund ([#2966](https://github.com/juspay/hyperswitch/pull/2966)) ([`dd3e22a`](https://github.com/juspay/hyperswitch/commit/dd3e22a938714f373477e08d1d25e4b84ac796c6))
+- **core:** Fix Default Values Enum FieldType ([#2934](https://github.com/juspay/hyperswitch/pull/2934)) ([`35a44ed`](https://github.com/juspay/hyperswitch/commit/35a44ed2533b748e3fabb8a2f8db4fa7e5d3cf7e))
+- **drainer:** Increase jobs picked only when stream is not empty ([#2958](https://github.com/juspay/hyperswitch/pull/2958)) ([`42eedf3`](https://github.com/juspay/hyperswitch/commit/42eedf3a8c2e62fc22bcead370d129ebaf11a00b))
+- Amount_captured goes to 0 for 3ds payments ([#2954](https://github.com/juspay/hyperswitch/pull/2954)) ([`75eea7e`](https://github.com/juspay/hyperswitch/commit/75eea7e81787f2e0697b930b82a8188193f8d51f))
+- Make drainer sleep on every loop interval instead of cycle end ([#2951](https://github.com/juspay/hyperswitch/pull/2951)) ([`e8df690`](https://github.com/juspay/hyperswitch/commit/e8df69092f4c6acee58109aaff2a9454fceb571a))
+
+### Refactors
+
+- **connector:**
+  - [Payeezy] update error message ([#2919](https://github.com/juspay/hyperswitch/pull/2919)) ([`cb65370`](https://github.com/juspay/hyperswitch/commit/cb653706066b889eaa9423a6227ce1df954b4759))
+  - [Worldline] change error message from NotSupported to NotImplemented ([#2893](https://github.com/juspay/hyperswitch/pull/2893)) ([`e721b06`](https://github.com/juspay/hyperswitch/commit/e721b06c7077e00458450a4fb98f4497e8227dc6))
+
+### Testing
+
+- **postman:** Update postman collection files ([`9a3fa00`](https://github.com/juspay/hyperswitch/commit/9a3fa00426d74f6d18b3c712b292d98d80d517ba))
+
+**Full Changelog:** [`v1.87.0...v1.88.0`](https://github.com/juspay/hyperswitch/compare/v1.87.0...v1.88.0)
+
+- - -
+
+
 ## 1.87.0 (2023-11-22)
 
 ### Features

@@ -1325,6 +1325,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1337,6 +1338,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -1588,6 +1590,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -1600,6 +1603,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             },
             DieselPaymentAttemptUpdate::CaptureUpdate {
                 amount_to_capture,

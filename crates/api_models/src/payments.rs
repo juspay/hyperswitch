@@ -312,6 +312,18 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
+impl PaymentsRequest {
+    pub fn get_total_capturable_amount(&self) -> Option<i64> {
+        let surcharge_amount = self
+            .surcharge_details
+            .map(|surcharge_details| {
+                surcharge_details.surcharge_amount + surcharge_details.tax_amount.unwrap_or(0)
+            })
+            .unwrap_or(0);
+        self.amount
+            .map(|amount| i64::from(amount) + surcharge_amount)
+    }
+}
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]

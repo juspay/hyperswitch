@@ -112,6 +112,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             message: response.error.message,
             reason: response.error.reason,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
