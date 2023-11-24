@@ -73,7 +73,7 @@ pub trait StorageInterface:
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
     + file::FileMetadataInterface
-    + fraud_check::FraudCheckInterface
+    + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface
