@@ -266,9 +266,9 @@ pure-idiomatic.
 
 Get updates on Hyperswitch development and chat with the community:
 
-- [Discord server][discord] - Join to contribute to the hyperswitch open source.
-- [Slack workspace][slack] - Real-time chat with the Hyperswitch crew. Meet fellow users, contributors, and our developer advocates. Perfect for quick questions.
-- [GitHub Discussions][github-discussions] - Drop feature requests or suggest anything payments-related you need for your stack. Got questions? Ask away!
+- [Discord server][discord] for questions related to contributing to hyperswitch, questions about the architecture, components, etc.
+- [Slack workspace][slack] for questions related to integrating hyperswitch, integrating a connector in hyperswitch, etc.
+- [GitHub Discussions][github-discussions] to drop feature requests or suggest anything payments-related you need for your stack.
 
 [blog]: https://hyperswitch.io/blog
 [discord]: https://discord.gg/wJZ7DVW8mm
