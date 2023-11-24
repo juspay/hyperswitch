@@ -113,7 +113,8 @@ where
             enums::AttemptStatus::Charged => {
                 let captured_amount =
                     types::Capturable::get_capture_amount(&self.request, payment_data);
-                if Some(payment_data.payment_attempt.get_total_amount()) == captured_amount {
+                let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
+                if Some(total_capturable_amount) == captured_amount {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
                     enums::AttemptStatus::PartialCharged
