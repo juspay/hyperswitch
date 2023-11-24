@@ -13,6 +13,8 @@ pub enum UserErrors {
     InvalidCredentials,
     #[error("UserExists")]
     UserExists,
+    #[error("InvalidOldPassword")]
+    InvalidOldPassword,
     #[error("EmailParsingError")]
     EmailParsingError,
     #[error("NameParsingError")]
@@ -29,8 +31,6 @@ pub enum UserErrors {
     DuplicateOrganizationId,
     #[error("MerchantIdNotFound")]
     MerchantIdNotFound,
-    #[error("InvalidOldPassword")]
-    InvalidOldPassword,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -51,6 +51,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 sub_code,
                 3,
                 "An account already exists with this email",
+                None,
+            )),
+            Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
+                sub_code,
+                6,
+                "Old password incorrect. Please enter the correct password",
                 None,
             )),
             Self::EmailParsingError => {
@@ -80,12 +86,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantIdNotFound => {
                 AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
             }
-            Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
-                sub_code,
-                6,
-                "Old password incorrect. Please enter the correct password",
-                None,
-            )),
         }
     }
 }
