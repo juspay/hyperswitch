@@ -1,4 +1,4 @@
-use api_models::enums;
+use common_enums::Currency;
 use rust_decimal::Decimal;
 use rusty_money::Money;
 
@@ -9,8 +9,8 @@ use crate::{
 
 pub fn convert(
     ex_rates: &ExchangeRates,
-    from_currency: enums::Currency,
-    to_currency: enums::Currency,
+    from_currency: Currency,
+    to_currency: Currency,
     amount: i64,
 ) -> Result<Decimal, CurrencyConversionError> {
     let money_minor = Money::from_minor(amount, currency_match(from_currency));
@@ -35,15 +35,15 @@ mod tests {
     #[test]
     fn currency_to_currency_conversion() {
         use super::*;
-        let mut conversion: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+        let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
         let inr_conversion_rates =
             CurrencyFactors::new(Decimal::new(823173, 4), Decimal::new(1214, 5));
         let szl_conversion_rates =
             CurrencyFactors::new(Decimal::new(194423, 4), Decimal::new(514, 4));
-        let convert_from = enums::Currency::SZL;
-        let convert_to = enums::Currency::INR;
+        let convert_from = Currency::SZL;
+        let convert_to = Currency::INR;
         let amount = 2000;
-        let base_currency = enums::Currency::USD;
+        let base_currency = Currency::USD;
         conversion.insert(convert_from, inr_conversion_rates);
         conversion.insert(convert_to, szl_conversion_rates);
         let sample_rate = ExchangeRates::new(base_currency, conversion);
@@ -58,14 +58,14 @@ mod tests {
     #[test]
     fn currency_to_base_conversion() {
         use super::*;
-        let mut conversion: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+        let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
         let inr_conversion_rates =
             CurrencyFactors::new(Decimal::new(823173, 4), Decimal::new(1214, 5));
         let usd_conversion_rates = CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
-        let convert_from = enums::Currency::INR;
-        let convert_to = enums::Currency::USD;
+        let convert_from = Currency::INR;
+        let convert_to = Currency::USD;
         let amount = 2000;
-        let base_currency = enums::Currency::USD;
+        let base_currency = Currency::USD;
         conversion.insert(convert_from, inr_conversion_rates);
         conversion.insert(convert_to, usd_conversion_rates);
         let sample_rate = ExchangeRates::new(base_currency, conversion);
@@ -80,14 +80,14 @@ mod tests {
     #[test]
     fn base_to_currency_conversion() {
         use super::*;
-        let mut conversion: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+        let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
         let inr_conversion_rates =
             CurrencyFactors::new(Decimal::new(823173, 4), Decimal::new(1214, 5));
         let usd_conversion_rates = CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
-        let convert_from = enums::Currency::USD;
-        let convert_to = enums::Currency::INR;
+        let convert_from = Currency::USD;
+        let convert_to = Currency::INR;
         let amount = 2000;
-        let base_currency = enums::Currency::USD;
+        let base_currency = Currency::USD;
         conversion.insert(convert_from, usd_conversion_rates);
         conversion.insert(convert_to, inr_conversion_rates);
         let sample_rate = ExchangeRates::new(base_currency, conversion);
@@ -99,3 +99,4 @@ mod tests {
         );
     }
 }
+

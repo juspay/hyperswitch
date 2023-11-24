@@ -1926,7 +1926,7 @@ dependencies = [
 name = "currency_conversion"
 version = "0.1.0"
 dependencies = [
- "api_models",
+ "common_enums",
  "rust_decimal",
  "rusty-money",
  "serde",

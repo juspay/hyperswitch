@@ -7,7 +7,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+common_enums = { version = "0.1.0", path = "../common_enums", package = "common_enums" }
 
 # Third party crates
 rust_decimal = "1.29"
