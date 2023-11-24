@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "start")]
+#[operation(operations = "all", flow = "start")]
 pub struct PaymentStart;
 
 #[async_trait]

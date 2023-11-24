@@ -405,6 +405,7 @@ pub fn handle_json_response_deserialization_failure(
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }

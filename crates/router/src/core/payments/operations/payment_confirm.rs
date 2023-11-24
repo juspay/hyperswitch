@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 #[async_trait]
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
@@ -185,7 +185,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let shipping_address_fut = tokio::spawn(
             async move {
-                helpers::create_or_find_address_for_payment_by_request(
+                helpers::create_or_update_address_for_payment_by_request(
                     store.as_ref(),
                     m_request_shipping.as_ref(),
                     m_payment_intent_shipping_address_id.as_deref(),
@@ -213,7 +213,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let billing_address_fut = tokio::spawn(
             async move {
-                helpers::create_or_find_address_for_payment_by_request(
+                helpers::create_or_update_address_for_payment_by_request(
                     store.as_ref(),
                     m_request_billing.as_ref(),
                     m_payment_intent_billing_address_id.as_deref(),
