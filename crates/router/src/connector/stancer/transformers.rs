@@ -192,10 +192,18 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
     fn try_from(
         item: types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let types::ResponseRouterData::<_, _, _, _> { response, .. } = item;
+        let types::ResponseRouterData::<_, _, _, _> { response, data, .. } = item;
         let Payment {
             status, auth, id, ..
         } = response;
+        let three_ds_response = auth.as_ref().and_then(|auth| {
+            matches!(auth.status, payment_auth::Status::Unavailable).then_some(
+                types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2: false,
+                    related_transaction_id: Some(id.to_owned()),
+                },
+            )
+        });
 
         Ok(Self {
             status: status
@@ -204,23 +212,27 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "status",
                 })?,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(id.to_owned()),
-                redirection_data: auth
-                    .map(|auth| {
-                        url::Url::parse(&auth.redirect_url)
-                            .map_err(|_| errors::ConnectorError::ParsingFailed)
-                    })
-                    .transpose()?
-                    .map(|redirect_url| {
-                        services::RedirectForm::from((redirect_url, services::Method::Get))
-                    }),
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(id),
-            }),
-            ..item.data
+            response: if let Some(three_ds_response) = three_ds_response {
+                Ok(three_ds_response)
+            } else {
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(id.to_owned()),
+                    redirection_data: auth
+                        .map(|auth| {
+                            url::Url::parse(&auth.redirect_url)
+                                .map_err(|_| errors::ConnectorError::ParsingFailed)
+                        })
+                        .transpose()?
+                        .map(|redirect_url| {
+                            services::RedirectForm::from((redirect_url, services::Method::Get))
+                        }),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(id),
+                })
+            },
+            ..data
         })
     }
 }

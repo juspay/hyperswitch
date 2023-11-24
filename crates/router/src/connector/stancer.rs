@@ -11,8 +11,11 @@ use transformers as stancer;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
-    headers,
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
+    headers, routes,
     services::{
         self,
         request::{self, Mask},
@@ -176,6 +179,7 @@ impl
 {
 }
 
+#[async_trait::async_trait]
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Stancer
 {
@@ -197,6 +201,43 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v1/checkout"))
+    }
+
+    async fn execute_pretasks(
+        &self,
+        router_data: &mut types::PaymentsAuthorizeRouterData,
+        app_state: &routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match (
+            &router_data.request.payment_method_data,
+            &router_data.auth_type,
+        ) {
+            (api::PaymentMethodData::Card { .. }, enums::AuthenticationType::ThreeDs) => {
+                let types::RouterData { response, .. } =
+                    services::execute_connector_processing_step(
+                        app_state,
+                        Box::new(self),
+                        router_data,
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                    )
+                    .await?;
+                let response: types::PaymentsResponseData = response.map_err(|err| {
+                    errors::ConnectorError::UnexpectedResponseError(err.message.into())
+                })?;
+
+                if let types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2: three_ds_enrolled,
+                    ..
+                } = response
+                {
+                    router_data.request.enrolled_for_3ds = three_ds_enrolled;
+                }
+            }
+            _ => (),
+        }
+
+        Ok(())
     }
 
     fn get_request_body(
