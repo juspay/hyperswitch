@@ -114,6 +114,7 @@ pub trait ConnectorCommon {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

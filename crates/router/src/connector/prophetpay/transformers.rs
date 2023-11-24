@@ -419,6 +419,7 @@ impl<F>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -467,6 +468,7 @@ impl<F, T>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -515,6 +517,7 @@ impl<F, T>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -625,6 +628,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -664,6 +668,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })

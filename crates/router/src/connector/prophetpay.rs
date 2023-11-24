@@ -117,6 +117,7 @@ impl ConnectorCommon for Prophetpay {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: Some(response.to_string()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

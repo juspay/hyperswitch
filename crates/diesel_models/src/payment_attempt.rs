@@ -243,6 +243,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,
@@ -543,6 +544,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => Self {
                 connector,
                 status: Some(status),
@@ -556,6 +558,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 tax_amount,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {

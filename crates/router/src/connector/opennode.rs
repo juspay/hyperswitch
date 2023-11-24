@@ -111,6 +111,7 @@ impl ConnectorCommon for Opennode {
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

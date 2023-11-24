@@ -168,6 +168,7 @@ impl ConnectorCommon for Cryptopay {
             message: response.error.message,
             reason: response.error.reason,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
