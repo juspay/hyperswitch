@@ -617,10 +617,19 @@ impl Capturable for PaymentsSyncData {
     where
         F: Clone,
     {
-        payment_data
-            .payment_attempt
-            .amount_to_capture
-            .or(Some(payment_data.payment_attempt.get_total_amount()))
+        payment_data.payment_attempt.amount_to_capture.or_else(|| {
+            let original_amount = payment_data.payment_attempt.amount;
+            let surcharge_amount = payment_data
+                .payment_attempt
+                .get_surcharge_details()
+                .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+                .or(payment_data
+                    .surcharge_details
+                    .as_ref()
+                    .map(|surcharge_details| surcharge_details.get_total_surcharge_amount()))
+                .unwrap_or(0);
+            Some(original_amount + surcharge_amount)
+        })
     }
 }
 
