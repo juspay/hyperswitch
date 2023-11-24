@@ -102,6 +102,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             utils::flatten_join_error(mandate_details_fut)
         )?;
 
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(
+                order_details.to_owned(),
+                payment_intent.amount,
+            )?;
+        }
+
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -826,10 +833,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-
-        if let Some(order_details) = &request.order_details {
-            helpers::validate_order_details_amount(order_details.to_owned(), request.amount)?;
-        }
 
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)

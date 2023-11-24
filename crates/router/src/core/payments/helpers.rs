@@ -3688,17 +3688,9 @@ pub async fn get_gsm_record(
 
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
-    amount: Option<api_models::payments::Amount>,
+    amount: i64,
 ) -> Result<(), errors::ApiErrorResponse> {
     let total_order_details_amount: i64 = order_details.iter().map(|order| order.amount).sum();
-    let amount: i64 = match amount {
-        Some(value) => value.into(),
-        None => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Please provide amount if order details are provided".to_string(),
-            });
-        }
-    };
 
     if total_order_details_amount != amount {
         Err(errors::ApiErrorResponse::InvalidRequestData {

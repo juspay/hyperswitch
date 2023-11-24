@@ -186,6 +186,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_id: payment_id.clone(),
             })?;
 
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(
+                order_details.to_owned(),
+                payment_intent.amount,
+            )?;
+        }
+
         payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
@@ -520,10 +527,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
                 request.confirm,
                 request.order_details.clone(),
             )?;
-        }
-
-        if let Some(order_details) = &request.order_details {
-            helpers::validate_order_details_amount(order_details.to_owned(), request.amount)?;
         }
 
         let payment_id = request.payment_id.clone().ok_or(error_stack::report!(
