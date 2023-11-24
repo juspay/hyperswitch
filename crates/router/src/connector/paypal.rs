@@ -92,6 +92,7 @@ impl Paypal {
             message: response.message.clone(),
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -245,6 +246,7 @@ impl ConnectorCommon for Paypal {
             message: response.message.clone(),
             reason,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -380,6 +382,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             message: response.error_description.clone(),
             reason: Some(response.error_description),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

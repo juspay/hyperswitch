@@ -2480,6 +2480,7 @@ impl<F, T>
                         .or(Some(error.message.clone())),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 });
 
         let connector_metadata =
@@ -2788,6 +2789,12 @@ pub struct ErrorDetails {
     pub message: Option<String>,
     pub param: Option<String>,
     pub decline_code: Option<String>,
+    pub payment_intent: Option<PaymentIntentErrorResponse>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentIntentErrorResponse {
+    pub id: String,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]

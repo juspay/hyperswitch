@@ -458,6 +458,7 @@ impl<F, T>
                             message: item.response.status.status.unwrap_or_default(),
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
+                            connector_transaction_id: None,
                         }),
                     ),
                     _ => {
@@ -499,6 +500,7 @@ impl<F, T>
                     message: item.response.status.status.unwrap_or_default(),
                     reason: item.response.status.message,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
             ),
         };

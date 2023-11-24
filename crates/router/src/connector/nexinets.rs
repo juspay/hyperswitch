@@ -131,6 +131,7 @@ impl ConnectorCommon for Nexinets {
             message: static_message,
             reason: Some(connector_reason),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

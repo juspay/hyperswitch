@@ -227,6 +227,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -357,6 +358,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -483,6 +485,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -617,6 +620,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -760,6 +764,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -918,6 +923,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1041,6 +1047,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1197,6 +1204,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1318,6 +1326,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1424,6 +1433,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1569,6 +1579,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1672,6 +1683,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
@@ -1801,6 +1813,7 @@ impl
                     .unwrap_or(message)
             }),
             attempt_status: None,
+            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
         })
     }
 }
