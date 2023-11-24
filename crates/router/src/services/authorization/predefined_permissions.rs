@@ -28,7 +28,7 @@ impl RoleInfo {
 pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
     let mut roles = HashMap::new();
     roles.insert(
-        consts::user::ROLE_ID_ORGANIZATION_ADMIN,
+        consts::ROLE_ID_ORGANIZATION_ADMIN,
         RoleInfo {
             permissions: vec![
                 Permission::PaymentRead,
@@ -58,7 +58,6 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::UsersRead,
                 Permission::UsersWrite,
                 Permission::MerchantAccountCreate,
-                Permission::PaymentLinkRead,
             ],
             name: Some("Organization Admin"),
             is_invitable: false,

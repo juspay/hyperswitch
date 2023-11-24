@@ -29,7 +29,6 @@ pub enum Permission {
     UsersRead,
     UsersWrite,
     MerchantAccountCreate,
-    PaymentLinkRead,
 }
 
 impl Permission {
@@ -70,7 +69,6 @@ impl Permission {
             Self::UsersRead => Some("View all the users for a merchant"),
             Self::UsersWrite => Some("Invite users, assign and update roles"),
             Self::MerchantAccountCreate => None,
-            Self::PaymentLinkRead => Some("View all Payment Links"),
         }
     }
 }

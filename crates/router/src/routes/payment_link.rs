@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     core::{api_locking, payment_link::*},
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{api, authentication as auth},
     AppState,
 };
 
@@ -118,11 +118,7 @@ pub async fn payments_link_list(
         &req,
         payload,
         |state, auth, payload| list_payment_link(state, auth.merchant_account, payload),
-        auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::PaymentLinkRead),
-            req.headers(),
-        ),
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
     .await
