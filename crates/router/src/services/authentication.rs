@@ -14,6 +14,8 @@ use super::authorization::{self, permissions::Permission};
 use super::jwt;
 #[cfg(feature = "olap")]
 use crate::consts;
+#[cfg(feature = "olap")]
+use crate::core::errors::UserResult;
 use crate::{
     configs::settings,
     core::{
@@ -97,7 +99,7 @@ impl AuthToken {
         role_id: String,
         settings: &settings::Settings,
         org_id: String,
-    ) -> errors::UserResult<String> {
+    ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let token_payload = Self {
@@ -109,6 +111,14 @@ impl AuthToken {
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
+}
+
+#[derive(Clone)]
+pub struct UserFromToken {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub org_id: String,
 }
 
 pub trait AuthInfo {
@@ -421,6 +431,34 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJWT {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: String,
     pub required_permission: Permission,
@@ -516,6 +554,53 @@ where
                 user_id: None,
             },
         ))
+    }
+}
+
+pub struct DashboardNoPermissionAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJWT {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok(((), AuthenticationType::NoAuth))
     }
 }
 

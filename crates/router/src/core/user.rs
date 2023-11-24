@@ -1,11 +1,17 @@
 use api_models::user as api;
 use diesel_models::enums::UserStatus;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use router_env::env;
 
 use super::errors::{UserErrors, UserResponse};
-use crate::{consts, routes::AppState, services::ApplicationResponse, types::domain};
+use crate::{
+    consts,
+    db::user::UserInterface,
+    routes::AppState,
+    services::{authentication::UserFromToken, ApplicationResponse},
+    types::domain,
+};
 
 pub async fn connect_account(
     state: AppState,
@@ -76,4 +82,36 @@ pub async fn connect_account(
     } else {
         Err(UserErrors::InternalServerError.into())
     }
+}
+
+pub async fn change_password(
+    state: AppState,
+    request: api::ChangePasswordRequest,
+    user_from_token: UserFromToken,
+) -> UserResponse<()> {
+    let user: domain::UserFromStorage =
+        UserInterface::find_user_by_id(&*state.store, &user_from_token.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into();
+
+    user.compare_password(request.old_password)
+        .change_context(UserErrors::InvalidOldPassword)?;
+
+    let new_password_hash =
+        crate::utils::user::password::generate_password_hash(request.new_password)?;
+
+    let _ = UserInterface::update_user_by_user_id(
+        &*state.store,
+        user.get_user_id(),
+        diesel_models::user::UserUpdate::AccountUpdate {
+            name: None,
+            password: Some(new_password_hash),
+            is_verified: None,
+        },
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }
