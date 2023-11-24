@@ -1,4 +1,3 @@
-#[cfg(feature = "olap")]
 pub mod user;
 
 // ID generation
