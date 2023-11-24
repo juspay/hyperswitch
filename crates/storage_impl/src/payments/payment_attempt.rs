@@ -553,7 +553,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-                let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
+                let lookup_id = format!("conn_trans_{merchant_id}_{connector_transaction_id}");
                 let lookup = self
                     .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                     .await?;
@@ -774,7 +774,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{preprocessing_id}");
+                let lookup_id = format!("preprocessing_{merchant_id}_{preprocessing_id}");
                 let lookup = self
                     .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                     .await?;
@@ -1671,7 +1671,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
+        lookup_id: format!("conn_trans_{}_{}", merchant_id, connector_transaction_id),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
@@ -1693,7 +1693,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("{}_{}", merchant_id, preprocessing_id),
+        lookup_id: format!("preprocessing_{}_{}", merchant_id, preprocessing_id),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
