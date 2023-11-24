@@ -583,10 +583,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
                 action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
             })
         } else {
-            Err(errors::ConnectorError::NotImplemented(
-                "Partial Refund is Not Supported".to_string(),
-            )
-            .into())
+            Err(errors::ConnectorError::NotImplemented("Partial Refund".to_string()).into())
         }
     }
 }
