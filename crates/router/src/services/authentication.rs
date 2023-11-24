@@ -14,9 +14,7 @@ use super::jwt;
 #[cfg(feature = "olap")]
 use crate::consts;
 #[cfg(feature = "olap")]
-use crate::core::errors::{UserErrors, UserResult};
-#[cfg(feature = "olap")]
-use crate::db::user::UserInterface;
+use crate::core::errors::UserResult;
 use crate::{
     configs::settings,
     core::{
@@ -24,7 +22,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt, RouterResult},
     },
     db::StorageInterface,
-    routes::{app::AppStateInfo, AppState},
+    routes::app::AppStateInfo,
     services::api,
     types::domain,
     utils::OptionExt,
@@ -120,47 +118,6 @@ pub struct UserFromToken {
     pub merchant_id: String,
     pub role_id: String,
     pub org_id: String,
-}
-#[cfg(feature = "olap")]
-impl UserFromToken {
-    pub async fn get_merchant_account_from_db(
-        &self,
-        state: AppState,
-    ) -> UserResult<domain::MerchantAccount> {
-        let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &self.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(UserErrors::MerchantIdNotFound)
-                } else {
-                    e.change_context(UserErrors::InternalServerError)
-                }
-            })?;
-        let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
-            .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(UserErrors::MerchantIdNotFound)
-                } else {
-                    e.change_context(UserErrors::InternalServerError)
-                }
-            })?;
-        Ok(merchant_account)
-    }
-
-    pub async fn get_user(&self, state: AppState) -> UserResult<diesel_models::user::User> {
-        let user = UserInterface::find_user_by_id(&*state.store, &self.user_id)
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-        Ok(user)
-    }
 }
 
 pub trait AuthInfo {
