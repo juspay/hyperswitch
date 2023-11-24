@@ -123,14 +123,12 @@ pub async fn intiate_payment_link_flow(
         client_secret,
         merchant_logo: payment_link_config
             .clone()
-            .map(|pl_config| {
-                pl_config
-                    .logo
-                    .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string())
-            })
+            .map(|pl_config| pl_config.logo.unwrap_or(DEFAULT_MERCHANT_LOGO.to_string()))
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
-        theme: payment_link_config.clone().map(|pl_config| pl_config.theme.unwrap_or(default_sdk_theme.to_string())),
+        theme: payment_link_config
+            .clone()
+            .map(|pl_config| pl_config.theme.unwrap_or(default_sdk_theme.to_string())),
     };
 
     let js_script = get_js_script(payment_details)?;
@@ -166,7 +164,9 @@ fn get_color_scheme_css(
     payment_link_config: Option<api_models::admin::PaymentLinkConfig>,
     default_primary_color: String,
 ) -> String {
-    let background_primary_color = payment_link_config.map(|pl_config| pl_config.theme.unwrap_or(default_primary_color.clone())).unwrap_or(default_primary_color.clone());
+    let background_primary_color = payment_link_config
+        .map(|pl_config| pl_config.theme.unwrap_or(default_primary_color.clone()))
+        .unwrap_or(default_primary_color.clone());
     format!(
         ":root {{
       --primary-color: {background_primary_color};

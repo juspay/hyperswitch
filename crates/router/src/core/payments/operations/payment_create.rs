@@ -802,7 +802,12 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&payment_link_config).change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
+    let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
+        api_models::admin::PaymentLinkConfig,
+    >::encode_to_value(&payment_link_config)
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "payment_link_config",
+    })?;
 
     // let payment_link_config = payment_link_config.map(|pl_config|{
     //     common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&pl_config)
