@@ -1,6 +1,7 @@
 use api_models::user as api;
 use diesel_models::enums::UserStatus;
 use error_stack::IntoReport;
+
 use masking::{ExposeInterface, Secret};
 use router_env::env;
 
@@ -65,6 +66,23 @@ pub async fn connect_account(
         let jwt_token = user_from_db
             .get_jwt_auth_token(state.clone(), user_role.org_id)
             .await?;
+
+        #[cfg(feature = "email")]
+        {
+            use crate::services::email::types as email_types;
+            use external_services::email::compose_and_send_email;
+            use router_env::logger;
+
+            let email_contents = email_types::WelcomeEmail {
+                receipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+                settings: &state.conf,
+            };
+
+            let send_email_result =
+                compose_and_send_email(email_contents, state.email_client.as_ref()).await;
+
+            logger::info!(send_email_result=?send_email_result);
+        }
 
         return Ok(ApplicationResponse::Json(api::ConnectAccountResponse {
             token: Secret::new(jwt_token),

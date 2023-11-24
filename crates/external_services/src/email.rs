@@ -1,16 +1,9 @@
 //! Interactions with the AWS SES SDK
 
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_sesv2::{
-    config::Region,
-    operation::send_email::SendEmailError,
-    types::{Body, Content, Destination, EmailContent, Message},
-    Client,
-};
 use common_utils::{errors::CustomResult, pii};
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
 use serde::Deserialize;
+
+mod ses;
 
 /// Custom Result type alias for Email operations.
 pub type EmailResult<T> = CustomResult<T, EmailError>;
@@ -25,6 +18,67 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
         subject: String,
         body: String,
     ) -> EmailResult<()>;
+
+    /// Convert Stringified HTML to client native rich text format
+    /// This has to be done becaue not all clients may format html as the same
+    fn convert_to_rich_text(
+        &self,
+        intermediate_string: IntermediateString,
+    ) -> CustomResult<String, EmailError>;
+}
+
+/// This is a struct used to create Intermediate String for rich text ( html )
+#[derive(Debug)]
+pub struct IntermediateString(String);
+
+impl IntermediateString {
+    /// Create a new Instance of IntermediateString using a string
+    pub fn new(inner: String) -> Self {
+        Self(inner)
+    }
+
+    fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+/// Temporary output for the email subject
+#[derive(Debug)]
+pub struct EmailContents {
+    /// The subject of email
+    pub subject: String,
+
+    /// This will be the intermediate representation of the the email body in a generic format.
+    /// The email clients can convert this intermediate representation to their client specific rich text format
+    pub body: IntermediateString,
+
+    /// The email of the recipient to whom the email has to be sent
+    pub recipient: pii::Email,
+}
+
+/// A trait which will contain the logic of generating the email subject and body
+#[async_trait::async_trait]
+pub trait EmailData {
+    /// Get the email contents
+    async fn get_email_data(self) -> CustomResult<EmailContents, EmailError>;
+}
+
+/// Send email using the EmailClient
+pub async fn compose_and_send_email<D: EmailData>(
+    email_data: D,
+    email_client: &dyn EmailClient,
+) -> EmailResult<()> {
+    let EmailContents {
+        subject,
+        body,
+        recipient,
+    } = email_data.get_email_data().await?;
+
+    let rich_text_string = email_client.convert_to_rich_text(body)?;
+
+    email_client
+        .send_email(recipient, subject, rich_text_string)
+        .await
 }
 
 dyn_clone::clone_trait_object!(EmailClient);
@@ -40,88 +94,36 @@ pub struct EmailSettings {
 
     /// Base-url used when adding links that should redirect to self
     pub base_url: String,
+
+    /// Role of aws arn if using aws ses
+    pub email_role_arn: Option<String>,
+
+    /// Session id of simple token service if using aws ses
+    pub sts_session_id: Option<String>,
+
+    /// Number of days for verification of the email
+    pub allowed_unverified_days: i64,
+
+    /// Sender email
+    pub sender_email: String,
 }
 
-/// Client for AWS SES operation
-#[derive(Debug, Clone)]
-pub struct AwsSes {
-    ses_client: Client,
-    from_email: String,
-}
-
-impl AwsSes {
-    /// Constructs a new AwsSes client
-    pub async fn new(conf: &EmailSettings) -> Self {
-        let region_provider = RegionProviderChain::first_try(Region::new(conf.aws_region.clone()));
-        let sdk_config = aws_config::from_env().region(region_provider).load().await;
-
-        Self {
-            ses_client: Client::new(&sdk_config),
-            from_email: conf.from_email.clone(),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl EmailClient for AwsSes {
-    async fn send_email(
-        &self,
-        recipient: pii::Email,
-        subject: String,
-        body: String,
-    ) -> EmailResult<()> {
-        self.ses_client
-            .send_email()
-            .from_email_address(self.from_email.to_owned())
-            .destination(
-                Destination::builder()
-                    .to_addresses(recipient.peek())
-                    .build(),
-            )
-            .content(
-                EmailContent::builder()
-                    .simple(
-                        Message::builder()
-                            .subject(Content::builder().data(subject).build())
-                            .body(
-                                Body::builder()
-                                    .text(Content::builder().data(body).charset("UTF-8").build())
-                                    .build(),
-                            )
-                            .build(),
-                    )
-                    .build(),
-            )
-            .send()
-            .await
-            .map_err(AwsSesError::SendingFailure)
-            .into_report()
-            .change_context(EmailError::EmailSendingFailure)?;
-
-        Ok(())
-    }
-}
-
-#[allow(missing_docs)]
 /// Errors that could occur from EmailClient.
 #[derive(Debug, thiserror::Error)]
 pub enum EmailError {
     /// An error occurred when building email client.
     #[error("Error building email client")]
     ClientBuildingFailure,
+
     /// An error occurred when sending email
     #[error("Error sending email to recipient")]
     EmailSendingFailure,
+
+    /// Failed to generate the email token
     #[error("Failed to generate email token")]
     TokenGenerationFailure,
+
+    /// The expected feature is not implemented
     #[error("Feature not implemented")]
     NotImplemented,
-}
-
-/// Errors that could occur during SES operations.
-#[derive(Debug, thiserror::Error)]
-pub enum AwsSesError {
-    /// An error occurred in the SDK while sending email.
-    #[error("Failed to Send Email {0:?}")]
-    SendingFailure(aws_smithy_client::SdkError<SendEmailError>),
 }

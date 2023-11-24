@@ -152,7 +152,7 @@ impl AppState {
             .expect("Failed while performing KMS decryption");
 
             #[cfg(feature = "email")]
-            let email_client = Arc::new(AwsSes::new(&conf.email).await);
+            let email_client = Arc::new(AwsSes::create(&conf.email).await);
             Self {
                 flow_name: String::from("default"),
                 store,
