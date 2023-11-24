@@ -15,13 +15,15 @@ use super::jwt;
 use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::{UserErrors, UserResult};
+#[cfg(feature = "olap")]
+use crate::db::user::UserInterface;
 use crate::{
     configs::settings,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
     },
-    db::{user::UserInterface, StorageInterface},
+    db::StorageInterface,
     routes::{app::AppStateInfo, AppState},
     services::api,
     types::domain,
