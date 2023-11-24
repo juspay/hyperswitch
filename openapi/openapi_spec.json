@@ -9051,7 +9051,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "payment_link_config"
         ],
         "properties": {
           "payment_id": {
@@ -9392,12 +9393,7 @@
             "nullable": true
           },
           "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/admin.PaymentLinkConfig"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentLinkConfig"
           },
           "profile_id": {
             "type": "string",
@@ -9424,6 +9420,9 @@
       },
       "PaymentsRequest": {
         "type": "object",
+        "required": [
+          "payment_link_config"
+        ],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -9763,12 +9762,7 @@
             "nullable": true
           },
           "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/admin.PaymentLinkConfig"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentLinkConfig"
           },
           "profile_id": {
             "type": "string",
