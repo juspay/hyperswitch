@@ -21,7 +21,7 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
     ) -> EmailResult<()>;
 
     /// Convert Stringified HTML to client native rich text format
-    /// This has to be done becaue not all clients may format html as the same
+    /// This has to be done because not all clients may format html as the same
     fn convert_to_rich_text(
         &self,
         intermediate_string: IntermediateString,

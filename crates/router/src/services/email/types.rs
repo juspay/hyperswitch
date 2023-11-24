@@ -45,7 +45,7 @@ impl EmailToken {
 }
 
 pub struct WelcomeEmail<'a> {
-    pub receipient_email: domain::UserEmail,
+    pub recipient_email: domain::UserEmail,
     pub settings: &'a configs::settings::Settings,
 }
 
@@ -60,7 +60,7 @@ pub fn get_email_verification_link(
 #[async_trait::async_trait]
 impl<'a> EmailData for WelcomeEmail<'a> {
     async fn get_email_data(self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.receipient_email.clone(), self.settings)
+        let token = EmailToken::new_token(self.recipient_email.clone(), self.settings)
             .await
             .change_context(EmailError::TokenGenerationFailure)?;
 
@@ -74,7 +74,7 @@ impl<'a> EmailData for WelcomeEmail<'a> {
         Ok(EmailContents {
             subject,
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.receipient_email.into_inner(),
+            recipient: self.recipient_email.into_inner(),
         })
     }
 }

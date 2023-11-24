@@ -74,7 +74,7 @@ pub async fn connect_account(
             use router_env::logger;
 
             let email_contents = email_types::WelcomeEmail {
-                receipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+                recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
                 settings: &state.conf,
             };
 
