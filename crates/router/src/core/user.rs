@@ -1,7 +1,6 @@
 use api_models::user as api;
 use diesel_models::enums::UserStatus;
 use error_stack::IntoReport;
-
 use masking::{ExposeInterface, Secret};
 use router_env::env;
 
@@ -69,9 +68,10 @@ pub async fn connect_account(
 
         #[cfg(feature = "email")]
         {
-            use crate::services::email::types as email_types;
             use external_services::email::compose_and_send_email;
             use router_env::logger;
+
+            use crate::services::email::types as email_types;
 
             let email_contents = email_types::WelcomeEmail {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,

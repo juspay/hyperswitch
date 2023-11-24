@@ -1,17 +1,20 @@
-use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
+use std::time::{Duration, SystemTime};
 
-use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message};
+use actix_web::http::Uri;
+use aws_sdk_sesv2::{
+    config::Region,
+    operation::send_email::SendEmailError,
+    types::{Body, Content, Destination, EmailContent, Message},
+    Client,
+};
+use aws_sdk_sts::config::Credentials;
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::logger;
-
-use actix_web::http::Uri;
-use std::time::{Duration, SystemTime};
 use tokio::sync::OnceCell;
 
-use aws_sdk_sesv2::{config::Region, operation::send_email::SendEmailError, Client};
-use aws_sdk_sts::config::Credentials;
+use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
 /// Client for AWS SES operation
 #[derive(Debug, Clone)]

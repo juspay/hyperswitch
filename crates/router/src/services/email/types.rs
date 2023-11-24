@@ -1,11 +1,9 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::ExposeInterface;
 
-use crate::{configs, consts, services::jwt, types::domain};
-use external_services::email::{EmailContents, EmailData, EmailError};
-
-use crate::core::errors::UserErrors;
+use crate::{configs, consts, core::errors::UserErrors, services::jwt, types::domain};
 
 pub enum EmailBody {
     Verify { link: String },
