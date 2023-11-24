@@ -1,3 +1,4 @@
+pub mod models;
 pub mod transformers;
 
 use std::fmt::Debug;
