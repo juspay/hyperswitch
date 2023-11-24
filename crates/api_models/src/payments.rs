@@ -296,8 +296,13 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
-    /// payment link object required for generating the payment_link
-    pub payment_link_object: Option<PaymentLinkObject>,
+
+    /// Whether to get the payment link (if applicable)
+    #[schema(default = false, example = true)]
+    pub payment_link: Option<bool>,
+
+    /// custom payment link config for the particulae payment
+    pub payment_link_config: Option<admin::PaymentLinkConfig>,
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
@@ -3181,17 +3186,6 @@ mod tests {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentLinkObject {
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub link_expiry: Option<PrimitiveDateTime>,
-    pub merchant_custom_domain_name: Option<String>,
-    #[schema(value_type = PaymentLinkConfig)]
-    pub payment_link_config: Option<admin::PaymentLinkConfig>,
-    /// Custom merchant name for payment link
-    pub custom_merchant_name: Option<String>,
-}
-
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
@@ -3212,7 +3206,7 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub link_expiry: Option<PrimitiveDateTime>,
+    pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub status: String,
     #[schema(value_type = Option<Currency>)]
@@ -3239,7 +3233,7 @@ pub struct PaymentLinkDetails {
     pub merchant_name: String,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
-    pub sdk_theme: Option<String>,
+    pub theme: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

@@ -8328,7 +8328,7 @@
           "payment_link_config"
         ],
         "properties": {
-          "link_expiry": {
+          "expiry": {
             "type": "string",
             "format": "date-time",
             "nullable": true
@@ -9416,7 +9416,7 @@
             ],
             "nullable": true
           },
-          "payment_link_object": {
+          "payment_link_config": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentLinkObject"
@@ -9780,7 +9780,7 @@
             ],
             "nullable": true
           },
-          "payment_link_object": {
+          "payment_link_config": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentLinkObject"
@@ -11349,7 +11349,7 @@
             "type": "string",
             "format": "date-time"
           },
-          "link_expiry": {
+          "expiry": {
             "type": "string",
             "format": "date-time",
             "nullable": true

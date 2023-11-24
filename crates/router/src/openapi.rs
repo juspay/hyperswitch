@@ -360,7 +360,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkObject
+        api_models::payments::PaymentLinkConfig
     )),
     modifiers(&SecurityAddon)
 )]

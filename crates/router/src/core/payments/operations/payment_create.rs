@@ -66,10 +66,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_link_data = if let Some(payment_link_object) = &request.payment_link_object {
+        let payment_link_data = if let Some(payment_link_config) = &request.payment_link_config {
             create_payment_link(
                 request,
-                payment_link_object.clone(),
+                payment_link_config.clone(),
                 merchant_id.clone(),
                 payment_id.clone(),
                 db,
@@ -514,9 +514,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     )> {
         helpers::validate_customer_details_in_request(request)?;
 
-        if let Some(payment_link_object) = &request.payment_link_object {
+        if let Some(payment_link_config) = &request.payment_link_config {
             helpers::validate_payment_link_request(
-                payment_link_object,
+                payment_link_config,
                 request.confirm,
                 request.order_details.clone(),
             )?;
@@ -783,7 +783,7 @@ pub fn payments_create_request_validation(
 #[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
-    payment_link_object: api_models::payments::PaymentLinkObject,
+    payment_link_config: api_models::admin::PaymentLinkConfig,
     merchant_id: String,
     payment_id: String,
     db: &dyn StorageInterface,
@@ -792,11 +792,7 @@ async fn create_payment_link(
     description: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
-    let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
-        format!("https://{domain_name}")
-    } else {
-        state.conf.server.base_url.clone()
-    };
+    let domain = state.conf.server.base_url.clone();
 
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let payment_link = format!(
@@ -806,9 +802,11 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let payment_link_config = payment_link_object.payment_link_config.map(|pl_config|{
-        common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&pl_config)
-    }).transpose().change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
+    let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&payment_link_config).change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
+
+    // let payment_link_config = payment_link_config.map(|pl_config|{
+    //     common_utils::ext_traits::Encode::<api_models::admin::PaymentLinkConfig>::encode_to_value(&pl_config)
+    // }).transpose().change_context(errors::ApiErrorResponse::InvalidDataValue { field_name: "payment_link_config" })?;
 
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),
@@ -819,10 +817,10 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        fulfilment_time: payment_link_object.link_expiry,
+        fulfilment_time: payment_link_config.expiry,
         description,
-        payment_link_config,
-        custom_merchant_name: payment_link_object.custom_merchant_name,
+        payment_link_config: Some(payment_link_config_encoded_value),
+        seller_name: payment_link_config.seller_name,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

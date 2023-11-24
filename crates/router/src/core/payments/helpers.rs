@@ -3618,16 +3618,16 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    payment_link_object: &api_models::payments::PaymentLinkObject,
+    payment_link_config: &api_models::admin::PaymentLinkConfig,
     confirm: Option<bool>,
     order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(cnf) = confirm {
         if !cnf {
             let current_time = Some(common_utils::date_time::now());
-            if current_time > payment_link_object.link_expiry {
+            if current_time > payment_link_config.expiry {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "link_expiry time cannot be less than current time".to_string(),
+                    message: "expiry time cannot be less than current time".to_string(),
                 });
             } else if order_details.is_none() {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {

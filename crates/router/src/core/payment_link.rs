@@ -27,15 +27,15 @@ pub async fn retrieve_payment_link(
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
-    let payment_link_object = db
+    let payment_link_config = db
         .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_object.fulfilment_time);
+    let status = check_payment_link_status(payment_link_config.fulfilment_time);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
-        payment_link_object,
+        payment_link_config,
         status,
     ));
     Ok(services::ApplicationResponse::Json(response))
@@ -110,7 +110,7 @@ pub async fn intiate_payment_link_flow(
         amount: payment_intent.amount,
         currency,
         payment_id: payment_intent.payment_id,
-        merchant_name: payment_link.custom_merchant_name.unwrap_or(
+        merchant_name: payment_link.seller_name.unwrap_or(
             merchant_account
                 .merchant_name
                 .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -125,16 +125,12 @@ pub async fn intiate_payment_link_flow(
             .clone()
             .map(|pl_config| {
                 pl_config
-                    .merchant_logo
+                    .logo
                     .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string())
             })
             .unwrap_or_default(),
         max_items_visible_after_collapse: 3,
-        sdk_theme: payment_link_config.clone().and_then(|pl_config| {
-            pl_config
-                .color_scheme
-                .map(|color| color.sdk_theme.unwrap_or(default_sdk_theme.to_string()))
-        }),
+        theme: payment_link_config.clone().map(|pl_config| pl_config.theme.unwrap_or(default_sdk_theme.to_string())),
     };
 
     let js_script = get_js_script(payment_details)?;
@@ -170,16 +166,7 @@ fn get_color_scheme_css(
     payment_link_config: Option<api_models::admin::PaymentLinkConfig>,
     default_primary_color: String,
 ) -> String {
-    let background_primary_color = payment_link_config
-        .and_then(|pl_config| {
-            pl_config.color_scheme.map(|color| {
-                color
-                    .background_primary_color
-                    .unwrap_or(default_primary_color.clone())
-            })
-        })
-        .unwrap_or(default_primary_color);
-
+    let background_primary_color = payment_link_config.map(|pl_config| pl_config.theme.unwrap_or(default_primary_color.clone())).unwrap_or(default_primary_color.clone());
     format!(
         ":root {{
       --primary-color: {background_primary_color};

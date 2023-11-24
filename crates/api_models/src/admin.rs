@@ -452,26 +452,6 @@ pub struct PrimaryBusinessDetails {
     pub business: String,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentLinkConfig {
-    #[schema(
-        max_length = 255,
-        max_length = 255,
-        example = "https://i.imgur.com/RfxPFQo.png"
-    )]
-    pub merchant_logo: Option<String>,
-    pub color_scheme: Option<PaymentLinkColorSchema>,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-
-pub struct PaymentLinkColorSchema {
-    pub background_primary_color: Option<String>,
-    pub sdk_theme: Option<String>,
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetails {
@@ -1131,4 +1111,16 @@ pub struct BusinessProfileUpdate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkConfig {
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<time::PrimitiveDateTime>,
+    /// custom theme for the payment link
+    pub theme: Option<String>,
+    /// merchant display logo
+    pub logo: Option<String>,
+    /// Custom merchant name for payment link
+    pub seller_name: Option<String>,
 }
