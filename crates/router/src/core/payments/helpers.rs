@@ -1693,7 +1693,8 @@ pub(crate) fn validate_status_with_capture_method(
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially_captured, processing".to_string()
+                states: "requires_capture, partially_captured_and_capturable, processing"
+                    .to_string()
             }))
         },
     )
