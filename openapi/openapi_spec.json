@@ -8275,34 +8275,27 @@
           }
         ]
       },
-      "PaymentLinkColorSchema": {
-        "type": "object",
-        "properties": {
-          "background_primary_color": {
-            "type": "string",
-            "nullable": true
-          },
-          "sdk_theme": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
       "PaymentLinkConfig": {
         "type": "object",
         "properties": {
-          "merchant_logo": {
+          "expiry": {
             "type": "string",
-            "example": "https://i.imgur.com/RfxPFQo.png",
-            "nullable": true,
-            "maxLength": 255
+            "format": "date-time",
+            "nullable": true
           },
-          "color_scheme": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentLinkColorSchema"
-              }
-            ],
+          "theme": {
+            "type": "string",
+            "description": "custom theme for the payment link",
+            "nullable": true
+          },
+          "logo": {
+            "type": "string",
+            "description": "merchant display logo",
+            "nullable": true
+          },
+          "seller_name": {
+            "type": "string",
+            "description": "Custom merchant name for payment link",
             "nullable": true
           }
         }
@@ -8319,31 +8312,6 @@
           },
           "payment_id": {
             "type": "string"
-          }
-        }
-      },
-      "PaymentLinkObject": {
-        "type": "object",
-        "required": [
-          "payment_link_config"
-        ],
-        "properties": {
-          "expiry": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "merchant_custom_domain_name": {
-            "type": "string",
-            "nullable": true
-          },
-          "payment_link_config": {
-            "$ref": "#/components/schemas/PaymentLinkConfig"
-          },
-          "custom_merchant_name": {
-            "type": "string",
-            "description": "Custom merchant name for payment link",
-            "nullable": true
           }
         }
       },
@@ -9416,10 +9384,17 @@
             ],
             "nullable": true
           },
+          "payment_link": {
+            "type": "boolean",
+            "description": "Whether to get the payment link (if applicable)",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
           "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentLinkObject"
+                "$ref": "#/components/schemas/admin.PaymentLinkConfig"
               }
             ],
             "nullable": true
@@ -9780,10 +9755,17 @@
             ],
             "nullable": true
           },
+          "payment_link": {
+            "type": "boolean",
+            "description": "Whether to get the payment link (if applicable)",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
           "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentLinkObject"
+                "$ref": "#/components/schemas/admin.PaymentLinkConfig"
               }
             ],
             "nullable": true

@@ -186,7 +186,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
         api_models::admin::PaymentLinkConfig,
-        api_models::admin::PaymentLinkColorSchema,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::gsm::GsmCreateRequest,
@@ -360,7 +359,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkConfig
     )),
     modifiers(&SecurityAddon)
 )]
