@@ -32,10 +32,7 @@ impl CurrencyFactors {
 }
 
 impl ExchangeRates {
-    pub fn new(
-        base_currency: Currency,
-        conversion: HashMap<Currency, CurrencyFactors>,
-    ) -> Self {
+    pub fn new(base_currency: Currency, conversion: HashMap<Currency, CurrencyFactors>) -> Self {
         Self {
             base_currency,
             conversion,
@@ -202,4 +199,3 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::ZAR => iso::ZAR,
     }
 }
-
