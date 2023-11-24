@@ -58,6 +58,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::UsersRead,
                 Permission::UsersWrite,
                 Permission::MerchantAccountCreate,
+                Permission::PaymentLinkRead,
             ],
             name: Some("Organization Admin"),
             is_invitable: false,
