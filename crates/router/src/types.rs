@@ -551,12 +551,6 @@ pub trait Capturable {
     {
         None
     }
-    fn get_surcharge_amount(&self) -> Option<i64> {
-        None
-    }
-    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        None
-    }
 }
 
 impl Capturable for PaymentsAuthorizeData {
@@ -569,16 +563,6 @@ impl Capturable for PaymentsAuthorizeData {
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount);
         final_amount.or(Some(self.amount))
-    }
-    fn get_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount)
-    }
-    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
     }
 }
 
@@ -617,19 +601,10 @@ impl Capturable for PaymentsSyncData {
     where
         F: Clone,
     {
-        payment_data.payment_attempt.amount_to_capture.or_else(|| {
-            let original_amount = payment_data.payment_attempt.amount;
-            let surcharge_amount = payment_data
-                .payment_attempt
-                .get_surcharge_details()
-                .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-                .or(payment_data
-                    .surcharge_details
-                    .as_ref()
-                    .map(|surcharge_details| surcharge_details.get_total_surcharge_amount()))
-                .unwrap_or(0);
-            Some(original_amount + surcharge_amount)
-        })
+        payment_data
+            .payment_attempt
+            .amount_to_capture
+            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
 

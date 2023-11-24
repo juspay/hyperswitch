@@ -113,21 +113,7 @@ where
             enums::AttemptStatus::Charged => {
                 let captured_amount =
                     types::Capturable::get_capture_amount(&self.request, payment_data);
-                let total_capturable_amount = {
-                    let original_amount = payment_data.payment_attempt.amount;
-                    let surcharge_amount = payment_data
-                        .payment_attempt
-                        .get_surcharge_details()
-                        .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-                        .or(payment_data
-                            .surcharge_details
-                            .as_ref()
-                            .map(|surcharge_details| {
-                                surcharge_details.get_total_surcharge_amount()
-                            }))
-                        .unwrap_or(0);
-                    original_amount + surcharge_amount
-                };
+                let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount {
                     enums::AttemptStatus::Charged
                 } else if captured_amount.is_some() {
