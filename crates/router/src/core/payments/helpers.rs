@@ -3690,7 +3690,10 @@ pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: i64,
 ) -> Result<(), errors::ApiErrorResponse> {
-    let total_order_details_amount: i64 = order_details.iter().map(|order| order.amount).sum();
+    let total_order_details_amount: i64 = order_details
+        .iter()
+        .map(|order| order.amount * i64::from(order.quantity))
+        .sum();
 
     if total_order_details_amount != amount {
         Err(errors::ApiErrorResponse::InvalidRequestData {
