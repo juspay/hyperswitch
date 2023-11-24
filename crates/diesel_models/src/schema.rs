@@ -83,6 +83,9 @@ diesel::table! {
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
+        payment_link_config -> Nullable<Jsonb>,
+        #[max_length = 256]
+        merchant_custom_domain -> Nullable<Varchar>,
     }
 }
 
@@ -458,7 +461,6 @@ diesel::table! {
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
-        payment_link_config -> Nullable<Jsonb>,
     }
 }
 
@@ -680,6 +682,8 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 255]
         description -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Varchar,
     }
 }
 

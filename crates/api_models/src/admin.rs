@@ -100,8 +100,6 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
-
-    pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -286,8 +284,6 @@ pub struct MerchantAccountResponse {
     /// A enum value to indicate the status of recon service. By default it is not_requested.
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
-
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -990,6 +986,12 @@ pub struct BusinessProfileCreate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Default Payment Link config for all payment links
+    pub payment_link_config: Option<serde_json::Value>,
+
+    /// merchant own domain name as display to customer which routes to hyperswitch
+    pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1054,6 +1056,12 @@ pub struct BusinessProfileResponse {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Default Payment Link config for all payment links
+    pub payment_link_config: Option<serde_json::Value>,
+
+    /// merchant own domain name as display to customer which routes to hyperswitch
+    pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1111,6 +1119,12 @@ pub struct BusinessProfileUpdate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Default Payment Link config for all payment links
+    pub payment_link_config: Option<PaymentLinkConfig>,
+
+    /// merchant own domain name as display to customer which routes to hyperswitch
+    pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

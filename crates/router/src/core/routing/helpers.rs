@@ -216,7 +216,6 @@ pub async fn update_merchant_active_algorithm_ref(
         frm_routing_algorithm: None,
         payout_routing_algorithm: None,
         default_profile: None,
-        payment_link_config: None,
     };
 
     db.update_specific_fields_in_merchant(
@@ -255,6 +254,8 @@ pub async fn update_business_profile_active_algorithm_ref(
         applepay_verified_domains: None,
         modified_at: None,
         is_recon_enabled: None,
+        payment_link_config: None,
+        merchant_custom_domain: None,
     };
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
         .await

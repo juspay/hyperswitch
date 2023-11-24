@@ -269,7 +269,6 @@ impl NewUserMerchant {
                 merchant_details: None,
                 routing_algorithm: None,
                 parent_merchant_id: None,
-                payment_link_config: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
                 intent_fulfillment_time: None,

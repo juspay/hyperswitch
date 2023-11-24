@@ -66,22 +66,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_link_data = if let Some(payment_link_config) = &request.payment_link_config {
-            create_payment_link(
-                request,
-                payment_link_config.clone(),
-                merchant_id.clone(),
-                payment_id.clone(),
-                db,
-                state,
-                amount,
-                request.description.clone(),
-            )
-            .await?
-        } else {
-            None
-        };
-
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -154,6 +138,34 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             utils::get_payment_attempt_id(payment_id.clone(), 1)
         };
 
+        // If profile id is not passed, get it from the business_country and business_label
+        let profile_id = core_utils::get_profile_id_from_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+            request.profile_id.as_ref(),
+            &*state.store,
+            true,
+        )
+        .await?;
+
+        let payment_link_data = if let Some(payment_link_config) = &request.payment_link_config {
+            create_payment_link(
+                request,
+                payment_link_config.clone(),
+                merchant_id.clone(),
+                payment_id.clone(),
+                db,
+                state,
+                amount,
+                request.description.clone(),
+                profile_id.clone(),
+            )
+            .await?
+        } else {
+            None
+        };
+
         let payment_intent_new = Self::make_payment_intent(
             &payment_id,
             merchant_account,
@@ -163,7 +175,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data.clone(),
             billing_address.clone().map(|x| x.address_id),
             attempt_id,
-            state,
+            profile_id,
         )
         .await?;
 
@@ -664,7 +676,7 @@ impl PaymentCreate {
         payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
-        state: &AppState,
+        profile_id: String,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -677,17 +689,6 @@ impl PaymentCreate {
             .get_order_details_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert order details to value")?;
-
-        // If profile id is not passed, get it from the business_country and business_label
-        let profile_id = core_utils::get_profile_id_from_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-            request.profile_id.as_ref(),
-            &*state.store,
-            true,
-        )
-        .await?;
 
         let allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -790,6 +791,7 @@ async fn create_payment_link(
     state: &AppState,
     amount: api::Amount,
     description: Option<String>,
+    profile_id: String,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let domain = state.conf.server.base_url.clone();
@@ -822,6 +824,7 @@ async fn create_payment_link(
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         seller_name: payment_link_config.seller_name,
+        profile_id,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

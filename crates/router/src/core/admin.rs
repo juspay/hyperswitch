@@ -140,17 +140,6 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let payment_link_config = req
-        .payment_link_config
-        .as_ref()
-        .map(|pl_metadata| {
-            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
-        })
-        .transpose()?;
-
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
             .await
@@ -207,7 +196,6 @@ pub async fn create_merchant_account(
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
-            payment_link_config,
         })
     }
     .await
@@ -429,6 +417,8 @@ pub async fn update_business_profile_cascade(
             frm_routing_algorithm: None,
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
+            payment_link_config: None,
+            merchant_custom_domain: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -584,7 +574,6 @@ pub async fn merchant_account_update(
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
-        payment_link_config: req.payment_link_config,
     };
 
     let response = db
@@ -858,7 +847,6 @@ pub async fn create_payment_connector(
         frm_routing_algorithm: None,
         payout_routing_algorithm: None,
         default_profile: None,
-        payment_link_config: None,
     };
 
     state
@@ -1470,6 +1458,17 @@ pub async fn update_business_profile(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let payment_link_config = request
+        .payment_link_config
+        .as_ref()
+        .map(|pl_metadata| {
+            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()?;
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -1485,6 +1484,8 @@ pub async fn update_business_profile(
         payout_routing_algorithm: request.payout_routing_algorithm,
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
+        payment_link_config,
+        merchant_custom_domain: request.merchant_custom_domain,
     };
 
     let updated_business_profile = db

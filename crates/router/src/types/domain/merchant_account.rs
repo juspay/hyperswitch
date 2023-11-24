@@ -45,7 +45,6 @@ pub struct MerchantAccount {
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -70,7 +69,6 @@ pub enum MerchantAccountUpdate {
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
         default_profile: Option<Option<String>>,
-        payment_link_config: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -103,7 +101,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 frm_routing_algorithm,
                 payout_routing_algorithm,
                 default_profile,
-                payment_link_config,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -124,7 +121,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 intent_fulfillment_time,
                 payout_routing_algorithm,
                 default_profile,
-                payment_link_config,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -178,7 +174,6 @@ impl super::behaviour::Conversion for MerchantAccount {
             is_recon_enabled: self.is_recon_enabled,
             default_profile: self.default_profile,
             recon_status: self.recon_status,
-            payment_link_config: self.payment_link_config,
         })
     }
 
@@ -223,7 +218,6 @@ impl super::behaviour::Conversion for MerchantAccount {
                 is_recon_enabled: item.is_recon_enabled,
                 default_profile: item.default_profile,
                 recon_status: item.recon_status,
-                payment_link_config: item.payment_link_config,
             })
         }
         .await
@@ -259,7 +253,6 @@ impl super::behaviour::Conversion for MerchantAccount {
             is_recon_enabled: self.is_recon_enabled,
             default_profile: self.default_profile,
             recon_status: self.recon_status,
-            payment_link_config: self.payment_link_config,
         })
     }
 }

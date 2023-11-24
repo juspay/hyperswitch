@@ -79,10 +79,17 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
+    let business_profile = db
+        .find_business_profile_by_profile_id(&payment_link.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: payment_link.profile_id.to_string(),
+        })?;
+
     let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
         extract_payment_link_config(Some(pl_config))?
     } else {
-        extract_payment_link_config(merchant_account.payment_link_config.clone())?
+        extract_payment_link_config(business_profile.payment_link_config.clone())?
     };
 
     let order_details = validate_order_details(payment_intent.order_details)?;
