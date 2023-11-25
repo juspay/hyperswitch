@@ -9,10 +9,10 @@ use router::{
     routes, services,
     types::{self, storage::enums, PaymentAddress},
 };
+use services::kafka::KafkaProducer;
 use tokio::sync::oneshot;
 
 use crate::{connector_auth::ConnectorAuthentication, utils};
-use services::kafka::KafkaProducer;
 
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
@@ -162,9 +162,9 @@ async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -277,9 +277,9 @@ async fn refund_for_successful_payments() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -350,9 +350,9 @@ async fn refunds_create_failure() {
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,

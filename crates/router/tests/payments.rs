@@ -2,6 +2,7 @@
 
 mod utils;
 
+use db::kafka::KafkaProducer;
 use router::{
     configs,
     core::{payment_methods::Oss, payments},
@@ -15,7 +16,6 @@ use router::{
 use time::macros::datetime;
 use tokio::sync::oneshot;
 use uuid::Uuid;
-use db::kafka::KafkaProducer;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid
 // do we'll test refund and payment in same tests and later implement thread_local variables.
@@ -277,9 +277,9 @@ async fn payments_create_core() {
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -458,9 +458,9 @@ async fn payments_create_core_adyen_no_redirect() {
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,

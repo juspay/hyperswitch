@@ -2,6 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use common_utils::pii::Email;
+use db::Kafka::KafkaProducer;
 use error_stack::Report;
 use masking::Secret;
 #[cfg(feature = "payouts")]
@@ -16,7 +17,6 @@ use router::{
 use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
 use wiremock::{Mock, MockServer};
-use db::Kafka::KafkaProducer;
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
@@ -849,9 +849,9 @@ async fn call_connector<
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,

@@ -5,9 +5,9 @@ use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 
 use crate::{
-    core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt
+    core::errors, db::KafkaProducer, errors::RouterResult, types::transformers::ForeignFrom,
+    utils::OptionExt,
 };
-use crate::db::KafkaProducer;
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,

@@ -7,6 +7,7 @@ use error_stack::ResultExt;
 use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
+    db::KafkaProducer,
     logger, routes, services,
     types::storage::ProcessTrackerExt,
     workflows,
@@ -20,7 +21,6 @@ use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
-
 #[tokio::main]
 async fn main() -> CustomResult<(), ProcessTrackerError> {
     // console_subscriber::init();
@@ -30,7 +30,10 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
-
+    let kafka_producer = KafkaProducer::create(&conf.kafka)
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
@@ -44,6 +47,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         conf,
         redis_shutdown_signal_tx,
         api_client,
+        kafka_producer,
     ))
     .await;
     // channel to shutdown scheduler gracefully

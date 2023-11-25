@@ -10,12 +10,12 @@ use actix_web::{
     dev::{Service, ServiceResponse},
     test::{call_and_read_body_json, TestRequest},
 };
+use db::kafka::KafkaProducer;
 use derive_deref::Deref;
 use router::{configs::settings::Settings, routes::AppState, services};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{json, Value};
 use tokio::sync::{oneshot, OnceCell};
-use db::kafka::KafkaProducer;
 
 static SERVER: OnceCell<bool> = OnceCell::const_new();
 
@@ -50,9 +50,9 @@ pub async fn mk_service(
     }
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let kafka_producer = KafkaProducer::create(&conf.kafka)
-            .await
-            .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-            .unwrap();
+        .await
+        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
+        .unwrap();
     let app_state = AppState::with_storage(
         conf,
         router::db::StorageImpl::Mock,
