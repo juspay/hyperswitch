@@ -58,3 +58,5 @@ pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+
+pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
