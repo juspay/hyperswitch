@@ -218,6 +218,7 @@ impl<F, T>
                     message: error_data.error_description,
                     reason: None,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
