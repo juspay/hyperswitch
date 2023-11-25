@@ -445,10 +445,13 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("trustpay"),
-            )
-            .into()),
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardTokenData(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("trustpay"),
+                )
+                .into())
+            }
         }
     }
 }

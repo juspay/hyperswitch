@@ -138,7 +138,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardTokenData(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -879,7 +880,8 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardTokenData(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -1423,7 +1425,8 @@ fn get_braintree_redirect_form(
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardTokenData(_) => Err(
                 errors::ConnectorError::NotImplemented("given payment method".to_owned()),
             )?,
         },

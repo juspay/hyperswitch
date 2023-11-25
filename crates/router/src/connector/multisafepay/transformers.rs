@@ -365,9 +365,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardTokenData(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
         let description = item.router_data.get_description()?;
         let payment_options = PaymentOptions {
@@ -509,9 +512,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("multisafepay"),
-            ))?,
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardTokenData(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                ))?
+            }
         };
 
         Ok(Self {

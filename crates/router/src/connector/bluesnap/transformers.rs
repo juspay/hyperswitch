@@ -221,7 +221,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => {
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardTokenData(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
                 ))
@@ -388,7 +389,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 | payments::PaymentMethodData::Upi(_)
                 | payments::PaymentMethodData::CardRedirect(_)
                 | payments::PaymentMethodData::Voucher(_)
-                | payments::PaymentMethodData::GiftCard(_) => {
+                | payments::PaymentMethodData::GiftCard(_)
+                | api::PaymentMethodData::CardTokenData(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("bluesnap"),
                     ))

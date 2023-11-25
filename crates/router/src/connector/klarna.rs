@@ -406,7 +406,8 @@ impl
             | api_payments::PaymentMethodData::Reward
             | api_payments::PaymentMethodData::Upi(_)
             | api_payments::PaymentMethodData::Voucher(_)
-            | api_payments::PaymentMethodData::GiftCard(_) => Err(error_stack::report!(
+            | api_payments::PaymentMethodData::GiftCard(_)
+            | api_payments::PaymentMethodData::CardTokenData(_) => Err(error_stack::report!(
                 errors::ConnectorError::MismatchedPaymentData
             )),
         }

@@ -409,10 +409,13 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.router_data.payment_method),
-                connector: "Aci",
-            })?,
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardTokenData(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("{:?}", item.router_data.payment_method),
+                    connector: "Aci",
+                })?
+            }
         }
     }
 }
