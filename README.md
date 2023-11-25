@@ -3,7 +3,6 @@
   <img src="./docs/imgs/hyperswitch-logo-light.svg#gh-light-mode-only" alt="Hyperswitch-Logo" width="40%" />
 </p>
 
-
 <h1 align="center">The open-source payments switch</h1>
 
 <div align="center" >
@@ -35,7 +34,6 @@ The single API to access payment ecosystems across 130+ countries</div>
   </a>
 </p>
 
-
 <hr>
 <img src="./docs/imgs/switch.png" />
 
@@ -64,7 +62,7 @@ The fastest and easiest way to try hyperswitch is via our CDK scripts
 1. Click on the following button for a quick standalone deployment on AWS, suitable for prototyping.
    No code or setup is required in your system and the deployment is covered within the AWS free-tier setup.
 
-&emsp;&emsp; <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
+   <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml"><img src="./docs/imgs/aws_button.png" height="35"></a>
 
 2. Sign-in to your AWS console.
 
@@ -76,8 +74,7 @@ For an early access to the production-ready setup fill this <a href="https://for
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
 </a>
 
-If you are already using Stripe, integrating with Hyperswitch is fun, fast &
-easy.
+If you are already using Stripe, integrating with Hyperswitch is fun, fast & easy.
 Try the steps below to get a feel for how quick the setup is:
 
 1. Get API keys from our [dashboard].
@@ -96,9 +93,7 @@ Try the steps below to get a feel for how quick the setup is:
 As of Sept 2023, we support 50+ payment processors and multiple global payment methods.
 In addition, we are continuously integrating new processors based on their reach and community requests.
 Our target is to support 100+ processors by H2 2023.
-You can find the latest list of payment processors, supported methods, and
-features
-[here][supported-connectors-and-features].
+You can find the latest list of payment processors, supported methods, and features [here][supported-connectors-and-features].
 
 [supported-connectors-and-features]: https://hyperswitch.io/pm-list
 
@@ -252,12 +247,11 @@ We welcome contributions from the community. Please read through our
 Included are directions for opening issues, coding standards, and notes on
 development.
 
-- We appreciate all types of contributions: code, documentation, demo creation, or something new way you want to contribute to us. We will reward every contribution with a Hyperswitch branded t-shirt. 
-- 🦀 **Important note for Rust developers**: We aim for contributions from the community
-across a broad range of tracks. Hence, we have prioritised simplicity and code
-readability over purely idiomatic code. For example, some of the code in core
-functions (e.g., `payments_core`) is written to be more readable than
-pure-idiomatic.
+- We appreciate all types of contributions: code, documentation, demo creation, or some new way you want to contribute to us.
+  We will reward every contribution with a Hyperswitch branded t-shirt.
+- 🦀 **Important note for Rust developers**: We aim for contributions from the community across a broad range of tracks.
+  Hence, we have prioritised simplicity and code readability over purely idiomatic code.
+  For example, some of the code in core functions (e.g., `payments_core`) is written to be more readable than pure-idiomatic.
 
 <a href="#Community">
   <h2 id="Community">👥 Community</h2>
@@ -269,7 +263,6 @@ Get updates on Hyperswitch development and chat with the community:
 - [Slack workspace][slack] for questions related to integrating hyperswitch, integrating a connector in hyperswitch, etc.
 - [GitHub Discussions][github-discussions] to drop feature requests or suggest anything payments-related you need for your stack.
 
-[blog]: https://hyperswitch.io/blog
 [discord]: https://discord.gg/wJZ7DVW8mm
 [slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
 [github-discussions]: https://github.com/juspay/hyperswitch/discussions
@@ -313,7 +306,6 @@ Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
-
 
 <a href="#Thanks to all contributors">
   <h2 id="Thanks to all contributors">✨ Thanks to all contributors</h2>
