@@ -55,9 +55,9 @@ Using Hyperswitch, you can:
   <h2 id="Quick Start Guide">⚡️ Quick Start Guide</h2>
 </a>
 
-<h3> One-click deployment on AWS cloud </h3>
+### One-click deployment on AWS cloud
 
-The fastest and easiest way to try hyperswitch is via our CDK scripts
+The fastest and easiest way to try Hyperswitch is via our CDK scripts
 
 1. Click on the following button for a quick standalone deployment on AWS, suitable for prototyping.
    No code or setup is required in your system and the deployment is covered within the AWS free-tier setup.
@@ -69,6 +69,22 @@ The fastest and easiest way to try hyperswitch is via our CDK scripts
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
 
 For an early access to the production-ready setup fill this <a href="https://forms.gle/v6ru55XDZFufVPnu9">Early Access Form</a>
+
+### Run it on your system
+
+You can run Hyperswitch on your system using Docker Compose after cloning this repository:
+
+```shell
+docker compose up -d
+```
+
+This will start the payments router, the primary component within Hyperswitch.
+
+Check out the [local setup guide][local-setup-guide] for a more comprehensive
+setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
+
+[local-setup-guide]: /docs/try_local_system.md
+[docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
 
 <a href="#Fast-Integration-for-Stripe-Users">
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
