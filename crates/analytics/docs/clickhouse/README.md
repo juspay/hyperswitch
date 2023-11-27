@@ -16,7 +16,7 @@ Once clickhouse is up & running you need to create the required tables for it
 you can either visit the url (http://localhost:8123/play) in which the clickhouse-server is running to get a playground
 Alternatively you can bash into the clickhouse container & execute commands manually
 ```
-# On your local terminal in hyperswitch-cloud folder
+# On your local terminal
 docker compose exec clickhouse-server bash
 
 # Inside the clickhouse-server container shell

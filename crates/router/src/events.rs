@@ -51,19 +51,19 @@ pub enum EventsHandler {
 impl EventsConfig {
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
         Ok(match self {
-            EventsConfig::Kafka { kafka } => EventsHandler::Kafka(
+            Self::Kafka { kafka } => EventsHandler::Kafka(
                 KafkaProducer::create(kafka)
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
-            EventsConfig::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
+            Self::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
         })
     }
 
     pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
         match self {
-            EventsConfig::Kafka { kafka } => kafka.validate(),
-            EventsConfig::Logs => Ok(()),
+            Self::Kafka { kafka } => kafka.validate(),
+            Self::Logs => Ok(()),
         }
     }
 }
@@ -71,8 +71,8 @@ impl EventsConfig {
 impl EventsHandler {
     pub fn log_event(&self, event: RawEvent) {
         match self {
-            EventsHandler::Kafka(kafka) => kafka.log_event(event),
-            EventsHandler::Logs(logger) => logger.log_event(event),
+            Self::Kafka(kafka) => kafka.log_event(event),
+            Self::Logs(logger) => logger.log_event(event),
         }
     }
 }

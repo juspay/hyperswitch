@@ -6,9 +6,6 @@ use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
 };
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms::{self, decrypt::KmsDecrypt};
-#[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use sqlx::{
     postgres::{PgArgumentBuffer, PgPoolOptions, PgRow, PgTypeInfo, PgValueRef},
@@ -48,19 +45,7 @@ impl Default for SqlxClient {
 }
 
 impl SqlxClient {
-    pub async fn from_conf(
-        conf: &Database,
-        #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
-    ) -> Self {
-        #[cfg(feature = "kms")]
-        #[allow(clippy::expect_used)]
-        let password = conf
-            .password
-            .decrypt_inner(kms_client)
-            .await
-            .expect("Failed to KMS decrypt database password");
-
-        #[cfg(not(feature = "kms"))]
+    pub async fn from_conf(conf: &Database) -> Self {
         let password = &conf.password.peek();
         let database_url = format!(
             "postgres://{}:{}@{}:{}/{}",

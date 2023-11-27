@@ -6,11 +6,6 @@ pub mod payments;
 mod query;
 pub mod refunds;
 
-// TODO: We can't declare routes here since authentication is defined in router crate
-// completely move this here once authentication dependencies are resolved
-// https://github.com/juspay/hyperswitch-cloud/issues/660
-// pub mod routes;
-
 pub mod api_event;
 pub mod sdk_events;
 mod sqlx;
@@ -455,40 +450,20 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(
-        config: &AnalyticsConfig,
-        #[cfg(feature = "kms")] kms_client: &external_services::kms::KmsClient,
-    ) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(
-                SqlxClient::from_conf(
-                    sqlx,
-                    #[cfg(feature = "kms")]
-                    kms_client,
-                )
-                .await,
-            ),
+            AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx).await),
             AnalyticsConfig::Clickhouse { clickhouse } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
             }),
             AnalyticsConfig::CombinedCkh { sqlx, clickhouse } => Self::CombinedCkh(
-                SqlxClient::from_conf(
-                    sqlx,
-                    #[cfg(feature = "kms")]
-                    kms_client,
-                )
-                .await,
+                SqlxClient::from_conf(sqlx).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                 },
             ),
             AnalyticsConfig::CombinedSqlx { sqlx, clickhouse } => Self::CombinedSqlx(
-                SqlxClient::from_conf(
-                    sqlx,
-                    #[cfg(feature = "kms")]
-                    kms_client,
-                )
-                .await,
+                SqlxClient::from_conf(sqlx).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                 },

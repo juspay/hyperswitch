@@ -21,7 +21,7 @@ CREATE TABLE api_events_v2_queue (
     `user_agent` String,
     `ip_addr` String,
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
-kafka_topic_list = 'hyperswitch-api-log-events-v2',
+kafka_topic_list = 'hyperswitch-api-log-events',
 kafka_group_name = 'hyper-c1',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';

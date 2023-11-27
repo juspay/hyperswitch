@@ -119,6 +119,7 @@ impl AppState {
             #[cfg(feature = "kms")]
             let kms_client = kms::get_kms_client(&conf.kms).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
+            #[allow(clippy::expect_used)]
             let event_handler = conf
                 .events
                 .get_event_handler()
@@ -154,8 +155,6 @@ impl AppState {
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(
                 &conf.analytics,
-                #[cfg(feature = "kms")]
-                kms_client,
             )
             .await;
 
