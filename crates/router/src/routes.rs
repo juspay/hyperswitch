@@ -28,6 +28,8 @@ pub mod user;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
 pub mod webhooks;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 pub mod locker_migration;
 #[cfg(feature = "dummy_connector")]

@@ -60,3 +60,8 @@ pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
 pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
+
+#[cfg(feature = "olap")]
+pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
+#[cfg(feature = "olap")]
+pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";

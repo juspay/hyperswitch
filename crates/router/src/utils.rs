@@ -3,6 +3,8 @@ pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "olap")]
 pub mod user;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;

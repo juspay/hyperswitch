@@ -14,6 +14,7 @@ pub mod payouts;
 pub mod refunds;
 pub mod routing;
 pub mod webhooks;
+pub mod verify_connector;
 
 use std::{fmt::Debug, str::FromStr};
 

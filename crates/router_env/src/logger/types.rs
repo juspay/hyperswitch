@@ -257,6 +257,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Change password flow
     ChangePassword,
+    /// Payment Connector Verify
+    VerifyPaymentConnector,
 }
 
 ///

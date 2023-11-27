@@ -32,7 +32,7 @@ use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
-    routes::cards_info::card_iin_info,
+    routes::{cards_info::card_iin_info, verify_connector::payment_connector_verify},
     services::get_store,
 };
 
@@ -507,6 +507,10 @@ impl MerchantConnectorAccount {
             use super::admin::*;
 
             route = route
+                .service(
+                    web::resource("/connectors/verify")
+                        .route(web::post().to(payment_connector_verify)),
+                )
                 .service(
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(payment_connector_create))
