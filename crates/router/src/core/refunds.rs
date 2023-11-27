@@ -58,13 +58,12 @@ pub async fn refund_create_core(
     )?;
 
     // Amount is not passed in request refer from payment intent.
-    amount = req.amount.unwrap_or(
-        payment_intent
-            .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("amount captured is none in a successful payment")?,
-    );
+    amount = req
+        .amount
+        .or(payment_intent.amount_captured)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
@@ -190,15 +189,48 @@ pub async fn trigger_refund_to_gateway(
             types::RefundsData,
             types::RefundsResponseData,
         > = connector.connector.get_connector_integration();
-        services::execute_connector_processing_step(
+        let router_data_res = services::execute_connector_processing_step(
             state,
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
         )
-        .await
-        .to_refund_failed_response()?
+        .await;
+        let option_refund_error_update =
+            router_data_res
+                .as_ref()
+                .err()
+                .and_then(|error| match error.current_context() {
+                    errors::ConnectorError::NotImplemented(message) => {
+                        Some(storage::RefundUpdate::ErrorUpdate {
+                            refund_status: Some(enums::RefundStatus::Failure),
+                            refund_error_message: Some(message.to_string()),
+                            refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    }
+                    _ => None,
+                });
+        // Update the refund status as failure if connector_error is NotImplemented
+        if let Some(refund_error_update) = option_refund_error_update {
+            state
+                .store
+                .update_refund(
+                    refund.to_owned(),
+                    refund_error_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed while updating refund: refund_id: {}",
+                        refund.refund_id
+                    )
+                })?;
+        }
+        router_data_res.to_refund_failed_response()?
     } else {
         router_data
     };
@@ -889,7 +921,9 @@ pub async fn start_refund_workflow(
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
         Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
-        Some("SYNC_REFUND") => Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await,
+        Some("SYNC_REFUND") => {
+            Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await
+        }
         _ => Err(errors::ProcessTrackerError::JobNotFound),
     }
 }

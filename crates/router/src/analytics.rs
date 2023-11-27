@@ -21,6 +21,7 @@ pub mod routes {
         services::{
             api,
             authentication::{self as auth, AuthToken, AuthenticationData},
+            authorization::permissions::Permission,
             ApplicationResponse,
         },
         types::domain::UserEmail,
@@ -135,7 +136,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -171,7 +172,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -207,7 +208,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -233,7 +234,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -259,7 +260,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -285,7 +286,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -307,7 +308,7 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -333,7 +334,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -385,7 +386,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -437,7 +438,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -489,7 +490,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -525,7 +526,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -551,7 +552,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
         ))
         .await

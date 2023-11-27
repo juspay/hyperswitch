@@ -601,19 +601,19 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
-/// if confirm = true and capture method = automatic, amount_to_capture(if provided) must be equal to amount
+/// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
 #[instrument(skip_all)]
 pub fn validate_amount_to_capture_in_create_call_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic
-        && request.confirm.unwrap_or(false)
-    {
-        if let Some((amount_to_capture, amount)) = request.amount_to_capture.zip(request.amount) {
-            let amount_int: i64 = amount.into();
-            utils::when(amount_to_capture != amount_int, || {
+    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic {
+        let total_capturable_amount = request.get_total_capturable_amount();
+        if let Some((amount_to_capture, total_capturable_amount)) =
+            request.amount_to_capture.zip(total_capturable_amount)
+        {
+            utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "amount_to_capture must be equal to amount when confirm = true and capture_method = automatic".into()
+                    message: "amount_to_capture must be equal to total_capturable_amount when capture_method = automatic".into()
                 }))
             })
         } else {
@@ -1693,7 +1693,8 @@ pub(crate) fn validate_status_with_capture_method(
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially_captured, processing".to_string()
+                states: "requires_capture, partially_captured_and_capturable, processing"
+                    .to_string()
             }))
         },
     )
@@ -3684,4 +3685,23 @@ pub async fn get_gsm_record(
             err
         })
         .ok()
+}
+
+pub fn validate_order_details_amount(
+    order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
+    amount: i64,
+) -> Result<(), errors::ApiErrorResponse> {
+    let total_order_details_amount: i64 = order_details
+        .iter()
+        .map(|order| order.amount * i64::from(order.quantity))
+        .sum();
+
+    if total_order_details_amount != amount {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Total sum of order details doesn't match amount in payment request"
+                .to_string(),
+        })
+    } else {
+        Ok(())
+    }
 }

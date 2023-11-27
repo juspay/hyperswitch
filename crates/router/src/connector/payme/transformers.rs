@@ -227,6 +227,7 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
             reason: pay_sale_response.status_error_details.to_owned(),
             status_code: http_code,
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -310,6 +311,7 @@ impl From<(&SaleQuery, u16)> for types::ErrorResponse {
             reason: sale_query_response.sale_error_text.clone(),
             status_code: http_code,
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
