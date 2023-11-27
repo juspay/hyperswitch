@@ -1,5 +1,6 @@
-use crate::{core::errors, types::api};
 use api_models::enums::Connector;
+
+use crate::{core::errors, types::api};
 
 pub fn generate_card_from_details(
     card_number: String,
