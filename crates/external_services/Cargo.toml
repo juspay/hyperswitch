@@ -17,7 +17,6 @@ aws-config = { version = "0.55.3", optional = true }
 aws-sdk-kms = { version = "0.28.0", optional = true }
 aws-sdk-sesv2 = "0.28.0"
 aws-sdk-sts = "0.28.0"
-actix-web = "4.3.1"
 aws-smithy-client = "0.55.3"
 base64 = "0.21.2"
 dyn-clone = "1.0.11"

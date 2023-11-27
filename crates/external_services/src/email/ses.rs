@@ -1,6 +1,7 @@
 use std::time::{Duration, SystemTime};
 
-use actix_web::http::Uri;
+use hyper::Uri;
+
 use aws_sdk_sesv2::{
     config::Region,
     operation::send_email::SendEmailError,
@@ -197,33 +198,29 @@ impl AwsSes {
 
 #[async_trait::async_trait]
 impl EmailClient for AwsSes {
+    type RichText = Body;
+
     fn convert_to_rich_text(
         &self,
         intermediate_string: IntermediateString,
-    ) -> CustomResult<String, EmailError> {
-        let content = Content::builder()
-            .data(intermediate_string.into_inner())
-            .charset("UTF-8")
+    ) -> CustomResult<Self::RichText, EmailError> {
+        let email_body = Body::builder()
+            .html(
+                Content::builder()
+                    .data(intermediate_string.into_inner())
+                    .charset("UTF-8")
+                    .build(),
+            )
             .build();
 
-        let rich_text_body = Body::builder()
-            .html(content)
-            .build()
-            .html()
-            .and_then(|body| body.data())
-            .map(|data| data.to_owned())
-            .ok_or(EmailError::EmailSendingFailure)
-            .into_report()
-            .attach_printable("Failed to convert email body into html")?;
-
-        Ok(rich_text_body)
+        Ok(email_body)
     }
 
     async fn send_email(
         &self,
         recipient: pii::Email,
         subject: String,
-        body: String,
+        body: Self::RichText,
         proxy_url: Option<&String>,
     ) -> EmailResult<()> {
         self.ses_client
@@ -245,11 +242,7 @@ impl EmailClient for AwsSes {
                     .simple(
                         Message::builder()
                             .subject(Content::builder().data(subject).build())
-                            .body(
-                                Body::builder()
-                                    .html(Content::builder().data(body).charset("UTF-8").build())
-                                    .build(),
-                            )
+                            .body(body)
                             .build(),
                     )
                     .build(),

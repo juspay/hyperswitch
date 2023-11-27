@@ -1,5 +1,6 @@
 //! Interactions with the AWS SES SDK
 
+use aws_sdk_sesv2::types::Body;
 use common_utils::{errors::CustomResult, pii};
 use serde::Deserialize;
 
@@ -12,12 +13,15 @@ pub type EmailResult<T> = CustomResult<T, EmailError>;
 /// A trait that defines the methods that must be implemented to send email.
 #[async_trait::async_trait]
 pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
+    /// The rich text type of the email client
+    type RichText;
+
     /// Sends an email to the specified recipient with the given subject and body.
     async fn send_email(
         &self,
         recipient: pii::Email,
         subject: String,
-        body: String,
+        body: Self::RichText,
         proxy_url: Option<&String>,
     ) -> EmailResult<()>;
 
@@ -26,7 +30,47 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
     fn convert_to_rich_text(
         &self,
         intermediate_string: IntermediateString,
-    ) -> CustomResult<String, EmailError>;
+    ) -> CustomResult<Self::RichText, EmailError>
+    where
+        Self::RichText: Send;
+}
+
+/// A super trait which is automatically implemented for all EmailClients
+#[async_trait::async_trait]
+pub trait EmailService: Sync + Send + dyn_clone::DynClone {
+    /// Compose and send email using the email data
+    async fn compose_and_send_email(
+        &self,
+        email_data: Box<dyn EmailData + Send>,
+        proxy_url: Option<&String>,
+    ) -> EmailResult<()>;
+}
+
+#[async_trait::async_trait]
+impl<T> EmailService for T
+where
+    T: EmailClient,
+    <Self as EmailClient>::RichText: Send,
+{
+    async fn compose_and_send_email(
+        &self,
+        email_data: Box<dyn EmailData + Send>,
+        proxy_url: Option<&String>,
+    ) -> EmailResult<()> {
+        let email_data = email_data.get_email_data();
+        let email_data = email_data.await?;
+
+        let EmailContents {
+            subject,
+            body,
+            recipient,
+        } = email_data;
+
+        let rich_text_string = self.convert_to_rich_text(body)?;
+
+        self.send_email(recipient, subject, rich_text_string, proxy_url)
+            .await
+    }
 }
 
 /// This is a struct used to create Intermediate String for rich text ( html )
@@ -62,29 +106,10 @@ pub struct EmailContents {
 #[async_trait::async_trait]
 pub trait EmailData {
     /// Get the email contents
-    async fn get_email_data(self) -> CustomResult<EmailContents, EmailError>;
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError>;
 }
 
-/// Send email using the EmailClient
-pub async fn compose_and_send_email<D: EmailData>(
-    email_data: D,
-    email_client: &dyn EmailClient,
-    proxy_url: Option<&String>,
-) -> EmailResult<()> {
-    let EmailContents {
-        subject,
-        body,
-        recipient,
-    } = email_data.get_email_data().await?;
-
-    let rich_text_string = email_client.convert_to_rich_text(body)?;
-
-    email_client
-        .send_email(recipient, subject, rich_text_string, proxy_url)
-        .await
-}
-
-dyn_clone::clone_trait_object!(EmailClient);
+dyn_clone::clone_trait_object!(EmailClient<RichText = Body>);
 
 /// List of available email clients to choose from
 #[derive(Debug, Clone, Default, Deserialize)]

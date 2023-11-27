@@ -44,9 +44,9 @@ impl EmailToken {
     }
 }
 
-pub struct WelcomeEmail<'a> {
+pub struct WelcomeEmail {
     pub recipient_email: UserEmail,
-    pub settings: &'a configs::settings::Settings,
+    pub settings: std::sync::Arc<configs::settings::Settings>,
 }
 
 pub fn get_email_verification_link(
@@ -58,9 +58,9 @@ pub fn get_email_verification_link(
 
 /// Currently only HTML is supported
 #[async_trait::async_trait]
-impl<'a> EmailData for WelcomeEmail<'a> {
-    async fn get_email_data(self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), self.settings)
+impl EmailData for WelcomeEmail {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let token = EmailToken::new_token(self.recipient_email.clone(), &self.settings)
             .await
             .change_context(EmailError::TokenGenerationFailure)?;
 
@@ -74,7 +74,7 @@ impl<'a> EmailData for WelcomeEmail<'a> {
         Ok(EmailContents {
             subject,
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.into_inner(),
+            recipient: self.recipient_email.clone().into_inner(),
         })
     }
 }

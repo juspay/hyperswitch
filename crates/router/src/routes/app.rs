@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
+
 #[cfg(feature = "email")]
-use external_services::email::{ses::AwsSes, EmailClient};
+use external_services::email::{ses::AwsSes, EmailService};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use router_env::tracing_actix_web::RequestId;
@@ -43,7 +44,7 @@ pub struct AppState {
     pub conf: Arc<settings::Settings>,
     pub event_handler: Box<dyn EventHandler>,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailClient>,
+    pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
@@ -62,7 +63,7 @@ pub trait AppStateInfo {
     fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> Box<dyn EventHandler>;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailClient>;
+    fn email_client(&self) -> Arc<dyn EmailService>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
@@ -77,7 +78,7 @@ impl AppStateInfo for AppState {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailClient> {
+    fn email_client(&self) -> Arc<dyn EmailService> {
         self.email_client.to_owned()
     }
     fn event_handler(&self) -> Box<dyn EventHandler> {
@@ -105,7 +106,8 @@ impl AsRef<Self> for AppState {
     }
 }
 
-async fn create_email_client(settings: &settings::Settings) -> impl EmailClient {
+#[cfg(feature = "email")]
+async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
             AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await

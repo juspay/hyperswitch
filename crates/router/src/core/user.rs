@@ -72,22 +72,22 @@ pub async fn connect_account(
 
         #[cfg(feature = "email")]
         {
-            use external_services::email::compose_and_send_email;
             use router_env::logger;
 
             use crate::services::email::types as email_types;
 
             let email_contents = email_types::WelcomeEmail {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-                settings: &state.conf,
+                settings: state.conf.clone(),
             };
 
-            let send_email_result = compose_and_send_email(
-                email_contents,
-                state.email_client.as_ref(),
-                state.conf.proxy.https_url.as_ref(),
-            )
-            .await;
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
 
             logger::info!(send_email_result=?send_email_result);
         }
