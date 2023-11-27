@@ -18,6 +18,7 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
         recipient: pii::Email,
         subject: String,
         body: String,
+        proxy_url: Option<&String>,
     ) -> EmailResult<()>;
 
     /// Convert Stringified HTML to client native rich text format
@@ -68,6 +69,7 @@ pub trait EmailData {
 pub async fn compose_and_send_email<D: EmailData>(
     email_data: D,
     email_client: &dyn EmailClient,
+    proxy_url: Option<&String>,
 ) -> EmailResult<()> {
     let EmailContents {
         subject,
@@ -78,11 +80,19 @@ pub async fn compose_and_send_email<D: EmailData>(
     let rich_text_string = email_client.convert_to_rich_text(body)?;
 
     email_client
-        .send_email(recipient, subject, rich_text_string)
+        .send_email(recipient, subject, rich_text_string, proxy_url)
         .await
 }
 
 dyn_clone::clone_trait_object!(EmailClient);
+
+/// List of available email clients to choose from
+#[derive(Debug, Clone, Default, Deserialize)]
+pub enum AvailableEmailClients {
+    #[default]
+    /// AWS ses email client
+    SES,
+}
 
 /// Struct that contains the settings required to construct an EmailClient.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -93,17 +103,17 @@ pub struct EmailSettings {
     /// Base-url used when adding links that should redirect to self
     pub base_url: String,
 
-    /// Role of aws arn if using aws ses
-    pub email_role_arn: Option<String>,
-
-    /// Session id of simple token service if using aws ses
-    pub sts_session_id: Option<String>,
-
     /// Number of days for verification of the email
     pub allowed_unverified_days: i64,
 
     /// Sender email
     pub sender_email: String,
+
+    /// Configs related to AWS Simple Email Service
+    pub aws_ses_config: Option<ses::SESConfig>,
+
+    /// The active email client to use
+    pub active_email_client: AvailableEmailClients,
 }
 
 /// Errors that could occur from EmailClient.

@@ -78,8 +78,12 @@ pub async fn connect_account(
                 settings: &state.conf,
             };
 
-            let send_email_result =
-                compose_and_send_email(email_contents, state.email_client.as_ref()).await;
+            let send_email_result = compose_and_send_email(
+                email_contents,
+                state.email_client.as_ref(),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
 
             logger::info!(send_email_result=?send_email_result);
         }

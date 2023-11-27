@@ -24,6 +24,16 @@ pub struct AwsSes {
     settings: EmailSettings,
 }
 
+/// Struct that contains the AWS ses specific configs required to construct an SES email client
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct SESConfig {
+    /// The arn of email role
+    pub email_role_arn: String,
+
+    /// The name of sts_session role
+    pub sts_role_session_name: String,
+}
+
 /// Errors that could occur during SES operations.
 #[derive(Debug, thiserror::Error)]
 pub enum AwsSesError {
@@ -36,20 +46,33 @@ pub enum AwsSesError {
     MissingConfigurationVariable(&'static str),
 
     /// Failed to assume the given STS role
-    #[error("Failed to STS assume role: {0:?}")]
-    AssumeRoleFailure(String),
+    #[error("Failed to STS assume role: Role ARN: {role_arn}, Session name: {session_name}, Region: {region}")]
+    AssumeRoleFailure {
+        /// Aws region
+        region: String,
+
+        /// arn of email role
+        role_arn: String,
+
+        /// The name of sts_session role
+        session_name: String,
+    },
 
     /// Temporary credentials are missing
     #[error("Assumed role does not contain credentials for role user: {0:?}")]
     TemporaryCredentialsMissing(String),
+
+    /// The proxy Connector cannot be built
+    #[error("The proxy build cannot be built")]
+    BuildingProxyConnectorFailed,
 }
 
 impl AwsSes {
     /// Constructs a new AwsSes client
-    pub async fn create(conf: &EmailSettings) -> Self {
+    pub async fn create(conf: &EmailSettings, proxy_url: Option<impl AsRef<str>>) -> Self {
         Self {
             ses_client: OnceCell::new_with(
-                Self::create_client(conf)
+                Self::create_client(conf, proxy_url)
                     .await
                     .map_err(|error| logger::error!(?error, "Failed to initialize SES Client"))
                     .ok(),
@@ -60,34 +83,33 @@ impl AwsSes {
     }
 
     /// A helper function to create ses client
-    pub async fn create_client(conf: &EmailSettings) -> CustomResult<Client, AwsSesError> {
-        let sts_config = Self::get_shared_config(conf.aws_region.to_owned())
+    pub async fn create_client(
+        conf: &EmailSettings,
+        proxy_url: Option<impl AsRef<str>>,
+    ) -> CustomResult<Client, AwsSesError> {
+        let sts_config = Self::get_shared_config(conf.aws_region.to_owned(), proxy_url.as_ref())?
             .load()
             .await;
 
-        let email_role_arn = conf
-            .email_role_arn
+        let ses_config = conf
+            .aws_ses_config
             .as_ref()
-            .get_required_value("email_role_arn")
-            .change_context(AwsSesError::MissingConfigurationVariable("email_role_arn"))?;
-
-        let sts_session_id = conf
-            .sts_session_id
-            .as_ref()
-            .get_required_value("sts_session_id")
-            .change_context(AwsSesError::MissingConfigurationVariable("sts_session_id"))?;
+            .get_required_value("aws ses configuration")
+            .attach_printable("The selected email client is aws ses, but configuration is missing")
+            .change_context(AwsSesError::MissingConfigurationVariable("aws_ses_config"))?;
 
         let role = aws_sdk_sts::Client::new(&sts_config)
             .assume_role()
-            .role_arn(email_role_arn)
-            .role_session_name(sts_session_id)
+            .role_arn(&ses_config.email_role_arn)
+            .role_session_name(&ses_config.sts_role_session_name)
             .send()
             .await
             .into_report()
-            .attach_printable(format!("Role ARN {email_role_arn}"))
-            .attach_printable(format!("Role Session name {sts_session_id}"))
-            .attach_printable(format!("Region {}", conf.aws_region))
-            .change_context(AwsSesError::AssumeRoleFailure(sts_session_id.clone()))?;
+            .change_context(AwsSesError::AssumeRoleFailure {
+                region: conf.aws_region.to_owned(),
+                role_arn: ses_config.email_role_arn.to_owned(),
+                session_name: ses_config.sts_role_session_name.to_owned(),
+            })?;
 
         let creds = role.credentials().ok_or(
             report!(AwsSesError::TemporaryCredentialsMissing(format!(
@@ -128,7 +150,7 @@ impl AwsSes {
             credentials.expiry()
         );
 
-        let ses_config = Self::get_shared_config(conf.aws_region.to_owned())
+        let ses_config = Self::get_shared_config(conf.aws_region.to_owned(), proxy_url)?
             .credentials_provider(credentials)
             .load()
             .await;
@@ -136,10 +158,14 @@ impl AwsSes {
         Ok(Client::new(&ses_config))
     }
 
-    fn get_shared_config(region: String) -> aws_config::ConfigLoader {
+    fn get_shared_config(
+        region: String,
+        proxy_url: Option<impl AsRef<str>>,
+    ) -> CustomResult<aws_config::ConfigLoader, AwsSesError> {
         let region_provider = Region::new(region);
         let mut config = aws_config::from_env().region(region_provider);
-        if let Some(proxy_connector) = Self::get_connector() {
+        if let Some(proxy_url) = proxy_url {
+            let proxy_connector = Self::get_proxy_connector(proxy_url)?;
             let provider_config = aws_config::provider_config::ProviderConfig::default()
                 .with_tcp_connector(proxy_connector.clone());
             let http_connector =
@@ -148,18 +174,24 @@ impl AwsSes {
                 .configure(provider_config)
                 .http_connector(http_connector);
         };
-        config
+        Ok(config)
     }
 
-    fn get_connector() -> Option<hyper_proxy::ProxyConnector<hyper::client::HttpConnector>> {
-        std::env::var("ROUTER_HTTPS_PROXY")
-            .ok()
-            .and_then(|var| var.parse::<Uri>().ok())
-            .map(|url| hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, url))
-            .and_then(|proxy| {
-                hyper_proxy::ProxyConnector::from_proxy(hyper::client::HttpConnector::new(), proxy)
-                    .ok()
-            })
+    fn get_proxy_connector(
+        proxy_url: impl AsRef<str>,
+    ) -> CustomResult<hyper_proxy::ProxyConnector<hyper::client::HttpConnector>, AwsSesError> {
+        let proxy_uri = proxy_url
+            .as_ref()
+            .parse::<Uri>()
+            .into_report()
+            .attach_printable("Unable to parse the proxy url {proxy_url}")
+            .change_context(AwsSesError::BuildingProxyConnectorFailed)?;
+
+        let proxy = hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, proxy_uri);
+
+        hyper_proxy::ProxyConnector::from_proxy(hyper::client::HttpConnector::new(), proxy)
+            .into_report()
+            .change_context(AwsSesError::BuildingProxyConnectorFailed)
     }
 }
 
@@ -192,10 +224,11 @@ impl EmailClient for AwsSes {
         recipient: pii::Email,
         subject: String,
         body: String,
+        proxy_url: Option<&String>,
     ) -> EmailResult<()> {
         self.ses_client
             .get_or_try_init(|| async {
-                Self::create_client(&self.settings)
+                Self::create_client(&self.settings, proxy_url)
                     .await
                     .change_context(EmailError::ClientBuildingFailure)
             })
