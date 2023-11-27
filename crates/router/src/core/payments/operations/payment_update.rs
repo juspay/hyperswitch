@@ -60,6 +60,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(
+                order_details.to_owned(),
+                payment_intent.amount,
+            )?;
+        }
+
         payment_intent.setup_future_usage = request
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
