@@ -2285,7 +2285,6 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 name = "external_services"
 version = "0.1.0"
 dependencies = [
- "actix-web",
  "async-trait",
  "aws-config",
  "aws-sdk-kms",
