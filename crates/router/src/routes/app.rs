@@ -759,6 +759,7 @@ impl User {
             .service(web::resource("/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/change_password").route(web::post().to(change_password)))
     }
 }
 

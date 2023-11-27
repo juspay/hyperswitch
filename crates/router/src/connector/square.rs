@@ -124,6 +124,7 @@ impl ConnectorCommon for Square {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(reason),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

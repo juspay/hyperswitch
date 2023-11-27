@@ -67,9 +67,9 @@ pub async fn start_drainer(
                 stream_index = utils::increment_stream_index(
                     (stream_index, jobs_picked.clone()),
                     number_of_streams,
-                    &mut loop_interval,
                 )
                 .await;
+                loop_interval.tick().await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::info!("Awaiting shutdown!");
@@ -114,6 +114,7 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
     }
 }
 
+#[router_env::instrument(skip_all)]
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,

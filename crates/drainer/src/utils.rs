@@ -8,12 +8,13 @@ use redis_interface as redis;
 
 use crate::{
     errors::{self, DrainerError},
-    logger, metrics, services,
+    logger, metrics, services, tracing,
 };
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
+#[router_env::instrument(skip_all)]
 pub async fn is_stream_available(stream_index: u8, store: Arc<services::Store>) -> bool {
     let stream_key_flag = get_stream_key_flag(store.clone(), stream_index);
 
@@ -132,10 +133,8 @@ pub fn parse_stream_entries<'a>(
 pub async fn increment_stream_index(
     (index, jobs_picked): (u8, Arc<atomic::AtomicU8>),
     total_streams: u8,
-    interval: &mut tokio::time::Interval,
 ) -> u8 {
     if index == total_streams - 1 {
-        interval.tick().await;
         match jobs_picked.load(atomic::Ordering::SeqCst) {
             0 => metrics::CYCLES_COMPLETED_UNSUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),
             _ => metrics::CYCLES_COMPLETED_SUCCESSFULLY.add(&metrics::CONTEXT, 1, &[]),

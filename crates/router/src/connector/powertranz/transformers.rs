@@ -444,6 +444,7 @@ fn build_error_response(
                         .join(", "),
                 ),
                 attempt_status: None,
+                connector_transaction_id: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -454,6 +455,7 @@ fn build_error_response(
             message: item.response_message.clone(),
             reason: Some(item.response_message.clone()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
