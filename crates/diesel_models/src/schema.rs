@@ -187,30 +187,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    dashboard_metadata (id) {
-        id -> Int4,
-        #[max_length = 64]
-        user_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        merchant_id -> Varchar,
-        #[max_length = 64]
-        org_id -> Varchar,
-        #[max_length = 64]
-        data_key -> Varchar,
-        data_value -> Json,
-        #[max_length = 64]
-        created_by -> Varchar,
-        created_at -> Timestamp,
-        #[max_length = 64]
-        last_modified_by -> Varchar,
-        last_modified_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     dispute (id) {
         id -> Int4,
         #[max_length = 64]
@@ -989,7 +965,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     cards_info,
     configs,
     customers,
-    dashboard_metadata,
     dispute,
     events,
     file_metadata,
