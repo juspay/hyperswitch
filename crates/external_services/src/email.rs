@@ -83,7 +83,8 @@ impl IntermediateString {
         Self(inner)
     }
 
-    fn into_inner(self) -> String {
+    /// Get the inner String
+    pub fn into_inner(self) -> String {
         self.0
     }
 }
