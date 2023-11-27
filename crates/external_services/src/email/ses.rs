@@ -1,7 +1,5 @@
 use std::time::{Duration, SystemTime};
 
-use hyper::Uri;
-
 use aws_sdk_sesv2::{
     config::Region,
     operation::send_email::SendEmailError,
@@ -11,6 +9,7 @@ use aws_sdk_sesv2::{
 use aws_sdk_sts::config::Credentials;
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii};
 use error_stack::{report, IntoReport, ResultExt};
+use hyper::Uri;
 use masking::PeekInterface;
 use router_env::logger;
 use tokio::sync::OnceCell;
