@@ -146,7 +146,7 @@ impl AwsSes {
         );
 
         logger::debug!(
-            "SES temporary credentials with expiry {:?}",
+            "Obtained SES temporary credentials with expiry {:?}",
             credentials.expiry()
         );
 

@@ -105,6 +105,14 @@ impl AsRef<Self> for AppState {
     }
 }
 
+async fn create_email_client(settings: &settings::Settings) -> &dyn EmailClient {
+    match settings.email.active_email_client {
+        external_services::email::AvailableEmailClients::SES => {
+            AwsSes::create(&conf.email, conf.proxy.https_url.to_owned()).await
+        }
+    }
+}
+
 impl AppState {
     /// # Panics
     ///
@@ -152,8 +160,8 @@ impl AppState {
             .expect("Failed while performing KMS decryption");
 
             #[cfg(feature = "email")]
-            let email_client =
-                Arc::new(AwsSes::create(&conf.email, conf.proxy.https_url.to_owned()).await);
+            let email_client = Arc::new(create_email_client(&conf).await);
+
             Self {
                 flow_name: String::from("default"),
                 store,
