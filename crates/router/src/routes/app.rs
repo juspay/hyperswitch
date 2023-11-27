@@ -105,10 +105,10 @@ impl AsRef<Self> for AppState {
     }
 }
 
-async fn create_email_client(settings: &settings::Settings) -> &dyn EmailClient {
+async fn create_email_client(settings: &settings::Settings) -> impl EmailClient {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
-            AwsSes::create(&conf.email, conf.proxy.https_url.to_owned()).await
+            AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
         }
     }
 }

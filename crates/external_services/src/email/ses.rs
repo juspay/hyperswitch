@@ -214,7 +214,7 @@ impl EmailClient for AwsSes {
             .map(|data| data.to_owned())
             .ok_or(EmailError::EmailSendingFailure)
             .into_report()
-            .attach_printable("Failed to convert email body into text")?;
+            .attach_printable("Failed to convert email body into html")?;
 
         Ok(rich_text_body)
     }
