@@ -703,6 +703,7 @@ impl<F, T>
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -810,6 +811,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -847,6 +849,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),

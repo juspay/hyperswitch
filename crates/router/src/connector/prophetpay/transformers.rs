@@ -419,6 +419,7 @@ impl<F>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -467,6 +468,7 @@ impl<F, T>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -515,6 +517,7 @@ impl<F, T>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -580,10 +583,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
                 action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
             })
         } else {
-            Err(errors::ConnectorError::NotImplemented(
-                "Partial Refund is Not Supported".to_string(),
-            )
-            .into())
+            Err(errors::ConnectorError::NotImplemented("Partial Refund".to_string()).into())
         }
     }
 }
@@ -625,6 +625,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -664,6 +665,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })

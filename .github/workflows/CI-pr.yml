@@ -41,17 +41,25 @@ jobs:
     name: Check formatting
     runs-on: ubuntu-latest
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -71,8 +79,8 @@ jobs:
           cargo +nightly fmt --all
           if ! git diff --exit-code --quiet -- crates; then
             echo "::notice::Formatting check failed"
-            git config --local user.name 'github-actions[bot]'
-            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add crates
             git commit --message 'chore: run formatter'
             git push
@@ -91,7 +99,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Fetch base branch"
         shell: bash
@@ -108,12 +116,12 @@ jobs:
         with:
           toolchain: 1.65
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
           version: 0.6.5
@@ -280,7 +288,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v3
+  #       uses: actions/checkout@v4
 
   #     - name: Run cargo-deny
   #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
@@ -299,17 +307,25 @@ jobs:
         # - windows-latest
 
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: "Fetch base branch"
         shell: bash
@@ -328,16 +344,16 @@ jobs:
           components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.1.0
+      #   uses: baptiste0928/cargo-install@v2.2.0
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -360,8 +376,8 @@ jobs:
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- Cargo.lock ; then
-            git config --local user.name 'github-actions[bot]'
-            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add Cargo.lock
             git commit --message 'chore: update Cargo.lock'
             git push
@@ -516,7 +532,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Spell check
         uses: crate-ci/typos@master

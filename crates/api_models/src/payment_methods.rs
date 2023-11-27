@@ -352,6 +352,9 @@ impl SurchargeDetailsResponse {
         request_surcharge_details.surcharge_amount == self.surcharge_amount
             && request_surcharge_details.tax_amount.unwrap_or(0) == self.tax_on_surcharge_amount
     }
+    pub fn get_total_surcharge_amount(&self) -> i64 {
+        self.surcharge_amount + self.tax_on_surcharge_amount
+    }
 }
 
 #[derive(Clone, Debug)]
