@@ -23,7 +23,7 @@ use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
-    services::kafka::KafkaSettings,
+    events::EventsConfig,
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;
@@ -111,7 +111,7 @@ pub struct Settings {
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
     pub report_download_config: ReportConfig,
-    pub kafka: KafkaSettings,
+    pub events: EventsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -788,7 +788,7 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         self.lock_settings.validate()?;
-        self.kafka.validate()?;
+        self.events.validate()?;
         Ok(())
     }
 }

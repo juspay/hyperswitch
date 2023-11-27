@@ -78,21 +78,15 @@ impl<'a, T: KafkaMessage> KafkaMessage for KafkaEvent<'a, T> {
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct KafkaSettings {
-    pub enabled: bool,
     brokers: Vec<String>,
     intent_analytics_topic: String,
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
-    api_logs_v2_topic: String,
-    outgoing_request_topic: String,
 }
 
 impl KafkaSettings {
     pub(crate) fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
-        if !self.enabled {
-            return Ok(());
-        }
         use common_utils::ext_traits::ConfigExt;
 
         use crate::core::errors::ApplicationError;
@@ -129,17 +123,22 @@ impl KafkaSettings {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct KafkaProducer {
     producer: Arc<RdKafkaProducer>,
     intent_analytics_topic: String,
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
-    api_logs_v2_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
+
+impl std::fmt::Debug for RdKafkaProducer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("RdKafkaProducer")
+    }
+}
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum KafkaError {
@@ -167,7 +166,6 @@ impl KafkaProducer {
             attempt_analytics_topic: conf.attempt_analytics_topic.clone(),
             refund_analytics_topic: conf.refund_analytics_topic.clone(),
             api_logs_topic: conf.api_logs_topic.clone(),
-            api_logs_v2_topic: conf.api_logs_v2_topic.clone(),
         })
     }
 
@@ -295,7 +293,7 @@ impl KafkaProducer {
 
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
-            EventType::ApiLogs => &self.api_logs_v2_topic,
+            EventType::ApiLogs => &self.api_logs_topic,
             EventType::PaymentAttempt => &self.attempt_analytics_topic,
             EventType::PaymentIntent => &self.intent_analytics_topic,
             EventType::Refund => &self.refund_analytics_topic,

@@ -51,11 +51,7 @@ use crate::{
         routing_algorithm::RoutingAlgorithmInterface,
         MasterKeyInterface, StorageInterface,
     },
-    services::{
-        authentication,
-        kafka::{KafkaProducer, MQResult},
-        Store,
-    },
+    services::{authentication, kafka::KafkaProducer, Store},
     types::{
         domain,
         storage::{self, business_profile},
@@ -67,16 +63,6 @@ use crate::{
 pub struct KafkaStore {
     kafka_producer: KafkaProducer,
     pub diesel_store: Store,
-}
-
-pub trait KafkaEventInterface {
-    fn kafka_producer(&self) -> MQResult<KafkaProducer>;
-}
-
-impl KafkaEventInterface for KafkaStore {
-    fn kafka_producer(&self) -> MQResult<KafkaProducer> {
-        Ok(self.kafka_producer.clone())
-    }
 }
 
 impl KafkaStore {

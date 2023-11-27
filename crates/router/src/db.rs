@@ -36,8 +36,7 @@ use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
-use error_stack::{IntoReport, ResultExt};
-pub use kafka_store::KafkaEventInterface;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
@@ -94,7 +93,7 @@ pub trait StorageInterface:
     + RedisConnInterface
     + RequestIdStore
     + business_profile::BusinessProfileInterface
-    + organization::OrganizationInterface
+    + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + user::UserInterface
@@ -178,21 +177,6 @@ dyn_clone::clone_trait_object!(StorageInterface);
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
         self.diesel_store.add_request_id(request_id)
-    }
-}
-
-impl KafkaEventInterface for Store {
-    fn kafka_producer(&self) -> MQResult<KafkaProducer> {
-        Err(KafkaError::NotImplemented)
-            .into_report()
-            .attach_printable("Basic Store does not support kafka")
-    }
-}
-impl KafkaEventInterface for MockDb {
-    fn kafka_producer(&self) -> MQResult<KafkaProducer> {
-        Err(KafkaError::NotImplemented)
-            .into_report()
-            .attach_printable("MockDB does not support kafka")
     }
 }
 

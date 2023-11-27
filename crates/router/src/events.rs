@@ -1,10 +1,15 @@
-use serde::Serialize;
+use data_models::errors::{StorageError, StorageResult};
+use error_stack::ResultExt;
+use serde::{Deserialize, Serialize};
+use storage_impl::errors::ApplicationError;
+
+use crate::{db::KafkaProducer, services::kafka::KafkaSettings};
 
 pub mod api_logs;
 pub mod event_logger;
 pub mod kafka_handler;
 
-pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
+pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
     fn log_event(&self, event: RawEvent);
 }
 
@@ -24,4 +29,50 @@ pub enum EventType {
     PaymentAttempt,
     Refund,
     ApiLogs,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(tag = "source")]
+#[serde(rename_all = "lowercase")]
+pub enum EventsConfig {
+    Kafka {
+        kafka: KafkaSettings,
+    },
+    #[default]
+    Logs,
+}
+
+#[derive(Debug, Clone)]
+pub enum EventsHandler {
+    Kafka(KafkaProducer),
+    Logs(event_logger::EventLogger),
+}
+
+impl EventsConfig {
+    pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
+        Ok(match self {
+            EventsConfig::Kafka { kafka } => EventsHandler::Kafka(
+                KafkaProducer::create(kafka)
+                    .await
+                    .change_context(StorageError::InitializationError)?,
+            ),
+            EventsConfig::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
+        })
+    }
+
+    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+        match self {
+            EventsConfig::Kafka { kafka } => kafka.validate(),
+            EventsConfig::Logs => Ok(()),
+        }
+    }
+}
+
+impl EventsHandler {
+    pub fn log_event(&self, event: RawEvent) {
+        match self {
+            EventsHandler::Kafka(kafka) => kafka.log_event(event),
+            EventsHandler::Logs(logger) => logger.log_event(event),
+        }
+    }
 }
