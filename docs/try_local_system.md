@@ -53,6 +53,8 @@ Check the Table Of Contents to jump to the relevant section.
 
    This should run the hyperswitch payments router, the primary component within
    hyperswitch.
+   Wait for the `migration_runner` container to finish installing `diesel_cli`
+   and running migrations (approximately 2 minutes) before proceeding further.
    You can also choose to
    [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
    in addition to the payments router.
