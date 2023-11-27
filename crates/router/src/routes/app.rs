@@ -28,11 +28,13 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(feature = "olap")]
+use crate::routes::verify_connector::payment_connector_verify;
 use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
-    routes::{cards_info::card_iin_info, verify_connector::payment_connector_verify},
+    routes::cards_info::card_iin_info,
     services::get_store,
 };
 

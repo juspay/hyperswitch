@@ -4,14 +4,14 @@ use crate::{
     services::{self, authentication as auth, authorization::permissions::Permission},
 };
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::admin::MerchantConnectorCreate;
+use api_models::verify_connector::VerifyConnectorRequest;
 use router_env::{instrument, tracing, Flow};
 
 #[instrument(skip_all, fields(flow = ?Flow::VerifyPaymentConnector))]
 pub async fn payment_connector_verify(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<MerchantConnectorCreate>,
+    json_payload: web::Json<VerifyConnectorRequest>,
 ) -> HttpResponse {
     let flow = Flow::VerifyPaymentConnector;
     Box::pin(services::server_wrap(

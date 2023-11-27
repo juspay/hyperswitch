@@ -5,10 +5,11 @@ use error_stack::{IntoReport, ResultExt};
 use crate::types::api::verify_connector::{self as types, VerifyConnector};
 use crate::utils::verify_connector as utils;
 use crate::{services, AppState};
+use api_models::verify_connector::VerifyConnectorRequest;
 
 pub async fn verify_connector_credentials(
     state: AppState,
-    req: api::MerchantConnectorCreate,
+    req: VerifyConnectorRequest,
 ) -> errors::RouterResponse<()> {
     let boxed_connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
