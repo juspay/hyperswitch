@@ -106,7 +106,7 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
+pub async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
             AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
