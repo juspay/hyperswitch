@@ -95,6 +95,7 @@ impl ConnectorCommon for Worldpay {
             message: response.message,
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

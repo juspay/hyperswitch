@@ -123,6 +123,7 @@ impl ConnectorCommon for Globepay {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: Some(response.return_msg),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

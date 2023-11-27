@@ -203,6 +203,7 @@ fn get_error_response(
         reason: Some(connector_error_response.response_message),
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 

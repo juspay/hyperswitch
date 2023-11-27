@@ -124,6 +124,7 @@ impl ConnectorCommon for Payeezy {
             message: error_messages.join(", "),
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

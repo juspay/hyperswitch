@@ -8,7 +8,10 @@ use router_env::AnalyticsFlow;
 use super::{core::*, payments, refunds, types::AnalyticsDomain};
 use crate::{
     core::api_locking,
-    services::{api, authentication as auth, authentication::AuthenticationData},
+    services::{
+        api, authentication as auth, authentication::AuthenticationData,
+        authorization::permissions::Permission,
+    },
     AppState,
 };
 
@@ -68,7 +71,11 @@ pub async fn get_payment_metrics(
         |state, auth: AuthenticationData, req| {
             payments::get_metrics(state.pool.clone(), auth.merchant_account, req)
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::Analytics),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -98,7 +105,11 @@ pub async fn get_refunds_metrics(
         |state, auth: AuthenticationData, req| {
             refunds::get_metrics(state.pool.clone(), auth.merchant_account, req)
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::Analytics),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -118,7 +129,11 @@ pub async fn get_payment_filters(
         |state, auth: AuthenticationData, req| {
             payment_filters_core(state.pool.clone(), req, auth.merchant_account)
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::Analytics),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -138,7 +153,11 @@ pub async fn get_refund_filters(
         |state, auth: AuthenticationData, req: GetRefundFilterRequest| {
             refund_filter_core(state.pool.clone(), req, auth.merchant_account)
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::Analytics),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await

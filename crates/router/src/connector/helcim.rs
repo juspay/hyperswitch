@@ -138,6 +138,7 @@ impl ConnectorCommon for Helcim {
             message: error_string.clone(),
             reason: Some(error_string),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
