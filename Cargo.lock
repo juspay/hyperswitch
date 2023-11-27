@@ -2264,6 +2264,7 @@ name = "euclid_wasm"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_enums",
  "euclid",
  "getrandom 0.2.10",
  "kgraph_utils",
@@ -3224,6 +3225,7 @@ name = "kgraph_utils"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_enums",
  "criterion",
  "euclid",
  "masking",

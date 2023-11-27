@@ -1,12 +1,8 @@
 #![allow(non_upper_case_globals)]
 mod types;
 mod utils;
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
-
 use api_models::{admin as admin_api, routing::ConnectorSelection};
+use common_enums::RoutableConnectors;
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{
@@ -14,13 +10,16 @@ use euclid::{
         graph::{self, Memoization},
         state_machine, truth,
     },
-    enums,
     frontend::{
         ast,
         dir::{self, enums as dir_enums},
     },
 };
 use once_cell::sync::OnceCell;
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 use strum::{EnumMessage, EnumProperty, VariantNames};
 use wasm_bindgen::prelude::*;
 
@@ -44,7 +43,7 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .iter()
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
-                connector: dir_enums::Connector::from_str(&mca.connector_name)?,
+                connector: RoutableConnectors::from_str(&mca.connector_name)?,
                 #[cfg(not(feature = "connector_choice_mca_id"))]
                 sub_label: mca.business_sub_label.clone(),
             })
@@ -147,7 +146,9 @@ pub fn run_program(program: JsValue, input: JsValue) -> JsResult {
 
 #[wasm_bindgen(js_name = getAllConnectors)]
 pub fn get_all_connectors() -> JsResult {
-    Ok(serde_wasm_bindgen::to_value(enums::Connector::VARIANTS)?)
+    Ok(serde_wasm_bindgen::to_value(
+        common_enums::RoutableConnectors::VARIANTS,
+    )?)
 }
 
 #[wasm_bindgen(js_name = getAllKeys)]

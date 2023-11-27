@@ -81,7 +81,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
 ) -> RouterResult<(
     PaymentData<F>,
