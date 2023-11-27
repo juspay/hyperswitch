@@ -74,6 +74,7 @@ impl ConnectorCommon for Adyen {
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -256,6 +257,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -375,6 +377,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -546,6 +549,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 
@@ -716,6 +720,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -920,6 +925,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -1439,6 +1445,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -1600,17 +1607,13 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         let response: adyen::Response = notif.into();
 
-        let res_json = serde_json::to_value(response)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(res_json)
+        Ok(Box::new(response))
     }
 
     fn get_webhook_api_response(

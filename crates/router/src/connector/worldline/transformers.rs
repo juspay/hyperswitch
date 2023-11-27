@@ -306,10 +306,9 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Master => Ok(Self::MasterCard),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: issuer.to_string(),
-                connector: "worldline",
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
+            )
             .into()),
         }
     }

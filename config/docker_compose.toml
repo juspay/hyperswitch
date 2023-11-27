@@ -15,7 +15,7 @@ level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
 traces_enabled = false                                      # Whether traces are enabled.
-metrics_enabled = false                                     # Whether metrics are enabled.
+metrics_enabled = true                                     # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
 use_xray_generator = false
@@ -44,6 +44,7 @@ recon_admin_api_key = "recon_test_admin"
 
 [locker]
 host = ""
+host_rs = ""
 mock_locker = true
 basilisk_host = ""
 
@@ -55,6 +56,7 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
+rust_locker_encryption_key = ""
 vault_private_key = ""
 
 [redis]
@@ -282,6 +284,9 @@ red_pagos = { country = "UY", currency = "UYU" }
 
 [pm_filters.stripe]
 cashapp = {country = "US", currency = "USD"}
+
+[pm_filters.prophetpay]
+card_redirect = { currency = "USD" }
 
 [pm_filters.stax]
 credit = { currency = "USD" }

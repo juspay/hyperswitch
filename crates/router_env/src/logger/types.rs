@@ -223,6 +223,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// Payment Link List flow
+    PaymentLinkList,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -235,6 +237,8 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Rust locker migration
+    RustLockerMigration,
     /// Gsm Rule Creation flow
     GsmRuleCreate,
     /// Gsm Rule Retrieve flow
@@ -243,6 +247,16 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// User connect account
+    UserConnectAccount,
+    /// Upsert Decision Manager Config
+    DecisionManagerUpsertConfig,
+    /// Delete Decision Manager Config
+    DecisionManagerDeleteConfig,
+    /// Retrieve Decision Manager Config
+    DecisionManagerRetrieveConfig,
+    /// Change password flow
+    ChangePassword,
 }
 
 ///

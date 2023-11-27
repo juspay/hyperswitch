@@ -441,6 +441,7 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
             reason: None,
             status_code: http_code,
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }

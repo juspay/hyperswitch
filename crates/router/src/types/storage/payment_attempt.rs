@@ -16,8 +16,8 @@ pub trait PaymentAttemptExt {
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
     fn get_total_amount(&self) -> i64;
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails>;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
@@ -59,16 +59,14 @@ impl PaymentAttemptExt for PaymentAttempt {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
     }
-
-    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus {
-        let intent_status = enums::IntentStatus::foreign_from(self.status);
-        if intent_status == enums::IntentStatus::Cancelled && amount_captured > Some(0) {
-            enums::IntentStatus::Succeeded
-        } else {
-            intent_status
-        }
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        self.surcharge_amount.map(|surcharge_amount| {
+            api_models::payments::RequestSurchargeDetails {
+                surcharge_amount,
+                tax_amount: self.tax_amount,
+            }
+        })
     }
-
     fn get_total_amount(&self) -> i64 {
         self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
