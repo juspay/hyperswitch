@@ -12,6 +12,7 @@ use crate::{
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain,
 };
+pub mod sample_data;
 
 pub async fn connect_account(
     state: AppState,

@@ -257,6 +257,10 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Change password flow
     ChangePassword,
+    /// Generate Sample Data
+    GenerateSampleData,
+    /// Delete Sample Data
+    DeleteSampleData,
 }
 
 ///

@@ -760,6 +760,12 @@ impl User {
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(
+                web::resource("/sample_data/generate").route(web::post().to(generate_sample_data)),
+            )
+            .service(
+                web::resource("/sample_data/delete").route(web::delete().to(delete_sample_data)),
+            )
     }
 }
 

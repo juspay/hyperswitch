@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::user as user_api;
+use api_models::user::{self as user_api, sample_data::SampleDataRequest};
 use router_env::Flow;
 
 use super::AppState;
@@ -8,6 +8,7 @@ use crate::{
     services::{
         api,
         authentication::{self as auth},
+        authorization::permissions::Permission,
     },
 };
 
@@ -43,6 +44,41 @@ pub async fn change_password(
         json_payload.into_inner(),
         |state, user, req| user::change_password(state, req, user),
         &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn generate_sample_data(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    payload: web::Json<SampleDataRequest>,
+) -> impl actix_web::Responder {
+    let flow = Flow::GenerateSampleData;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payload.into_inner(),
+        user::sample_data::generate_sample_data_for_user,
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+pub async fn delete_sample_data(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    payload: web::Json<SampleDataRequest>,
+) -> impl actix_web::Responder {
+    let flow = Flow::DeleteSampleData;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payload.into_inner(),
+        user::sample_data::delete_sample_data_for_user,
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
