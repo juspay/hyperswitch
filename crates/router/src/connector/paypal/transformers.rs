@@ -926,6 +926,74 @@ pub struct PaypalThreeDsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalPreProcessingResponse {
+    pub payment_source: CardParams,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardParams {
+    pub card: AuthResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthResult {
+    pub authentication_result: PaypalThreeDsParams,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalThreeDsParams {
+    pub liability_shift: LiabilityShift,
+    pub three_d_secure: ThreeDsCheck,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThreeDsCheck {
+    pub enrollment_status: Option<EnrollementStatus>,
+    pub authentication_status: Option<AuthenticationStatus>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LiabilityShift {
+    Possible,
+    No,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EnrollementStatus {
+    Null,
+    #[serde(rename = "Y")]
+    Ready,
+    #[serde(rename = "N")]
+    NotReady,
+    #[serde(rename = "U")]
+    Unavailable,
+    #[serde(rename = "B")]
+    Bypassed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AuthenticationStatus {
+    Null,
+    #[serde(rename = "Y")]
+    Success,
+    #[serde(rename = "N")]
+    Failed,
+    #[serde(rename = "R")]
+    Rejected,
+    #[serde(rename = "A")]
+    Attempted,
+    #[serde(rename = "U")]
+    Unable,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "I")]
+    InfoOnly,
+    #[serde(rename = "D")]
+    Decoupled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
