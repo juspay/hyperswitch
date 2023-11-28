@@ -853,32 +853,32 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
     }
 }
 
-impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
+impl TryFrom<&Option<api_enums::BankNames>> for OpenBankingUKIssuer {
     type Error = Error;
-    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank_name: &Option<api_enums::BankNames>) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
-            api::enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
-            api::enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
-            api::enums::BankNames::Aib => Ok(Self::Aib),
-            api::enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
-            api::enums::BankNames::Barclays => Ok(Self::Barclays),
-            api::enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
-            api::enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
-            api::enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
-            api::enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
-            api::enums::BankNames::Halifax => Ok(Self::Halifax),
-            api::enums::BankNames::Lloyds => Ok(Self::Lloyds),
-            api::enums::BankNames::Monzo => Ok(Self::Monzo),
-            api::enums::BankNames::NatWest => Ok(Self::NatWest),
-            api::enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
-            api::enums::BankNames::Revolut => Ok(Self::Revolut),
-            api::enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
-            api::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
-            api::enums::BankNames::Starling => Ok(Self::Starling),
-            api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
-            api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
-            api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
+            Some(api::enums::BankNames::OpenBankSuccess) => Ok(Self::RedirectSuccess),
+            Some(api::enums::BankNames::OpenBankFailure) => Ok(Self::RedirectFailure),
+            Some(api::enums::BankNames::OpenBankCancelled) => Ok(Self::RedirectCancelled),
+            Some(api::enums::BankNames::Aib) => Ok(Self::Aib),
+            Some(api::enums::BankNames::BankOfScotland) => Ok(Self::BankOfScotland),
+            Some(api::enums::BankNames::Barclays) => Ok(Self::Barclays),
+            Some(api::enums::BankNames::DanskeBank) => Ok(Self::DanskeBank),
+            Some(api::enums::BankNames::FirstDirect) => Ok(Self::FirstDirect),
+            Some(api::enums::BankNames::FirstTrust) => Ok(Self::FirstTrust),
+            Some(api::enums::BankNames::HsbcBank) => Ok(Self::HsbcBank),
+            Some(api::enums::BankNames::Halifax) => Ok(Self::Halifax),
+            Some(api::enums::BankNames::Lloyds) => Ok(Self::Lloyds),
+            Some(api::enums::BankNames::Monzo) => Ok(Self::Monzo),
+            Some(api::enums::BankNames::NatWest) => Ok(Self::NatWest),
+            Some(api::enums::BankNames::NationwideBank) => Ok(Self::NationwideBank),
+            Some(api::enums::BankNames::Revolut) => Ok(Self::Revolut),
+            Some(api::enums::BankNames::RoyalBankOfScotland) => Ok(Self::RoyalBankOfScotland),
+            Some(api::enums::BankNames::SantanderPrzelew24) => Ok(Self::SantanderPrzelew24),
+            Some(api::enums::BankNames::Starling) => Ok(Self::Starling),
+            Some(api::enums::BankNames::TsbBank) => Ok(Self::TsbBank),
+            Some(api::enums::BankNames::TescoBank) => Ok(Self::TescoBank),
+            Some(api::enums::BankNames::UlsterBank) => Ok(Self::UlsterBank),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -2622,7 +2622,7 @@ fn get_redirect_extra_details(
                     Some(country.to_owned()),
                 ),
                 api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
-                    (None, Some(country.to_owned()))
+                    (None, country.to_owned())
                 }
                 _ => (None, None),
             }
