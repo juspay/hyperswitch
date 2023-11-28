@@ -99,6 +99,7 @@ impl ConnectorCommon for Mollie {
             message: response.detail,
             reason: response.field,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

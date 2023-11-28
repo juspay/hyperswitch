@@ -43,6 +43,10 @@
           "card_cvc": "7373"
         }
       },
+      "routing": {
+        "type": "single",
+        "data": "adyen"
+      },
       "billing": {
         "address": {
           "line1": "1467",

@@ -53,6 +53,16 @@ default_hash_ttl = 900     # Default TTL for hashes entries, in seconds
 use_legacy_version = false # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
 stream_read_count = 1      # Default number of entries to read from stream if not provided in stream read options
 
+# This section provides configs for currency conversion api
+[forex_api]
+call_delay = 21600                # Api calls are made after every 6 hrs
+local_fetch_retry_count = 5       # Fetch from Local cache has retry count as 5
+local_fetch_retry_delay = 1000    # Retry delay for checking write condition
+api_timeout = 20000               # Api timeouts once it crosses 2000 ms
+api_key = "YOUR API KEY HERE"     # Api key for making request to foreign exchange Api
+fallback_api_key = "YOUR API KEY" # Api key for the fallback service
+redis_lock_timeout = 26000        # Redis remains write locked for 26000 ms once the acquire_redis_lock is called
+
 # Logging configuration. Logging can be either to file or console or both.
 
 # Logging configuration for file logging

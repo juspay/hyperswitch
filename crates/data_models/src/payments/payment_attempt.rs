@@ -36,6 +36,13 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -264,6 +271,8 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
     },
     RejectUpdate {
@@ -291,8 +300,6 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
@@ -321,11 +328,10 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<i64>,

@@ -50,21 +50,26 @@ pub async fn refund_create_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     utils::when(
-        payment_intent.status != enums::IntentStatus::Succeeded,
+        !(payment_intent.status == enums::IntentStatus::Succeeded
+            || payment_intent.status == enums::IntentStatus::PartiallyCaptured),
         || {
-            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                .attach_printable("unable to refund for a unsuccessful payment intent"))
+            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                current_flow: "refund".into(),
+                field_name: "status".into(),
+                current_value: payment_intent.status.to_string(),
+                states: "succeeded, partially_captured".to_string()
+            })
+            .attach_printable("unable to refund for a unsuccessful payment intent"))
         },
     )?;
 
     // Amount is not passed in request refer from payment intent.
-    amount = req.amount.unwrap_or(
-        payment_intent
-            .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("amount captured is none in a successful payment")?,
-    );
+    amount = req
+        .amount
+        .or(payment_intent.amount_captured)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
@@ -76,7 +81,7 @@ pub async fn refund_create_core(
     })?;
 
     payment_attempt = db
-        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
             &req.payment_id,
             merchant_id,
             merchant_account.storage_scheme,
@@ -190,15 +195,48 @@ pub async fn trigger_refund_to_gateway(
             types::RefundsData,
             types::RefundsResponseData,
         > = connector.connector.get_connector_integration();
-        services::execute_connector_processing_step(
+        let router_data_res = services::execute_connector_processing_step(
             state,
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
         )
-        .await
-        .to_refund_failed_response()?
+        .await;
+        let option_refund_error_update =
+            router_data_res
+                .as_ref()
+                .err()
+                .and_then(|error| match error.current_context() {
+                    errors::ConnectorError::NotImplemented(message) => {
+                        Some(storage::RefundUpdate::ErrorUpdate {
+                            refund_status: Some(enums::RefundStatus::Failure),
+                            refund_error_message: Some(message.to_string()),
+                            refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    }
+                    _ => None,
+                });
+        // Update the refund status as failure if connector_error is NotImplemented
+        if let Some(refund_error_update) = option_refund_error_update {
+            state
+                .store
+                .update_refund(
+                    refund.to_owned(),
+                    refund_error_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed while updating refund: refund_id: {}",
+                        refund.refund_id
+                    )
+                })?;
+        }
+        router_data_res.to_refund_failed_response()?
     } else {
         router_data
     };
