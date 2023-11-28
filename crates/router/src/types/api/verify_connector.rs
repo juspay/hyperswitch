@@ -1,10 +1,13 @@
+pub mod paypal;
+pub mod stripe;
+
 use api_models::enums as api_enums;
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 use error_stack::{IntoReport, ResultExt};
 use router_env as env;
 
 use crate::{
-    connector, consts,
+    consts,
     core::errors,
     services,
     services::ConnectorIntegration,
@@ -185,75 +188,5 @@ pub trait VerifyConnector {
             message: error.reason.unwrap_or(error.message),
         })
         .into_report()
-    }
-}
-
-#[async_trait::async_trait]
-impl VerifyConnector for connector::Stripe {
-    async fn handle_payment_error_response<F, R1, R2>(
-        connector: &(dyn types::api::Connector + Sync),
-        error_response: types::Response,
-    ) -> errors::RouterResponse<()>
-    where
-        dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
-    {
-        let error = connector
-            .get_error_response(error_response)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        match (env::which(), error.code.as_str()) {
-            // In situations where an attempt is made to process a payment using a
-            // Stripe production key along with a test card (which verify_connector is using),
-            // Stripe will respond with a "card_declined" error. In production,
-            // when this scenario occurs we will send back an "Ok" response.
-            (env::Env::Production, "card_declined") => Ok(services::ApplicationResponse::StatusOk),
-            _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: error.reason.unwrap_or(error.message),
-            })
-            .into_report(),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl VerifyConnector for connector::Paypal {
-    async fn get_access_token(
-        state: &AppState,
-        connector_data: VerifyConnectorData,
-    ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
-        let token_data: types::AccessTokenRequestData =
-            connector_data.connector_auth.clone().try_into()?;
-        let router_data = connector_data.get_router_data(token_data, None);
-
-        let request = connector_data
-            .connector
-            .build_request(&router_data, &state.conf.connectors)
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payment request cannot be built".to_string(),
-            })?
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
-        let response = services::call_connector_api(&state.to_owned(), request)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        match response {
-            Ok(res) => Some(
-                connector_data
-                    .connector
-                    .handle_response(&router_data, res)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
-                    .response
-                    .map_err(|_| errors::ApiErrorResponse::InternalServerError.into()),
-            )
-            .transpose(),
-            Err(response_data) => {
-                Self::handle_access_token_error_response::<
-                    api::AccessTokenAuth,
-                    types::AccessTokenRequestData,
-                    types::AccessToken,
-                >(connector_data.connector, response_data)
-                .await
-            }
-        }
     }
 }
