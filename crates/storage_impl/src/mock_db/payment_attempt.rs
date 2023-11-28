@@ -219,7 +219,8 @@ impl PaymentAttemptInterface for MockDb {
             .find(|payment_attempt| {
                 payment_attempt.payment_id == payment_id
                     && payment_attempt.merchant_id == merchant_id
-                    && payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
+                    && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
+                        || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })
             .cloned()
             .unwrap())
