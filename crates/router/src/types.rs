@@ -941,6 +941,82 @@ pub enum ConnectorAuthType {
     NoKey,
 }
 
+impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+        match value {
+            api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
+                Self::HeaderKey { api_key }
+            }
+            api_models::admin::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Self::BodyKey { api_key, key1 }
+            }
+            api_models::admin::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            api_models::admin::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            api_models::admin::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
+}
+
+impl Into<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn into(self) -> api_models::admin::ConnectorAuthType {
+        match self {
+            Self::TemporaryAuth => api_models::admin::ConnectorAuthType::TemporaryAuth,
+            Self::HeaderKey { api_key } => {
+                api_models::admin::ConnectorAuthType::HeaderKey { api_key }
+            }
+            Self::BodyKey { api_key, key1 } => {
+                api_models::admin::ConnectorAuthType::BodyKey { api_key, key1 }
+            }
+            Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => api_models::admin::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => api_models::admin::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            Self::CurrencyAuthKey { auth_key_map } => {
+                api_models::admin::ConnectorAuthType::CurrencyAuthKey { auth_key_map }
+            }
+            Self::NoKey => api_models::admin::ConnectorAuthType::NoKey,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,

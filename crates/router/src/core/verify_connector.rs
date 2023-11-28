@@ -1,4 +1,4 @@
-use api_models::enums::Connector;
+use api_models::{enums::Connector, verify_connector::VerifyConnectorRequest};
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 
 pub async fn verify_connector_credentials(
     state: AppState,
-    req: types::VerifyConnectorRequest,
+    req: VerifyConnectorRequest,
 ) -> errors::RouterResponse<()> {
     let boxed_connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -38,7 +38,7 @@ pub async fn verify_connector_credentials(
                 &state,
                 types::VerifyConnectorData {
                     connector: *boxed_connector.connector,
-                    connector_auth: req.connector_account_details,
+                    connector_auth: req.connector_account_details.into(),
                     card_details,
                 },
             )
@@ -48,7 +48,7 @@ pub async fn verify_connector_credentials(
             &state,
             types::VerifyConnectorData {
                 connector: *boxed_connector.connector,
-                connector_auth: req.connector_account_details,
+                connector_auth: req.connector_account_details.into(),
                 card_details,
             },
         )
