@@ -255,6 +255,8 @@ pub enum Flow {
     DecisionManagerDeleteConfig,
     /// Retrieve Decision Manager Config
     DecisionManagerRetrieveConfig,
+    /// Change password flow
+    ChangePassword,
 }
 
 ///
