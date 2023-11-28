@@ -19,3 +19,9 @@ pub struct ConnectAccountResponse {
     #[serde(skip_serializing)]
     pub user_id: String,
 }
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct ChangePasswordRequest {
+    pub new_password: Secret<String>,
+    pub old_password: Secret<String>,
+}
