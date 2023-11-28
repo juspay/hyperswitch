@@ -222,14 +222,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Shift4 => Self::Shift4,
-            api_enums::Connector::Signifyd
-            | api_enums::Connector::DummyConnector1
-            | api_enums::Connector::DummyConnector2
-            | api_enums::Connector::DummyConnector3
-            | api_enums::Connector::DummyConnector4
-            | api_enums::Connector::DummyConnector5
-            | api_enums::Connector::DummyConnector6
-            | api_enums::Connector::DummyConnector7 => {
+            api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
                 })
@@ -245,6 +238,20 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
         })
     }
 }
