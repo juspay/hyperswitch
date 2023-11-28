@@ -1929,8 +1929,8 @@ impl Default for super::settings::RequiredFields {
                                                 "billing.address.line1".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
-                                                    display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    display_name: "line1".to_string(),
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -1938,8 +1938,8 @@ impl Default for super::settings::RequiredFields {
                                                 "billing.address.city".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.city".to_string(),
-                                                    display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    display_name: "city".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -3754,8 +3754,8 @@ impl Default for super::settings::RequiredFields {
                                                 "billing.address.line1".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
-                                                    display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    display_name: "line1".to_string(),
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -3763,8 +3763,8 @@ impl Default for super::settings::RequiredFields {
                                                 "billing.address.city".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.city".to_string(),
-                                                    display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    display_name: "city".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCity,
                                                     value: None,
                                                 }
                                             ),
@@ -4174,8 +4174,8 @@ impl Default for super::settings::RequiredFields {
                                                 "billing.address.line1".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
-                                                    display_name: "city".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    display_name: "line1".to_string(),
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -4183,8 +4183,8 @@ impl Default for super::settings::RequiredFields {
                                                 "billing.address.city".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.city".to_string(),
-                                                    display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    display_name: "city".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCity,
                                                     value: None,
                                                 }
                                             ),
