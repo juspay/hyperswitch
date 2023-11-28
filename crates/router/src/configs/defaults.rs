@@ -30,6 +30,8 @@ impl Default for super::settings::Database {
             pool_size: 5,
             connection_timeout: 10,
             queue_strategy: Default::default(),
+            min_idle: None,
+            max_lifetime: None,
         }
     }
 }

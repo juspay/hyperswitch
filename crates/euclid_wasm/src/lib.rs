@@ -7,6 +7,9 @@ use std::{
 };
 
 use api_models::{admin as admin_api, routing::ConnectorSelection};
+use currency_conversion::{
+    conversion::convert as convert_currency, types as currency_conversion_types,
+};
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{
@@ -33,6 +36,39 @@ struct SeedData<'a> {
 }
 
 static SEED_DATA: OnceCell<SeedData<'_>> = OnceCell::new();
+static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
+
+/// This function can be used by the frontend to educate wasm about the forex rates data.
+/// The input argument is a struct fields base_currency and conversion where later is all the conversions associated with the base_currency
+/// to all different currencies present.
+#[wasm_bindgen(js_name = setForexData)]
+pub fn seed_forex(forex: JsValue) -> JsResult {
+    let forex: currency_conversion_types::ExchangeRates = serde_wasm_bindgen::from_value(forex)?;
+    SEED_FOREX
+        .set(forex)
+        .map_err(|_| "Forex has already been seeded".to_string())
+        .err_to_js()?;
+
+    Ok(JsValue::NULL)
+}
+
+/// This function can be used to perform currency_conversion on the input amount, from_currency,
+/// to_currency which are all expected to be one of currencies we already have in our Currency
+/// enum.
+#[wasm_bindgen(js_name = convertCurrency)]
+pub fn convert_forex_value(amount: i64, from_currency: JsValue, to_currency: JsValue) -> JsResult {
+    let forex_data = SEED_FOREX
+        .get()
+        .ok_or("Forex Data not seeded")
+        .err_to_js()?;
+    let from_currency: enums::Currency = serde_wasm_bindgen::from_value(from_currency)?;
+    let to_currency: enums::Currency = serde_wasm_bindgen::from_value(to_currency)?;
+    let converted_amount = convert_currency(forex_data, from_currency, to_currency, amount)
+        .map_err(|_| "conversion not possible for provided values")
+        .err_to_js()?;
+
+    Ok(serde_wasm_bindgen::to_value(&converted_amount)?)
+}
 
 /// This function can be used by the frontend to provide the WASM with information about
 /// all the merchant's connector accounts. The input argument is a vector of all the merchant's

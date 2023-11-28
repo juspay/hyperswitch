@@ -10,4 +10,6 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: bb8::QueueStrategy,
+    pub min_idle: Option<u32>,
+    pub max_lifetime: Option<u64>,
 }

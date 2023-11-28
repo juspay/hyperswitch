@@ -10,6 +10,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
@@ -28,7 +30,7 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-use crate::{
+pub use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
@@ -299,6 +301,22 @@ impl Payments {
                 );
         }
         route
+    }
+}
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub struct Forex;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Forex {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/forex")
+            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/rates").route(web::get().to(currency::retrieve_forex)))
+            .service(
+                web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
+            )
     }
 }
 
