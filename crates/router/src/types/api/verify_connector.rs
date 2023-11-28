@@ -2,7 +2,6 @@ pub mod paypal;
 pub mod stripe;
 
 use error_stack::{IntoReport, ResultExt};
-use router_env as env;
 
 use crate::{
     consts,
