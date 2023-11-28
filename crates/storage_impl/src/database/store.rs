@@ -94,7 +94,7 @@ pub async fn diesel_make_pg_pool(
         .max_lifetime(
             database
                 .max_lifetime
-                .map(|x| std::time::Duration::from_secs(x)),
+                .map(std::time::Duration::from_secs),
         );
 
     if test_transaction {
