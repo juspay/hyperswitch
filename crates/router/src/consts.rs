@@ -28,6 +28,8 @@ pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+pub(crate) const CANNOT_CONTINUE_AUTH: &str =
+    "Cannot continue with Authorization due to failed Liability Shift.";
 
 // General purpose base64 engines
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
