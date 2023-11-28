@@ -1,14 +1,23 @@
+use crate::{
+    connector,
+    core::errors,
+    services,
+    types::{self, api, storage::enums as storage_enums},
+};
+use api_models::enums as api_enums;
+use common_utils::events::{ApiEventMetric, ApiEventsType};
 use error_stack::{IntoReport, ResultExt};
 use router_env as env;
 
-use crate::{
-    connector, consts,
-    core::errors,
-    services,
-    services::ConnectorIntegration,
-    types::{self, api, storage::enums as storage_enums},
-    AppState,
-};
+use crate::{consts, services::ConnectorIntegration, AppState};
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyConnectorRequest {
+    pub connector_name: api_enums::Connector,
+    pub connector_account_details: types::ConnectorAuthType,
+}
+
+common_utils::impl_misc_api_event_type!(VerifyConnectorRequest);
 
 #[derive(Clone, Debug)]
 pub struct VerifyConnectorData {

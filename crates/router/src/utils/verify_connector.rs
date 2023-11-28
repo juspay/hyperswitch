@@ -1,4 +1,6 @@
 use api_models::enums::Connector;
+use error_stack::ResultExt;
+use error_stack::IntoReport;
 
 use crate::{core::errors, types::api};
 
@@ -7,11 +9,13 @@ pub fn generate_card_from_details(
     card_exp_year: String,
     card_exp_month: String,
     card_cvv: String,
-) -> Result<api::Card, errors::ApiErrorResponse> {
+) -> errors::RouterResult<api::Card> {
     Ok(api::Card {
         card_number: card_number
             .parse()
-            .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing card number")?,
         card_issuer: None,
         card_cvc: masking::Secret::new(card_cvv),
         card_network: None,
@@ -25,22 +29,21 @@ pub fn generate_card_from_details(
     })
 }
 
-pub fn get_test_card_details(
-    connector_name: Connector,
-) -> Result<api::Card, errors::ApiErrorResponse> {
+pub fn get_test_card_details(connector_name: Connector) -> errors::RouterResult<Option<api::Card>> {
     match connector_name {
-        Connector::Stripe => generate_card_from_details(
+        Connector::Stripe => Some(generate_card_from_details(
             "4242424242424242".to_string(),
             "2025".to_string(),
             "12".to_string(),
             "100".to_string(),
-        ),
-        Connector::Paypal => generate_card_from_details(
+        ))
+        .transpose(),
+        Connector::Paypal => Some(generate_card_from_details(
             "4111111111111111".to_string(),
             "2025".to_string(),
             "02".to_string(),
             "123".to_string(),
-        ),
-        _ => Err(errors::ApiErrorResponse::IncorrectConnectorNameGiven),
+        )).transpose(),
+        _ => Ok(None),
     }
 }

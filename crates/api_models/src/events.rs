@@ -7,7 +7,6 @@ pub mod payouts;
 pub mod refund;
 pub mod routing;
 pub mod user;
-pub mod verify_connector;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
