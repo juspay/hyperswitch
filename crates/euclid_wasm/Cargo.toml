@@ -17,6 +17,7 @@ dummy_connector = ["kgraph_utils/dummy_connector"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 euclid = { path = "../euclid", features = [] }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 
