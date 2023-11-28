@@ -4053,6 +4053,19 @@
           }
         ]
       },
+      "CardToken": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -8655,6 +8668,17 @@
             "properties": {
               "gift_card": {
                 "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_token"
+            ],
+            "properties": {
+              "card_token": {
+                "$ref": "#/components/schemas/CardToken"
               }
             }
           }
