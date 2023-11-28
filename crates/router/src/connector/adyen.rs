@@ -780,7 +780,7 @@ impl
                     message: consts::NO_ERROR_MESSAGE.to_string(),
                     reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
                     status_code: res.status_code,
-                    attempt_status: None,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: None,
                 }),
                 ..data.clone()
