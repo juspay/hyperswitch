@@ -1,4 +1,5 @@
 pub mod cards;
+pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod vault;
 
@@ -9,11 +10,18 @@ pub use api_models::{
 pub use common_utils::request::RequestBody;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
+use error_stack::IntoReport;
 
 use crate::{
-    core::{errors::RouterResult, payments::helpers},
+    core::{
+        errors::{self, RouterResult},
+        payments::helpers,
+    },
     routes::AppState,
-    types::api::{self, payments},
+    types::{
+        api::{self, payments},
+        domain, storage,
+    },
 };
 
 pub struct Oss;
@@ -25,7 +33,16 @@ pub trait PaymentMethodRetrieve {
         state: &AppState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)>;
+
+    async fn retrieve_payment_method_with_token(
+        state: &AppState,
+        key_store: &domain::MerchantKeyStore,
+        token: &storage::PaymentTokenData,
+        payment_intent: &PaymentIntent,
+        card_cvc: Option<masking::Secret<String>>,
+    ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>>;
 }
 
 #[async_trait::async_trait]
@@ -35,6 +52,7 @@ impl PaymentMethodRetrieve for Oss {
         state: &AppState,
         payment_intent: &PaymentIntent,
         payment_attempt: &PaymentAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
         match pm_data {
             pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {
@@ -44,6 +62,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::Card,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -64,6 +83,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::BankTransfer,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -76,6 +96,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::Wallet,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
@@ -88,12 +109,74 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     enums::PaymentMethod::BankRedirect,
                     pm,
+                    merchant_key_store,
                 )
                 .await?;
 
                 Ok((pm_opt.to_owned(), payment_token))
             }
             _ => Ok((None, None)),
+        }
+    }
+
+    async fn retrieve_payment_method_with_token(
+        state: &AppState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        token_data: &storage::PaymentTokenData,
+        payment_intent: &PaymentIntent,
+        card_cvc: Option<masking::Secret<String>>,
+    ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>> {
+        match token_data {
+            storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+                helpers::retrieve_payment_method_with_temporary_token(
+                    state,
+                    &generic_token.token,
+                    payment_intent,
+                    card_cvc,
+                    merchant_key_store,
+                )
+                .await
+            }
+
+            storage::PaymentTokenData::Temporary(generic_token) => {
+                helpers::retrieve_payment_method_with_temporary_token(
+                    state,
+                    &generic_token.token,
+                    payment_intent,
+                    card_cvc,
+                    merchant_key_store,
+                )
+                .await
+            }
+
+            storage::PaymentTokenData::Permanent(card_token) => {
+                helpers::retrieve_card_with_permanent_token(
+                    state,
+                    &card_token.token,
+                    payment_intent,
+                    card_cvc,
+                )
+                .await
+                .map(|card| Some((card, enums::PaymentMethod::Card)))
+            }
+
+            storage::PaymentTokenData::PermanentCard(card_token) => {
+                helpers::retrieve_card_with_permanent_token(
+                    state,
+                    &card_token.token,
+                    payment_intent,
+                    card_cvc,
+                )
+                .await
+                .map(|card| Some((card, enums::PaymentMethod::Card)))
+            }
+
+            storage::PaymentTokenData::AuthBankDebit(_) => {
+                Err(errors::ApiErrorResponse::NotImplemented {
+                    message: errors::NotImplementedMessage::Default,
+                })
+                .into_report()
+            }
         }
     }
 }

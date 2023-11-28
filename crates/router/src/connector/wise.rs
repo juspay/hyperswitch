@@ -94,6 +94,8 @@ impl ConnectorCommon for Wise {
                         code: e.code.clone(),
                         message: e.message.clone(),
                         reason: None,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 } else {
                     Ok(types::ErrorResponse {
@@ -101,6 +103,8 @@ impl ConnectorCommon for Wise {
                         code: default_status,
                         message: response.message.unwrap_or_default(),
                         reason: None,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 }
             }
@@ -109,6 +113,8 @@ impl ConnectorCommon for Wise {
                 code: default_status,
                 message: response.message.unwrap_or_default(),
                 reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
             }),
         }
     }
@@ -289,6 +295,8 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             code,
             message,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -322,6 +330,7 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoQuote>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = wise::WisePayoutQuoteRequest::try_from(req)?;
         let wise_req = types::RequestBody::log_and_get_request_body(
@@ -342,7 +351,9 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
             .url(&types::PayoutQuoteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutQuoteType::get_headers(self, req, connectors)?)
-            .body(types::PayoutQuoteType::get_request_body(self, req)?)
+            .body(types::PayoutQuoteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -397,6 +408,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoRecipient>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = wise::WiseRecipientCreateRequest::try_from(req)?;
         let wise_req = types::RequestBody::log_and_get_request_body(
@@ -419,7 +431,9 @@ impl
             .headers(types::PayoutRecipientType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutRecipientType::get_request_body(self, req)?)
+            .body(types::PayoutRecipientType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -512,6 +526,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = wise::WisePayoutCreateRequest::try_from(req)?;
         let wise_req = types::RequestBody::log_and_get_request_body(
@@ -532,7 +547,9 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCreateType::get_request_body(self, req)?)
+            .body(types::PayoutCreateType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -608,6 +625,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = wise::WisePayoutFulfillRequest::try_from(req)?;
         let wise_req = types::RequestBody::log_and_get_request_body(
@@ -630,7 +648,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .headers(types::PayoutFulfillType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutFulfillType::get_request_body(self, req)?)
+            .body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -694,7 +714,7 @@ impl api::IncomingWebhook for Wise {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

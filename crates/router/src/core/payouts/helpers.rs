@@ -28,6 +28,7 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     payout_method_data: Option<&api::PayoutMethodData>,
@@ -36,6 +37,7 @@ pub async fn make_payout_method_data<'a>(
     merchant_id: &str,
     payout_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
@@ -67,14 +69,16 @@ pub async fn make_payout_method_data<'a>(
     match (payout_method_data.to_owned(), hyperswitch_token) {
         // Get operation
         (None, Some(payout_token)) => {
-            let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
-                state,
-                &payout_token,
-            )
-            .await
-            .attach_printable(
-                "Payout method for given token not found or there was a problem fetching it",
-            )?;
+            let (pm, supplementary_data) =
+                vault::Vault::get_payout_method_data_from_temporary_locker(
+                    state,
+                    &payout_token,
+                    merchant_key_store,
+                )
+                .await
+                .attach_printable(
+                    "Payout method for given token not found or there was a problem fetching it",
+                )?;
             utils::when(
                 supplementary_data
                     .customer_id
@@ -93,6 +97,7 @@ pub async fn make_payout_method_data<'a>(
                 payout_token.to_owned(),
                 payout_method,
                 Some(customer_id.to_owned()),
+                merchant_key_store,
             )
             .await?;
 
@@ -147,6 +152,7 @@ pub async fn save_payout_data_to_locker(
                     card_isin: None,
                     nick_name: None,
                 },
+                requestor_card_reference: None,
             });
             (
                 payload,
@@ -190,9 +196,14 @@ pub async fn save_payout_data_to_locker(
         }
     };
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(state, &locker_req, &payout_attempt.customer_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let stored_resp = cards::call_to_locker_hs(
+        state,
+        &locker_req,
+        &payout_attempt.customer_id,
+        api_enums::LockerChoice::Basilisk,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Store card_reference in payouts table
     let db = &*state.store;

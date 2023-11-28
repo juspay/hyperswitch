@@ -59,6 +59,10 @@ pub struct PaymentAttempt {
     pub amount_capturable: i64,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -120,6 +124,10 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: i64,
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +145,8 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -144,6 +154,8 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -199,6 +211,10 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -223,9 +239,13 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
     },
-    MultipleCaptureCountUpdate {
-        multiple_capture_count: i16,
+    CaptureUpdate {
+        amount_to_capture: Option<i64>,
+        multiple_capture_count: Option<i16>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
@@ -240,6 +260,13 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        updated_by: String,
+    },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
         updated_by: String,
     },
 }
@@ -279,6 +306,10 @@ pub struct PaymentAttemptUpdateInternal {
     amount_capturable: Option<i64>,
     updated_by: String,
     merchant_connector_id: Option<String>,
+    authentication_data: Option<serde_json::Value>,
+    encoded_data: Option<String>,
+    unified_code: Option<Option<String>>,
+    unified_message: Option<Option<String>>,
 }
 
 impl PaymentAttemptUpdate {
@@ -330,7 +361,13 @@ impl PaymentAttemptUpdate {
                 .amount_capturable
                 .unwrap_or(source.amount_capturable),
             updated_by: pa_update.updated_by,
-            merchant_connector_id: pa_update.merchant_connector_id,
+            merchant_connector_id: pa_update
+                .merchant_connector_id
+                .or(source.merchant_connector_id),
+            authentication_data: pa_update.authentication_data.or(source.authentication_data),
+            encoded_data: pa_update.encoded_data.or(source.encoded_data),
+            unified_code: pa_update.unified_code.unwrap_or(source.unified_code),
+            unified_message: pa_update.unified_message.unwrap_or(source.unified_message),
             ..source
         }
     }
@@ -353,6 +390,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self {
                 amount: Some(amount),
@@ -369,6 +408,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 ..Default::default()
             },
@@ -398,10 +439,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id,
+                surcharge_amount,
+                tax_amount,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -420,10 +461,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 merchant_connector_id,
+                surcharge_amount,
+                tax_amount,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -463,6 +504,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
+                unified_code,
+                unified_message,
             } => Self {
                 status: Some(status),
                 connector,
@@ -479,6 +524,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
+                authentication_data,
+                encoded_data,
+                unified_code,
+                unified_message,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -489,6 +538,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
             } => Self {
                 connector,
                 status: Some(status),
@@ -498,6 +550,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 amount_capturable,
                 updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -510,6 +565,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id,
             } => Self {
@@ -517,6 +574,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id,
                 ..Default::default()
@@ -563,12 +622,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::MultipleCaptureCountUpdate {
+            PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
+                amount_to_capture,
             } => Self {
-                multiple_capture_count: Some(multiple_capture_count),
+                multiple_capture_count,
                 updated_by,
+                amount_to_capture,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
@@ -578,6 +639,20 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_capturable: Some(amount_capturable),
+                updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                updated_by,
+            } => Self {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
                 updated_by,
                 ..Default::default()
             },

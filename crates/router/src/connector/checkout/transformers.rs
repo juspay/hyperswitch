@@ -576,6 +576,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         } else {
             None
@@ -623,6 +625,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         } else {
             None

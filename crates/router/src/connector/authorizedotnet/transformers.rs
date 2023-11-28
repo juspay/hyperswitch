@@ -261,6 +261,7 @@ struct TransactionVoidOrCaptureRequest {
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: AuthorizedotnetAuthType,
     transaction_request: TransactionRequest,
+    ref_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -332,6 +333,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
                 transaction_request,
+                ref_id: item.router_data.connector_request_reference_id.clone(),
             },
         })
     }
@@ -571,6 +573,8 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -645,6 +649,8 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -787,6 +793,8 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 message: error.error_text.clone(),
                 reason: None,
                 status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         });
 
@@ -1019,6 +1027,8 @@ fn get_err_response(status_code: u16, message: ResponseMessages) -> types::Error
         message: message.message[0].text.clone(),
         reason: None,
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 

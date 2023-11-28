@@ -62,6 +62,10 @@ impl ConnectorCommon for Mollie {
         "mollie"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.mollie.base_url.as_ref()
     }
@@ -94,6 +98,8 @@ impl ConnectorCommon for Mollie {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.detail,
             reason: response.field,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -145,6 +151,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = mollie::MollieCardTokenRequest::try_from(req)?;
         let mollie_req = types::RequestBody::log_and_get_request_body(
@@ -165,7 +172,9 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
+                .body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -228,8 +237,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = mollie::MolliePaymentsRequest::try_from(req)?;
+        let router_obj = mollie::MollieRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = mollie::MolliePaymentsRequest::try_from(&router_obj)?;
         let mollie_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<mollie::MolliePaymentsRequest>::encode_to_string_of_json,
@@ -253,7 +269,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -416,8 +434,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = mollie::MollieRefundRequest::try_from(req)?;
+        let router_obj = mollie::MollieRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = mollie::MollieRefundRequest::try_from(&router_obj)?;
         let mollie_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json,
@@ -438,7 +463,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -556,7 +583,7 @@ impl api::IncomingWebhook for Mollie {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

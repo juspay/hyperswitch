@@ -72,6 +72,10 @@ impl ConnectorCommon for Opennode {
         "opennode"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -106,6 +110,8 @@ impl ConnectorCommon for Opennode {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.message,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -168,8 +174,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = opennode::OpennodePaymentsRequest::try_from(req)?;
+        let connector_router_data = opennode::OpennodeRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
         let opennode_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             Encode::<opennode::OpennodePaymentsRequest>::encode_to_string_of_json,
@@ -192,7 +205,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -406,11 +421,11 @@ impl api::IncomingWebhook for Opennode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif.status))
     }
 }

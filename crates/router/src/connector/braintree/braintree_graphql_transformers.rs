@@ -316,6 +316,8 @@ fn get_error_response<T>(
         message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: error_reason,
         status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     })
 }
 

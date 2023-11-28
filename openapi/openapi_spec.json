@@ -745,6 +745,166 @@
         ]
       }
     },
+    "/gsm": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Create",
+        "description": "Gsm - Create\n\nTo create a Gsm Rule",
+        "operationId": "Create Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/delete": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Delete",
+        "description": "Gsm - Delete\n\nTo delete a Gsm Rule",
+        "operationId": "Delete Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmDeleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/get": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Get",
+        "description": "Gsm - Get\n\nTo get a Gsm Rule",
+        "operationId": "Retrieve Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmRetrieveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/update": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Update",
+        "description": "Gsm - Update\n\nTo update a Gsm Rule",
+        "operationId": "Update Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/mandates/revoke/{mandate_id}": {
       "post": {
         "tags": [
@@ -2459,6 +2619,7 @@
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partial_charged_and_chargeable",
           "unresolved",
           "pending",
           "failure",
@@ -3878,6 +4039,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -3898,8 +4070,9 @@
           "adyen",
           "airwallex",
           "authorizedotnet",
-          "bitpay",
           "bambora",
+          "bankofamerica",
+          "bitpay",
           "bluesnap",
           "boku",
           "braintree",
@@ -3928,6 +4101,7 @@
           "paypal",
           "payu",
           "powertranz",
+          "prophetpay",
           "rapyd",
           "shift4",
           "square",
@@ -3935,6 +4109,7 @@
           "stripe",
           "trustpay",
           "tsys",
+          "volt",
           "wise",
           "worldline",
           "worldpay",
@@ -3971,6 +4146,13 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorStatus": {
+        "type": "string",
+        "enum": [
+          "inactive",
+          "active"
+        ]
       },
       "ConnectorType": {
         "type": "string",
@@ -4646,6 +4828,14 @@
             ],
             "nullable": true
           },
+          "bank": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
           "requires_cvv": {
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
@@ -5182,13 +5372,13 @@
           {
             "type": "string",
             "enum": [
-              "user_addressline1"
+              "user_address_line1"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_addressline2"
+              "user_address_line2"
             ]
           },
           {
@@ -5712,6 +5902,252 @@
           }
         }
       },
+      "GsmCreateRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message",
+          "status",
+          "decision",
+          "step_up_possible"
+        ],
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "router_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          },
+          "step_up_possible": {
+            "type": "boolean"
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "GsmDecision": {
+        "type": "string",
+        "enum": [
+          "retry",
+          "requeue",
+          "do_default"
+        ]
+      },
+      "GsmDeleteRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "GsmDeleteResponse": {
+        "type": "object",
+        "required": [
+          "gsm_rule_delete",
+          "connector",
+          "flow",
+          "sub_flow",
+          "code"
+        ],
+        "properties": {
+          "gsm_rule_delete": {
+            "type": "boolean"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "GsmResponse": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message",
+          "status",
+          "decision",
+          "step_up_possible"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "router_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "decision": {
+            "type": "string"
+          },
+          "step_up_possible": {
+            "type": "boolean"
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "GsmRetrieveRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "GsmUpdateRequest": {
+        "type": "object",
+        "required": [
+          "connector",
+          "flow",
+          "sub_flow",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sub_flow": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "router_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "decision": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmDecision"
+              }
+            ],
+            "nullable": true
+          },
+          "step_up_possible": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "required": [
@@ -5749,7 +6185,8 @@
           "requires_payment_method",
           "requires_confirmation",
           "requires_capture",
-          "partially_captured"
+          "partially_captured",
+          "partially_captured_and_capturable"
         ]
       },
       "JCSVoucherData": {
@@ -6004,6 +6441,17 @@
             }
           }
         ]
+      },
+      "MaskedBankDetails": {
+        "type": "object",
+        "required": [
+          "mask"
+        ],
+        "properties": {
+          "mask": {
+            "type": "string"
+          }
+        }
       },
       "MbWayRedirection": {
         "type": "object",
@@ -6473,7 +6921,8 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name"
+          "connector_name",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -6604,6 +7053,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -6689,7 +7141,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -6832,6 +7285,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -6839,7 +7295,8 @@
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
-          "connector_type"
+          "connector_type",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -6937,6 +7394,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7738,6 +8198,16 @@
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
           }
         }
       },
@@ -7808,15 +8278,11 @@
       "PaymentLinkColorSchema": {
         "type": "object",
         "properties": {
-          "primary_color": {
+          "background_primary_color": {
             "type": "string",
             "nullable": true
           },
-          "primary_accent_color": {
-            "type": "string",
-            "nullable": true
-          },
-          "secondary_color": {
+          "sdk_theme": {
             "type": "string",
             "nullable": true
           }
@@ -7827,7 +8293,9 @@
         "properties": {
           "merchant_logo": {
             "type": "string",
-            "nullable": true
+            "example": "https://i.imgur.com/RfxPFQo.png",
+            "nullable": true,
+            "maxLength": 255
           },
           "color_scheme": {
             "allOf": [
@@ -7856,6 +8324,9 @@
       },
       "PaymentLinkObject": {
         "type": "object",
+        "required": [
+          "payment_link_config"
+        ],
         "properties": {
           "link_expiry": {
             "type": "string",
@@ -7864,6 +8335,14 @@
           },
           "merchant_custom_domain_name": {
             "type": "string",
+            "nullable": true
+          },
+          "payment_link_config": {
+            "$ref": "#/components/schemas/PaymentLinkConfig"
+          },
+          "custom_merchant_name": {
+            "type": "string",
+            "description": "Custom merchant name for payment link",
             "nullable": true
           }
         }
@@ -8391,6 +8870,7 @@
           "bca_bank_transfer",
           "bni_va",
           "bri_va",
+          "card_redirect",
           "cimb_va",
           "classic",
           "credit",
@@ -9614,6 +10094,16 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "payment_experience": {
             "allOf": [
               {
@@ -10099,7 +10589,8 @@
           "entity_type",
           "status",
           "error_message",
-          "error_code"
+          "error_code",
+          "profile_id"
         ],
         "properties": {
           "payout_id": {
@@ -10231,8 +10722,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment",
-            "nullable": true
+            "description": "The business profile that is associated with this payment"
           }
         }
       },
@@ -10835,18 +11325,14 @@
         "type": "object",
         "required": [
           "payment_link_id",
-          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
           "created_at",
-          "last_modified_at"
+          "status"
         ],
         "properties": {
           "payment_link_id": {
-            "type": "string"
-          },
-          "payment_id": {
             "type": "string"
           },
           "merchant_id": {
@@ -10859,25 +11345,28 @@
             "type": "integer",
             "format": "int64"
           },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "last_modified_at": {
             "type": "string",
             "format": "date-time"
           },
           "link_expiry": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
             "nullable": true
           }
         }
@@ -11217,12 +11706,12 @@
           "start_time": {
             "type": "string",
             "format": "date-time",
-            "description": "The start time to filter refunds list or to get list of filters. To get list of filters start time is needed to be passed"
+            "description": "The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
-            "description": "The end time to filter refunds list or to get list of filters. If not passed the default time is now",
+            "description": "The end time to filter payments list or to get list of filters. If not passed the default time is now",
             "nullable": true
           }
         }

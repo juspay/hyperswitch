@@ -150,8 +150,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             three_d_secure: ThreeDSecure {
-                /// Merchants preferred sized of challenge window presented to cardholder.
-                /// 5 maps to 100% of challenge window size
+                // Merchants preferred sized of challenge window presented to cardholder.
+                // 5 maps to 100% of challenge window size
                 challenge_window_size: 5,
             },
             merchant_response_url: item.request.get_complete_authorize_url()?,
@@ -443,6 +443,8 @@ fn build_error_response(
                         .collect::<Vec<_>>()
                         .join(", "),
                 ),
+                attempt_status: None,
+                connector_transaction_id: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -452,6 +454,8 @@ fn build_error_response(
             code: item.iso_response_code.clone(),
             message: item.response_message.clone(),
             reason: Some(item.response_message.clone()),
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None

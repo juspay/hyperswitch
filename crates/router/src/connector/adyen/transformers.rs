@@ -2201,6 +2201,12 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
             payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
+            payments::CardRedirectData::CardRedirect {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -2912,6 +2918,8 @@ pub fn get_adyen_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: response.refusal_reason,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3003,6 +3011,8 @@ pub fn get_redirection_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3064,6 +3074,8 @@ pub fn get_present_to_shopper_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3113,6 +3125,8 @@ pub fn get_qr_code_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3150,6 +3164,8 @@ pub fn get_redirection_error_response(
         message: response.refusal_reason.clone(),
         reason: Some(response.refusal_reason),
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -4011,8 +4027,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         iban: Some(b.iban),
                         tax_id: None,
                     },
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfers via ACH or Bacs are not supported".to_string(),
+                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via ACH is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };

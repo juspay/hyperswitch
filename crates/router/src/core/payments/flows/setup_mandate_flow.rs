@@ -31,7 +31,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::SetupMandateRouterData> {
-        transformers::construct_payment_router_data::<
+        Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
             types::SetupMandateRequestData,
         >(
@@ -42,7 +42,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }
@@ -75,7 +75,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         .await
         .to_setup_mandate_failed_response()?;
 
-        let pm_id = tokenization::save_payment_method(
+        let pm_id = Box::pin(tokenization::save_payment_method(
             state,
             connector,
             resp.to_owned(),
@@ -83,7 +83,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             merchant_account,
             self.request.payment_method_type,
             key_store,
-        )
+        ))
         .await?;
 
         mandate::mandate_procedure(
@@ -208,7 +208,7 @@ impl types::SetupMandateRouterData {
                 .to_setup_mandate_failed_response()?;
 
                 let payment_method_type = self.request.payment_method_type;
-                let pm_id = tokenization::save_payment_method(
+                let pm_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
@@ -216,7 +216,7 @@ impl types::SetupMandateRouterData {
                     merchant_account,
                     payment_method_type,
                     key_store,
-                )
+                ))
                 .await?;
 
                 Ok(mandate::mandate_procedure(

@@ -202,6 +202,8 @@ fn get_error_response(
         message: connector_error_response.response_message.clone(),
         reason: Some(connector_error_response.response_message),
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 

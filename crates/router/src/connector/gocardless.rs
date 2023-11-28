@@ -122,6 +122,8 @@ impl ConnectorCommon for Gocardless {
             code: response.error.code.to_string(),
             message: response.error.error_type,
             reason: Some(error_reason.join("; ")),
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -152,6 +154,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::ConnectorCustomerRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessCustomerRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -177,7 +180,9 @@ impl
                 .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::ConnectorCustomerType::get_request_body(self, req)?)
+                .body(types::ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -247,6 +252,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessBankAccountRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -268,7 +274,9 @@ impl
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
+                .body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -365,6 +373,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessMandateRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -388,7 +397,9 @@ impl
                     .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                    .body(types::SetupMandateType::get_request_body(self, req)?)
+                    .body(types::SetupMandateType::get_request_body(
+                        self, req, connectors,
+                    )?)
                     .build(),
             ))
         } else {
@@ -446,6 +457,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = gocardless::GocardlessRouterData::try_from((
             &self.get_currency_unit(),
@@ -477,7 +489,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -611,6 +625,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = gocardless::GocardlessRouterData::try_from((
             &self.get_currency_unit(),
@@ -639,7 +654,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -827,7 +844,7 @@ impl api::IncomingWebhook for Gocardless {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: gocardless::GocardlessWebhookEvent = request
             .body
             .parse_struct("GocardlessWebhookEvent")
@@ -835,19 +852,14 @@ impl api::IncomingWebhook for Gocardless {
         let first_event = details
             .events
             .first()
-            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?
+            .clone();
         match first_event.resource_type {
-            transformers::WebhookResourceType::Payments => serde_json::to_value(
-                gocardless::GocardlessPaymentsResponse::try_from(first_event)?,
-            )
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            transformers::WebhookResourceType::Refunds => serde_json::to_value(first_event)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
-            transformers::WebhookResourceType::Mandates => serde_json::to_value(first_event)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
+            transformers::WebhookResourceType::Payments => Ok(Box::new(
+                gocardless::GocardlessPaymentsResponse::try_from(&first_event)?,
+            )),
+            transformers::WebhookResourceType::Refunds
+            | transformers::WebhookResourceType::Mandates => Ok(Box::new(first_event)),
         }
     }
 }

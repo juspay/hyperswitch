@@ -306,10 +306,9 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Master => Ok(Self::MasterCard),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: issuer.to_string(),
-                connector: "worldline",
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
+            )
             .into()),
         }
     }
@@ -588,12 +587,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 item.response.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -639,12 +638,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 item.response.payment.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.payment.id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.payment.id),
             }),
             ..item.data
         })

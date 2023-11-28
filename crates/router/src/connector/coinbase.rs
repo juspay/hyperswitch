@@ -108,6 +108,8 @@ impl ConnectorCommon for Coinbase {
             code: response.error.error_type,
             message: response.error.message,
             reason: response.error.code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -183,6 +185,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = coinbase::CoinbasePaymentsRequest::try_from(req)?;
         let coinbase_payment_request = types::RequestBody::log_and_get_request_body(
@@ -207,7 +210,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -422,12 +427,12 @@ impl api::IncomingWebhook for Coinbase {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif.event))
     }
 }

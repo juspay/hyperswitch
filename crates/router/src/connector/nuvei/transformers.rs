@@ -623,11 +623,9 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
             | api_models::enums::BankNames::TsbBank
             | api_models::enums::BankNames::TescoBank
             | api_models::enums::BankNames::UlsterBank => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: bank.to_string(),
-                    connector: "Nuvei",
-                }
-                .into())
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Nuvei"),
+                ))?
             }
         }
     }
@@ -693,10 +691,9 @@ impl<F>
                     bank_name.map(NuveiBIC::try_from).transpose()?,
                 )
             }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: "Bank Redirect".to_string(),
-                connector: "Nuvei",
-            })?,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Nuvei"),
+            ))?,
         };
         Ok(Self {
             payment_option: PaymentOption {
@@ -1579,6 +1576,8 @@ fn get_error_response<T>(
             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: None,
         status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     })
 }
 
