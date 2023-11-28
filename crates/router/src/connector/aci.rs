@@ -294,7 +294,7 @@ impl
         ))?;
         let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -390,7 +390,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = aci::AciCancelRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -487,7 +487,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req,
         ))?;
         let connector_req = aci::AciRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(

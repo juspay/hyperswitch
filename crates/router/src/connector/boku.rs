@@ -209,7 +209,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuPaymentsRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -297,7 +297,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuPsyncRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -464,7 +464,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuRefundRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -542,7 +542,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuRsyncRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(

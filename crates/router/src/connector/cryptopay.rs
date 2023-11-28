@@ -69,7 +69,7 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let api_method = "POST".to_string();
+        let api_method = self.get_http_method().to_string();
         let body = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?)
             .peek()
             .to_owned();
@@ -292,6 +292,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
+    }
+
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Get
     }
 
     fn get_url(
