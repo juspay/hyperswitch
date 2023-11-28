@@ -72,7 +72,7 @@ impl<'de> Deserialize<'de> for CardNumber {
     }
 }
 
-pub struct CardNumberStrategy;
+pub enum CardNumberStrategy {}
 
 impl<T> Strategy<T> for CardNumberStrategy
 where
