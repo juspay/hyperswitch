@@ -64,7 +64,7 @@ impl ApiEvent {
             latency,
             status_code,
             request: request.to_string(),
-            response: response.map(| resp | resp.to_string()),
+            response: response.map(|resp| resp.to_string()),
             auth_type,
             error,
             ip_addr: http_req
