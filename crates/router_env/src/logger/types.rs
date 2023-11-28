@@ -258,6 +258,8 @@ pub enum Flow {
     #[cfg(feature = "frm")]
     /// Manual payment fulfillment acknowledgement
     FrmFulfillment,
+    /// Change password flow
+    ChangePassword,
 }
 
 ///

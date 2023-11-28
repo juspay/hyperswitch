@@ -125,6 +125,7 @@ impl ConnectorCommon for Iatapay {
             message: response.message,
             reason: response.reason,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -240,6 +241,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             message: response.path,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

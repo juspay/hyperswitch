@@ -127,6 +127,7 @@ impl ConnectorCommon for Zen {
             ),
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

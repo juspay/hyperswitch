@@ -130,6 +130,7 @@ impl ConnectorCommon for Volt {
             message: response.exception.message.clone(),
             reason: Some(reason),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

@@ -1693,7 +1693,8 @@ pub(crate) fn validate_status_with_capture_method(
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially_captured, processing".to_string()
+                states: "requires_capture, partially_captured_and_capturable, processing"
+                    .to_string()
             }))
         },
     )
@@ -3684,4 +3685,23 @@ pub async fn get_gsm_record(
             err
         })
         .ok()
+}
+
+pub fn validate_order_details_amount(
+    order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
+    amount: i64,
+) -> Result<(), errors::ApiErrorResponse> {
+    let total_order_details_amount: i64 = order_details
+        .iter()
+        .map(|order| order.amount * i64::from(order.quantity))
+        .sum();
+
+    if total_order_details_amount != amount {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Total sum of order details doesn't match amount in payment request"
+                .to_string(),
+        })
+    } else {
+        Ok(())
+    }
 }

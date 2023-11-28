@@ -15,7 +15,7 @@ level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
 traces_enabled = false                                      # Whether traces are enabled.
-metrics_enabled = false                                     # Whether metrics are enabled.
+metrics_enabled = true                                     # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
 use_xray_generator = false

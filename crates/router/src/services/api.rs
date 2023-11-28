@@ -224,6 +224,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
             reason: String::from_utf8(res.response.to_vec()).ok(),
             status_code: res.status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 
@@ -302,6 +303,7 @@ where
                     status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
                     reason: None,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 })
             } else {
                 None
@@ -427,6 +429,7 @@ where
                                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                                     status_code: 504,
                                     attempt_status: None,
+                                    connector_transaction_id: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);

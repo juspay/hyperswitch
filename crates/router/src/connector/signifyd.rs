@@ -86,6 +86,7 @@ impl ConnectorCommon for Signifyd {
             message: response.messages.join(" &"),
             reason: Some(response.errors.to_string()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
