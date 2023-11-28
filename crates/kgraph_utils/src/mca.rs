@@ -362,7 +362,7 @@ mod tests {
             connector_label: Some("something".to_string()),
             business_label: Some("food".to_string()),
             business_sub_label: None,
-            connector_account_details: ConnectorAuthType::default(),
+            connector_account_details: masking::Secret::new(serde_json::json!({})),,
             test_mode: None,
             disabled: None,
             metadata: None,
