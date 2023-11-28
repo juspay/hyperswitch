@@ -4,6 +4,63 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.90.0 (2023-11-27)
+
+### Features
+
+- **auth:** Add Authorization for JWT Authentication types ([#2973](https://github.com/juspay/hyperswitch/pull/2973)) ([`03c0a77`](https://github.com/juspay/hyperswitch/commit/03c0a772a99000acf4676db8ca2ce916036281d1))
+- **user:** Implement change password for user ([#2959](https://github.com/juspay/hyperswitch/pull/2959)) ([`bfa1645`](https://github.com/juspay/hyperswitch/commit/bfa1645b847fb881eb2370d5dbfef6fd0b53725d))
+
+### Bug Fixes
+
+- **router:** Added validation to check total orderDetails amount equal to amount in request ([#2965](https://github.com/juspay/hyperswitch/pull/2965)) ([`37532d4`](https://github.com/juspay/hyperswitch/commit/37532d46f599a99e0e021b0455a6f02381005dd7))
+- Add prefix to connector_transaction_id ([#2981](https://github.com/juspay/hyperswitch/pull/2981)) ([`107c3b9`](https://github.com/juspay/hyperswitch/commit/107c3b99417dd7bca7b62741ad601485700f37be))
+
+### Refactors
+
+- **connector:** [Nuvei] update error message ([#2867](https://github.com/juspay/hyperswitch/pull/2867)) ([`04b7c03`](https://github.com/juspay/hyperswitch/commit/04b7c0384dc9290bd60f49033fd35732527720f1))
+
+### Testing
+
+- **postman:** Update postman collection files ([`aee59e0`](https://github.com/juspay/hyperswitch/commit/aee59e088a8e7c1b81aca1015c90c7b4fd07511d))
+
+### Documentation
+
+- **try_local_system:** Add instructions to run using Docker Compose by pulling standalone images ([#2984](https://github.com/juspay/hyperswitch/pull/2984)) ([`0fa8ad1`](https://github.com/juspay/hyperswitch/commit/0fa8ad1b7c27010bf83e4035de9881d29e192e8a))
+
+### Miscellaneous Tasks
+
+- **connector:** Update connector addition script ([#2801](https://github.com/juspay/hyperswitch/pull/2801)) ([`34953a0`](https://github.com/juspay/hyperswitch/commit/34953a046429fe0341e8469bd9b036e176bda205))
+
+**Full Changelog:** [`v1.89.0...v1.90.0`](https://github.com/juspay/hyperswitch/compare/v1.89.0...v1.90.0)
+
+- - -
+
+
+## 1.89.0 (2023-11-24)
+
+### Features
+
+- **router:** Add `connector_transaction_id` in error_response from connector flows ([#2972](https://github.com/juspay/hyperswitch/pull/2972)) ([`3322103`](https://github.com/juspay/hyperswitch/commit/3322103f5c9b7c2a5b663980246c6ca36b8dc63e))
+
+### Bug Fixes
+
+- **connector:** [BANKOFAMERICA] Add status VOIDED in enum Bankofameri… ([#2969](https://github.com/juspay/hyperswitch/pull/2969)) ([`203bbd7`](https://github.com/juspay/hyperswitch/commit/203bbd73751e1513206e81d7cf920ec263f83c58))
+- **core:** Error propagation for not supporting partial refund ([#2976](https://github.com/juspay/hyperswitch/pull/2976)) ([`97a38a7`](https://github.com/juspay/hyperswitch/commit/97a38a78e514e4fa3b5db46b6de985be6312dcc3))
+- **router:** Mark refund status as failure for not_implemented error from connector flows ([#2978](https://github.com/juspay/hyperswitch/pull/2978)) ([`d56d805`](https://github.com/juspay/hyperswitch/commit/d56d80557050336d5ed37282f1aa34b6c17389d1))
+- Return none instead of err when payment method data is not found for bank debit during listing ([#2967](https://github.com/juspay/hyperswitch/pull/2967)) ([`5cc829a`](https://github.com/juspay/hyperswitch/commit/5cc829a11f515a413fe19f657a90aa05cebb99b5))
+- Surcharge related status and rules fix ([#2974](https://github.com/juspay/hyperswitch/pull/2974)) ([`3db7213`](https://github.com/juspay/hyperswitch/commit/3db721388a7f0e291d7eb186661fc69a57068ea6))
+
+### Documentation
+
+- **README:** Updated Community Platform Mentions ([#2960](https://github.com/juspay/hyperswitch/pull/2960)) ([`e0bde43`](https://github.com/juspay/hyperswitch/commit/e0bde433282a34eb9eb28a2d9c43c2b17b5e65e5))
+- Add Rust locker information in architecture doc ([#2964](https://github.com/juspay/hyperswitch/pull/2964)) ([`b2f7dd1`](https://github.com/juspay/hyperswitch/commit/b2f7dd13925a1429e316cd9eaf0e2d31d46b6d4a))
+
+**Full Changelog:** [`v1.88.0...v1.89.0`](https://github.com/juspay/hyperswitch/compare/v1.88.0...v1.89.0)
+
+- - -
+
+
 ## 1.88.0 (2023-11-23)
 
 ### Features

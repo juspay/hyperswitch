@@ -23,19 +23,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate a token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        id: generate_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
-          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ steps.generate_token.outputs.token }}
+          token: ${{ secrets.AUTO_RELEASE_PAT }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -51,8 +43,8 @@ jobs:
       - name: Set Git Configuration
         shell: bash
         run: |
-          git config --local user.name 'hyperswitch-bot[bot]'
-          git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+          git config --local user.name 'github-actions'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
       - name: Update Postman collection files from Postman directories
         shell: bash
