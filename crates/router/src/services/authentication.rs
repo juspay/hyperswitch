@@ -47,11 +47,11 @@ pub enum AuthenticationType {
         key_id: String,
     },
     AdminApiKey,
-    MerchantJWT {
+    MerchantJwt {
         merchant_id: String,
         user_id: Option<String>,
     },
-    MerchantID {
+    MerchantId {
         merchant_id: String,
     },
     PublishableKey {
