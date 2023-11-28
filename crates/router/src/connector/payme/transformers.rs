@@ -432,7 +432,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::CardTokenData(_) => {
+            | PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -668,11 +668,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("payme"),
-                ))?
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("payme"),
+            ))?,
         }
     }
 }
@@ -729,7 +727,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(api::PaymentMethodData::Upi(_))
             | Some(api::PaymentMethodData::Voucher(_))
             | Some(api::PaymentMethodData::GiftCard(_))
-            | Some(api::PaymentMethodData::CardTokenData(_))
+            | Some(api::PaymentMethodData::CardToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -767,7 +765,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
+            | api::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }

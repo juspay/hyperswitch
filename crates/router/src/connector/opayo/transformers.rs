@@ -53,12 +53,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Opayo"),
-                )
-                .into())
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Opayo"),
+            )
+            .into()),
         }
     }
 }

@@ -114,13 +114,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "powertranz",
-                })
-                .into_report()
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "powertranz",
+            })
+            .into_report(),
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);

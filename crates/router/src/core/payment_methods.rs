@@ -3,7 +3,7 @@ pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod vault;
 
-use api_models::payments::CardTokenData;
+use api_models::payments::CardToken;
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
@@ -43,7 +43,7 @@ pub trait PaymentMethodRetrieve {
         token: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,
-        card_token_data: Option<&CardTokenData>,
+        card_token_data: Option<&CardToken>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>>;
 }
 
@@ -127,7 +127,7 @@ impl PaymentMethodRetrieve for Oss {
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,
-        card_token_data: Option<&CardTokenData>,
+        card_token_data: Option<&CardToken>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>> {
         match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {

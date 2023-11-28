@@ -625,7 +625,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
-        | PaymentMethodData::CardTokenData(_) => Err(errors::ConnectorError::NotImplemented(
+        | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }

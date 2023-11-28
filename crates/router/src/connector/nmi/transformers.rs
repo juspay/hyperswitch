@@ -189,13 +189,11 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "nmi",
-                })
-                .into_report()
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "nmi",
+            })
+            .into_report(),
         }
     }
 }

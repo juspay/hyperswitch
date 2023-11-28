@@ -119,12 +119,10 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "SELECTED_PAYMENT_METHOD".to_string(),
-                    connector: "Stax",
-                })?
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: "SELECTED_PAYMENT_METHOD".to_string(),
+                connector: "Stax",
+            })?,
         }
     }
 }
@@ -272,12 +270,10 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "SELECTED_PAYMENT_METHOD".to_string(),
-                    connector: "Stax",
-                })?
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: "SELECTED_PAYMENT_METHOD".to_string(),
+                connector: "Stax",
+            })?,
         }
     }
 }

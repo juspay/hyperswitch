@@ -142,7 +142,7 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardTokenData(_) => {
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_data),
                     connector: "Helcim",
@@ -225,12 +225,10 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardTokenData(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.router_data.request.payment_method_data),
-                    connector: "Helcim",
-                })?
-            }
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.router_data.request.payment_method_data),
+                connector: "Helcim",
+            })?,
         }
     }
 }

@@ -708,7 +708,7 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
             | api_models::payments::PaymentMethodData::MandatePayment
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardTokenData(_) => {
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 ))?

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use api_models::payments::{CardTokenData, GetPaymentMethodType};
+use api_models::payments::{CardToken, GetPaymentMethodType};
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
@@ -1356,7 +1356,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
     merchant_key_store: &domain::MerchantKeyStore,
-    card_token_data: Option<&CardTokenData>,
+    card_token_data: Option<&CardToken>,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
     let (pm, supplementary_data) =
         vault::Vault::get_payment_method_data_from_locker(state, token, merchant_key_store)
@@ -1385,8 +1385,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                         is_card_updated = true;
                         token_data.card_holder_name.clone()
                     })
-                    .filter(|name_on_card| !name_on_card.is_empty())
-                    .map(masking::Secret::new)
+                    .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "card_holder_name",
                     })?
@@ -1445,7 +1444,7 @@ pub async fn retrieve_card_with_permanent_token(
     token: &str,
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
-    card_token_data: Option<&CardTokenData>,
+    card_token_data: Option<&CardToken>,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1469,8 +1468,7 @@ pub async fn retrieve_card_with_permanent_token(
     let name_on_card = if name.clone().expose().is_empty() {
         card_token_data
             .and_then(|token_data| token_data.card_holder_name.clone())
-            .filter(|name_on_card| !name_on_card.is_empty())
-            .map(masking::Secret::new)
+            .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "card_holder_name",
             })?
@@ -1567,7 +1565,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     let card_cvc = payment_data.card_cvc.clone();
 
     let card_token_data = request.as_ref().and_then(|pmd| match pmd {
-        api_models::payments::PaymentMethodData::CardTokenData(token_data) => Some(token_data),
+        api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
         _ => None,
     });
 
@@ -3359,8 +3357,8 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::GiftCard(_) => {
             api_models::payments::AdditionalPaymentData::GiftCard {}
         }
-        api_models::payments::PaymentMethodData::CardTokenData(_) => {
-            api_models::payments::AdditionalPaymentData::CardTokenData {}
+        api_models::payments::PaymentMethodData::CardToken(_) => {
+            api_models::payments::AdditionalPaymentData::CardToken {}
         }
     }
 }
@@ -3661,7 +3659,7 @@ pub fn get_key_params_for_surcharge_details(
             gift_card.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::CardTokenData(_) => {
+        api_models::payments::PaymentMethodData::CardToken(_) => {
             Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             }
