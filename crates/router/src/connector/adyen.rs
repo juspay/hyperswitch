@@ -715,7 +715,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsBalanceRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
@@ -743,7 +743,7 @@ impl
                 .headers(types::PaymentsPreProcessingType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsBalanceType::get_request_body(
+                .body(types::PaymentsPreProcessingType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -780,6 +780,8 @@ impl
                     message: consts::NO_ERROR_MESSAGE.to_string(),
                     reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
                     status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..data.clone()
             })
