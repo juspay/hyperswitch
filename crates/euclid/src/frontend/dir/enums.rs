@@ -2,9 +2,9 @@ use strum::VariantNames;
 
 use crate::enums::collect_variants;
 pub use crate::enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Connector, Country, Country as BusinessCountry,
+    AuthenticationType, CaptureMethod, CardNetwork, Country, Country as BusinessCountry,
     Country as BillingCountry, Currency as PaymentCurrency, MandateAcceptanceType, MandateType,
-    PaymentMethod, PaymentType, SetupFutureUsage,
+    PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
 };
 
 #[derive(
