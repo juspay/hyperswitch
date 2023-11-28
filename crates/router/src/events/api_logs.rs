@@ -63,12 +63,8 @@ impl ApiEvent {
             request_id: request_id.as_hyphenated().to_string(),
             latency,
             status_code,
-            request: serde_json::to_string(&request)
-                .unwrap_or("Error in searialising Request JSON value".to_string()),
-            response: response.map(|resp| {
-                serde_json::to_string(&resp)
-                    .unwrap_or("Error in searialising Response JSON value".to_string())
-            }),
+            request: request.to_string(),
+            response: response.map(| resp | resp.to_string()),
             auth_type,
             error,
             ip_addr: http_req
