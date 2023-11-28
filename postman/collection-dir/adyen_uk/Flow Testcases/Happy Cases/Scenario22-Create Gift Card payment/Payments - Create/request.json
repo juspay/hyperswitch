@@ -18,30 +18,29 @@
       }
     },
     "raw_json_formatted": {
-      "amount": 6540,
-      "currency": "USD",
+      "amount": 1100,
+      "currency": "EUR",
       "confirm": true,
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 6540,
+      "amount_to_capture": 1100,
       "customer_id": "StripeCustomer",
       "email": "guest@example.com",
       "name": "John Doe",
       "phone": "999999999",
-      "phone_country_code": "+1",
+      "phone_country_code": "+65",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
       "return_url": "https://duck.com",
-      "payment_method": "card",
-      "payment_method_type": "credit",
+      "payment_method": "gift_card",
+      "payment_method_type": "givex",
       "payment_method_data": {
-        "card": {
-          "card_number": "371449635398431",
-          "card_exp_month": "03",
-          "card_exp_year": "2030",
-          "card_holder_name": "joseph Doe",
-          "card_cvc": "7373"
-        }
+          "gift_card": {
+              "givex": {
+                  "number": "6364530000000000",
+                  "cvc": "122222"
+              }
+          }
       },
       "routing": {
         "type": "single",
