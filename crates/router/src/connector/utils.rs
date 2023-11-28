@@ -19,9 +19,15 @@ use serde::Serializer;
 
 use crate::{
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::PaymentData,
+    },
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{
+        self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
+        PaymentsCancelData, ResponseId,
+    },
     utils::{OptionExt, ValueExt},
 };
 
@@ -74,6 +80,53 @@ pub trait RouterData {
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
 }
+
+pub trait PaymentResponseRouterData {
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone;
+}
+
+impl<Flow, Request, Response> PaymentResponseRouterData
+    for types::RouterData<Flow, Request, Response>
+where
+    Request: types::Capturable,
+{
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+    ) -> enums::AttemptStatus
+    where
+        F: Clone,
+    {
+        match self.status {
+            enums::AttemptStatus::Voided => {
+                if payment_data.payment_intent.amount_captured > Some(0) {
+                    enums::AttemptStatus::PartialCharged
+                } else {
+                    self.status
+                }
+            }
+            enums::AttemptStatus::Charged => {
+                let captured_amount =
+                    types::Capturable::get_capture_amount(&self.request, payment_data);
+                let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
+                if Some(total_capturable_amount) == captured_amount {
+                    enums::AttemptStatus::Charged
+                } else if captured_amount.is_some() {
+                    enums::AttemptStatus::PartialCharged
+                } else {
+                    self.status
+                }
+            }
+            _ => self.status,
+        }
+    }
+}
+
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
@@ -264,6 +317,7 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
 
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
 }
 
 impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
@@ -271,6 +325,9 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 pub trait PaymentsAuthorizeRequestData {
@@ -290,6 +347,18 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+}
+
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -626,6 +695,7 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::JCB,
         Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
     );
+    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
     map
 });
 
@@ -638,6 +708,7 @@ pub enum CardIssuer {
     Discover,
     DinersClub,
     JCB,
+    CarteBlanche,
 }
 
 pub trait CardData {
@@ -797,6 +868,7 @@ impl CryptoData for api::CryptoData {
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
+    fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PhoneDetailsData for api::PhoneDetails {
@@ -809,6 +881,11 @@ impl PhoneDetailsData for api::PhoneDetails {
         self.number
             .clone()
             .ok_or_else(missing_field_err("billing.phone.number"))
+    }
+    fn get_number_with_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self.get_country_code()?;
+        Ok(Secret::new(format!("{}{}", country_code, number.peek())))
     }
 }
 

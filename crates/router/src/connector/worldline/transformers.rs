@@ -247,11 +247,20 @@ impl
                     make_bank_redirect_request(&item.router_data.request, bank_redirect)?,
                 ))
             }
-            _ => {
-                return Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                )
-            }
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
+            ))?,
         };
 
         let customer =
@@ -298,10 +307,9 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Master => Ok(Self::MasterCard),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: issuer.to_string(),
-                connector: "worldline",
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
+            )
             .into()),
         }
     }
@@ -393,10 +401,25 @@ fn make_bank_redirect_request(
             },
             809,
         ),
-        _ => {
-            return Err(
-                errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+        payments::BankRedirectData::BancontactCard { .. }
+        | payments::BankRedirectData::Bizum {}
+        | payments::BankRedirectData::Blik { .. }
+        | payments::BankRedirectData::Eps { .. }
+        | payments::BankRedirectData::Interac { .. }
+        | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | payments::BankRedirectData::OnlineBankingFinland { .. }
+        | payments::BankRedirectData::OnlineBankingPoland { .. }
+        | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+        | payments::BankRedirectData::OpenBankingUk { .. }
+        | payments::BankRedirectData::Przelewy24 { .. }
+        | payments::BankRedirectData::Sofort { .. }
+        | payments::BankRedirectData::Trustly { .. }
+        | payments::BankRedirectData::OnlineBankingFpx { .. }
+        | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
             )
+            .into())
         }
     };
     Ok(RedirectPaymentMethod {
@@ -565,12 +588,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 item.response.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })
@@ -616,12 +639,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 item.response.payment.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.payment.id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.payment.id),
             }),
             ..item.data
         })

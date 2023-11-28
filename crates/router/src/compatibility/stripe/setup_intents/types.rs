@@ -184,7 +184,19 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             });
 
         let routing = routable_connector
-            .map(api_types::RoutingAlgorithm::Single)
+            .map(|connector| {
+                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                    api_models::routing::RoutableConnectorChoice {
+                        #[cfg(feature = "backwards_compatibility")]
+                        choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                        connector,
+                        #[cfg(feature = "connector_choice_mca_id")]
+                        merchant_connector_id: None,
+                        #[cfg(not(feature = "connector_choice_mca_id"))]
+                        sub_label: None,
+                    },
+                ))
+            })
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()
@@ -301,7 +313,9 @@ pub enum StripeSetupStatus {
 impl From<api_enums::IntentStatus> for StripeSetupStatus {
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
-            api_enums::IntentStatus::Succeeded => Self::Succeeded,
+            api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
+                Self::Succeeded
+            }
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
@@ -309,7 +323,7 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured => {
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }

@@ -25,7 +25,7 @@ use serde_json::json;
 use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::{AuthInfo, AuthenticateAndFetch};
+use super::authentication::AuthenticateAndFetch;
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
@@ -34,7 +34,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    events::api_logs::ApiEvent,
+    events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
     logger,
     routes::{
         app::AppStateInfo,
@@ -98,11 +98,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     }
 
     fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(format!(
-            "Surcharge not implemented for {}",
-            self.id()
-        ))
-        .into())
+        Err(errors::ConnectorError::NotImplemented(format!("Surcharge for {}", self.id())).into())
     }
 }
 
@@ -136,6 +132,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_request_body(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
@@ -226,6 +223,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
             message: error_message.to_string(),
             reason: String::from_utf8(res.response.to_vec()).ok(),
             status_code: res.status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 
@@ -303,6 +302,8 @@ where
                     message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
                     reason: None,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 })
             } else {
                 None
@@ -403,7 +404,14 @@ where
                                         500..=511 => {
                                             connector_integration.get_5xx_error_response(body)?
                                         }
-                                        _ => connector_integration.get_error_response(body)?,
+                                        _ => {
+                                            let error_res =
+                                                connector_integration.get_error_response(body)?;
+                                            if let Some(status) = error_res.attempt_status {
+                                                router_data.status = status;
+                                            };
+                                            error_res
+                                        }
                                     };
 
                                     router_data.response = Err(error);
@@ -420,6 +428,8 @@ where
                                     message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
                                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                                     status_code: 504,
+                                    attempt_status: None,
+                                    connector_transaction_id: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -758,12 +768,11 @@ where
     F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
-    Q: Serialize + Debug + 'a,
-    T: Debug,
+    Q: Serialize + Debug + 'a + ApiEventMetric,
+    T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
-    U: AuthInfo,
     E: ErrorSwitch<OErr> + error_stack::Context,
-    OErr: ResponseError + error_stack::Context,
+    OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
@@ -776,13 +785,20 @@ where
 
     request_state.add_request_id(request_id);
     let start_instant = Instant::now();
+    let serialized_request = masking::masked_serialize(&payload)
+        .into_report()
+        .attach_printable("Failed to serialize json request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    let auth_out = api_auth
+    let mut event_type = payload.get_api_event_type();
+
+    // Currently auth failures are not recorded as API events
+    let (auth_out, auth_type) = api_auth
         .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
 
-    let merchant_id = auth_out
+    let merchant_id = auth_type
         .get_merchant_id()
         .unwrap_or("MERCHANT_ID_NOT_FOUND")
         .to_string();
@@ -812,11 +828,63 @@ where
         .saturating_duration_since(start_instant)
         .as_millis();
 
+    let mut serialized_response = None;
+    let mut error = None;
+    let mut overhead_latency = None;
+
     let status_code = match output.as_ref() {
-        Ok(res) => metrics::request::track_response_status_code(res),
-        Err(err) => err.current_context().status_code().as_u16().into(),
+        Ok(res) => {
+            if let ApplicationResponse::Json(data) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+            } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
+                serialized_response.replace(
+                    masking::masked_serialize(&data)
+                        .into_report()
+                        .attach_printable("Failed to serialize json response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
+                );
+
+                if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
+                    if let Ok(external_latency) = value.parse::<u128>() {
+                        overhead_latency.replace(external_latency);
+                    }
+                }
+            }
+            event_type = res.get_api_event_type().or(event_type);
+
+            metrics::request::track_response_status_code(res)
+        }
+        Err(err) => {
+            error.replace(
+                serde_json::to_value(err.current_context())
+                    .into_report()
+                    .attach_printable("Failed to serialize json response")
+                    .change_context(errors::ApiErrorResponse::InternalServerError.switch())
+                    .ok()
+                    .into(),
+            );
+            err.current_context().status_code().as_u16().into()
+        }
     };
-    let api_event = ApiEvent::new(flow, &request_id, request_duration, status_code);
+
+    let api_event = ApiEvent::new(
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+        serialized_request,
+        serialized_response,
+        overhead_latency,
+        auth_type,
+        error,
+        event_type.unwrap_or(ApiEventsType::Miscellaneous),
+        request,
+    );
     match api_event.clone().try_into() {
         Ok(event) => {
             state.event_handler().log_event(event);
@@ -847,9 +915,8 @@ pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
 where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
-    Q: Serialize + Debug + 'a,
-    T: Debug,
-    U: AuthInfo,
+    Q: Serialize + Debug + ApiEventMetric + 'a,
+    T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,

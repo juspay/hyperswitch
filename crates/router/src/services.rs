@@ -1,6 +1,9 @@
 pub mod api;
 pub mod authentication;
+pub mod authorization;
 pub mod encryption;
+#[cfg(feature = "olap")]
+pub mod jwt;
 pub mod logger;
 
 #[cfg(feature = "kms")]
@@ -90,6 +93,7 @@ pub async fn get_store(
         store,
         config.drainer.stream_name.clone(),
         config.drainer.num_partitions,
+        config.kv_config.ttl,
     );
 
     Ok(store)

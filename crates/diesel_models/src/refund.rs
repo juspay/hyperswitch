@@ -38,6 +38,7 @@ pub struct Refund {
     pub refund_error_code: Option<String>,
     pub profile_id: Option<String>,
     pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(
@@ -79,6 +80,7 @@ pub struct RefundNew {
     pub refund_reason: Option<String>,
     pub profile_id: Option<String>,
     pub updated_by: String,
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -224,4 +226,13 @@ pub struct RefundCoreWorkflow {
     pub connector_transaction_id: String,
     pub merchant_id: String,
     pub payment_id: String,
+}
+
+impl common_utils::events::ApiEventMetric for Refund {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Refund {
+            payment_id: Some(self.payment_id.clone()),
+            refund_id: self.refund_id.clone(),
+        })
+    }
 }

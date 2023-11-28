@@ -47,17 +47,18 @@ impl ForeignTryFrom<&types::Connector> for FileUploadProvider {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct CreateFileRequest {
     pub file: Vec<u8>,
     pub file_name: Option<String>,
     pub file_size: i32,
+    #[serde(serialize_with = "crate::utils::custom_serde::display_serialize")]
     pub file_type: mime::Mime,
     pub purpose: FilePurpose,
     pub dispute_id: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, strum::Display, Clone)]
+#[derive(Debug, serde::Deserialize, strum::Display, Clone, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FilePurpose {

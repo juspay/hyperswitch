@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "start")]
+#[operation(operations = "all", flow = "start")]
 pub struct PaymentStart;
 
 #[async_trait]
@@ -42,11 +42,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
-        PaymentData<F>,
-        Option<CustomerDetails>,
-    )> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, Ctx>> {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
@@ -126,59 +122,63 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             ..CustomerDetails::default()
         };
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &payment_intent.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+
+        let business_profile = db
+            .find_business_profile_by_profile_id(profile_id)
             .await
-            .map_err(|error| {
-                error
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Database error when finding connector response")
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
             })?;
 
-        Ok((
-            Box::new(self),
-            PaymentData {
-                flow: PhantomData,
-                payment_intent,
-                currency,
-                amount,
-                email: None,
-                mandate_id: None,
-                mandate_connector: None,
-                connector_response,
-                setup_mandate: None,
-                token: payment_attempt.payment_token.clone(),
-                address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.into()),
-                    billing: billing_address.as_ref().map(|a| a.into()),
-                },
-                confirm: Some(payment_attempt.confirm),
-                payment_attempt,
-                payment_method_data: None,
-                force_sync: None,
-                refunds: vec![],
-                disputes: vec![],
-                attempts: None,
-                sessions_token: vec![],
-                card_cvc: None,
-                creds_identifier: None,
-                pm_token: None,
-                connector_customer_id: None,
-                recurring_mandate_payment_data: None,
-                ephemeral_key: None,
-                multiple_capture_data: None,
-                redirect_response: None,
-                surcharge_details: None,
-                frm_message: None,
-                payment_link_data: None,
+        let payment_data = PaymentData {
+            flow: PhantomData,
+            payment_intent,
+            currency,
+            amount,
+            email: None,
+            mandate_id: None,
+            mandate_connector: None,
+            setup_mandate: None,
+            token: payment_attempt.payment_token.clone(),
+            address: PaymentAddress {
+                shipping: shipping_address.as_ref().map(|a| a.into()),
+                billing: billing_address.as_ref().map(|a| a.into()),
             },
-            Some(customer_details),
-        ))
+            confirm: Some(payment_attempt.confirm),
+            payment_attempt,
+            payment_method_data: None,
+            force_sync: None,
+            refunds: vec![],
+            disputes: vec![],
+            attempts: None,
+            sessions_token: vec![],
+            card_cvc: None,
+            creds_identifier: None,
+            pm_token: None,
+            connector_customer_id: None,
+            recurring_mandate_payment_data: None,
+            ephemeral_key: None,
+            multiple_capture_data: None,
+            redirect_response: None,
+            surcharge_details: None,
+            frm_message: None,
+            payment_link_data: None,
+        };
+
+        let get_trackers_response = operations::GetTrackerResponse {
+            operation: Box::new(self),
+            customer_details: Some(customer_details),
+            payment_data,
+            business_profile,
+        };
+
+        Ok(get_trackers_response)
     }
 }
 
@@ -189,7 +189,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn StorageInterface,
+        _state: &'b AppState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -282,6 +282,7 @@ where
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -293,7 +294,7 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(Box::new(self), state, payment_data).await
+            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
         } else {
             Ok((Box::new(self), None))
         }

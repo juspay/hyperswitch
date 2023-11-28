@@ -166,11 +166,14 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "Shift4",
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Shift4",
+                }
+                .into())
             }
-            .into()),
         }
     }
 }
@@ -397,6 +400,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
             | Some(payments::PaymentMethodData::Voucher(_))
             | Some(payments::PaymentMethodData::Reward)
             | Some(payments::PaymentMethodData::Upi(_))
+            | Some(api::PaymentMethodData::CardToken(_))
             | None => Err(errors::ConnectorError::NotSupported {
                 message: "Flow".to_string(),
                 connector: "Shift4",
@@ -717,6 +721,7 @@ impl<T, F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.id.clone());
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.captured,
@@ -727,7 +732,7 @@ impl<T, F>
                 item.response.status,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: connector_id,
                 redirection_data: item
                     .response
                     .flow
@@ -737,7 +742,7 @@ impl<T, F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })

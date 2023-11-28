@@ -78,7 +78,7 @@ pub trait RefundInterface {
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &str,
-        refund_details: &api_models::refunds::TimeRange,
+        refund_details: &api_models::payments::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
 
@@ -232,7 +232,7 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
-            refund_details: &api_models::refunds::TimeRange,
+            refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -310,7 +310,7 @@ mod storage {
                         .await?;
 
                     let key = &lookup.pk_id;
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -321,7 +321,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }
@@ -368,6 +368,7 @@ mod storage {
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
                         updated_by: new.updated_by.clone(),
+                        merchant_connector_id: new.merchant_connector_id.clone(),
                     };
 
                     let field = format!(
@@ -489,7 +490,7 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -500,7 +501,7 @@ mod storage {
                             .try_into_scan()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }
@@ -580,7 +581,7 @@ mod storage {
                         .await?;
 
                     let key = &lookup.pk_id;
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -591,7 +592,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }
@@ -625,7 +626,7 @@ mod storage {
                         .await?;
 
                     let key = &lookup.pk_id;
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -636,7 +637,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }
@@ -663,7 +664,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{merchant_id}_pid_{payment_id}");
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -674,7 +675,7 @@ mod storage {
                             .try_into_scan()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }
@@ -706,7 +707,7 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
-            refund_details: &api_models::refunds::TimeRange,
+            refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -796,6 +797,7 @@ impl RefundInterface for MockDb {
             refund_reason: new.refund_reason.clone(),
             profile_id: new.profile_id,
             updated_by: new.updated_by,
+            merchant_connector_id: new.merchant_connector_id,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -977,7 +979,7 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_meta_constraints(
         &self,
         _merchant_id: &str,
-        refund_details: &api_models::refunds::TimeRange,
+        refund_details: &api_models::payments::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         let refunds = self.refunds.lock().await;

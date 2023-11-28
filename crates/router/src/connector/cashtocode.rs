@@ -119,6 +119,8 @@ impl ConnectorCommon for Cashtocode {
             code: response.error.to_string(),
             message: response.error_description,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -202,6 +204,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = cashtocode::CashtocodePaymentsRequest::try_from(req)?;
         let cashtocode_req = types::RequestBody::log_and_get_request_body(
@@ -227,7 +230,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -387,16 +392,13 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json =
-            utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(res_json)
+        Ok(Box::new(webhook))
     }
 
     fn get_webhook_api_response(

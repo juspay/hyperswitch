@@ -17,6 +17,7 @@ impl utils::Connector for BitpayTest {
             connector: Box::new(&Bitpay),
             connector_name: types::Connector::Bitpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

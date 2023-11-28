@@ -14,12 +14,12 @@ use crate::{
     payment_methods,
 };
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
@@ -111,7 +111,7 @@ pub struct MerchantAccountMetadata {
     #[serde(flatten)]
     pub data: Option<pii::SecretSerdeValue>,
 }
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
     /// The identifier for the Merchant Account
@@ -443,62 +443,6 @@ pub mod payout_routing_algorithm {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum RoutingAlgorithm {
-    Single(api_enums::RoutableConnectors),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(
-    tag = "type",
-    content = "data",
-    rename_all = "snake_case",
-    from = "StraightThroughAlgorithmSerde",
-    into = "StraightThroughAlgorithmSerde"
-)]
-pub enum StraightThroughAlgorithm {
-    Single(api_enums::RoutableConnectors),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum StraightThroughAlgorithmInner {
-    Single(api_enums::RoutableConnectors),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum StraightThroughAlgorithmSerde {
-    Direct(StraightThroughAlgorithmInner),
-    Nested {
-        algorithm: StraightThroughAlgorithmInner,
-    },
-}
-
-impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
-    fn from(value: StraightThroughAlgorithmSerde) -> Self {
-        let inner = match value {
-            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
-            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
-        };
-
-        match inner {
-            StraightThroughAlgorithmInner::Single(conn) => Self::Single(conn),
-        }
-    }
-}
-
-impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
-    fn from(value: StraightThroughAlgorithm) -> Self {
-        let inner = match value {
-            StraightThroughAlgorithm::Single(conn) => StraightThroughAlgorithmInner::Single(conn),
-        };
-
-        Self::Nested { algorithm: inner }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
@@ -511,6 +455,11 @@ pub struct PrimaryBusinessDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentLinkConfig {
+    #[schema(
+        max_length = 255,
+        max_length = 255,
+        example = "https://i.imgur.com/RfxPFQo.png"
+    )]
     pub merchant_logo: Option<String>,
     pub color_scheme: Option<PaymentLinkColorSchema>,
 }
@@ -519,9 +468,8 @@ pub struct PaymentLinkConfig {
 #[serde(deny_unknown_fields)]
 
 pub struct PaymentLinkColorSchema {
-    pub primary_color: Option<String>,
-    pub primary_accent_color: Option<String>,
-    pub secondary_color: Option<String>,
+    pub background_primary_color: Option<String>,
+    pub sdk_theme: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -661,6 +609,9 @@ pub struct MerchantConnectorCreate {
     pub profile_id: Option<String>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -766,6 +717,9 @@ pub struct MerchantConnectorResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: api_enums::ConnectorStatus,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -840,6 +794,9 @@ pub struct MerchantConnectorUpdate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -949,6 +906,8 @@ pub struct ToggleKVResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
@@ -996,7 +955,7 @@ pub enum PayoutStraightThroughAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Default)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
     /// A short name to identify the business profile
@@ -1117,7 +1076,7 @@ pub struct BusinessProfileResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
     /// A short name to identify the business profile
