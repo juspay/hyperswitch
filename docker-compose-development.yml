@@ -1,7 +1,11 @@
 version: "3.8"
 
 volumes:
+  cargo_cache:
   pg_data:
+  router_build_cache:
+  scheduler_build_cache:
+  drainer_build_cache:
   redisinsight_store:
 
 networks:
@@ -48,33 +52,44 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
-    command: /local/bin/router -f /local/config/docker_compose.toml
+    image: rust:latest
+    command: cargo run --bin router -- -f ./config/docker_compose.toml
+    working_dir: /app
     ports:
       - "8080:8080"
     networks:
       - router_net
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - router_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
     labels:
       logs: "promtail"
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
-      interval: 10s
-      retries: 3
-      start_period: 5s
+      interval: 120s
+      retries: 4
+      start_period: 20s
       timeout: 10s
 
   hyperswitch-producer:
-    image: juspaydotin/hyperswitch-producer:standalone
-    command: /local/bin/scheduler -f /local/config/docker_compose.toml
+    image: rust:latest
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
     networks:
       - router_net
     profiles:
       - scheduler
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - scheduler_build_cache:/cargo_build_cache
     environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
       - SCHEDULER_FLOW=producer
     depends_on:
       hyperswitch-consumer:
@@ -83,15 +98,20 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: juspaydotin/hyperswitch-consumer:standalone
-    command: /local/bin/scheduler -f /local/config/docker_compose.toml
+    image: rust:latest
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
     networks:
       - router_net
     profiles:
       - scheduler
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - scheduler_build_cache:/cargo_build_cache
     environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
@@ -100,14 +120,15 @@ services:
       logs: "promtail"
     healthcheck:
       test: (ps -e | grep scheduler) || exit 1
-      interval: 10s
-      retries: 3
-      start_period: 5s
+      interval: 120s
+      retries: 4
+      start_period: 30s
       timeout: 10s
 
   hyperswitch-drainer:
-    image: juspaydotin/hyperswitch-drainer:standalone
-    command: /local/bin/drainer -f /local/config/docker_compose.toml
+    image: rust:latest
+    command: cargo run --bin drainer -- -f ./config/docker_compose.toml
+    working_dir: /app
     deploy:
       replicas: ${DRAINER_INSTANCE_COUNT:-1}
     networks:
@@ -115,7 +136,12 @@ services:
     profiles:
       - full_kv
     volumes:
-      - ./config:/local/config
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - drainer_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
