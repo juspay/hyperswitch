@@ -15,6 +15,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod workflows;
 
+#[cfg(feature = "olap")]
 pub mod analytics;
 pub mod events;
 pub mod middleware;
