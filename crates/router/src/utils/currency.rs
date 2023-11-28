@@ -143,7 +143,7 @@ async fn waited_fetch_and_update_caches(
             }
         }
     }
-    //acquire lock one last time and try to fetch and update local&redis
+    //acquire lock one last time and try to fetch and update local & redis
     successive_fetch_and_save_forex(
         state,
         None,
@@ -343,7 +343,6 @@ async fn fallback_forex_redis_check(
                 kms_config,
             )
             .await
-            // fallback_forex_fetch_expired_redis(state, redis_data).await
         }
     }
 }
@@ -523,7 +522,6 @@ pub async fn fallback_fetch_forex_rates(
 
     let rates =
         FxExchangeRatesCacheEntry::new(ExchangeRates::new(enums::Currency::USD, conversions));
-    // save_forex_to_local(rates);
     match acquire_redis_lock(state).await {
         Ok(_) => Ok(successive_save_data_to_redis_local(state, rates).await?),
         Err(e) => {
