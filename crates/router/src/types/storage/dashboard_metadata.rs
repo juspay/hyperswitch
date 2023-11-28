@@ -1,1 +1,1 @@
-pub use diesel_models::dashboard_metadata::*;
+pub use diesel_models::user::dashboard_metadata::*;

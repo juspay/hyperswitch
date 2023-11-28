@@ -257,6 +257,10 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Change password flow
     ChangePassword,
+    /// Set Dashboard Metadata flow
+    SetDashboardMetadata,
+    /// Get Multiple Dashboard Metadata flow
+    GetMutltipleDashboardMetadata,
 }
 
 ///

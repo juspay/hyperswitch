@@ -1,4 +1,4 @@
-use diesel_models::{dashboard_metadata as storage, enums};
+use diesel_models::{enums, user::dashboard_metadata as storage};
 use error_stack::{IntoReport, ResultExt};
 use storage_impl::MockDb;
 

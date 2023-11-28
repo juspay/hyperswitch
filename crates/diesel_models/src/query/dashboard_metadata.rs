@@ -4,11 +4,11 @@ use error_stack::{IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
 
 use crate::{
-    dashboard_metadata::*,
     enums,
     errors::{self},
     query::generics,
     schema::dashboard_metadata::dsl,
+    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew},
     PgPooledConn, StorageResult,
 };
 

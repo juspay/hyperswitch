@@ -13,6 +13,8 @@ use crate::{
     types::domain,
 };
 
+pub mod dashboard_metadata;
+
 pub async fn connect_account(
     state: AppState,
     request: api::ConnectAccountRequest,

@@ -760,6 +760,13 @@ impl User {
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(
+                web::resource("/data/merchant")
+                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)), // to set the metadata
+            )
+            .service(
+                web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)), // this to get mutiple one, old one to be depricated
+            )
     }
 }
 
