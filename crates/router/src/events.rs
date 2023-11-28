@@ -9,7 +9,7 @@ pub mod api_logs;
 pub mod event_logger;
 pub mod kafka_handler;
 
-pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
+pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
     fn log_event(&self, event: RawEvent);
 }
 
@@ -46,6 +46,12 @@ pub enum EventsConfig {
 pub enum EventsHandler {
     Kafka(KafkaProducer),
     Logs(event_logger::EventLogger),
+}
+
+impl Default for EventsHandler {
+    fn default() -> Self {
+        Self::Logs(event_logger::EventLogger {})
+    }
 }
 
 impl EventsConfig {
