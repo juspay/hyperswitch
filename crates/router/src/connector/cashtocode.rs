@@ -120,6 +120,7 @@ impl ConnectorCommon for Cashtocode {
             message: response.error_description,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

@@ -33,6 +33,17 @@ crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
 crates/router/src/core/ @juspay/hyperswitch-core
 
+crates/api_models/src/routing.rs @juspay/hyperswitch-routing
+crates/euclid @juspay/hyperswitch-routing
+crates/euclid_macros @juspay/hyperswitch-routing
+crates/euclid_wasm @juspay/hyperswitch-routing
+crates/kgraph_utils @juspay/hyperswitch-routing
+crates/router/src/routes/routing.rs @juspay/hyperswitch-routing
+crates/router/src/core/routing @juspay/hyperswitch-routing
+crates/router/src/core/routing.rs @juspay/hyperswitch-routing
+crates/router/src/core/payments/routing @juspay/hyperswitch-routing
+crates/router/src/core/payments/routing.rs @juspay/hyperswitch-routing
+
 crates/router/src/scheduler/ @juspay/hyperswitch-process-tracker
 
 Dockerfile @juspay/hyperswitch-infra

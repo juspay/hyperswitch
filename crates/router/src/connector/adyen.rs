@@ -74,6 +74,7 @@ impl ConnectorCommon for Adyen {
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -256,6 +257,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -375,6 +377,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -546,6 +549,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 
@@ -716,6 +720,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -920,6 +925,7 @@ impl
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -1439,6 +1445,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             message: response.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

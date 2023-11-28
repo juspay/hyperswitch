@@ -717,6 +717,7 @@ fn handle_cards_response(
             reason: msg,
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -779,6 +780,7 @@ fn handle_bank_redirects_error_response(
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
@@ -815,6 +817,7 @@ fn handle_bank_redirects_sync_response(
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -942,6 +945,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                     reason: item.response.result_info.additional_info,
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -1414,6 +1418,7 @@ fn handle_cards_refund_response(
             reason: msg,
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -1453,6 +1458,7 @@ fn handle_bank_redirects_refund_response(
             reason: msg.map(|message| message.to_string()),
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -1481,6 +1487,7 @@ fn handle_bank_redirects_refund_sync_response(
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -1503,6 +1510,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = types::RefundsResponseData {
