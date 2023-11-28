@@ -5,6 +5,7 @@ pub mod api_keys;
 pub mod bank_accounts;
 pub mod cards_info;
 pub mod conditional_configs;
+pub mod currency;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
