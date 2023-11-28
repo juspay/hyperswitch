@@ -1428,6 +1428,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             complete_authorize_url,
             browser_info,
             surcharge_details: payment_data.surcharge_details,
+            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
         })
     }
 }

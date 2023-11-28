@@ -1431,13 +1431,13 @@ fn create_stripe_payment_method(
             .into()),
         },
 
-        payments::PaymentMethodData::Upi(_) | payments::PaymentMethodData::MandatePayment => {
-            Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
-            .into())
+        payments::PaymentMethodData::Upi(_)
+        | payments::PaymentMethodData::MandatePayment
+        | payments::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+            message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "stripe",
         }
+        .into()),
     }
 }
 
@@ -2995,6 +2995,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::GiftCard(..))
             | Some(payments::PaymentMethodData::CardRedirect(..))
             | Some(payments::PaymentMethodData::Voucher(..))
+            | Some(payments::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -3416,7 +3417,8 @@ impl
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
             })?,
