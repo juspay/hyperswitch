@@ -1,10 +1,17 @@
-use crate::{connector, core::errors, types::api};
 use api_models::enums::Connector;
 use error_stack::{IntoReport, ResultExt};
 
-use crate::types::api::verify_connector::{self as types, VerifyConnector};
-use crate::utils::verify_connector as utils;
-use crate::{services, AppState};
+use crate::{
+    connector,
+    core::errors,
+    services,
+    types::{
+        api,
+        api::verify_connector::{self as types, VerifyConnector},
+    },
+    utils::verify_connector as utils,
+    AppState,
+};
 
 pub async fn verify_connector_credentials(
     state: AppState,

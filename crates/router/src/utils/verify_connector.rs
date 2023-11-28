@@ -1,6 +1,5 @@
 use api_models::enums::Connector;
-use error_stack::ResultExt;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use crate::{core::errors, types::api};
 
@@ -43,7 +42,8 @@ pub fn get_test_card_details(connector_name: Connector) -> errors::RouterResult<
             "2025".to_string(),
             "02".to_string(),
             "123".to_string(),
-        )).transpose(),
+        ))
+        .transpose(),
         _ => Ok(None),
     }
 }
