@@ -1,4 +1,4 @@
-#[cfg(feature = "olap")]
+#[cfg(feature = "dummy_connector")]
 use api_models::enums::Connector::{DummyConnector4, DummyConnector7};
 use api_models::user::sample_data::SampleDataRequest;
 use data_models::payments::payment_intent::PaymentIntentNew;
