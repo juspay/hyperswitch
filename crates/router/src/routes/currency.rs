@@ -4,7 +4,7 @@ use router_env::Flow;
 use crate::{
     core::{api_locking, currency},
     routes::AppState,
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
 pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
@@ -15,10 +15,11 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
         &req,
         (),
         |state, _auth: auth::AuthenticationData, _| currency::retrieve_forex(state),
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::ForexRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -38,7 +39,7 @@ pub async fn convert_forex(
         state.clone(),
         &req,
         (),
-        |state, _auth: auth::AuthenticationData, _| {
+        |state, _, _| {
             currency::convert_forex(
                 state,
                 *amount,
@@ -46,11 +47,13 @@ pub async fn convert_forex(
                 from_currency.to_string(),
             )
         },
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::ForexRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
