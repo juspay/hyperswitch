@@ -1459,26 +1459,23 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to fetch card information from the permanent locker")?;
 
-    let name = card
-        .name_on_card
-        .get_required_value("name_on_card")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("card holder name was not saved in permanent locker")?;
-
-    let name_on_card = if name.clone().expose().is_empty() {
+    let name_on_card = if let Some(name_on_card) = card.name_on_card.clone() {
+        if card.name_on_card.unwrap_or_default().expose().is_empty() {
+            card_token_data
+                .and_then(|token_data| token_data.card_holder_name.clone())
+                .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+        } else {
+            Some(name_on_card)
+        }
+    } else {
         card_token_data
             .and_then(|token_data| token_data.card_holder_name.clone())
             .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "card_holder_name",
-            })?
-    } else {
-        name
     };
 
     let api_card = api::Card {
         card_number: card.card_number,
-        card_holder_name: name_on_card,
+        card_holder_name: name_on_card.unwrap_or(masking::Secret::from("".to_string())),
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_cvc.unwrap_or_default(),
