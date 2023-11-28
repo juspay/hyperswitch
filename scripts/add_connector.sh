@@ -66,7 +66,7 @@ sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcas
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnector::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
 
 # Remove temporary files created in above step
-rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e $src/core/admin.rs-e 
+rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e
 cd $conn/
 
 # Generate template files for the connector
