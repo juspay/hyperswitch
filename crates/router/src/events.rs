@@ -9,7 +9,7 @@ pub mod api_logs;
 pub mod event_logger;
 pub mod kafka_handler;
 
-pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
+pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
     fn log_event(&self, event: RawEvent);
 }
 
