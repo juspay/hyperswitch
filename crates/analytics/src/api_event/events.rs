@@ -50,12 +50,12 @@ where
     }
     if let Some(list_api_name) = query_param.api_name_filter {
         query_builder
-            .add_filter_in_range_clause("api_name", &list_api_name)
+            .add_filter_in_range_clause("api_flow", &list_api_name)
             .switch()?;
     } else {
         query_builder
             .add_filter_in_range_clause(
-                "api_name",
+                "api_flow",
                 &[
                     Flow::PaymentsCancel,
                     Flow::PaymentsCapture,
