@@ -1,6 +1,11 @@
 #![allow(non_upper_case_globals)]
 mod types;
 mod utils;
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
+
 use api_models::{admin as admin_api, routing::ConnectorSelection};
 use common_enums::RoutableConnectors;
 use euclid::{
@@ -16,10 +21,6 @@ use euclid::{
     },
 };
 use once_cell::sync::OnceCell;
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
 use strum::{EnumMessage, EnumProperty, VariantNames};
 use wasm_bindgen::prelude::*;
 
