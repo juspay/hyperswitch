@@ -48,6 +48,12 @@ pub enum EventsHandler {
     Logs(event_logger::EventLogger),
 }
 
+impl Default for EventsHandler {
+    fn default() -> Self {
+        Self::Logs(event_logger::EventLogger {})
+    }
+}
+
 impl EventsConfig {
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
         Ok(match self {

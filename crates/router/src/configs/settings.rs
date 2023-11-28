@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(feature = "olap")]
 use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
@@ -110,6 +111,7 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     pub events: EventsConfig,
 }
