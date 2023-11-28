@@ -276,16 +276,11 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let kafka_producer = KafkaProducer::create(&conf.kafka)
-        .await
-        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-        kafka_producer,
     )
     .await;
 
@@ -457,16 +452,11 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let kafka_producer = KafkaProducer::create(&conf.kafka)
-        .await
-        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-        .unwrap();
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
-        kafka_producer,
     )
     .await;
 

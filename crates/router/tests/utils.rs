@@ -49,16 +49,12 @@ pub async fn mk_service(
         conf.connectors.stripe.base_url = url;
     }
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let kafka_producer = KafkaProducer::create(&conf.kafka)
-        .await
-        .map_err(|er| format!("Failed to build Kafka Producer: {er:?}"))
-        .unwrap();
+
     let app_state = AppState::with_storage(
         conf,
         router::db::StorageImpl::Mock,
         tx,
         Box::new(services::MockApiClient),
-        kafka_producer,
     )
     .await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
