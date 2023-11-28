@@ -89,7 +89,7 @@ pub async fn connect_account(
                 )
                 .await;
 
-            logger::info!(send_email_result=?send_email_result);
+            logger::info!(?send_email_result);
         }
 
         return Ok(ApplicationResponse::Json(api::ConnectAccountResponse {
