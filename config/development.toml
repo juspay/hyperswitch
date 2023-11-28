@@ -208,7 +208,7 @@ base_url = "http://localhost:8080"
 allowed_unverified_days = 1
 active_email_client = "SES"
 
-[email.aws_ses_config]
+[email.aws_ses]
 email_role_arn = ""
 sts_role_session_name = ""
 

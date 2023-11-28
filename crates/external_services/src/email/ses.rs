@@ -92,7 +92,7 @@ impl AwsSes {
             .await;
 
         let ses_config = conf
-            .aws_ses_config
+            .aws_ses
             .as_ref()
             .get_required_value("aws ses configuration")
             .attach_printable("The selected email client is aws ses, but configuration is missing")

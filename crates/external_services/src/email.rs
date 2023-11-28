@@ -136,7 +136,7 @@ pub struct EmailSettings {
     pub sender_email: String,
 
     /// Configs related to AWS Simple Email Service
-    pub aws_ses_config: Option<ses::SESConfig>,
+    pub aws_ses: Option<ses::SESConfig>,
 
     /// The active email client to use
     pub active_email_client: AvailableEmailClients,
