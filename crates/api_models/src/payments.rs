@@ -347,6 +347,9 @@ impl RequestSurchargeDetails {
             final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
         }
     }
+    pub fn get_total_surcharge_amount(&self) -> i64 {
+        self.surcharge_amount + self.tax_amount.unwrap_or(0)
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]

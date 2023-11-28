@@ -84,6 +84,7 @@ impl ConnectorCommon for Multisafepay {
             message: response.error_info,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

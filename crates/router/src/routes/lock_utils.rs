@@ -144,7 +144,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
 
-            Flow::UserConnectAccount => Self::User,
+            Flow::UserConnectAccount | Flow::ChangePassword => Self::User,
         }
     }
 }

@@ -540,6 +540,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -596,6 +597,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -652,6 +654,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -851,7 +854,7 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
             BankofamericaRefundStatus::Succeeded | BankofamericaRefundStatus::Transmitted => {
                 Self::Success
             }
-            BankofamericaRefundStatus::Failed => Self::Failure,
+            BankofamericaRefundStatus::Failed | BankofamericaRefundStatus::Voided => Self::Failure,
             BankofamericaRefundStatus::Pending => Self::Pending,
         }
     }
@@ -888,6 +891,7 @@ pub enum BankofamericaRefundStatus {
     Transmitted,
     Failed,
     Pending,
+    Voided,
 }
 
 #[derive(Debug, Deserialize)]

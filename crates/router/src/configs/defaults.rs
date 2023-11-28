@@ -99,7 +99,7 @@ impl Default for super::settings::DrainerSettings {
             num_partitions: 64,
             max_read_count: 100,
             shutdown_interval: 1000,
-            loop_interval: 500,
+            loop_interval: 100,
         }
     }
 }
