@@ -10,6 +10,8 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
+    pub min_idle: Option<u32>,
+    pub max_lifetime: Option<u64>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
@@ -40,6 +42,8 @@ impl Default for Database {
             pool_size: 5,
             connection_timeout: 10,
             queue_strategy: QueueStrategy::default(),
+            min_idle: None,
+            max_lifetime: None,
         }
     }
 }
