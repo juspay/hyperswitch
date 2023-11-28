@@ -1464,24 +1464,18 @@ pub async fn retrieve_card_with_permanent_token(
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
                 .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "card_holder_name",
-                })?
         } else {
-            name_on_card
+            Some(name_on_card)
         }
     } else {
         card_token_data
             .and_then(|token_data| token_data.card_holder_name.clone())
             .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "card_holder_name",
-            })?
     };
 
     let api_card = api::Card {
         card_number: card.card_number,
-        card_holder_name: name_on_card,
+        card_holder_name: name_on_card.unwrap_or(masking::Secret::from("".to_string())),
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_cvc.unwrap_or_default(),
