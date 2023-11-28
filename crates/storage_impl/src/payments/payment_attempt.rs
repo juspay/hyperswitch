@@ -553,7 +553,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-                let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
+                let lookup_id = format!("conn_trans_{merchant_id}_{connector_transaction_id}");
                 let lookup = self
                     .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                     .await?;
@@ -774,7 +774,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{preprocessing_id}");
+                let lookup_id = format!("preprocessing_{merchant_id}_{preprocessing_id}");
                 let lookup = self
                     .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                     .await?;
@@ -1215,6 +1215,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
@@ -1234,6 +1236,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -1261,8 +1265,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
-                surcharge_amount,
-                tax_amount,
                 authentication_data,
                 encoded_data,
                 unified_code,
@@ -1282,8 +1284,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
-                surcharge_amount,
-                tax_amount,
                 authentication_data,
                 encoded_data,
                 unified_code,
@@ -1323,6 +1323,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1333,13 +1334,16 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             },
-            Self::MultipleCaptureCountUpdate {
+            Self::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
-            } => DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
+                amount_to_capture,
+            } => DieselPaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
+                amount_to_capture,
             },
             Self::PreprocessingUpdate {
                 status,
@@ -1472,6 +1476,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             } => Self::ConfirmUpdate {
@@ -1491,6 +1497,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -1518,8 +1526,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
-                surcharge_amount,
-                tax_amount,
                 authentication_data,
                 encoded_data,
                 unified_code,
@@ -1539,8 +1545,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_response_reference_id,
                 amount_capturable,
                 updated_by,
-                surcharge_amount,
-                tax_amount,
                 authentication_data,
                 encoded_data,
                 unified_code,
@@ -1580,6 +1584,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -1590,11 +1595,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             },
-            DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
+            DieselPaymentAttemptUpdate::CaptureUpdate {
+                amount_to_capture,
                 multiple_capture_count,
                 updated_by,
-            } => Self::MultipleCaptureCountUpdate {
+            } => Self::CaptureUpdate {
+                amount_to_capture,
                 multiple_capture_count,
                 updated_by,
             },
@@ -1663,7 +1671,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
+        lookup_id: format!("conn_trans_{}_{}", merchant_id, connector_transaction_id),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
@@ -1685,7 +1693,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("{}_{}", merchant_id, preprocessing_id),
+        lookup_id: format!("preprocessing_{}_{}", merchant_id, preprocessing_id),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),

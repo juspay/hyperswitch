@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use api_models::payments::GetPaymentMethodType;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
@@ -597,6 +598,29 @@ pub fn validate_request_amount_and_amount_to_capture(
                 }
             }
         }
+    }
+}
+
+/// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
+#[instrument(skip_all)]
+pub fn validate_amount_to_capture_in_create_call_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic {
+        let total_capturable_amount = request.get_total_capturable_amount();
+        if let Some((amount_to_capture, total_capturable_amount)) =
+            request.amount_to_capture.zip(total_capturable_amount)
+        {
+            utils::when(amount_to_capture != total_capturable_amount, || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "amount_to_capture must be equal to total_capturable_amount when capture_method = automatic".into()
+                }))
+            })
+        } else {
+            Ok(())
+        }
+    } else {
+        Ok(())
     }
 }
 
@@ -1669,7 +1693,8 @@ pub(crate) fn validate_status_with_capture_method(
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially_captured, processing".to_string()
+                states: "requires_capture, partially_captured_and_capturable, processing"
+                    .to_string()
             }))
         },
     )
@@ -3493,6 +3518,106 @@ impl ApplePayData {
     }
 }
 
+pub fn get_key_params_for_surcharge_details(
+    payment_method_data: api_models::payments::PaymentMethodData,
+) -> RouterResult<(
+    common_enums::PaymentMethod,
+    common_enums::PaymentMethodType,
+    Option<common_enums::CardNetwork>,
+)> {
+    match payment_method_data {
+        api_models::payments::PaymentMethodData::Card(card) => {
+            let card_type = card
+                .card_type
+                .get_required_value("payment_method_data.card.card_type")?;
+            let card_network = card
+                .card_network
+                .get_required_value("payment_method_data.card.card_network")?;
+            match card_type.to_lowercase().as_str() {
+                "credit" => Ok((
+                    common_enums::PaymentMethod::Card,
+                    common_enums::PaymentMethodType::Credit,
+                    Some(card_network),
+                )),
+                "debit" => Ok((
+                    common_enums::PaymentMethod::Card,
+                    common_enums::PaymentMethodType::Debit,
+                    Some(card_network),
+                )),
+                _ => {
+                    logger::debug!("Invalid Card type found in payment confirm call, hence surcharge not applicable");
+                    Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data.card.card_type",
+                    }
+                    .into())
+                }
+            }
+        }
+        api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Ok((
+            common_enums::PaymentMethod::CardRedirect,
+            card_redirect_data.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::Wallet(wallet) => Ok((
+            common_enums::PaymentMethod::Wallet,
+            wallet.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::PayLater(pay_later) => Ok((
+            common_enums::PaymentMethod::PayLater,
+            pay_later.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => Ok((
+            common_enums::PaymentMethod::BankRedirect,
+            bank_redirect.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => Ok((
+            common_enums::PaymentMethod::BankDebit,
+            bank_debit.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => Ok((
+            common_enums::PaymentMethod::BankTransfer,
+            bank_transfer.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::Crypto(crypto) => Ok((
+            common_enums::PaymentMethod::Crypto,
+            crypto.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::MandatePayment => {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            }
+            .into())
+        }
+        api_models::payments::PaymentMethodData::Reward => {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            }
+            .into())
+        }
+        api_models::payments::PaymentMethodData::Upi(_) => Ok((
+            common_enums::PaymentMethod::Upi,
+            common_enums::PaymentMethodType::UpiCollect,
+            None,
+        )),
+        api_models::payments::PaymentMethodData::Voucher(voucher) => Ok((
+            common_enums::PaymentMethod::Voucher,
+            voucher.get_payment_method_type(),
+            None,
+        )),
+        api_models::payments::PaymentMethodData::GiftCard(gift_card) => Ok((
+            common_enums::PaymentMethod::GiftCard,
+            gift_card.get_payment_method_type(),
+            None,
+        )),
+    }
+}
+
 pub fn validate_payment_link_request(
     payment_link_object: &api_models::payments::PaymentLinkObject,
     confirm: Option<bool>,
@@ -3560,4 +3685,23 @@ pub async fn get_gsm_record(
             err
         })
         .ok()
+}
+
+pub fn validate_order_details_amount(
+    order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
+    amount: i64,
+) -> Result<(), errors::ApiErrorResponse> {
+    let total_order_details_amount: i64 = order_details
+        .iter()
+        .map(|order| order.amount * i64::from(order.quantity))
+        .sum();
+
+    if total_order_details_amount != amount {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Total sum of order details doesn't match amount in payment request"
+                .to_string(),
+        })
+    } else {
+        Ok(())
+    }
 }

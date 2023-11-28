@@ -27,7 +27,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentUpdate;
 
 #[async_trait]
@@ -59,6 +59,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(
+                order_details.to_owned(),
+                payment_intent.amount,
+            )?;
+        }
 
         payment_intent.setup_future_usage = request
             .setup_future_usage

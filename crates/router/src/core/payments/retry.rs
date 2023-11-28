@@ -382,8 +382,6 @@ where
                     } else {
                         None
                     },
-                    surcharge_amount: None,
-                    tax_amount: None,
                     updated_by: storage_scheme.to_string(),
                     authentication_data,
                     encoded_data,
@@ -413,6 +411,7 @@ where
                     updated_by: storage_scheme.to_string(),
                     unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
+                    connector_transaction_id: error_response.connector_transaction_id.clone(),
                 },
                 storage_scheme,
             )

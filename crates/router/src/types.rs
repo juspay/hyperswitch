@@ -30,9 +30,10 @@ use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLO
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::RecurringMandatePaymentData,
+        payments::{PaymentData, RecurringMandatePaymentData},
     },
     services,
+    types::storage::payment_attempt::PaymentAttemptExt,
     utils::OptionExt,
 };
 
@@ -545,54 +546,68 @@ pub struct AccessTokenRequestData {
 }
 
 pub trait Capturable {
-    fn get_capture_amount(&self) -> Option<i64> {
-        Some(0)
-    }
-    fn get_surcharge_amount(&self) -> Option<i64> {
-        None
-    }
-    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         None
     }
 }
 
 impl Capturable for PaymentsAuthorizeData {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         let final_amount = self
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount);
         final_amount.or(Some(self.amount))
     }
-    fn get_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount)
-    }
-    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
-    }
 }
 
 impl Capturable for PaymentsCaptureData {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         Some(self.amount_to_capture)
     }
 }
 
 impl Capturable for CompleteAuthorizeData {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         Some(self.amount)
     }
 }
 impl Capturable for SetupMandateRequestData {}
-impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsCancelData {
+    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // return previously captured amount
+        payment_data.payment_intent.amount_captured
+    }
+}
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsSyncData {}
+impl Capturable for PaymentsSyncData {
+    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        payment_data
+            .payment_attempt
+            .amount_to_capture
+            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+    }
+}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -898,7 +913,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
@@ -946,6 +961,7 @@ pub struct ErrorResponse {
     pub reason: Option<String>,
     pub status_code: u16,
     pub attempt_status: Option<storage_enums::AttemptStatus>,
+    pub connector_transaction_id: Option<String>,
 }
 
 impl ErrorResponse {
@@ -962,6 +978,7 @@ impl ErrorResponse {
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -1005,6 +1022,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 _ => 500,
             },
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }

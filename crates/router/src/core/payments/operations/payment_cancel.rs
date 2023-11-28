@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(ops = "all", flow = "cancel")]
+#[operation(operations = "all", flow = "cancel")]
 pub struct PaymentCancel;
 
 #[async_trait]

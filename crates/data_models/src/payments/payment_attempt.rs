@@ -264,6 +264,8 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
     },
     RejectUpdate {
@@ -291,8 +293,6 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
@@ -324,9 +324,11 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
     },
-    MultipleCaptureCountUpdate {
-        multiple_capture_count: i16,
+    CaptureUpdate {
+        amount_to_capture: Option<i64>,
+        multiple_capture_count: Option<i16>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
