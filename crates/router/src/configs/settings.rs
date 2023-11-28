@@ -528,23 +528,6 @@ pub struct Database {
     pub max_lifetime: Option<u64>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum QueueStrategy {
-    #[default]
-    Fifo,
-    Lifo,
-}
-
-impl From<QueueStrategy> for bb8::QueueStrategy {
-    fn from(value: QueueStrategy) -> Self {
-        match value {
-            QueueStrategy::Fifo => Self::Fifo,
-            QueueStrategy::Lifo => Self::Lifo,
-        }
-    }
-}
-
 #[cfg(not(feature = "kms"))]
 impl From<Database> for storage_impl::config::Database {
     fn from(val: Database) -> Self {
