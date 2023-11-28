@@ -28,6 +28,15 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 
+[forex_api]
+call_delay = 21600
+local_fetch_retry_count = 5
+local_fetch_retry_delay = 1000
+api_timeout = 20000
+api_key = "YOUR API KEY HERE"
+fallback_api_key = "YOUR API KEY HERE"
+redis_lock_timeout = 26000
+
 [replica_database]
 username = "db_user"
 password = "db_pass"
