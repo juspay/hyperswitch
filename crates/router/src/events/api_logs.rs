@@ -31,11 +31,11 @@ pub struct ApiEvent {
     status_code: i64,
     #[serde(flatten)]
     auth_type: AuthenticationType,
-    request: serde_json::Value,
+    request: String,
     user_agent: Option<String>,
     ip_addr: Option<String>,
     url_path: String,
-    response: Option<serde_json::Value>,
+    response: Option<String>,
     error: Option<serde_json::Value>,
     #[serde(flatten)]
     event_type: ApiEventsType,
@@ -56,15 +56,16 @@ impl ApiEvent {
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
-    ) -> Self {
+    ) -> Self {     
         Self {
             api_flow: api_flow.to_string(),
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
+            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos()/1000_000,
             request_id: request_id.as_hyphenated().to_string(),
             latency,
             status_code,
-            request,
-            response,
+            request: serde_json::to_string(&request).unwrap_or("Error in searialising Request JSON value".to_string()),
+            response: response
+                    .map(|resp| serde_json::to_string(&resp).unwrap_or("Error in searialising Response JSON value".to_string())),
             auth_type,
             error,
             ip_addr: http_req
@@ -84,7 +85,7 @@ impl ApiEvent {
 
 impl TryFrom<ApiEvent> for RawEvent {
     type Error = serde_json::Error;
-
+    
     fn try_from(value: ApiEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             event_type: EventType::ApiLogs,
