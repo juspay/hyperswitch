@@ -410,6 +410,9 @@ async fn populate_surcharge_details<F>(
 where
     F: Send + Clone,
 {
+    logger::debug!(payment_intent_surcharge_validation=?payment_data.payment_intent);
+    logger::debug!(payment_attempt_surcharge_validation=?payment_data.payment_intent);
+    logger::debug!(surcharge_payment_confirm_request =? request);
     if payment_data
         .payment_intent
         .surcharge_applicable
@@ -432,8 +435,14 @@ where
         .await
         {
             Ok(surcharge_details) => Some(surcharge_details),
-            Err(err) if err.current_context() == &RedisError::NotFound => None,
-            Err(err) => Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?,
+            Err(err) if err.current_context() == &RedisError::NotFound => {
+                logger::debug!(surcharge_details_not_found_in_redis =? err);
+                None
+            },
+            Err(err) => {
+                logger::debug!(failed_to_fetch_surcharge_details  =? err);
+                Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?
+            },
         };
 
         let request_surcharge_details = request.surcharge_details;

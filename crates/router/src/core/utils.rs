@@ -13,7 +13,7 @@ use common_utils::{
 use error_stack::{report, IntoReport, ResultExt};
 use euclid::enums as euclid_enums;
 use redis_interface::errors::RedisError;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, logger};
 use uuid::Uuid;
 
 use super::payments::{helpers, PaymentAddress};
@@ -1101,6 +1101,8 @@ pub async fn persist_individual_surcharge_details_in_redis(
         let intent_fulfillment_time = merchant_account
             .intent_fulfillment_time
             .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+        logger::debug!(hset_key_surcharge =? redis_key);
+        logger::debug!(hset_values_surcharge =? value_list);
         redis_conn
             .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
             .await
@@ -1128,7 +1130,8 @@ pub async fn get_individual_surcharge_detail_from_redis(
         payment_method_type,
         card_network.as_ref(),
     );
-
+    logger::debug!(hset_key_surcharge =? redis_key);
+    logger::debug!(hset_value_key_surcharge =? value_key);
     redis_conn
         .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetailsResponse")
         .await
