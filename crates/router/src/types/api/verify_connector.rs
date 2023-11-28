@@ -65,7 +65,7 @@ impl VerifyConnectorData {
             response: Err(errors::ApiErrorResponse::InternalServerError.into()),
             connector: self.connector.id().to_string(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
-            test_mode: Some(!matches!(env::which(), env::Env::Production)),
+            test_mode: None,
             return_url: None,
             attempt_id: attempt_id.clone(),
             description: None,
