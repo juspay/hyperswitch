@@ -4,7 +4,6 @@ use common_utils::errors::ParsingError;
 use error_stack::IntoReport;
 use euclid::{
     dssa::types::EuclidAnalysable,
-    enums as euclid_enums,
     frontend::{
         ast,
         dir::{DirKeyKind, EuclidDirFilter},
@@ -287,71 +286,7 @@ impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
 impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     fn from(value: RoutableConnectorChoice) -> Self {
         Self {
-            connector: match value.connector {
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector1 => euclid_enums::Connector::DummyConnector1,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector2 => euclid_enums::Connector::DummyConnector2,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector3 => euclid_enums::Connector::DummyConnector3,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector4 => euclid_enums::Connector::DummyConnector4,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector5 => euclid_enums::Connector::DummyConnector5,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector6 => euclid_enums::Connector::DummyConnector6,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector7 => euclid_enums::Connector::DummyConnector7,
-                RoutableConnectors::Aci => euclid_enums::Connector::Aci,
-                RoutableConnectors::Adyen => euclid_enums::Connector::Adyen,
-                RoutableConnectors::Airwallex => euclid_enums::Connector::Airwallex,
-                RoutableConnectors::Authorizedotnet => euclid_enums::Connector::Authorizedotnet,
-                RoutableConnectors::Bambora => euclid_enums::Connector::Bambora,
-                RoutableConnectors::Bankofamerica => euclid_enums::Connector::Bankofamerica,
-                RoutableConnectors::Bitpay => euclid_enums::Connector::Bitpay,
-                RoutableConnectors::Bluesnap => euclid_enums::Connector::Bluesnap,
-                RoutableConnectors::Boku => euclid_enums::Connector::Boku,
-                RoutableConnectors::Braintree => euclid_enums::Connector::Braintree,
-                RoutableConnectors::Cashtocode => euclid_enums::Connector::Cashtocode,
-                RoutableConnectors::Checkout => euclid_enums::Connector::Checkout,
-                RoutableConnectors::Coinbase => euclid_enums::Connector::Coinbase,
-                RoutableConnectors::Cryptopay => euclid_enums::Connector::Cryptopay,
-                RoutableConnectors::Cybersource => euclid_enums::Connector::Cybersource,
-                RoutableConnectors::Dlocal => euclid_enums::Connector::Dlocal,
-                RoutableConnectors::Fiserv => euclid_enums::Connector::Fiserv,
-                RoutableConnectors::Forte => euclid_enums::Connector::Forte,
-                RoutableConnectors::Globalpay => euclid_enums::Connector::Globalpay,
-                RoutableConnectors::Globepay => euclid_enums::Connector::Globepay,
-                RoutableConnectors::Gocardless => euclid_enums::Connector::Gocardless,
-                RoutableConnectors::Helcim => euclid_enums::Connector::Helcim,
-                RoutableConnectors::Iatapay => euclid_enums::Connector::Iatapay,
-                RoutableConnectors::Klarna => euclid_enums::Connector::Klarna,
-                RoutableConnectors::Mollie => euclid_enums::Connector::Mollie,
-                RoutableConnectors::Multisafepay => euclid_enums::Connector::Multisafepay,
-                RoutableConnectors::Nexinets => euclid_enums::Connector::Nexinets,
-                RoutableConnectors::Nmi => euclid_enums::Connector::Nmi,
-                RoutableConnectors::Noon => euclid_enums::Connector::Noon,
-                RoutableConnectors::Nuvei => euclid_enums::Connector::Nuvei,
-                RoutableConnectors::Opennode => euclid_enums::Connector::Opennode,
-                RoutableConnectors::Payme => euclid_enums::Connector::Payme,
-                RoutableConnectors::Paypal => euclid_enums::Connector::Paypal,
-                RoutableConnectors::Payu => euclid_enums::Connector::Payu,
-                RoutableConnectors::Powertranz => euclid_enums::Connector::Powertranz,
-                RoutableConnectors::Prophetpay => euclid_enums::Connector::Prophetpay,
-                RoutableConnectors::Rapyd => euclid_enums::Connector::Rapyd,
-                RoutableConnectors::Shift4 => euclid_enums::Connector::Shift4,
-                RoutableConnectors::Square => euclid_enums::Connector::Square,
-                RoutableConnectors::Stax => euclid_enums::Connector::Stax,
-                RoutableConnectors::Stripe => euclid_enums::Connector::Stripe,
-                RoutableConnectors::Trustpay => euclid_enums::Connector::Trustpay,
-                RoutableConnectors::Tsys => euclid_enums::Connector::Tsys,
-                RoutableConnectors::Volt => euclid_enums::Connector::Volt,
-                RoutableConnectors::Wise => euclid_enums::Connector::Wise,
-                RoutableConnectors::Worldline => euclid_enums::Connector::Worldline,
-                RoutableConnectors::Worldpay => euclid_enums::Connector::Worldpay,
-                RoutableConnectors::Zen => euclid_enums::Connector::Zen,
-            },
-
+            connector: value.connector,
             #[cfg(not(feature = "connector_choice_mca_id"))]
             sub_label: value.sub_label,
         }
