@@ -56,4 +56,3 @@ pub async fn convert_forex(
     ))
     .await
 }
-
