@@ -166,11 +166,14 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "Shift4",
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Shift4",
+                }
+                .into())
             }
-            .into()),
         }
     }
 }
@@ -397,6 +400,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
             | Some(payments::PaymentMethodData::Voucher(_))
             | Some(payments::PaymentMethodData::Reward)
             | Some(payments::PaymentMethodData::Upi(_))
+            | Some(api::PaymentMethodData::CardToken(_))
             | None => Err(errors::ConnectorError::NotSupported {
                 message: "Flow".to_string(),
                 connector: "Shift4",
