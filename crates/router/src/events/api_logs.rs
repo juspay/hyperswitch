@@ -59,7 +59,7 @@ impl ApiEvent {
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1000_000,
+            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: request_id.as_hyphenated().to_string(),
             latency,
             status_code,
