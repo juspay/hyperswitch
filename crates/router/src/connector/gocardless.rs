@@ -123,6 +123,7 @@ impl ConnectorCommon for Gocardless {
             message: response.error.error_type,
             reason: Some(error_reason.join("; ")),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
