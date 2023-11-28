@@ -14,6 +14,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_link,
         payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
@@ -149,19 +150,44 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let payment_link_data = if let Some(payment_link_config) = &request.payment_link_config {
-            create_payment_link(
-                request,
-                payment_link_config.clone(),
-                merchant_id.clone(),
-                payment_id.clone(),
-                db,
-                state,
-                amount,
-                request.description.clone(),
-                profile_id.clone(),
-            )
-            .await?
+        let business_profile = db
+            .find_business_profile_by_profile_id(&profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })?;
+
+        let payment_link_data = if let Some(payment_link_create) = request.payment_link {
+            if payment_link_create {
+                let config = match request.payment_link_config.clone() {
+                    Some(config) => config,
+                    None => {
+                        let business_account_config = payment_link::extract_payment_link_config(
+                            business_profile.payment_link_config.clone(),
+                        )?;
+                        business_account_config.unwrap_or(api_models::admin::PaymentLinkConfig {
+                            expiry: None,
+                            theme: None,
+                            logo: None,
+                            seller_name: None,
+                        })
+                    }
+                };
+                create_payment_link(
+                    request,
+                    config,
+                    merchant_id.clone(),
+                    payment_id.clone(),
+                    db,
+                    state,
+                    amount,
+                    request.description.clone(),
+                    profile_id.clone(),
+                )
+                .await?
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -203,20 +229,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
-            })?;
-
-        let profile_id = payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
-
-        let business_profile = db
-            .find_business_profile_by_profile_id(profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
             })?;
 
         let mandate_id = request

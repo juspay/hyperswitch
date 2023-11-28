@@ -261,7 +261,7 @@ fn validate_order_details(
     Ok(updated_order_details)
 }
 
-fn extract_payment_link_config(
+pub fn extract_payment_link_config(
     pl_config: Option<serde_json::Value>,
 ) -> Result<Option<admin_types::PaymentLinkConfig>, error_stack::Report<errors::ApiErrorResponse>> {
     pl_config
