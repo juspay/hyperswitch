@@ -96,7 +96,7 @@ impl AwsSes {
             .as_ref()
             .get_required_value("aws ses configuration")
             .attach_printable("The selected email client is aws ses, but configuration is missing")
-            .change_context(AwsSesError::MissingConfigurationVariable("aws_ses_config"))?;
+            .change_context(AwsSesError::MissingConfigurationVariable("aws_ses"))?;
 
         let role = aws_sdk_sts::Client::new(&sts_config)
             .assume_role()
