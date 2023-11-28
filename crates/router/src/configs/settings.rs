@@ -13,6 +13,7 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
@@ -70,6 +71,7 @@ pub struct Settings {
     pub secrets: Secrets,
     pub locker: Locker,
     pub connectors: Connectors,
+    pub forex_api: ForexApi,
     pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
@@ -117,6 +119,37 @@ pub struct KvConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentLink {
     pub sdk_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ForexApi {
+    pub local_fetch_retry_count: u64,
+    pub api_key: masking::Secret<String>,
+    pub fallback_api_key: masking::Secret<String>,
+    /// in ms
+    pub call_delay: i64,
+    /// in ms
+    pub local_fetch_retry_delay: u64,
+    /// in ms
+    pub api_timeout: u64,
+    /// in ms
+    pub redis_lock_timeout: u64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DefaultExchangeRates {
+    pub base_currency: String,
+    pub conversion: HashMap<String, Conversion>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Conversion {
+    #[serde(with = "rust_decimal::serde::str")]
+    pub to_factor: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub from_factor: Decimal,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

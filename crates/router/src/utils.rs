@@ -1,11 +1,11 @@
+pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
-#[cfg(feature = "olap")]
-pub mod user;
-
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
+#[cfg(feature = "olap")]
+pub mod user;
 
 use std::fmt::Debug;
 

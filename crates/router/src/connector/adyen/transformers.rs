@@ -1380,7 +1380,8 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 payments::PaymentMethodData::Crypto(_)
                 | payments::PaymentMethodData::MandatePayment
                 | payments::PaymentMethodData::Reward
-                | payments::PaymentMethodData::Upi(_) => {
+                | payments::PaymentMethodData::Upi(_)
+                | payments::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "Adyen",
@@ -2276,7 +2277,8 @@ impl<'a>
                     | payments::PaymentMethodData::Reward
                     | payments::PaymentMethodData::Upi(_)
                     | payments::PaymentMethodData::Voucher(_)
-                    | payments::PaymentMethodData::GiftCard(_) => {
+                    | payments::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
