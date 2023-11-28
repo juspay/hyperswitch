@@ -512,6 +512,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
             true,
             "Transaction for the same session is currently being processed, please try again later",
         ),
+        "900.100.100" => (
+            true,
+            "Unexpected communication error with connector/acquirer",
+        ),
         "900.100.300" => (true, "Timeout, uncertain result"),
         _ => (false, ""),
     }
