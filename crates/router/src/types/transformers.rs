@@ -522,7 +522,8 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
         payment_method_data: api_models::payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
-            api_models::payments::PaymentMethodData::Card(..) => Ok(Self::Card),
+            api_models::payments::PaymentMethodData::Card(..)
+            | api_models::payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
             api_models::payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             api_models::payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             api_models::payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),

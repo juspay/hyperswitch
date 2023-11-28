@@ -120,7 +120,8 @@ fn fetch_payment_instrument(
         | api_models::payments::PaymentMethodData::Upi(_)
         | api_models::payments::PaymentMethodData::Voucher(_)
         | api_models::payments::PaymentMethodData::CardRedirect(_)
-        | api_models::payments::PaymentMethodData::GiftCard(_) => {
+        | api_models::payments::PaymentMethodData::GiftCard(_)
+        | api_models::payments::PaymentMethodData::CardToken(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
