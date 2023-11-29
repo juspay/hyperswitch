@@ -380,7 +380,7 @@ pub async fn get_card_from_locker(
                 1,
                 &[
                     router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                    router_env::opentelemetry::KeyValue::new("operation", "add"),
+                    router_env::opentelemetry::KeyValue::new("operation", "get"),
                 ],
             );
             get_card_from_rs_locker_resp
