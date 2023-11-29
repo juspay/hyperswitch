@@ -1,14 +1,17 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::user::{self as user_api, sample_data::SampleDataRequest};
+#[cfg(feature = "dummy_connector")]
+use api_models::user::sample_data::SampleDataRequest;
+use api_models::user::{self as user_api};
 use router_env::Flow;
 
 use super::AppState;
+#[cfg(feature = "dummy_connector")]
+use crate::services::authorization::permissions::Permission;
 use crate::{
     core::{api_locking, user},
     services::{
         api,
         authentication::{self as auth},
-        authorization::permissions::Permission,
     },
 };
 
@@ -49,6 +52,7 @@ pub async fn change_password(
     .await
 }
 
+#[cfg(feature = "dummy_connector")]
 pub async fn generate_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -66,6 +70,7 @@ pub async fn generate_sample_data(
     ))
     .await
 }
+#[cfg(feature = "dummy_connector")]
 pub async fn delete_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,

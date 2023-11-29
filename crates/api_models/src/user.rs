@@ -1,5 +1,6 @@
 use common_utils::pii;
 use masking::Secret;
+#[cfg(feature = "dummy_connector")]
 pub mod sample_data;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]

@@ -1,6 +1,7 @@
-#[cfg(feature = "dummy_connector")]
-use api_models::enums::Connector::{DummyConnector4, DummyConnector7};
-use api_models::user::sample_data::SampleDataRequest;
+use api_models::{
+    enums::Connector::{DummyConnector4, DummyConnector7},
+    user::sample_data::SampleDataRequest,
+};
 use data_models::payments::payment_intent::PaymentIntentNew;
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::{IntoReport, ResultExt};

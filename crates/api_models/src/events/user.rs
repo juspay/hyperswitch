@@ -1,9 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-use crate::user::{
-    sample_data::SampleDataRequest, ChangePasswordRequest, ConnectAccountRequest,
-    ConnectAccountResponse,
-};
+#[cfg(feature = "dummy_connector")]
+use crate::user::sample_data::SampleDataRequest;
+use crate::user::{ChangePasswordRequest, ConnectAccountRequest, ConnectAccountResponse};
 
 impl ApiEventMetric for ConnectAccountResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -16,4 +15,7 @@ impl ApiEventMetric for ConnectAccountResponse {
 
 impl ApiEventMetric for ConnectAccountRequest {}
 
-common_utils::impl_misc_api_event_type!(ChangePasswordRequest, SampleDataRequest);
+common_utils::impl_misc_api_event_type!(ChangePasswordRequest);
+
+#[cfg(feature = "dummy_connector")]
+common_utils::impl_misc_api_event_type!(SampleDataRequest);
