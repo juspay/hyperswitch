@@ -4,6 +4,9 @@ use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
+
+use data_models::payments::payment_attempt::PaymentAttempt;
+
 use base64::Engine;
 use common_utils::{
     date_time,
@@ -20,13 +23,13 @@ use serde::Serializer;
 use crate::{
     consts,
     core::{
-        errors::{self, CustomResult},
+        errors::{self, CustomResult, ApiErrorResponse},
         payments::PaymentData,
     },
     pii::PeekInterface,
     types::{
         self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
-        PaymentsCancelData, ResponseId,
+        PaymentsCancelData, ResponseId, BrowserInformation,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -65,9 +68,12 @@ pub trait RouterData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
+    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error>;
+    fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
+    
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
@@ -174,6 +180,13 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
+
+    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .ok_or_else(missing_field_err("billing"))
+    } 
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
@@ -209,6 +222,14 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
+
+    fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error> {
+        self.address
+            .shipping
+            .as_ref()
+            .ok_or_else(missing_field_err("shipping"))
+    }
+
     fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error> {
         self.payment_method_token
             .clone()
@@ -1574,4 +1595,37 @@ pub fn validate_currency(
         })?
     }
     Ok(())
+}
+
+pub trait AccessPaymentAttemptInfo {
+    fn get_browser_info(&self) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>>;
+    
+}
+
+impl AccessPaymentAttemptInfo for PaymentAttempt {
+    fn get_browser_info(&self) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>> {
+        self
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })
+    }
+}
+
+
+pub trait PaymentsAttemptData {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentsAttemptData for PaymentAttempt {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+
+
 }
