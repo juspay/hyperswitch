@@ -228,18 +228,18 @@ pub async fn add_card_to_locker(
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
-                    &[router_env::opentelemetry::KeyValue::new(
-                        "locker", "basilisk",
-                    )],
+                    &[
+                        router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+                        router_env::opentelemetry::KeyValue::new("operation", "add"),
+                    ],
                 );
                 error
             })
         },
         &metrics::CARD_ADD_TIME,
-        &[
-            router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
-            router_env::opentelemetry::KeyValue::new("operation", "add"),
-        ],
+        &[router_env::opentelemetry::KeyValue::new(
+            "locker", "basilisk",
+        )],
     )
     .await?;
     logger::debug!("card added to basilisk locker");
