@@ -1152,3 +1152,14 @@ pub fn get_request_incremental_authorization_value(
         })
         .unwrap_or(Ok(RequestIncrementalAuthorization::default()))
 }
+
+pub fn get_incremental_authorization_allowed_value(
+    incremental_authorization_allowed: Option<bool>,
+    request_incremental_authorization: RequestIncrementalAuthorization,
+) -> Option<bool> {
+    if request_incremental_authorization == common_enums::RequestIncrementalAuthorization::False {
+        Some(false)
+    } else {
+        incremental_authorization_allowed
+    }
+}

@@ -269,6 +269,7 @@ impl PaymentIntentUpdate {
                 .payment_confirm_source
                 .or(source.payment_confirm_source),
             updated_by: internal_update.updated_by,
+            incremental_authorization_allowed: internal_update.incremental_authorization_allowed,
             ..source
         }
     }

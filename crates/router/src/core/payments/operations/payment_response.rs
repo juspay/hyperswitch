@@ -423,7 +423,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             } => {
                 payment_data
                     .payment_intent
-                    .incremental_authorization_allowed = incremental_authorization_allowed;
+                    .incremental_authorization_allowed =
+                    core_utils::get_incremental_authorization_allowed_value(
+                        incremental_authorization_allowed,
+                        payment_data
+                            .payment_intent
+                            .request_incremental_authorization,
+                    );
                 let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,
                     types::ResponseId::ConnectorTransactionId(id)
