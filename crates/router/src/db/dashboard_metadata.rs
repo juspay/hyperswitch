@@ -185,7 +185,7 @@ impl DashboardMetadataInterface for MockDb {
 
 #[cfg(feature = "kafka_events")]
 #[async_trait::async_trait]
-impl DashboardMetadataInterface for super::KafkaStore {
+impl DashboardMetadataInterface for KafkaStore {
     async fn insert_metadata(
         &self,
         metadata: storage::DashboardMetadataNew,
