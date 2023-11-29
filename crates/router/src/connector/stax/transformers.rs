@@ -64,8 +64,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency != enums::Currency::USD {
             Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Stax"),
-                ))?
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?
         }
         let total = item.amount;
 
@@ -119,8 +119,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Stax"),
-                ))?,
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -269,8 +269,8 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Stax"),
-                ))?,
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
