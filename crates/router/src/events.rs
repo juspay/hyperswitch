@@ -66,7 +66,7 @@ impl EventsConfig {
         })
     }
 
-    pub(crate) fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         match self {
             Self::Kafka { kafka } => kafka.validate(),
             Self::Logs => Ok(()),

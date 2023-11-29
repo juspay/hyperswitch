@@ -86,7 +86,7 @@ pub struct KafkaSettings {
 }
 
 impl KafkaSettings {
-    pub(crate) fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
+    pub fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
         use crate::core::errors::ApplicationError;
