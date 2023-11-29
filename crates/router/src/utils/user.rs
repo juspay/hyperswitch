@@ -1,8 +1,11 @@
-use crate::core::errors::UserErrors;
-use crate::services::authentication::UserFromToken;
-use crate::types::domain::MerchantAccount;
-use crate::{core::errors::UserResult, routes::AppState};
 use error_stack::ResultExt;
+
+use crate::{
+    core::errors::{UserErrors, UserResult},
+    routes::AppState,
+    services::authentication::UserFromToken,
+    types::domain::MerchantAccount,
+};
 
 pub mod password;
 

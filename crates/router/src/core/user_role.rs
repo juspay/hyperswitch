@@ -1,19 +1,18 @@
-use crate::services::ApplicationResponse;
-use crate::utils;
-use crate::{routes::AppState, types::domain};
 use api_models::{user as user_api, user_role as user_role_api};
-use diesel_models::enums::UserStatus;
-use diesel_models::user as storage;
-use diesel_models::user_role::UserRoleUpdate;
+use diesel_models::{enums::UserStatus, user as storage, user_role::UserRoleUpdate};
 use error_stack::ResultExt;
 
 use crate::{
     consts,
     core::errors::{UserErrors, UserResponse},
+    routes::AppState,
     services::{
         authentication::{self as auth},
         authorization::{info, predefined_permissions},
+        ApplicationResponse,
     },
+    types::domain,
+    utils,
 };
 
 pub async fn create_internal_user(
