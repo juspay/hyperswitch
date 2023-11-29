@@ -275,7 +275,7 @@ mod storage {
     use super::RefundInterface;
     use crate::{
         connection,
-        core::errors::{self, CustomResult},
+        core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         logger,
         services::Store,
@@ -392,7 +392,7 @@ mod storage {
                         &key,
                     )
                     .await
-                    .change_context(errors::StorageError::KVError)?
+                    .map_err(|err| err.to_redis_failed_response(&key))?
                     .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
@@ -550,7 +550,7 @@ mod storage {
                         &key,
                     )
                     .await
-                    .change_context(errors::StorageError::KVError)?
+                    .map_err(|err| err.to_redis_failed_response(&key))?
                     .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
 
