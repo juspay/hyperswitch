@@ -323,7 +323,7 @@ pub struct ApplePayCryptogramData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodBalance {
     pub amount: i64,
-    pub currency: String,
+    pub currency: storage_enums::Currency,
 }
 
 #[cfg(feature = "payouts")]
