@@ -4,15 +4,13 @@ use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
-
-use data_models::payments::payment_attempt::PaymentAttempt;
-
 use base64::Engine;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
+use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -1617,13 +1615,16 @@ impl AccessPaymentAttemptInfo for PaymentAttempt {
 }
 
 pub trait PaymentsAttemptData {
-    fn get_browser_info(&self) -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
+    fn get_browser_info(&self)
+        -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
 }
 
 impl PaymentsAttemptData for PaymentAttempt {
-    fn get_browser_info(&self) -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>> {
+    fn get_browser_info(
+        &self,
+    ) -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>> {
         self.browser_info
-        .clone()
+            .clone()
             .ok_or(ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?
