@@ -47,11 +47,11 @@ pub enum AuthenticationType {
         key_id: String,
     },
     AdminApiKey,
-    MerchantJWT {
+    MerchantJwt {
         merchant_id: String,
         user_id: Option<String>,
     },
-    MerchantID {
+    MerchantId {
         merchant_id: String,
     },
     PublishableKey {
@@ -70,9 +70,9 @@ impl AuthenticationType {
                 merchant_id,
                 key_id: _,
             }
-            | Self::MerchantID { merchant_id }
+            | Self::MerchantId { merchant_id }
             | Self::PublishableKey { merchant_id }
-            | Self::MerchantJWT {
+            | Self::MerchantJwt {
                 merchant_id,
                 user_id: _,
             }
@@ -352,7 +352,7 @@ where
         };
         Ok((
             auth.clone(),
-            AuthenticationType::MerchantID {
+            AuthenticationType::MerchantId {
                 merchant_id: auth.merchant_account.merchant_id.clone(),
             },
         ))
@@ -423,7 +423,7 @@ where
 
         Ok((
             (),
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
             },
@@ -451,7 +451,7 @@ where
                 org_id: payload.org_id,
                 role_id: payload.role_id,
             },
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
             },
@@ -479,13 +479,13 @@ where
         let permissions = authorization::get_permissions(&payload.role_id)?;
         authorization::check_authorization(&self.required_permission, permissions)?;
 
-        // Check if token has access to merchantID that has been requested through query param
+        // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
         Ok((
             (),
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
             },
@@ -549,7 +549,7 @@ where
         };
         Ok((
             auth.clone(),
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: auth.merchant_account.merchant_id.clone(),
                 user_id: None,
             },
@@ -579,7 +579,7 @@ where
                 org_id: payload.org_id,
                 role_id: payload.role_id,
             },
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
             },

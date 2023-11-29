@@ -190,7 +190,7 @@ pub async fn delete_merchant_account(
     )
     .await
 }
-/// PaymentsConnectors - Create
+/// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[utoipa::path(

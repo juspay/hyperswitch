@@ -30,6 +30,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
+        storage::enums as storage_enums,
         transformers::ForeignFrom,
         ConnectorAuthType, ErrorResponse, Response,
     },
@@ -503,6 +504,161 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.get_order_error_response(res)
+    }
+}
+
+impl api::PaymentsPreProcessing for Paypal {}
+
+impl
+    ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for Paypal
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let order_id = req
+            .request
+            .connector_transaction_id
+            .to_owned()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}v2/checkout/orders/{}?fields=payment_source",
+            self.base_url(connectors),
+            order_id,
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPreProcessingRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalPreProcessingResponse = res
+            .response
+            .parse_struct("paypal PaypalPreProcessingResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // permutation for status to continue payment
+        match (
+            response
+                .payment_source
+                .card
+                .authentication_result
+                .three_d_secure
+                .enrollment_status
+                .as_ref(),
+            response
+                .payment_source
+                .card
+                .authentication_result
+                .three_d_secure
+                .authentication_status
+                .as_ref(),
+            response
+                .payment_source
+                .card
+                .authentication_result
+                .liability_shift
+                .clone(),
+        ) {
+            (
+                Some(paypal::EnrollementStatus::Ready),
+                Some(paypal::AuthenticationStatus::Success),
+                paypal::LiabilityShift::Possible,
+            )
+            | (
+                Some(paypal::EnrollementStatus::Ready),
+                Some(paypal::AuthenticationStatus::Attempted),
+                paypal::LiabilityShift::Possible,
+            )
+            | (Some(paypal::EnrollementStatus::NotReady), None, paypal::LiabilityShift::No)
+            | (Some(paypal::EnrollementStatus::Unavailable), None, paypal::LiabilityShift::No)
+            | (Some(paypal::EnrollementStatus::Bypassed), None, paypal::LiabilityShift::No) => {
+                Ok(types::PaymentsPreProcessingRouterData {
+                    status: storage_enums::AttemptStatus::AuthenticationSuccessful,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::NoResponseId,
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                    ..data.clone()
+                })
+            }
+            _ => Ok(types::PaymentsPreProcessingRouterData {
+                response: Err(ErrorResponse {
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    connector_transaction_id: None,
+                    reason: Some(format!("{} Connector Responsded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+                    consts::CANNOT_CONTINUE_AUTH,
+                    response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .liability_shift,
+                    response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .enrollment_status
+                        .unwrap_or(paypal::EnrollementStatus::Null),
+                    response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .authentication_status
+                        .unwrap_or(paypal::AuthenticationStatus::Null),
+                    )),
+                    status_code: res.status_code,
+                }),
+                ..data.clone()
+            }),
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
