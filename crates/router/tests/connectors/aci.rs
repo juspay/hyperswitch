@@ -9,7 +9,6 @@ use router::{
     routes, services,
     types::{self, storage::enums, PaymentAddress},
 };
-use services::kafka::KafkaProducer;
 use tokio::sync::oneshot;
 
 use crate::{connector_auth::ConnectorAuthentication, utils};

@@ -2,7 +2,6 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use common_utils::pii::Email;
-use db::Kafka::KafkaProducer;
 use error_stack::Report;
 use masking::Secret;
 #[cfg(feature = "payouts")]
@@ -157,7 +156,6 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
-            kafka_producer,
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
