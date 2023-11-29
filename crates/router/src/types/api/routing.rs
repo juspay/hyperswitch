@@ -1,5 +1,3 @@
-#[cfg(feature = "backwards_compatibility")]
-pub use api_models::routing::RoutableChoiceKind;
 pub use api_models::{
     enums as api_enums,
     routing::{

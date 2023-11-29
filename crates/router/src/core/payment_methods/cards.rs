@@ -1119,8 +1119,6 @@ pub async fn list_payment_methods(
 
         for (pm_type, choice) in result {
             let routable_choice = routing_types::RoutableConnectorChoice {
-                #[cfg(feature = "backwards_compatibility")]
-                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
                 connector: choice
                     .connector
                     .connector_name

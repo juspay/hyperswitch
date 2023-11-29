@@ -146,34 +146,9 @@ pub struct ConnectorVolumeSplit {
     pub split: u8,
 }
 
-#[cfg(feature = "connector_choice_bcompat")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub enum RoutableChoiceKind {
-    OnlyConnector,
-    FullStruct,
-}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 
-#[cfg(feature = "connector_choice_bcompat")]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-#[serde(untagged)]
-pub enum RoutableChoiceSerde {
-    OnlyConnector(Box<RoutableConnectors>),
-    FullStruct {
-        connector: RoutableConnectors,
-        merchant_connector_id: Option<String>,
-    },
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(
-    feature = "connector_choice_bcompat",
-    serde(from = "RoutableChoiceSerde"),
-    serde(into = "RoutableChoiceSerde")
-)]
-#[cfg_attr(not(feature = "connector_choice_bcompat"), derive(PartialEq, Eq))]
 pub struct RoutableConnectorChoice {
-    #[cfg(feature = "connector_choice_bcompat")]
-    pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
     pub merchant_connector_id: Option<String>,
 }
@@ -181,55 +156,6 @@ pub struct RoutableConnectorChoice {
 impl ToString for RoutableConnectorChoice {
     fn to_string(&self) -> String {
         self.connector.to_string()
-    }
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl PartialEq for RoutableConnectorChoice {
-    fn eq(&self, other: &Self) -> bool {
-        self.connector.eq(&other.connector)
-            && self.merchant_connector_id.eq(&other.merchant_connector_id)
-    }
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl Eq for RoutableConnectorChoice {}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl From<RoutableChoiceSerde> for RoutableConnectorChoice {
-    fn from(value: RoutableChoiceSerde) -> Self {
-        match value {
-            RoutableChoiceSerde::OnlyConnector(connector) => Self {
-                choice_kind: RoutableChoiceKind::OnlyConnector,
-                connector: *connector,
-
-                merchant_connector_id: None,
-            },
-
-            RoutableChoiceSerde::FullStruct {
-                connector,
-
-                merchant_connector_id,
-            } => Self {
-                choice_kind: RoutableChoiceKind::FullStruct,
-                connector,
-
-                merchant_connector_id,
-            },
-        }
-    }
-}
-
-#[cfg(feature = "connector_choice_bcompat")]
-impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
-    fn from(value: RoutableConnectorChoice) -> Self {
-        match value.choice_kind {
-            RoutableChoiceKind::OnlyConnector => Self::OnlyConnector(Box::new(value.connector)),
-            RoutableChoiceKind::FullStruct => Self::FullStruct {
-                connector: value.connector,
-                merchant_connector_id: value.merchant_connector_id,
-            },
-        }
     }
 }
 

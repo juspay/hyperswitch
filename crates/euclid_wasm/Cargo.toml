@@ -10,8 +10,7 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [features]
-default = ["connector_choice_bcompat"]
-connector_choice_bcompat = ["api_models/connector_choice_bcompat"]
+default = []
 
 dummy_connector = ["kgraph_utils/dummy_connector"]
 

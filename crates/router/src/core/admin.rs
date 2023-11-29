@@ -942,8 +942,8 @@ pub async fn create_payment_connector(
 
     if let Some(routable_connector_val) = routable_connector {
         let choice = routing_types::RoutableConnectorChoice {
-            #[cfg(feature = "backwards_compatibility")]
-            choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+
+           
             connector: routable_connector_val,
 
             merchant_connector_id: Some(mca.merchant_connector_id.clone()),
