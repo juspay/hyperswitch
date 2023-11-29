@@ -105,7 +105,7 @@ impl BusinessProfileUpdateInternal {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
         let Self {
             profile_name,
-            modified_at,
+            modified_at: _,
             return_url,
             enable_payment_response_hash,
             payment_response_hash_key,
@@ -121,7 +121,7 @@ impl BusinessProfileUpdateInternal {
         } = self;
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
-            modified_at: modified_at.unwrap_or(source.modified_at),
+            modified_at: common_utils::date_time::now(),
             return_url,
             enable_payment_response_hash: enable_payment_response_hash
                 .unwrap_or(source.enable_payment_response_hash),

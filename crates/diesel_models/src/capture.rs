@@ -88,7 +88,7 @@ impl CaptureUpdate {
             error_message,
             error_code,
             error_reason,
-            modified_at,
+            modified_at: _,
             connector_capture_id,
             connector_response_reference_id,
         } = self.into();
@@ -97,7 +97,7 @@ impl CaptureUpdate {
             error_message: error_message.or(source.error_message),
             error_code: error_code.or(source.error_code),
             error_reason: error_reason.or(source.error_reason),
-            modified_at: modified_at.unwrap_or(common_utils::date_time::now()),
+            modified_at: common_utils::date_time::now(),
             connector_capture_id: connector_capture_id.or(source.connector_capture_id),
             connector_response_reference_id: connector_response_reference_id
                 .or(source.connector_response_reference_id),
