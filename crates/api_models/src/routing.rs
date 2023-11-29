@@ -180,9 +180,7 @@ pub struct RoutableConnectorChoice {
 
 impl ToString for RoutableConnectorChoice {
     fn to_string(&self) -> String {
-        let base = self.connector.to_string();
-
-        base
+        self.connector.to_string()
     }
 }
 
