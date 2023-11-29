@@ -161,7 +161,7 @@ pub struct ConnectorVolumeSplit {
 }
 
 #[cfg(feature = "connector_choice_bcompat")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum RoutableChoiceKind {
     OnlyConnector,
     FullStruct,
@@ -323,7 +323,7 @@ impl DetailedConnectorChoice {
     }
 }
 
-#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -340,7 +340,7 @@ pub struct RoutingPayloadWrapper {
     pub profile_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
@@ -530,7 +530,7 @@ pub struct RoutingDictionaryRecord {
     pub modified_at: i64,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
     pub merchant_id: String,
     pub active_id: Option<String>,

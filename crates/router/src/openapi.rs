@@ -380,6 +380,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::LinkedRoutingConfigRetrieveResponse,
         api_models::routing::ProfileDefaultRoutingConfig,
         api_models::routing::MerchantRoutingAlgorithm,
+        api_models::routing::RoutingAlgorithmKind,
+        api_models::routing::RoutingDictionary,
+        api_models::routing::RoutableChoiceKind,
+        api_models::routing::RoutingAlgorithm,
+        common_enums::enums::RoutableConnectors
     )),
     modifiers(&SecurityAddon)
 )]

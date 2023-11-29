@@ -12382,6 +12382,13 @@
           }
         }
       },
+      "RoutableChoiceKind": {
+        "type": "string",
+        "enum": [
+          "OnlyConnector",
+          "FullStruct"
+        ]
+      },
       "RoutableConnectorChoice": {
         "type": "object",
         "required": [
@@ -12401,16 +12408,159 @@
           }
         }
       },
-      "RoutingAlgorithm": {
+      "RoutableConnectors": {
         "type": "string",
-        "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
         "enum": [
-          "round_robin",
-          "max_conversion",
-          "min_cost",
-          "custom"
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
+          "aci",
+          "adyen",
+          "airwallex",
+          "authorizedotnet",
+          "bankofamerica",
+          "bitpay",
+          "bambora",
+          "bluesnap",
+          "boku",
+          "braintree",
+          "cashtocode",
+          "checkout",
+          "coinbase",
+          "cryptopay",
+          "cybersource",
+          "dlocal",
+          "fiserv",
+          "forte",
+          "globalpay",
+          "globepay",
+          "gocardless",
+          "helcim",
+          "iatapay",
+          "klarna",
+          "mollie",
+          "multisafepay",
+          "nexinets",
+          "nmi",
+          "noon",
+          "nuvei",
+          "opennode",
+          "payme",
+          "paypal",
+          "payu",
+          "powertranz",
+          "prophetpay",
+          "rapyd",
+          "shift4",
+          "square",
+          "stax",
+          "stripe",
+          "trustpay",
+          "tsys",
+          "volt",
+          "wise",
+          "worldline",
+          "worldpay",
+          "zen"
+        ]
+      },
+      "RoutingAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "advanced"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/euclid.frontend.ast.Program"
+              }
+            }
+          }
         ],
-        "example": "custom"
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "RoutingAlgorithmKind": {
+        "type": "string",
+        "enum": [
+          "single",
+          "priority",
+          "volume_split",
+          "advanced"
+        ]
       },
       "RoutingConfigRequest": {
         "type": "object",
@@ -12434,6 +12584,28 @@
           "profile_id": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "RoutingDictionary": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "records"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "active_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingDictionaryRecord"
+            }
           }
         }
       },
