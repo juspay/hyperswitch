@@ -211,7 +211,10 @@ pub async fn trigger_refund_to_gateway(
                     errors::ConnectorError::NotImplemented(message) => {
                         Some(storage::RefundUpdate::ErrorUpdate {
                             refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(message.to_string()),
+                            refund_error_message: Some(
+                                errors::ConnectorError::NotImplemented(message.to_owned())
+                                    .to_string(),
+                            ),
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                         })
