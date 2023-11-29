@@ -125,26 +125,16 @@ impl EuclidAnalysable for ConnectorSelection {
             .into_iter()
             .map(|connector_choice| {
                 let connector_name = connector_choice.connector.to_string();
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                let sub_label = connector_choice.sub_label.clone();
-                #[cfg(feature = "connector_choice_mca_id")]
                 let mca_id = connector_choice.merchant_connector_id.clone();
 
                 (
                     euclid::frontend::dir::DirValue::Connector(Box::new(connector_choice.into())),
                     std::collections::HashMap::from_iter([(
                         "CONNECTOR_SELECTION".to_string(),
-                        #[cfg(feature = "connector_choice_mca_id")]
                         serde_json::json!({
                             "rule_name": rule_name,
                             "connector_name": connector_name,
                             "mca_id": mca_id,
-                        }),
-                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                        serde_json ::json!({
-                            "rule_name": rule_name,
-                            "connector_name": connector_name,
-                            "sub_label": sub_label,
                         }),
                     )]),
                 )
@@ -173,10 +163,7 @@ pub enum RoutableChoiceSerde {
     OnlyConnector(Box<RoutableConnectors>),
     FullStruct {
         connector: RoutableConnectors,
-        #[cfg(feature = "connector_choice_mca_id")]
         merchant_connector_id: Option<String>,
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        sub_label: Option<String>,
     },
 }
 
@@ -191,27 +178,12 @@ pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
-    #[cfg(feature = "connector_choice_mca_id")]
     pub merchant_connector_id: Option<String>,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub sub_label: Option<String>,
 }
 
 impl ToString for RoutableConnectorChoice {
     fn to_string(&self) -> String {
-        #[cfg(feature = "connector_choice_mca_id")]
         let base = self.connector.to_string();
-
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        let base = {
-            let mut sub_base = self.connector.to_string();
-            if let Some(ref label) = self.sub_label {
-                sub_base.push('_');
-                sub_base.push_str(label);
-            }
-
-            sub_base
-        };
 
         base
     }
@@ -220,16 +192,8 @@ impl ToString for RoutableConnectorChoice {
 #[cfg(feature = "connector_choice_bcompat")]
 impl PartialEq for RoutableConnectorChoice {
     fn eq(&self, other: &Self) -> bool {
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            self.connector.eq(&other.connector) && self.sub_label.eq(&other.sub_label)
-        }
-
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            self.connector.eq(&other.connector)
-                && self.merchant_connector_id.eq(&other.merchant_connector_id)
-        }
+        self.connector.eq(&other.connector)
+            && self.merchant_connector_id.eq(&other.merchant_connector_id)
     }
 }
 
@@ -243,25 +207,19 @@ impl From<RoutableChoiceSerde> for RoutableConnectorChoice {
             RoutableChoiceSerde::OnlyConnector(connector) => Self {
                 choice_kind: RoutableChoiceKind::OnlyConnector,
                 connector: *connector,
-                #[cfg(feature = "connector_choice_mca_id")]
+
                 merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: None,
             },
 
             RoutableChoiceSerde::FullStruct {
                 connector,
-                #[cfg(feature = "connector_choice_mca_id")]
+
                 merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label,
             } => Self {
                 choice_kind: RoutableChoiceKind::FullStruct,
                 connector,
-                #[cfg(feature = "connector_choice_mca_id")]
+
                 merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label,
             },
         }
     }
@@ -274,10 +232,7 @@ impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
             RoutableChoiceKind::OnlyConnector => Self::OnlyConnector(Box::new(value.connector)),
             RoutableChoiceKind::FullStruct => Self::FullStruct {
                 connector: value.connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: value.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: value.sub_label,
             },
         }
     }
@@ -287,8 +242,6 @@ impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     fn from(value: RoutableConnectorChoice) -> Self {
         Self {
             connector: value.connector,
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            sub_label: value.sub_label,
         }
     }
 }

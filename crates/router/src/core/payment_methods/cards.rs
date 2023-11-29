@@ -1129,10 +1129,7 @@ pub async fn list_payment_methods(
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("")?,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: choice.connector.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: choice.sub_label,
             };
 
             pre_routing_results.insert(pm_type, routable_choice);

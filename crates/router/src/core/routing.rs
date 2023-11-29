@@ -826,25 +826,17 @@ pub async fn update_default_routing_config_for_profile(
         .into_report()
     })?;
 
-    let existing_set = FxHashSet::from_iter(default_config.iter().map(|c| {
-        (
-            c.connector.to_string(),
-            #[cfg(feature = "connector_choice_mca_id")]
-            c.merchant_connector_id.as_ref(),
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            c.sub_label.as_ref(),
-        )
-    }));
+    let existing_set = FxHashSet::from_iter(
+        default_config
+            .iter()
+            .map(|c| (c.connector.to_string(), c.merchant_connector_id.as_ref())),
+    );
 
-    let updated_set = FxHashSet::from_iter(updated_config.iter().map(|c| {
-        (
-            c.connector.to_string(),
-            #[cfg(feature = "connector_choice_mca_id")]
-            c.merchant_connector_id.as_ref(),
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            c.sub_label.as_ref(),
-        )
-    }));
+    let updated_set = FxHashSet::from_iter(
+        updated_config
+            .iter()
+            .map(|c| (c.connector.to_string(), c.merchant_connector_id.as_ref())),
+    );
 
     let symmetric_diff = existing_set
         .symmetric_difference(&updated_set)

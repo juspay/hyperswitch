@@ -845,8 +845,6 @@ pub async fn perform_session_flow_routing(
                 pm_type,
                 routing_types::SessionRoutingChoice {
                     connector: data.0,
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    sub_label: data.1,
                     payment_method_type: pm_type,
                 },
             );
@@ -953,15 +951,9 @@ async fn perform_session_routing_for_pm_type(
                 &session_pm_input.state.clone().conf.connectors,
                 &connector_name,
                 get_token.clone(),
-                #[cfg(feature = "connector_choice_mca_id")]
                 selection.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
             )
             .change_context(errors::RoutingError::InvalidConnectorName(connector_name))?;
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let sub_label = selection.sub_label;
-            #[cfg(feature = "connector_choice_mca_id")]
             let sub_label = None;
 
             final_choice = Some((connector_data, sub_label));

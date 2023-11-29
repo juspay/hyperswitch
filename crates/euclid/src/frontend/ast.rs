@@ -10,8 +10,6 @@ use crate::types::{DataType, Metadata};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
     pub connector: RoutableConnectors,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

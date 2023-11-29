@@ -10,8 +10,6 @@ impl ForeignFrom<routing_types::RoutableConnectorChoice> for dsl_ast::ConnectorC
             // #[cfg(feature = "backwards_compatibility")]
             // choice_kind: from.choice_kind.foreign_into(),
             connector: from.connector,
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            sub_label: from.sub_label,
         }
     }
 }
