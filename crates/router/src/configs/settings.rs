@@ -4,6 +4,8 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(feature = "olap")]
+use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -16,12 +18,14 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
+use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    events::EventsConfig,
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;
@@ -109,6 +113,9 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "olap")]
+    pub report_download_config: ReportConfig,
+    pub events: EventsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -517,23 +524,8 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum QueueStrategy {
-    #[default]
-    Fifo,
-    Lifo,
-}
-
-impl From<QueueStrategy> for bb8::QueueStrategy {
-    fn from(value: QueueStrategy) -> Self {
-        match value {
-            QueueStrategy::Fifo => Self::Fifo,
-            QueueStrategy::Lifo => Self::Lifo,
-        }
-    }
+    pub min_idle: Option<u32>,
+    pub max_lifetime: Option<u64>,
 }
 
 #[cfg(not(feature = "kms"))]
@@ -548,6 +540,8 @@ impl From<Database> for storage_impl::config::Database {
             pool_size: val.pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy.into(),
+            min_idle: val.min_idle,
+            max_lifetime: val.max_lifetime,
         }
     }
 }
@@ -833,6 +827,7 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         self.lock_settings.validate()?;
+        self.events.validate()?;
         Ok(())
     }
 }

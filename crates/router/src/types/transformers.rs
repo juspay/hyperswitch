@@ -9,7 +9,6 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
-use euclid::enums as dsl_enums;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -174,25 +173,11 @@ impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::Manda
     }
 }
 
-impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
+impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
 
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
             api_enums::Connector::Aci => Self::Aci,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Airwallex => Self::Airwallex,
@@ -253,76 +238,21 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
         })
-    }
-}
-
-impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
-    fn foreign_from(from: dsl_enums::Connector) -> Self {
-        match from {
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector1 => Self::DummyConnector1,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector2 => Self::DummyConnector2,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector3 => Self::DummyConnector3,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector4 => Self::DummyConnector4,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector5 => Self::DummyConnector5,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector6 => Self::DummyConnector6,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector7 => Self::DummyConnector7,
-            dsl_enums::Connector::Aci => Self::Aci,
-            dsl_enums::Connector::Adyen => Self::Adyen,
-            dsl_enums::Connector::Airwallex => Self::Airwallex,
-            dsl_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            dsl_enums::Connector::Bambora => Self::Bambora,
-            dsl_enums::Connector::Bankofamerica => Self::Bankofamerica,
-            dsl_enums::Connector::Bitpay => Self::Bitpay,
-            dsl_enums::Connector::Bluesnap => Self::Bluesnap,
-            dsl_enums::Connector::Boku => Self::Boku,
-            dsl_enums::Connector::Braintree => Self::Braintree,
-            dsl_enums::Connector::Cashtocode => Self::Cashtocode,
-            dsl_enums::Connector::Checkout => Self::Checkout,
-            dsl_enums::Connector::Coinbase => Self::Coinbase,
-            dsl_enums::Connector::Cryptopay => Self::Cryptopay,
-            dsl_enums::Connector::Cybersource => Self::Cybersource,
-            dsl_enums::Connector::Dlocal => Self::Dlocal,
-            dsl_enums::Connector::Fiserv => Self::Fiserv,
-            dsl_enums::Connector::Forte => Self::Forte,
-            dsl_enums::Connector::Globalpay => Self::Globalpay,
-            dsl_enums::Connector::Globepay => Self::Globepay,
-            dsl_enums::Connector::Gocardless => Self::Gocardless,
-            dsl_enums::Connector::Helcim => Self::Helcim,
-            dsl_enums::Connector::Iatapay => Self::Iatapay,
-            dsl_enums::Connector::Klarna => Self::Klarna,
-            dsl_enums::Connector::Mollie => Self::Mollie,
-            dsl_enums::Connector::Multisafepay => Self::Multisafepay,
-            dsl_enums::Connector::Nexinets => Self::Nexinets,
-            dsl_enums::Connector::Nmi => Self::Nmi,
-            dsl_enums::Connector::Noon => Self::Noon,
-            dsl_enums::Connector::Nuvei => Self::Nuvei,
-            dsl_enums::Connector::Opennode => Self::Opennode,
-            dsl_enums::Connector::Payme => Self::Payme,
-            dsl_enums::Connector::Paypal => Self::Paypal,
-            dsl_enums::Connector::Payu => Self::Payu,
-            dsl_enums::Connector::Powertranz => Self::Powertranz,
-            dsl_enums::Connector::Prophetpay => Self::Prophetpay,
-            dsl_enums::Connector::Rapyd => Self::Rapyd,
-            dsl_enums::Connector::Shift4 => Self::Shift4,
-            dsl_enums::Connector::Square => Self::Square,
-            dsl_enums::Connector::Stax => Self::Stax,
-            dsl_enums::Connector::Stripe => Self::Stripe,
-            dsl_enums::Connector::Trustpay => Self::Trustpay,
-            dsl_enums::Connector::Tsys => Self::Tsys,
-            dsl_enums::Connector::Volt => Self::Volt,
-            dsl_enums::Connector::Wise => Self::Wise,
-            dsl_enums::Connector::Worldline => Self::Worldline,
-            dsl_enums::Connector::Worldpay => Self::Worldpay,
-            dsl_enums::Connector::Zen => Self::Zen,
-        }
     }
 }
 

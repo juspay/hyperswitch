@@ -81,7 +81,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
 ) -> RouterResult<(
     PaymentData<F>,
@@ -1408,6 +1408,17 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::GiftCard(_)) => {
+            if connector.connector_name == router_types::Connector::Adyen {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
             if connector.connector_name == router_types::Connector::Gocardless {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
@@ -1418,7 +1429,21 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        _ => (router_data, should_continue_payment),
+        _ => {
+            // 3DS validation for paypal cards after verification (authorize call)
+            if connector.connector_name == router_types::Connector::Paypal
+                && payment_data.payment_attempt.payment_method
+                    == Some(storage_enums::PaymentMethod::Card)
+                && matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
     };
 
     Ok(router_data_and_should_continue_payment)
@@ -1529,7 +1554,7 @@ fn check_apple_pay_metadata(
                         })
                 })
                 .map_err(
-                    |error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
+                    |error| logger::warn!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
                 );
 
             parsed_metadata.ok().map(|metadata| match metadata {
