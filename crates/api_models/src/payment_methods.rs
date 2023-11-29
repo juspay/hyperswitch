@@ -287,6 +287,11 @@ pub struct BankDebitTypes {
     pub eligible_connectors: Vec<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct WalletTypes {
+    pub eligible_connectors: Vec<String>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
@@ -306,6 +311,9 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_debits: Option<BankDebitTypes>,
     /// The Bank transfer payment method information, if applicable for a payment method type.
     pub bank_transfers: Option<BankTransferTypes>,
+
+    /// The Wallet payment method information, if applicable for a payment method type.
+    pub wallet: Option<WalletTypes>,
 
     /// Required fields for the payment_method_type.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
