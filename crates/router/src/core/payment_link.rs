@@ -1,7 +1,8 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PAYMENT_LINK_EXPIRY,
+        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -79,21 +80,9 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let business_profile = db
-        .find_business_profile_by_profile_id(&payment_link.profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: payment_link.profile_id.to_string(),
-        })?;
-
-    let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
-        extract_payment_link_config(Some(pl_config))?
-    } else {
-        extract_payment_link_config(business_profile.payment_link_config.clone())?
-    };
+    let payment_link_config = extract_payment_link_config(payment_link.payment_link_config)?;
 
     let order_details = validate_order_details(payment_intent.order_details)?;
-
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url {
         payment_create_return_url
     } else {
@@ -113,11 +102,13 @@ pub async fn intiate_payment_link_flow(
     let (default_sdk_theme, default_background_color) =
         (DEFAULT_SDK_THEME, DEFAULT_BACKGROUND_COLOR);
 
+    let design_config = payment_link_config.clone().design_config;
+
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency,
         payment_id: payment_intent.payment_id,
-        merchant_name: payment_link.seller_name.unwrap_or(
+        merchant_name: design_config.clone().seller_name.unwrap_or(
             merchant_account
                 .merchant_name
                 .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -128,14 +119,15 @@ pub async fn intiate_payment_link_flow(
         expiry: payment_link.fulfilment_time,
         pub_key,
         client_secret,
-        merchant_logo: payment_link_config
+        merchant_logo: design_config
             .clone()
-            .map(|pl_config| pl_config.logo.unwrap_or(DEFAULT_MERCHANT_LOGO.to_string()))
-            .unwrap_or_default(),
+            .logo
+            .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string()),
         max_items_visible_after_collapse: 3,
-        theme: payment_link_config
+        theme: design_config
             .clone()
-            .map(|pl_config| pl_config.theme.unwrap_or(default_sdk_theme.to_string())),
+            .theme
+            .unwrap_or(default_sdk_theme.to_string()),
     };
 
     let js_script = get_js_script(payment_details)?;
@@ -168,11 +160,12 @@ fn get_js_script(
 }
 
 fn get_color_scheme_css(
-    payment_link_config: Option<api_models::admin::PaymentLinkConfig>,
+    payment_link_config: api_models::admin::PaymentCreatePaymentLinkConfig,
     default_primary_color: String,
 ) -> String {
     let background_primary_color = payment_link_config
-        .map(|pl_config| pl_config.theme.unwrap_or(default_primary_color.clone()))
+        .design_config
+        .theme
         .unwrap_or(default_primary_color.clone());
     format!(
         ":root {{
@@ -261,16 +254,144 @@ fn validate_order_details(
     Ok(updated_order_details)
 }
 
-pub fn extract_payment_link_config(
-    pl_config: Option<serde_json::Value>,
-) -> Result<Option<admin_types::PaymentLinkConfig>, error_stack::Report<errors::ApiErrorResponse>> {
-    pl_config
-        .map(|config| {
-            serde_json::from_value::<admin_types::PaymentLinkConfig>(config)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
+pub fn extract_business_payment_link_config(
+    pl_config: serde_json::Value,
+) -> Result<admin_types::BusinessPaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
+    serde_json::from_value::<admin_types::BusinessPaymentLinkConfig>(pl_config.clone())
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
         })
-        .transpose()
+}
+
+pub fn extract_payment_link_config(
+    pl_config: serde_json::Value,
+) -> Result<
+    admin_types::PaymentCreatePaymentLinkConfig,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
+    serde_json::from_value::<admin_types::PaymentCreatePaymentLinkConfig>(pl_config.clone())
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
+        })
+}
+
+pub fn get_payment_link_config_based_on_priority(
+    payment_create_link_config: Option<admin_types::PaymentCreatePaymentLinkConfig>,
+    business_link_config: Option<serde_json::Value>,
+    merchant_name: String,
+) -> Result<
+    admin_types::PaymentCreatePaymentLinkConfig,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
+    match (payment_create_link_config, business_link_config) {
+        (Some(payment_create), Some(business)) => {
+            let business_link_config = extract_business_payment_link_config(business)?;
+            let theme = payment_create.design_config.theme.unwrap_or_else(|| {
+                business_link_config
+                    .design_config
+                    .theme
+                    .unwrap_or_else(|| DEFAULT_BACKGROUND_COLOR.to_string())
+            });
+            let logo = payment_create.design_config.logo.unwrap_or_else(|| {
+                business_link_config
+                    .design_config
+                    .logo
+                    .unwrap_or_else(|| DEFAULT_MERCHANT_LOGO.to_string())
+            });
+            let seller_name = payment_create.design_config.seller_name.unwrap_or_else(|| {
+                business_link_config
+                    .design_config
+                    .seller_name
+                    .unwrap_or_else(|| merchant_name)
+            });
+            let expiry = payment_create.expiry.unwrap_or_else(|| {
+                let current_time = common_utils::date_time::now();
+                current_time.saturating_add(time::Duration::seconds(
+                    business_link_config
+                        .expiry
+                        .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+                ))
+            });
+
+            Ok(admin_types::PaymentCreatePaymentLinkConfig {
+                expiry: Some(expiry),
+                design_config: admin_types::PaymentLinkDesignConfig {
+                    theme: Some(theme),
+                    logo: Some(logo),
+                    seller_name: Some(seller_name),
+                },
+            })
+        }
+        (Some(payment_create), None) => {
+            let theme = payment_create
+                .design_config
+                .theme
+                .unwrap_or_else(|| DEFAULT_BACKGROUND_COLOR.to_string());
+            let logo = payment_create
+                .design_config
+                .logo
+                .unwrap_or_else(|| DEFAULT_MERCHANT_LOGO.to_string());
+            let seller_name = payment_create
+                .design_config
+                .seller_name
+                .unwrap_or_else(|| merchant_name);
+            let expiry = payment_create.expiry.unwrap_or_else(|| {
+                let current_time = common_utils::date_time::now();
+                current_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY))
+            });
+
+            Ok(admin_types::PaymentCreatePaymentLinkConfig {
+                expiry: Some(expiry),
+                design_config: admin_types::PaymentLinkDesignConfig {
+                    theme: Some(theme),
+                    logo: Some(logo),
+                    seller_name: Some(seller_name),
+                },
+            })
+        }
+        (None, Some(business)) => {
+            let business_link_config = extract_business_payment_link_config(business)?;
+            let theme = business_link_config
+                .design_config
+                .theme
+                .unwrap_or_else(|| DEFAULT_BACKGROUND_COLOR.to_string());
+            let logo = business_link_config
+                .design_config
+                .logo
+                .unwrap_or_else(|| DEFAULT_MERCHANT_LOGO.to_string());
+            let seller_name = business_link_config
+                .design_config
+                .seller_name
+                .unwrap_or_else(|| merchant_name);
+            let expiry = common_utils::date_time::now().saturating_add(time::Duration::seconds(
+                business_link_config
+                    .expiry
+                    .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+            ));
+
+            Ok(admin_types::PaymentCreatePaymentLinkConfig {
+                expiry: Some(expiry),
+                design_config: admin_types::PaymentLinkDesignConfig {
+                    theme: Some(theme),
+                    logo: Some(logo),
+                    seller_name: Some(seller_name),
+                },
+            })
+        }
+        (None, None) => {
+            let default_payment_config = admin_types::PaymentCreatePaymentLinkConfig {
+                design_config: admin_types::PaymentLinkDesignConfig {
+                    theme: Some(DEFAULT_BACKGROUND_COLOR.to_string()),
+                    logo: Some(DEFAULT_MERCHANT_LOGO.to_string()),
+                    seller_name: Some("sahkal".to_string()),
+                },
+                expiry: Some(
+                    common_utils::date_time::now().saturating_add(time::Duration::seconds(86400)),
+                ),
+            };
+            Ok(default_payment_config)
+        }
+    }
 }

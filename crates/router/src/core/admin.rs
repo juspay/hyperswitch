@@ -1462,7 +1462,7 @@ pub async fn update_business_profile(
         .payment_link_config
         .as_ref()
         .map(|pl_metadata| {
-            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
+            utils::Encode::<admin_types::BusinessPaymentLinkConfig>::encode_to_value(pl_metadata)
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
                 })

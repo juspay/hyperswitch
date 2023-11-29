@@ -1121,16 +1121,28 @@ pub struct BusinessProfileUpdate {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     /// Default Payment Link config for all payment links
-    pub payment_link_config: Option<PaymentLinkConfig>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// merchant own domain name as display to customer which routes to hyperswitch
     pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentLinkConfig {
+pub struct BusinessPaymentLinkConfig {
+    pub expiry: Option<i64>,
+    #[serde(flatten)]
+    pub design_config: PaymentLinkDesignConfig,
+}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentCreatePaymentLinkConfig {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expiry: Option<time::PrimitiveDateTime>,
+    #[serde(flatten)]
+    pub design_config: PaymentLinkDesignConfig,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkDesignConfig {
     /// custom theme for the payment link
     pub theme: Option<String>,
     /// merchant display logo

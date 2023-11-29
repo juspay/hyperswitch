@@ -6,6 +6,7 @@ use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
+use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -159,23 +160,19 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let payment_link_data = if let Some(payment_link_create) = request.payment_link {
             if payment_link_create {
-                let config = match request.payment_link_config.clone() {
-                    Some(config) => config,
-                    None => {
-                        let business_account_config = payment_link::extract_payment_link_config(
-                            business_profile.payment_link_config.clone(),
-                        )?;
-                        business_account_config.unwrap_or(api_models::admin::PaymentLinkConfig {
-                            expiry: None,
-                            theme: None,
-                            logo: None,
-                            seller_name: None,
-                        })
-                    }
-                };
+                let merchant_name = merchant_account
+                    .merchant_name
+                    .clone()
+                    .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
+                    .unwrap_or_default();
+                let payment_link_config = payment_link::get_payment_link_config_based_on_priority(
+                    request.payment_link_config.clone(),
+                    business_profile.payment_link_config.clone(),
+                    merchant_name,
+                )?;
                 create_payment_link(
                     request,
-                    config,
+                    payment_link_config,
                     merchant_id.clone(),
                     payment_id.clone(),
                     db,
@@ -803,7 +800,7 @@ pub fn payments_create_request_validation(
 #[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
-    payment_link_config: api_models::admin::PaymentLinkConfig,
+    payment_link_config: api_models::admin::PaymentCreatePaymentLinkConfig,
     merchant_id: String,
     payment_id: String,
     db: &dyn StorageInterface,
@@ -824,7 +821,7 @@ async fn create_payment_link(
     );
 
     let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
-        api_models::admin::PaymentLinkConfig,
+        api_models::admin::PaymentCreatePaymentLinkConfig,
     >::encode_to_value(&payment_link_config)
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "payment_link_config",
@@ -841,8 +838,7 @@ async fn create_payment_link(
         last_modified_at,
         fulfilment_time: payment_link_config.expiry,
         description,
-        payment_link_config: Some(payment_link_config_encoded_value),
-        seller_name: payment_link_config.seller_name,
+        payment_link_config: payment_link_config_encoded_value,
         profile_id,
     };
     let payment_link_db = db
