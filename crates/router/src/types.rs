@@ -27,14 +27,13 @@ use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
-use crate::types::transformers::ForeignFrom;
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::storage::payment_attempt::PaymentAttemptExt,
+    types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
