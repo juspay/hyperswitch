@@ -347,6 +347,9 @@ impl RequestSurchargeDetails {
             final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
         }
     }
+    pub fn get_total_surcharge_amount(&self) -> i64 {
+        self.surcharge_amount + self.tax_amount.unwrap_or(0)
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -714,6 +717,14 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CardRedirectData {
@@ -843,6 +854,7 @@ pub enum PaymentMethodData {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
+    CardToken(CardToken),
 }
 
 impl PaymentMethodData {
@@ -870,7 +882,8 @@ impl PaymentMethodData {
             | Self::Reward
             | Self::Upi(_)
             | Self::Voucher(_)
-            | Self::GiftCard(_) => None,
+            | Self::GiftCard(_)
+            | Self::CardToken(_) => None,
         }
     }
 }
@@ -1089,6 +1102,7 @@ pub enum AdditionalPaymentData {
     GiftCard {},
     Voucher {},
     CardRedirect {},
+    CardToken {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1657,6 +1671,7 @@ pub enum PaymentMethodDataResponse {
     Voucher,
     GiftCard,
     CardRedirect,
+    CardToken,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2452,6 +2467,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Voucher {} => Self::Voucher,
             AdditionalPaymentData::GiftCard {} => Self::GiftCard,
             AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
+            AdditionalPaymentData::CardToken {} => Self::CardToken,
         }
     }
 }

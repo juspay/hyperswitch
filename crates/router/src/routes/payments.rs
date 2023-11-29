@@ -1,4 +1,7 @@
-use crate::core::api_locking::{self, GetLockingInput};
+use crate::{
+    core::api_locking::{self, GetLockingInput},
+    services::authorization::permissions::Permission,
+};
 pub mod helpers;
 
 use actix_web::{web, Responder};
@@ -128,7 +131,11 @@ pub async fn payments_create(
         },
         match env::which() {
             env::Env::Production => &auth::ApiKeyAuth,
-            _ => auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            _ => auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::PaymentWrite),
+                req.headers(),
+            ),
         },
         locking_action,
     ))
@@ -262,7 +269,7 @@ pub async fn payments_retrieve(
         },
         auth::auth_type(
             &*auth_type,
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::PaymentRead),
             req.headers(),
         ),
         locking_action,
@@ -843,7 +850,11 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PaymentRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -863,7 +874,11 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth, req| payments::apply_filters_on_payments(state, auth.merchant_account, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PaymentRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -883,7 +898,11 @@ pub async fn get_filters_for_payments(
         &req,
         payload,
         |state, auth, req| payments::get_filters_for_payments(state, auth.merchant_account, req),
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::PaymentRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await

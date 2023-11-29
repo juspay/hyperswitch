@@ -64,6 +64,8 @@ impl KmsDecrypt for settings::Database {
             pool_size: self.pool_size,
             connection_timeout: self.connection_timeout,
             queue_strategy: self.queue_strategy.into(),
+            min_idle: self.min_idle,
+            max_lifetime: self.max_lifetime,
         })
     }
 }
