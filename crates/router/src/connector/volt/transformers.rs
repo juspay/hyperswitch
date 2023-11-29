@@ -286,6 +286,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -337,6 +338,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, VoltPsyncResponse, T, types::Pay
                     .response
                     .merchant_internal_reference
                     .or(Some(item.response.id)),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

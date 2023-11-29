@@ -1,6 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -80,6 +81,7 @@ where
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -687,6 +689,9 @@ where
                         .set_merchant_connector_id(payment_attempt.merchant_connector_id)
                         .set_unified_code(payment_attempt.unified_code)
                         .set_unified_message(payment_attempt.unified_message)
+                        .set_incremental_authorization_allowed(
+                            payment_intent.incremental_authorization_allowed,
+                        )
                         .to_owned(),
                     headers,
                 ))
@@ -749,6 +754,7 @@ where
                 surcharge_details,
                 unified_code: payment_attempt.unified_code,
                 unified_message: payment_attempt.unified_message,
+                incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 ..Default::default()
             },
             headers,
@@ -1036,6 +1042,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             complete_authorize_url,
             customer_id: None,
             surcharge_details: payment_data.surcharge_details,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            ),
         })
     }
 }
@@ -1274,6 +1286,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             return_url: payment_data.payment_intent.return_url,
             browser_info,
             payment_method_type: attempt.payment_method_type,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            ),
         })
     }
 }

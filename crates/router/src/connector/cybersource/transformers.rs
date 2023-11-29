@@ -544,8 +544,9 @@ impl<F, T>
                     connector_mandate_id: Some(token_info.instrument_identifier.id),
                     payment_method_id: None,
                 });
+        let status = get_payment_status(is_capture, item.response.status.into());
         Ok(Self {
-            status: get_payment_status(is_capture, item.response.status.into()),
+            status,
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -568,6 +569,9 @@ impl<F, T>
                         .client_reference_information
                         .map(|cref| cref.code)
                         .unwrap_or(Some(item.response.id)),
+                    incremental_authorization_allowed: Some(
+                        status == enums::AttemptStatus::Authorized,
+                    ),
                 }),
             },
             ..item.data
@@ -622,11 +626,12 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let is_capture = data.1;
+        let status = get_payment_status(
+            is_capture,
+            item.response.application_information.status.into(),
+        );
         Ok(Self {
-            status: get_payment_status(
-                is_capture,
-                item.response.application_information.status.into(),
-            ),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
@@ -638,6 +643,7 @@ impl<F, T>
                     .client_reference_information
                     .map(|cref| cref.code)
                     .unwrap_or(Some(item.response.id)),
+                incremental_authorization_allowed: Some(status == enums::AttemptStatus::Authorized),
             }),
             ..item.data
         })

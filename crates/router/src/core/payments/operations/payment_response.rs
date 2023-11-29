@@ -418,8 +418,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 redirection_data,
                 connector_metadata,
                 connector_response_reference_id,
+                incremental_authorization_allowed,
                 ..
             } => {
+                payment_data
+                    .payment_intent
+                    .incremental_authorization_allowed = incremental_authorization_allowed;
                 let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,
                     types::ResponseId::ConnectorTransactionId(id)
@@ -627,6 +631,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 payment_data.payment_attempt.status,
             ),
             updated_by: storage_scheme.to_string(),
+            incremental_authorization_allowed: Some(false),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: api_models::enums::IntentStatus::foreign_from(
@@ -635,6 +640,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
+            incremental_authorization_allowed: payment_data
+                .payment_intent
+                .incremental_authorization_allowed,
         },
     };
 

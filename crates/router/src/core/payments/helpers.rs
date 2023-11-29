@@ -2572,6 +2572,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2622,6 +2625,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2672,6 +2678,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
