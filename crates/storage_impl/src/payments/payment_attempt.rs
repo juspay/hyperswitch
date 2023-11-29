@@ -115,6 +115,27 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+            &conn,
+            payment_id,
+            merchant_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })
+        .map(PaymentAttempt::from_storage_model)
+    }
+
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -603,6 +624,57 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         payment_attempts
                             .iter()
                             .find(|&pa| pa.status == api_models::enums::AttemptStatus::Charged)
+                            .cloned()
+                            .ok_or(error_stack::report!(
+                                redis_interface::errors::RedisError::NotFound
+                            ))
+                    })
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    redis_fut,
+                    database_call,
+                ))
+                .await
+            }
+        }
+    }
+
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        let database_call = || {
+            self.router_store
+                .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+                    payment_id,
+                    merchant_id,
+                    storage_scheme,
+                )
+        };
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await,
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let pattern = "pa_*";
+
+                let redis_fut = async {
+                    let kv_result = kv_wrapper::<PaymentAttempt, _, _>(
+                        self,
+                        KvOperation::<DieselPaymentAttempt>::Scan(pattern),
+                        key,
+                    )
+                    .await?
+                    .try_into_scan();
+                    kv_result.and_then(|mut payment_attempts| {
+                        payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+                        payment_attempts
+                            .iter()
+                            .find(|&pa| {
+                                pa.status == api_models::enums::AttemptStatus::Charged
+                                    || pa.status == api_models::enums::AttemptStatus::PartialCharged
+                            })
                             .cloned()
                             .ok_or(error_stack::report!(
                                 redis_interface::errors::RedisError::NotFound
