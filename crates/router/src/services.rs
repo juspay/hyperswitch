@@ -4,6 +4,7 @@ pub mod authorization;
 pub mod encryption;
 #[cfg(feature = "olap")]
 pub mod jwt;
+pub mod kafka;
 pub mod logger;
 
 #[cfg(feature = "email")]

@@ -475,3 +475,33 @@ delay_between_retries_in_milliseconds = 500
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
+
+[events]
+source = "logs"
+
+[events.kafka]
+brokers = ["localhost:9092"]
+intent_analytics_topic = "hyperswitch-payment-intent-events"
+attempt_analytics_topic = "hyperswitch-payment-attempt-events"
+refund_analytics_topic = "hyperswitch-refund-events"
+api_logs_topic = "hyperswitch-api-log-events"
+connector_events_topic = "hyperswitch-connector-api-events"
+
+[analytics]
+source = "sqlx"
+
+[analytics.clickhouse]
+username = "default"
+# password = ""
+host = "http://localhost:8123"
+database_name = "default"
+
+[analytics.sqlx]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+connection_timeout = 10
+queue_strategy = "Fifo"
