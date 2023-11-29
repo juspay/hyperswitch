@@ -20,6 +20,7 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
+min_idle = 2
 
 [replica_database]
 username = "db_user"
