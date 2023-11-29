@@ -18,7 +18,7 @@ pub enum SetMetaDataRequest {
     DownloadWoocom,
     ConfigureWoocom,
     SetupWoocomWebhook,
-    IsMultipleConfiguration(bool),
+    IsMultipleConfiguration,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

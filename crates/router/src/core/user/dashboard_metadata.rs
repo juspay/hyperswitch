@@ -93,8 +93,8 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::SetupWoocomWebhook => {
             Ok(types::MetaData::SetupWoocomWebhook(true))
         }
-        api::SetMetaDataRequest::IsMultipleConfiguration(req) => {
-            Ok(types::MetaData::IsMultipleConfiguration(req))
+        api::SetMetaDataRequest::IsMultipleConfiguration => {
+            Ok(types::MetaData::IsMultipleConfiguration(true))
         }
     }
 }
@@ -180,12 +180,9 @@ fn into_response(
             Ok(api::GetMetaDataResponse::SetupWoocomWebhook(data.is_some()))
         }
 
-        DBEnum::IsMultipleConfiguration => {
-            let resp = utils::deserialize_to_response(data).unwrap_or(Some(false));
-            Ok(api::GetMetaDataResponse::IsMultipleConfiguration(
-                resp.unwrap_or(false),
-            ))
-        }
+        DBEnum::IsMultipleConfiguration => Ok(api::GetMetaDataResponse::IsMultipleConfiguration(
+            data.is_some(),
+        )),
     }
 }
 
@@ -285,7 +282,7 @@ async fn insert_metadata(
             .await
         }
         types::MetaData::IntegrationMethod(data) => {
-            utils::upsert_merchant_scoped_metadata_to_db(
+            utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,
@@ -384,7 +381,7 @@ async fn insert_metadata(
             .await
         }
         types::MetaData::IsMultipleConfiguration(data) => {
-            utils::upsert_merchant_scoped_metadata_to_db(
+            utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,

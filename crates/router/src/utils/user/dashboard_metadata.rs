@@ -43,36 +43,6 @@ pub async fn insert_merchant_scoped_metadata_to_db(
             last_modified_at: now,
         })
         .await
-        .change_context(UserErrors::InternalServerError)
-}
-
-pub async fn upsert_merchant_scoped_metadata_to_db(
-    state: &AppState,
-    user_id: String,
-    merchant_id: String,
-    org_id: String,
-    metadata_key: DBEnum,
-    metadata_value: impl serde::Serialize,
-) -> UserResult<DashboardMetadata> {
-    let now = common_utils::date_time::now();
-    let data_value = serde_json::to_value(metadata_value)
-        .into_report()
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error Converting Struct To Serde Value")?;
-    state
-        .store
-        .upsert_metadata(DashboardMetadataNew {
-            user_id: None,
-            merchant_id,
-            org_id,
-            data_key: metadata_key,
-            data_value,
-            created_by: user_id.clone(),
-            created_at: now,
-            last_modified_by: user_id,
-            last_modified_at: now,
-        })
-        .await
         .map_err(|e| {
             if e.current_context().is_db_unique_violation() {
                 return e.change_context(UserErrors::MetadataAlreadySet);

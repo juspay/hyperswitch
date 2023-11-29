@@ -15,11 +15,6 @@ pub trait DashboardMetadataInterface {
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
 
-    async fn upsert_metadata(
-        &self,
-        metadata: storage::DashboardMetadataNew,
-    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
-
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
@@ -44,18 +39,6 @@ impl DashboardMetadataInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         metadata
             .insert(&conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-    async fn upsert_metadata(
-        &self,
-        metadata: storage::DashboardMetadataNew,
-    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-
-        metadata
-            .upsert(&conn)
             .await
             .map_err(Into::into)
             .into_report()
@@ -137,49 +120,6 @@ impl DashboardMetadataInterface for MockDb {
         dashboard_metadata.push(metadata_new.clone());
         Ok(metadata_new)
     }
-    async fn upsert_metadata(
-        &self,
-        metadata: storage::DashboardMetadataNew,
-    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let mut dashboard_metadata = self.dashboard_metadata.lock().await;
-
-        if let Some(existing_metadata) = dashboard_metadata.iter_mut().find(|metadata_inner| {
-            metadata_inner.merchant_id == metadata.merchant_id
-                && metadata_inner.org_id == metadata.org_id
-                && metadata_inner.data_key == metadata.data_key
-        }) {
-            existing_metadata.merchant_id = metadata.merchant_id;
-            existing_metadata.org_id = metadata.org_id;
-            existing_metadata.data_key = metadata.data_key;
-            existing_metadata.data_value = metadata.data_value;
-            existing_metadata.created_by = metadata.created_by;
-            existing_metadata.created_at = metadata.created_at;
-            existing_metadata.last_modified_by = metadata.last_modified_by;
-            existing_metadata.last_modified_at = metadata.last_modified_at;
-
-            Ok(existing_metadata.clone())
-        } else {
-            let metadata_new = storage::DashboardMetadata {
-                id: dashboard_metadata
-                    .len()
-                    .try_into()
-                    .into_report()
-                    .change_context(errors::StorageError::MockDbError)?,
-                user_id: metadata.user_id,
-                merchant_id: metadata.merchant_id,
-                org_id: metadata.org_id,
-                data_key: metadata.data_key,
-                data_value: metadata.data_value,
-                created_by: metadata.created_by,
-                created_at: metadata.created_at,
-                last_modified_by: metadata.last_modified_by,
-                last_modified_at: metadata.last_modified_at,
-            };
-
-            dashboard_metadata.push(metadata_new.clone());
-            Ok(metadata_new)
-        }
-    }
 
     async fn find_user_scoped_dashboard_metadata(
         &self,
@@ -252,12 +192,7 @@ impl DashboardMetadataInterface for super::KafkaStore {
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         self.diesel_store.insert_metadata(metadata).await
     }
-    async fn upsert_metadata(
-        &self,
-        metadata: storage::DashboardMetadataNew,
-    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        self.diesel_store.upsert_metadata(metadata).await
-    }
+
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,

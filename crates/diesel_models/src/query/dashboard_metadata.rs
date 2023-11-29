@@ -1,11 +1,8 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use error_stack::{IntoReport, ResultExt};
 use router_env::tracing::{self, instrument};
 
 use crate::{
     enums,
-    errors::{self},
     query::generics,
     schema::dashboard_metadata::dsl,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew},
@@ -16,21 +13,6 @@ impl DashboardMetadataNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
         generics::generic_insert(conn, self).await
-    }
-    pub async fn upsert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
-        let conflict_target = (dsl::merchant_id, dsl::org_id, dsl::data_key);
-        let query = diesel::insert_into(<DashboardMetadata>::table())
-            .values(self.clone())
-            .on_conflict(conflict_target)
-            .do_update()
-            .set(self);
-        router_env::logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-        query
-            .get_result_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error while updating metadata")
     }
 }
 
