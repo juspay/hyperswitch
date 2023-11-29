@@ -2339,9 +2339,11 @@ pub struct PaymentListFilters {
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
     pub start_time: PrimitiveDateTime,
     /// The end time to filter payments list or to get list of filters. If not passed the default time is now
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
     pub end_time: Option<PrimitiveDateTime>,
 }
 

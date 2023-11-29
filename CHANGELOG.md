@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.91.1 (2023-11-29)
+
+### Bug Fixes
+
+- Remove `dummy_connector` from `default` features in `common_enums` ([#3005](https://github.com/juspay/hyperswitch/pull/3005)) ([`bb593ab`](https://github.com/juspay/hyperswitch/commit/bb593ab0cd1a30190b6c305f2432de83ac7fde93))
+- Remove error propagation if card name not found in locker in case of temporary token ([#3006](https://github.com/juspay/hyperswitch/pull/3006)) ([`5c32b37`](https://github.com/juspay/hyperswitch/commit/5c32b3739e2c5895fe7f5cf8cc92f917c2639eac))
+- Few fields were not getting updated in apply_changeset function ([#3002](https://github.com/juspay/hyperswitch/pull/3002)) ([`d289524`](https://github.com/juspay/hyperswitch/commit/d289524869f0c3835db9cf90d57ebedf560e0291))
+
+### Miscellaneous Tasks
+
+- **deps:** Bump openssl from 0.10.57 to 0.10.60 ([#3004](https://github.com/juspay/hyperswitch/pull/3004)) ([`1c2f35a`](https://github.com/juspay/hyperswitch/commit/1c2f35af92608fca5836448710eca9f9c23a776a))
+
+**Full Changelog:** [`v1.91.0...v1.91.1`](https://github.com/juspay/hyperswitch/compare/v1.91.0...v1.91.1)
+
+- - -
+
+
 ## 1.91.0 (2023-11-28)
 
 ### Features
