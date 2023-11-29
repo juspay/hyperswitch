@@ -4,8 +4,7 @@
 //! of Routing configs.
 use actix_web::{web, HttpRequest, Responder};
 use api_models::routing as routing_types;
-#[cfg(feature = "business_profile_routing")]
-use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -60,13 +59,7 @@ pub async fn routing_link_config(
         &req,
         path.into_inner(),
         |state, auth: auth::AuthenticationData, algorithm_id| {
-            routing::link_routing_config(
-                state,
-                auth.merchant_account,
-                #[cfg(not(feature = "business_profile_routing"))]
-                auth.key_store,
-                algorithm_id.0,
-            )
+            routing::link_routing_config(state, auth.merchant_account, algorithm_id.0)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -116,59 +109,32 @@ pub async fn routing_retrieve_config(
 pub async fn routing_retrieve_dictionary(
     state: web::Data<AppState>,
     req: HttpRequest,
-    #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveQuery>,
+    query: web::Query<routing_types::RoutingRetrieveQuery>,
 ) -> impl Responder {
-    #[cfg(feature = "business_profile_routing")]
-    {
-        let flow = Flow::RoutingRetrieveDictionary;
-        Box::pin(oss_api::server_wrap(
-            flow,
-            state,
-            &req,
-            query.into_inner(),
-            |state, auth: auth::AuthenticationData, query_params| {
-                routing::retrieve_merchant_routing_dictionary(
-                    state,
-                    auth.merchant_account,
-                    query_params,
-                )
-            },
-            #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingRead),
-                req.headers(),
-            ),
-            #[cfg(feature = "release")]
+    let flow = Flow::RoutingRetrieveDictionary;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, query_params| {
+            routing::retrieve_merchant_routing_dictionary(
+                state,
+                auth.merchant_account,
+                query_params,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RoutingRead),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    {
-        let flow = Flow::RoutingRetrieveDictionary;
-        Box::pin(oss_api::server_wrap(
-            flow,
-            state,
-            &req,
-            (),
-            |state, auth: auth::AuthenticationData, _| {
-                routing::retrieve_merchant_routing_dictionary(state, auth.merchant_account)
-            },
-            #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingRead),
-                req.headers(),
-            ),
-            #[cfg(feature = "release")]
-            &auth::JWTAuth(Permission::RoutingRead),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(feature = "olap")]
@@ -176,57 +142,28 @@ pub async fn routing_retrieve_dictionary(
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    #[cfg(feature = "business_profile_routing")] payload: web::Json<
-        routing_types::RoutingConfigRequest,
-    >,
+    payload: web::Json<routing_types::RoutingConfigRequest>,
 ) -> impl Responder {
-    #[cfg(feature = "business_profile_routing")]
-    {
-        let flow = Flow::RoutingUnlinkConfig;
-        Box::pin(oss_api::server_wrap(
-            flow,
-            state,
-            &req,
-            payload.into_inner(),
-            |state, auth: auth::AuthenticationData, payload_req| {
-                routing::unlink_routing_config(state, auth.merchant_account, payload_req)
-            },
-            #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingWrite),
-                req.headers(),
-            ),
-            #[cfg(feature = "release")]
+    let flow = Flow::RoutingUnlinkConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, auth: auth::AuthenticationData, payload_req| {
+            routing::unlink_routing_config(state, auth.merchant_account, payload_req)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RoutingWrite),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    {
-        let flow = Flow::RoutingUnlinkConfig;
-        Box::pin(oss_api::server_wrap(
-            flow,
-            state,
-            &req,
-            (),
-            |state, auth: auth::AuthenticationData, _| {
-                routing::unlink_routing_config(state, auth.merchant_account, auth.key_store)
-            },
-            #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingWrite),
-                req.headers(),
-            ),
-            #[cfg(feature = "release")]
-            &auth::JWTAuth(Permission::RoutingWrite),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(feature = "olap")]
@@ -479,56 +416,29 @@ pub async fn retrieve_decision_manager_config(
 pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveLinkQuery>,
+    query: web::Query<routing_types::RoutingRetrieveLinkQuery>,
 ) -> impl Responder {
-    #[cfg(feature = "business_profile_routing")]
-    {
-        use crate::services::authentication::AuthenticationData;
-        let flow = Flow::RoutingRetrieveActiveConfig;
-        Box::pin(oss_api::server_wrap(
-            flow,
-            state,
-            &req,
-            query.into_inner(),
-            |state, auth: AuthenticationData, query_params| {
-                routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
-            },
-            #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingRead),
-                req.headers(),
-            ),
-            #[cfg(feature = "release")]
+    use crate::services::authentication::AuthenticationData;
+    let flow = Flow::RoutingRetrieveActiveConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: AuthenticationData, query_params| {
+            routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RoutingRead),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    {
-        let flow = Flow::RoutingRetrieveActiveConfig;
-        Box::pin(oss_api::server_wrap(
-            flow,
-            state,
-            &req,
-            (),
-            |state, auth: auth::AuthenticationData, _| {
-                routing::retrieve_linked_routing_config(state, auth.merchant_account)
-            },
-            #[cfg(not(feature = "release"))]
-            auth::auth_type(
-                &auth::ApiKeyAuth,
-                &auth::JWTAuth(Permission::RoutingRead),
-                req.headers(),
-            ),
-            #[cfg(feature = "release")]
-            &auth::JWTAuth(Permission::RoutingRead),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(feature = "olap")]

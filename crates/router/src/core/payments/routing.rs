@@ -32,8 +32,6 @@ use rand::{
 };
 use rustc_hash::FxHashMap;
 
-#[cfg(not(feature = "business_profile_routing"))]
-use crate::utils::StringExt;
 use crate::{
     core::{
         errors as oss_errors, errors, payments as payments_oss, routing::helpers as routing_helpers,
@@ -72,7 +70,6 @@ pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
-    #[cfg(any(feature = "business_profile_routing",))]
     profile_id: Option<String>,
 }
 static ROUTING_CACHE: StaticCache<CachedAlgorithm> = StaticCache::new();
@@ -227,7 +224,6 @@ pub async fn perform_static_routing_v1<F: Clone>(
         merchant_id,
         algorithm_ref.timestamp,
         &algorithm_id,
-        #[cfg(feature = "business_profile_routing")]
         payment_data.payment_intent.profile_id.clone(),
     )
     .await?;
@@ -258,9 +254,8 @@ async fn ensure_algorithm_cached_v1(
     merchant_id: &str,
     timestamp: i64,
     algorithm_id: &str,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<String> {
-    #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
             .clone()
@@ -269,9 +264,6 @@ async fn ensure_algorithm_cached_v1(
 
         format!("routing_config_{merchant_id}_{profile_id}")
     };
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    let key = format!("dsl_{merchant_id}");
 
     let present = ROUTING_CACHE
         .present(&key)
@@ -286,15 +278,7 @@ async fn ensure_algorithm_cached_v1(
         .attach_printable("Error checking expiry of DSL in cache")?;
 
     if !present || expired {
-        refresh_routing_cache_v1(
-            state,
-            key.clone(),
-            algorithm_id,
-            timestamp,
-            #[cfg(feature = "business_profile_routing")]
-            profile_id,
-        )
-        .await?;
+        refresh_routing_cache_v1(state, key.clone(), algorithm_id, timestamp, profile_id).await?;
     };
 
     Ok(key)
@@ -350,9 +334,8 @@ pub async fn refresh_routing_cache_v1(
     key: String,
     algorithm_id: &str,
     timestamp: i64,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<()> {
-    #[cfg(feature = "business_profile_routing")]
     let algorithm = {
         let algorithm = state
             .store
@@ -369,22 +352,6 @@ pub async fn refresh_routing_cache_v1(
         algorithm
     };
 
-    #[cfg(not(feature = "business_profile_routing"))]
-    let algorithm = {
-        let config = state
-            .store
-            .find_config_by_key(algorithm_id)
-            .await
-            .change_context(errors::RoutingError::DslMissingInDb)
-            .attach_printable("DSL not found in DB")?;
-
-        let algorithm: routing_types::RoutingAlgorithm = config
-            .config
-            .parse_struct("Program")
-            .change_context(errors::RoutingError::DslParsingError)
-            .attach_printable("Error parsing routing algorithm from configs")?;
-        algorithm
-    };
     let cached_algorithm = match algorithm {
         routing_types::RoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
         routing_types::RoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
@@ -450,9 +417,8 @@ pub async fn get_merchant_kgraph<'a>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
-    #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
             .clone()
@@ -461,9 +427,6 @@ pub async fn get_merchant_kgraph<'a>(
 
         format!("kgraph_{}_{profile_id}", key_store.merchant_id)
     };
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    let key = format!("kgraph_{}", key_store.merchant_id);
 
     let kgraph_present = KGRAPH_CACHE
         .present(&key)
@@ -483,7 +446,6 @@ pub async fn get_merchant_kgraph<'a>(
             key_store,
             merchant_last_modified,
             key.clone(),
-            #[cfg(feature = "business_profile_routing")]
             profile_id,
         )
         .await?;
@@ -503,7 +465,7 @@ pub async fn refresh_kgraph_cache(
     key_store: &domain::MerchantKeyStore,
     timestamp: i64,
     key: String,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<()> {
     let mut merchant_connector_accounts = state
         .store
@@ -518,7 +480,6 @@ pub async fn refresh_kgraph_cache(
     merchant_connector_accounts
         .retain(|mca| mca.connector_type != storage_enums::ConnectorType::PaymentVas);
 
-    #[cfg(feature = "business_profile_routing")]
     let merchant_connector_accounts = payments_oss::helpers::filter_mca_based_on_business_profile(
         merchant_connector_accounts,
         profile_id,
@@ -551,7 +512,7 @@ async fn perform_kgraph_filtering(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
@@ -559,14 +520,8 @@ async fn perform_kgraph_filtering(
             .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
-    let cached_kgraph = get_merchant_kgraph(
-        state,
-        key_store,
-        merchant_last_modified,
-        #[cfg(feature = "business_profile_routing")]
-        profile_id,
-    )
-    .await?;
+    let cached_kgraph =
+        get_merchant_kgraph(state, key_store, merchant_last_modified, profile_id).await?;
 
     let mut final_selection = Vec::<routing_types::RoutableConnectorChoice>::new();
     for choice in chosen {
@@ -599,7 +554,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     payment_data: &payments_oss::PaymentData<F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = make_dsl_input(payment_data)?;
 
@@ -610,7 +565,6 @@ pub async fn perform_eligibility_analysis<F: Clone>(
         chosen,
         backend_input,
         eligible_connectors,
-        #[cfg(feature = "business_profile_routing")]
         profile_id,
     )
     .await
@@ -622,7 +576,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     merchant_last_modified: i64,
     payment_data: &payments_oss::PaymentData<F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let fallback_config = routing_helpers::get_merchant_default_config(
         &*state.store,
@@ -644,7 +598,6 @@ pub async fn perform_fallback_routing<F: Clone>(
         fallback_config,
         backend_input,
         eligible_connectors,
-        #[cfg(feature = "business_profile_routing")]
         profile_id,
     )
     .await
@@ -657,7 +610,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     payment_data: &payments_oss::PaymentData<F>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
-    #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut final_selection = perform_eligibility_analysis(
         state,
@@ -666,7 +619,6 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         chosen,
         payment_data,
         eligible_connectors.as_ref(),
-        #[cfg(feature = "business_profile_routing")]
         profile_id.clone(),
     )
     .await?;
@@ -677,7 +629,6 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         merchant_last_modified,
         payment_data,
         eligible_connectors.as_ref(),
-        #[cfg(feature = "business_profile_routing")]
         profile_id,
     )
     .await;
@@ -713,7 +664,6 @@ pub async fn perform_session_flow_routing(
         .assume_utc()
         .unix_timestamp();
 
-    #[cfg(feature = "business_profile_routing")]
     let routing_algorithm: MerchantAccountRoutingAlgorithm = {
         let profile_id = session_input
             .payment_intent
@@ -730,18 +680,6 @@ pub async fn perform_session_flow_routing(
             .change_context(errors::RoutingError::ProfileNotFound)?;
 
         business_profile
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
-            .transpose()
-            .change_context(errors::RoutingError::InvalidRoutingAlgorithmStructure)?
-            .unwrap_or_default()
-    };
-
-    #[cfg(not(feature = "business_profile_routing"))]
-    let routing_algorithm: MerchantAccountRoutingAlgorithm = {
-        session_input
-            .merchant_account
             .routing_algorithm
             .clone()
             .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
@@ -834,7 +772,7 @@ pub async fn perform_session_flow_routing(
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
-            #[cfg(any(feature = "business_profile_routing",))]
+
             profile_id: session_input.payment_intent.profile_id.clone(),
         };
         let maybe_choice = perform_session_routing_for_pm_type(session_pm_input).await?;
@@ -867,7 +805,6 @@ async fn perform_session_routing_for_pm_type(
                     merchant_id,
                     algorithm_ref.timestamp,
                     algorithm_id,
-                    #[cfg(feature = "business_profile_routing")]
                     session_pm_input.profile_id.clone(),
                 )
                 .await?;
@@ -912,7 +849,6 @@ async fn perform_session_routing_for_pm_type(
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
-        #[cfg(feature = "business_profile_routing")]
         session_pm_input.profile_id.clone(),
     )
     .await?;
@@ -936,7 +872,6 @@ async fn perform_session_routing_for_pm_type(
             fallback,
             session_pm_input.backend_input,
             None,
-            #[cfg(feature = "business_profile_routing")]
             session_pm_input.profile_id.clone(),
         )
         .await?;

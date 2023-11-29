@@ -45,7 +45,6 @@ pub struct ProfileDefaultRoutingConfig {
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
-#[cfg(feature = "business_profile_routing")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
@@ -54,7 +53,6 @@ pub struct RoutingRetrieveQuery {
     pub profile_id: Option<String>,
 }
 
-#[cfg(feature = "business_profile_routing")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
@@ -75,7 +73,6 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MerchantRoutingAlgorithm {
     pub id: String,
-    #[cfg(feature = "business_profile_routing")]
     pub profile_id: String,
     pub name: String,
     pub description: String,
@@ -473,7 +470,7 @@ impl RoutingAlgorithmRef {
 
 pub struct RoutingDictionaryRecord {
     pub id: String,
-    #[cfg(feature = "business_profile_routing")]
+
     pub profile_id: String,
     pub name: String,
     pub kind: RoutingAlgorithmKind,

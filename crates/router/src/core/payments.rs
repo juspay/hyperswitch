@@ -2453,7 +2453,6 @@ where
                 connectors,
                 payment_data,
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
             )
             .await
@@ -2504,7 +2503,6 @@ where
                 connectors,
                 payment_data,
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
             )
             .await
@@ -2675,11 +2673,7 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
-        business_profile.routing_algorithm.clone()
-    } else {
-        merchant_account.routing_algorithm.clone()
-    };
+    let routing_algorithm = business_profile.routing_algorithm.clone();
 
     let algorithm_ref = routing_algorithm
         .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
@@ -2704,7 +2698,6 @@ where
         connectors,
         payment_data,
         eligible_connectors,
-        #[cfg(feature = "business_profile_routing")]
         payment_data.payment_intent.profile_id.clone(),
     )
     .await
