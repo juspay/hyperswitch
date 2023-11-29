@@ -50,7 +50,7 @@ pub enum ApiEventDimensions {
     // Consult the Dashboard FE folks since these also affects the order of metrics on FE
     StatusCode,
     FlowType,
-    ApiName,
+    ApiFlow,
 }
 
 impl From<ApiEventDimensions> for NameDescription {
@@ -65,7 +65,7 @@ impl From<ApiEventDimensions> for NameDescription {
 pub struct ApiEventFilters {
     pub status_code: Vec<u64>,
     pub flow_type: Vec<String>,
-    pub api_name: Vec<String>,
+    pub api_flow: Vec<String>,
 }
 
 #[derive(

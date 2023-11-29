@@ -49,5 +49,5 @@ where
 pub struct ApiEventFilter {
     pub status_code: Option<i32>,
     pub flow_type: Option<String>,
-    pub api_name: Option<String>,
+    pub api_flow: Option<String>,
 }

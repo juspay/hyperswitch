@@ -73,7 +73,7 @@ pub async fn get_filters(
         .filter_map(|fil: ApiEventFilter| match dim {
             ApiEventDimensions::StatusCode => fil.status_code.map(|i| i.to_string()),
             ApiEventDimensions::FlowType => fil.flow_type,
-            ApiEventDimensions::ApiName => fil.api_name,
+            ApiEventDimensions::ApiFlow => fil.api_flow,
         })
         .collect::<Vec<String>>();
         res.query_data.push(ApiEventFilterValue {

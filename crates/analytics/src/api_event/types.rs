@@ -22,9 +22,9 @@ where
                 .add_filter_in_range_clause(ApiEventDimensions::FlowType, &self.flow_type)
                 .attach_printable("Error adding flow_type filter")?;
         }
-        if !self.api_name.is_empty() {
+        if !self.api_flow.is_empty() {
             builder
-                .add_filter_in_range_clause(ApiEventDimensions::ApiName, &self.api_name)
+                .add_filter_in_range_clause(ApiEventDimensions::ApiFlow, &self.api_flow)
                 .attach_printable("Error adding api_name filter")?;
         }
 
