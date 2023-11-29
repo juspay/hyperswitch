@@ -2,7 +2,6 @@ pub mod helpers;
 pub mod transformers;
 
 use api_models::routing::{self as routing_types, RoutingAlgorithmId};
-
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::{IntoReport, ResultExt};
 use rustc_hash::FxHashSet;
