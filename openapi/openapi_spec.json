@@ -348,8 +348,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "PaymentsConnectors - Create",
-        "description": "PaymentsConnectors - Create\n\nCreate a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "summary": "Merchant Connector - Create",
+        "description": "Merchant Connector - Create\n\nCreate a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {

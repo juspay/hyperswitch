@@ -81,7 +81,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
-    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+    eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
 ) -> RouterResult<(
     PaymentData<F>,
@@ -1554,7 +1554,7 @@ fn check_apple_pay_metadata(
                         })
                 })
                 .map_err(
-                    |error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
+                    |error| logger::warn!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
                 );
 
             parsed_metadata.ok().map(|metadata| match metadata {

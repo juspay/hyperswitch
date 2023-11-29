@@ -5,10 +5,7 @@ use api_models::{
 };
 use euclid::{
     dssa::graph::{self, DomainIdentifier},
-    frontend::{
-        ast,
-        dir::{self, enums as dir_enums},
-    },
+    frontend::{ast, dir},
     types::{NumValue, NumValueRefinement},
 };
 
@@ -277,7 +274,7 @@ fn compile_merchant_connector_graph(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     mca: admin_api::MerchantConnectorResponse,
 ) -> Result<(), KgraphError> {
-    let connector = dir_enums::Connector::from_str(&mca.connector_name)
+    let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
     let mut agg_nodes: Vec<(graph::NodeId, graph::Relation)> = Vec::new();

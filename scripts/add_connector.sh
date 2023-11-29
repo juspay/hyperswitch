@@ -45,7 +45,7 @@ cd $SCRIPT/..
 
 # Remove template files if already created for this connector
 rm -rf $conn/$payment_gateway $conn/$payment_gateway.rs
-git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml crates/api_models/src/enums.rs crates/euclid/src/enums.rs crates/api_models/src/routing.rs $src/core/payments/flows.rs $src/core/admin.rs $src/core/payments/routing/transformers.rs $src/types/transformers.rs
+git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml crates/api_models/src/enums.rs crates/euclid/src/enums.rs crates/api_models/src/routing.rs $src/core/payments/flows.rs crates/common_enums/src/enums.rs $src/types/transformers.rs $src/core/admin.rs
 
 # Add enum for this connector in required places
 previous_connector=''
@@ -61,14 +61,12 @@ sed  -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${pa
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/enums.rs
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/euclid/src/enums.rs
 sed -i '' -e "s/\(match connector_name {\)/\1\n\t\tapi_enums::Connector::${payment_gateway_camelcase} => {${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(val)?;Ok(())}/" $src/core/admin.rs
-sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tapi_enums::RoutableConnectors::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/core/payments/routing/transformers.rs
-sed -i'' -e "s|dsl_enums::Connector::$previous_connector_camelcase \(.*\)|dsl_enums::Connector::$previous_connector_camelcase \1\n\t\t\tdsl_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/types/transformers.rs
-sed -i'' -e "s|api_enums::Connector::$previous_connector_camelcase \(.*\)|api_enums::Connector::$previous_connector_camelcase \1\n\t\t\tapi_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/types/transformers.rs
-sed -i'' -e "s/\(pub enum RoutableConnectors {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/enums.rs
+sed -i'' -e "s/\(pub enum RoutableConnectors {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/enums.rs
+sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tapi_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/types/transformers.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnector::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
 
 # Remove temporary files created in above step
-rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e $src/core/admin.rs-e $src/core/payments/routing/transformers.rs-e $src/types/transformers.rs-e
+rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e
 cd $conn/
 
 # Generate template files for the connector
