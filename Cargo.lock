@@ -2366,11 +2366,14 @@ dependencies = [
  "aws-config",
  "aws-sdk-kms",
  "aws-sdk-sesv2",
+ "aws-sdk-sts",
  "aws-smithy-client",
  "base64 0.21.4",
  "common_utils",
  "dyn-clone",
  "error-stack",
+ "hyper",
+ "hyper-proxy",
  "masking",
  "once_cell",
  "router_env",
@@ -2868,6 +2871,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "headers"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06683b93020a07e3dbcf5f8c0f6d40080d725bea7936fc01ad345c01b97dc270"
+dependencies = [
+ "base64 0.21.4",
+ "bytes 1.5.0",
+ "headers-core",
+ "http",
+ "httpdate",
+ "mime",
+ "sha1",
+]
+
+[[package]]
+name = "headers-core"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7f66481bfee273957b1f20485a4ff3362987f85b2c236580d81b4eb7a326429"
+dependencies = [
+ "http",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2992,6 +3019,24 @@ dependencies = [
  "tower-service",
  "tracing",
  "want",
+]
+
+[[package]]
+name = "hyper-proxy"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca815a891b24fdfb243fa3239c86154392b0953ee584aa1a2a1f66d20cbe75cc"
+dependencies = [
+ "bytes 1.5.0",
+ "futures 0.3.28",
+ "headers",
+ "http",
+ "hyper",
+ "hyper-tls",
+ "native-tls",
+ "tokio 1.32.0",
+ "tokio-native-tls",
+ "tower-service",
 ]
 
 [[package]]

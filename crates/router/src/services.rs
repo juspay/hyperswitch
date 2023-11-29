@@ -6,6 +6,9 @@ pub mod encryption;
 pub mod jwt;
 pub mod logger;
 
+#[cfg(feature = "email")]
+pub mod email;
+
 #[cfg(feature = "kms")]
 use data_models::errors::StorageError;
 use data_models::errors::StorageResult;
