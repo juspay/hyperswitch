@@ -36,6 +36,13 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,

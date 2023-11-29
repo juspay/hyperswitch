@@ -2,16 +2,14 @@ pub mod lowering;
 #[cfg(feature = "ast_parser")]
 pub mod parser;
 
+use common_enums::RoutableConnectors;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    enums::Connector,
-    types::{DataType, Metadata},
-};
+use crate::types::{DataType, Metadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
-    pub connector: Connector,
+    pub connector: RoutableConnectors,
     #[cfg(not(feature = "connector_choice_mca_id"))]
     pub sub_label: Option<String>,
 }
