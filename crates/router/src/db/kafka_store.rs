@@ -1007,7 +1007,7 @@ impl PaymentAttemptInterface for KafkaStore {
             )
             .await
     }
-    
+
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
