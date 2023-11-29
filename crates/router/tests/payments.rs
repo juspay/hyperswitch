@@ -2,7 +2,6 @@
 
 mod utils;
 
-use db::kafka::KafkaProducer;
 use router::{
     configs,
     core::{payment_methods::Oss, payments},

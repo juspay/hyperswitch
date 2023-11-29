@@ -10,7 +10,6 @@ use actix_web::{
     dev::{Service, ServiceResponse},
     test::{call_and_read_body_json, TestRequest},
 };
-use db::kafka::KafkaProducer;
 use derive_deref::Deref;
 use router::{configs::settings::Settings, routes::AppState, services};
 use serde::{de::DeserializeOwned, Deserialize};
