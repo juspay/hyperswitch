@@ -130,6 +130,7 @@ impl ConnectorCommon for Elavon {
             },
             message: description.clone(),
             reason: Some(description),
+            connector_transaction_id: None,
         })
     }
 }
