@@ -79,6 +79,13 @@ pub enum PaymentMetrics {
     ConnectorSuccessRate,
 }
 
+#[derive(Debug, Default, serde::Serialize)]
+pub struct ErrorResult {
+    pub reason: String,
+    pub count: i64,
+    pub percentage: f64,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -194,7 +201,7 @@ pub struct PaymentMetricsBucketValue {
     pub payment_success_count: Option<u64>,
     pub payment_processed_amount: Option<u64>,
     pub avg_ticket_size: Option<f64>,
-    pub payment_error_message: Option<String>,
+    pub payment_error_message: Option<Vec<ErrorResult>>,
     pub retries_count: Option<u64>,
     pub retries_amount_processed: Option<u64>,
     pub connector_success_rate: Option<f64>,

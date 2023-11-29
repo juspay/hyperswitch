@@ -1,4 +1,4 @@
-use api_models::analytics::payments::PaymentMetricsBucketValue;
+use api_models::analytics::payments::{ErrorResult, PaymentMetricsBucketValue};
 use bigdecimal::ToPrimitive;
 use diesel_models::enums as storage_enums;
 use router_env::logger;
@@ -71,7 +71,7 @@ pub trait PaymentDistributionAccumulator {
 }
 
 impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
-    type DistributionOutput = Option<String>;
+    type DistributionOutput = Option<Vec<ErrorResult>>;
 
     fn add_distribution_bucket(&mut self, distribution: &PaymentDistributionRow) {
         self.error_vec.push(ErrorDistributionRow {
@@ -90,20 +90,19 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
             None
         } else {
             self.error_vec.sort_by(|a, b| b.count.cmp(&a.count));
-            let mut res: Vec<String> = Vec::new();
-            for val in self.error_vec.iter() {
+            let mut res: Vec<ErrorResult> = Vec::new();
+            for val in self.error_vec.into_iter() {
                 let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0
                     / f64::from(u32::try_from(val.total).ok()?);
 
-                res.push(format!(
-                    "{} ({}%) ({})",
-                    val.error_message,
-                    perc.round(),
-                    val.count
-                ));
+                res.push(ErrorResult {
+                    reason: val.error_message,
+                    count: val.count,
+                    percentage: (perc * 100.0).round() / 100.0,
+                })
             }
 
-            Some(res.join(" $$ "))
+            Some(res)
         }
     }
 }
