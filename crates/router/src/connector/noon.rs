@@ -137,6 +137,7 @@ impl ConnectorCommon for Noon {
             message: response.class_description,
             reason: Some(response.message),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

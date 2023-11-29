@@ -129,6 +129,259 @@
         ]
       }
     },
+    "/accounts/{account_id}/connectors": {
+      "get": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Merchant Connector - List",
+        "description": "Merchant Connector - List\n\nList Merchant Connector Details for the merchant",
+        "operationId": "List all Merchant Connectors",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantConnectorResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Merchant Connector - Create",
+        "description": "Merchant Connector - Create\n\nCreate a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "operationId": "Create a Merchant Connector",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantConnectorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Connector Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantConnectorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/accounts/{account_id}/connectors/{connector_id}": {
+      "get": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Merchant Connector - Retrieve",
+        "description": "Merchant Connector - Retrieve\n\nRetrieve Merchant Connector Details",
+        "operationId": "Retrieve a Merchant Connector",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantConnectorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Merchant Connector - Update",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
+        "operationId": "Update a Merchant Connector",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantConnectorUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Connector Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantConnectorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Merchant Connector - Delete",
+        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
+        "operationId": "Delete a Merchant Connector",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantConnectorDeleteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/customers": {
       "post": {
         "tags": [
@@ -4053,6 +4306,19 @@
           }
         ]
       },
+      "CardToken": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -4147,6 +4413,13 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorStatus": {
+        "type": "string",
+        "enum": [
+          "inactive",
+          "active"
+        ]
       },
       "ConnectorType": {
         "type": "string",
@@ -4822,6 +5095,14 @@
             ],
             "nullable": true
           },
+          "bank": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
           "requires_cvv": {
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
@@ -5358,13 +5639,13 @@
           {
             "type": "string",
             "enum": [
-              "user_addressline1"
+              "user_address_line1"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "user_addressline2"
+              "user_address_line2"
             ]
           },
           {
@@ -5928,6 +6209,14 @@
           },
           "step_up_possible": {
             "type": "boolean"
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -6033,6 +6322,14 @@
           },
           "step_up_possible": {
             "type": "boolean"
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -6106,6 +6403,14 @@
           },
           "step_up_possible": {
             "type": "boolean",
+            "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -6403,6 +6708,17 @@
             }
           }
         ]
+      },
+      "MaskedBankDetails": {
+        "type": "object",
+        "required": [
+          "mask"
+        ],
+        "properties": {
+          "mask": {
+            "type": "string"
+          }
+        }
       },
       "MbWayRedirection": {
         "type": "object",
@@ -6872,7 +7188,8 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name"
+          "connector_name",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7003,6 +7320,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7088,7 +7408,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7231,6 +7552,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -7238,7 +7562,8 @@
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
-          "connector_type"
+          "connector_type",
+          "status"
         ],
         "properties": {
           "connector_type": {
@@ -7336,6 +7661,9 @@
           },
           "pm_auth_config": {
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
           }
         }
       },
@@ -8137,6 +8465,16 @@
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
           }
         }
       },
@@ -8584,6 +8922,17 @@
             "properties": {
               "gift_card": {
                 "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_token"
+            ],
+            "properties": {
+              "card_token": {
+                "$ref": "#/components/schemas/CardToken"
               }
             }
           }
@@ -10023,6 +10372,16 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "payment_experience": {
             "allOf": [
               {
@@ -10508,7 +10867,8 @@
           "entity_type",
           "status",
           "error_message",
-          "error_code"
+          "error_code",
+          "profile_id"
         ],
         "properties": {
           "payout_id": {
@@ -10640,8 +11000,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment",
-            "nullable": true
+            "description": "The business profile that is associated with this payment"
           }
         }
       },
@@ -11244,18 +11603,14 @@
         "type": "object",
         "required": [
           "payment_link_id",
-          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
           "created_at",
-          "last_modified_at"
+          "status"
         ],
         "properties": {
           "payment_link_id": {
-            "type": "string"
-          },
-          "payment_id": {
             "type": "string"
           },
           "merchant_id": {
@@ -11268,25 +11623,28 @@
             "type": "integer",
             "format": "int64"
           },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "last_modified_at": {
             "type": "string",
             "format": "date-time"
           },
           "link_expiry": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
             "nullable": true
           }
         }

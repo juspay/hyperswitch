@@ -76,6 +76,7 @@ regex = "1.8.4"
 reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = "0.16.20"
 roxmltree = "0.18.0"
+rust_decimal = { version = "1.30.0", features = ["serde-with-float", "serde-with-str"] }
 rustc-hash = "1.1.0"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
@@ -85,7 +86,7 @@ serde_urlencoded = "0.7.1"
 serde_with = "3.0.0"
 sha-1 = { version = "0.9" }
 sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
-strum = { version = "0.24.1", features = ["derive"] }
+strum = { version = "0.25", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
@@ -104,6 +105,7 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }

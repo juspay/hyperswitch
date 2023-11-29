@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use data_models::mandates::MandateData;
-use error_stack::ResultExt;
+use error_stack::{report, IntoReport, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -28,7 +28,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentApprove;
 
 #[async_trait]
@@ -45,11 +45,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
-        PaymentData<F>,
-        Option<CustomerDetails>,
-    )> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -75,6 +71,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             ],
             "confirm",
         )?;
+
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })?;
 
         let (
             token,
@@ -207,50 +218,57 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", &merchant_account.merchant_id)
         });
 
-        Ok((
-            Box::new(self),
-            PaymentData {
-                flow: PhantomData,
-                payment_intent,
-                payment_attempt,
-                currency,
-                amount,
-                email: request.email.clone(),
-                mandate_id: None,
-                mandate_connector,
-                setup_mandate,
-                token,
-                address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.into()),
-                    billing: billing_address.as_ref().map(|a| a.into()),
-                },
-                confirm: request.confirm,
-                payment_method_data: request.payment_method_data.clone(),
-                force_sync: None,
-                refunds: vec![],
-                disputes: vec![],
-                attempts: None,
-                sessions_token: vec![],
-                card_cvc: request.card_cvc.clone(),
-                creds_identifier: None,
-                pm_token: None,
-                connector_customer_id: None,
-                recurring_mandate_payment_data,
-                ephemeral_key: None,
-                multiple_capture_data: None,
-                redirect_response,
-                surcharge_details: None,
-                frm_message: frm_response.ok(),
-                payment_link_data: None,
+        let payment_data = PaymentData {
+            flow: PhantomData,
+            payment_intent,
+            payment_attempt,
+            currency,
+            amount,
+            email: request.email.clone(),
+            mandate_id: None,
+            mandate_connector,
+            setup_mandate,
+            token,
+            address: PaymentAddress {
+                shipping: shipping_address.as_ref().map(|a| a.into()),
+                billing: billing_address.as_ref().map(|a| a.into()),
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
-        ))
+            confirm: request.confirm,
+            payment_method_data: request.payment_method_data.clone(),
+            force_sync: None,
+            refunds: vec![],
+            disputes: vec![],
+            attempts: None,
+            sessions_token: vec![],
+            card_cvc: request.card_cvc.clone(),
+            creds_identifier: None,
+            pm_token: None,
+            connector_customer_id: None,
+            recurring_mandate_payment_data,
+            ephemeral_key: None,
+            multiple_capture_data: None,
+            redirect_response,
+            surcharge_details: None,
+            frm_message: frm_response.ok(),
+            payment_link_data: None,
+        };
+
+        let customer_details = Some(CustomerDetails {
+            customer_id: request.customer_id.clone(),
+            name: request.name.clone(),
+            email: request.email.clone(),
+            phone: request.phone.clone(),
+            phone_country_code: request.phone_country_code.clone(),
+        });
+
+        let get_trackers_response = operations::GetTrackerResponse {
+            operation: Box::new(self),
+            customer_details,
+            payment_data,
+            business_profile,
+        };
+
+        Ok(get_trackers_response)
     }
 }
 
@@ -381,15 +399,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
-        let given_payment_id = match &request.payment_id {
-            Some(id_type) => Some(
-                id_type
-                    .get_payment_intent_id()
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?,
-            ),
-            None => None,
-        };
-
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -401,13 +410,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
-        let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+        let payment_id = request
+            .payment_id
+            .clone()
+            .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
+                payment_id: payment_id
+                    .and_then(|id| core_utils::validate_id(id, "payment_id"))
+                    .into_report()?,
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(

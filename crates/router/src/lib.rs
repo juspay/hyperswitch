@@ -123,6 +123,7 @@ pub fn mk_app(
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
+            .service(routes::Forex::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
@@ -134,7 +135,6 @@ pub fn mk_app(
             .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
-            .service(routes::PaymentLink::server(state.clone()));
     }
 
     #[cfg(feature = "olap")]
@@ -148,6 +148,7 @@ pub fn mk_app(
             .service(routes::Routing::server(state.clone()))
             .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
     }
 

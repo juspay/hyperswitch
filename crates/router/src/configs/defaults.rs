@@ -30,6 +30,8 @@ impl Default for super::settings::Database {
             pool_size: 5,
             connection_timeout: 10,
             queue_strategy: Default::default(),
+            min_idle: None,
+            max_lifetime: None,
         }
     }
 }
@@ -99,7 +101,7 @@ impl Default for super::settings::DrainerSettings {
             num_partitions: 64,
             max_read_count: 100,
             shutdown_interval: 1000,
-            loop_interval: 500,
+            loop_interval: 100,
         }
     }
 }
@@ -582,7 +584,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline1,
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -806,7 +808,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline1,
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -1238,7 +1240,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline1,
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -1247,7 +1249,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line2".to_string(),
                                                     display_name: "line2".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline2,
+                                                    field_type: enums::FieldType::UserAddressLine2,
                                                     value: None,
                                                 }
                                             ),
@@ -2582,7 +2584,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline1,
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -3014,7 +3016,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
                                                     display_name: "line1".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline1,
+                                                    field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
                                             ),
@@ -3023,7 +3025,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line2".to_string(),
                                                     display_name: "line2".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline2,
+                                                    field_type: enums::FieldType::UserAddressLine2,
                                                     value: None,
                                                 }
                                             ),
@@ -4356,8 +4358,8 @@ impl Default for super::settings::ApiKeys {
             #[cfg(feature = "kms")]
             kms_encrypted_hash_key: KmsValue::default(),
 
-            /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
-            /// hashes of API keys
+            // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
+            // hashes of API keys
             #[cfg(not(feature = "kms"))]
             hash_key: String::new(),
 

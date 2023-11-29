@@ -9,6 +9,7 @@ use std::{
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
+    payments::Address,
     routing::ConnectorSelection,
 };
 use common_utils::static_cache::StaticCache;
@@ -995,4 +996,61 @@ async fn perform_session_routing_for_pm_type(
     }
 
     Ok(final_choice)
+}
+
+pub fn make_dsl_input_for_surcharge(
+    payment_attempt: &oss_storage::PaymentAttempt,
+    payment_intent: &oss_storage::PaymentIntent,
+    billing_address: Option<Address>,
+) -> RoutingResult<dsl_inputs::BackendInput> {
+    let mandate_data = dsl_inputs::MandateData {
+        mandate_acceptance_type: None,
+        mandate_type: None,
+        payment_type: None,
+    };
+    let payment_input = dsl_inputs::PaymentInput {
+        amount: payment_attempt.amount,
+        // currency is always populated in payment_attempt during payment create
+        currency: payment_attempt
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::RoutingError::DslMissingRequiredField {
+                field_name: "currency".to_string(),
+            })?,
+        authentication_type: payment_attempt.authentication_type,
+        card_bin: None,
+        capture_method: payment_attempt.capture_method,
+        business_country: payment_intent
+            .business_country
+            .map(api_enums::Country::from_alpha2),
+        billing_country: billing_address
+            .and_then(|bic| bic.address)
+            .and_then(|add| add.country)
+            .map(api_enums::Country::from_alpha2),
+        business_label: payment_intent.business_label.clone(),
+        setup_future_usage: payment_intent.setup_future_usage,
+    };
+    let metadata = payment_intent
+        .metadata
+        .clone()
+        .map(|val| val.parse_value("routing_parameters"))
+        .transpose()
+        .change_context(errors::RoutingError::MetadataParsingError)
+        .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
+        .unwrap_or_else(|err| {
+            logger::error!(error=?err);
+            None
+        });
+    let payment_method_input = dsl_inputs::PaymentMethodInput {
+        payment_method: None,
+        payment_method_type: None,
+        card_network: None,
+    };
+    let backend_input = dsl_inputs::BackendInput {
+        metadata,
+        payment: payment_input,
+        payment_method: payment_method_input,
+        mandate: mandate_data,
+    };
+    Ok(backend_input)
 }
