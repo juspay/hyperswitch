@@ -110,6 +110,7 @@ impl ConnectorCommon for Stax {
                     .to_owned(),
             ),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

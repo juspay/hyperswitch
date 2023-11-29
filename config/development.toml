@@ -20,6 +20,7 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
+min_idle = 2
 
 [replica_database]
 username = "db_user"
@@ -51,6 +52,15 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+
+[forex_api]
+call_delay = 21600
+local_fetch_retry_count = 5
+local_fetch_retry_delay = 1000
+api_timeout = 20000
+api_key = "YOUR API KEY HERE"
+fallback_api_key = "YOUR API KEY HERE"
+redis_lock_timeout = 26000
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -202,9 +212,15 @@ disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
 [email]
-from_email = "notify@example.com"
+sender_email = "example@example.com"
 aws_region = ""
-base_url = ""
+base_url = "http://localhost:8080"
+allowed_unverified_days = 1
+active_email_client = "SES"
+
+[email.aws_ses]
+email_role_arn = ""
+sts_role_session_name = ""
 
 [bank_config.eps]
 stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau" }
@@ -459,3 +475,33 @@ delay_between_retries_in_milliseconds = 500
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
+
+[events]
+source = "logs"
+
+[events.kafka]
+brokers = ["localhost:9092"]
+intent_analytics_topic = "hyperswitch-payment-intent-events"
+attempt_analytics_topic = "hyperswitch-payment-attempt-events"
+refund_analytics_topic = "hyperswitch-refund-events"
+api_logs_topic = "hyperswitch-api-log-events"
+connector_events_topic = "hyperswitch-connector-api-events"
+
+[analytics]
+source = "sqlx"
+
+[analytics.clickhouse]
+username = "default"
+# password = ""
+host = "http://localhost:8123"
+database_name = "default"
+
+[analytics.sqlx]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+connection_timeout = 10
+queue_strategy = "Fifo"

@@ -20,7 +20,6 @@ use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
-
 #[tokio::main]
 async fn main() -> CustomResult<(), ProcessTrackerError> {
     // console_subscriber::init();
@@ -30,7 +29,6 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
-
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),

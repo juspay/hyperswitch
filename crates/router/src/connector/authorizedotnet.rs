@@ -876,6 +876,7 @@ fn get_error_response(
                     reason: Some(error.error_text),
                     status_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 })
             })
             .unwrap_or_else(|| types::ErrorResponse {
@@ -884,6 +885,7 @@ fn get_error_response(
                 reason: None,
                 status_code,
                 attempt_status: None,
+                connector_transaction_id: None,
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
@@ -894,6 +896,7 @@ fn get_error_response(
                 reason: Some(message.to_string()),
                 status_code,
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }

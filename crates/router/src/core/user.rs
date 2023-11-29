@@ -1,12 +1,16 @@
 use api_models::user as api;
 use diesel_models::enums::UserStatus;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use router_env::env;
 
 use super::errors::{UserErrors, UserResponse};
 use crate::{
-    consts::user as consts, routes::AppState, services::ApplicationResponse, types::domain,
+    consts,
+    db::user::UserInterface,
+    routes::AppState,
+    services::{authentication::UserFromToken, ApplicationResponse},
+    types::domain,
 };
 
 pub async fn connect_account(
@@ -66,6 +70,28 @@ pub async fn connect_account(
             .get_jwt_auth_token(state.clone(), user_role.org_id)
             .await?;
 
+        #[cfg(feature = "email")]
+        {
+            use router_env::logger;
+
+            use crate::services::email::types as email_types;
+
+            let email_contents = email_types::WelcomeEmail {
+                recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+                settings: state.conf.clone(),
+            };
+
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+
+            logger::info!(?send_email_result);
+        }
+
         return Ok(ApplicationResponse::Json(api::ConnectAccountResponse {
             token: Secret::new(jwt_token),
             merchant_id: user_role.merchant_id,
@@ -78,4 +104,36 @@ pub async fn connect_account(
     } else {
         Err(UserErrors::InternalServerError.into())
     }
+}
+
+pub async fn change_password(
+    state: AppState,
+    request: api::ChangePasswordRequest,
+    user_from_token: UserFromToken,
+) -> UserResponse<()> {
+    let user: domain::UserFromStorage =
+        UserInterface::find_user_by_id(&*state.store, &user_from_token.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into();
+
+    user.compare_password(request.old_password)
+        .change_context(UserErrors::InvalidOldPassword)?;
+
+    let new_password_hash =
+        crate::utils::user::password::generate_password_hash(request.new_password)?;
+
+    let _ = UserInterface::update_user_by_user_id(
+        &*state.store,
+        user.get_user_id(),
+        diesel_models::user::UserUpdate::AccountUpdate {
+            name: None,
+            password: Some(new_password_hash),
+            is_verified: None,
+        },
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

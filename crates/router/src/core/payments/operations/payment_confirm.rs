@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 #[async_trait]
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
@@ -101,6 +101,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             utils::flatten_join_error(payment_intent_fut),
             utils::flatten_join_error(mandate_details_fut)
         )?;
+
+        if let Some(order_details) = &request.order_details {
+            helpers::validate_order_details_amount(
+                order_details.to_owned(),
+                payment_intent.amount,
+            )?;
+        }
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
@@ -185,7 +192,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let shipping_address_fut = tokio::spawn(
             async move {
-                helpers::create_or_find_address_for_payment_by_request(
+                helpers::create_or_update_address_for_payment_by_request(
                     store.as_ref(),
                     m_request_shipping.as_ref(),
                     m_payment_intent_shipping_address_id.as_deref(),
@@ -213,7 +220,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let billing_address_fut = tokio::spawn(
             async move {
-                helpers::create_or_find_address_for_payment_by_request(
+                helpers::create_or_update_address_for_payment_by_request(
                     store.as_ref(),
                     m_request_billing.as_ref(),
                     m_payment_intent_billing_address_id.as_deref(),
@@ -693,6 +700,15 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_error_message = error_message.clone();
         let m_db = state.clone().store;
 
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -716,6 +732,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         amount_capturable: Some(authorized_amount),
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
+                        surcharge_amount,
+                        tax_amount,
                     },
                     storage_scheme,
                 )

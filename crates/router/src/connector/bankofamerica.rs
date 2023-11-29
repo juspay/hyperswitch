@@ -232,6 +232,7 @@ impl ConnectorCommon for Bankofamerica {
             message,
             reason: Some(connector_reason),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

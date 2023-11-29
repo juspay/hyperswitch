@@ -312,6 +312,18 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
+impl PaymentsRequest {
+    pub fn get_total_capturable_amount(&self) -> Option<i64> {
+        let surcharge_amount = self
+            .surcharge_details
+            .map(|surcharge_details| {
+                surcharge_details.surcharge_amount + surcharge_details.tax_amount.unwrap_or(0)
+            })
+            .unwrap_or(0);
+        self.amount
+            .map(|amount| i64::from(amount) + surcharge_amount)
+    }
+}
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
 )]
@@ -334,6 +346,9 @@ impl RequestSurchargeDetails {
             tax_on_surcharge_amount,
             final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
         }
+    }
+    pub fn get_total_surcharge_amount(&self) -> i64 {
+        self.surcharge_amount + self.tax_amount.unwrap_or(0)
     }
 }
 
@@ -702,6 +717,14 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CardRedirectData {
@@ -831,6 +854,7 @@ pub enum PaymentMethodData {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
+    CardToken(CardToken),
 }
 
 impl PaymentMethodData {
@@ -858,7 +882,8 @@ impl PaymentMethodData {
             | Self::Reward
             | Self::Upi(_)
             | Self::Voucher(_)
-            | Self::GiftCard(_) => None,
+            | Self::GiftCard(_)
+            | Self::CardToken(_) => None,
         }
     }
 }
@@ -1077,6 +1102,7 @@ pub enum AdditionalPaymentData {
     GiftCard {},
     Voucher {},
     CardRedirect {},
+    CardToken {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1645,6 +1671,7 @@ pub enum PaymentMethodDataResponse {
     Voucher,
     GiftCard,
     CardRedirect,
+    CardToken,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2312,9 +2339,11 @@ pub struct PaymentListFilters {
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
     pub start_time: PrimitiveDateTime,
     /// The end time to filter payments list or to get list of filters. If not passed the default time is now
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
     pub end_time: Option<PrimitiveDateTime>,
 }
 
@@ -2440,6 +2469,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Voucher {} => Self::Voucher,
             AdditionalPaymentData::GiftCard {} => Self::GiftCard,
             AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
+            AdditionalPaymentData::CardToken {} => Self::CardToken,
         }
     }
 }
@@ -3194,18 +3224,17 @@ pub struct PaymentLinkResponse {
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
-    pub payment_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
     pub amount: i64,
-    #[schema(value_type = Option<Currency>, example = "USD")]
-    pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: PrimitiveDateTime,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
+    pub description: Option<String>,
+    pub status: String,
+    #[schema(value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3229,4 +3258,58 @@ pub struct PaymentLinkDetails {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub sdk_theme: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+
+pub struct PaymentLinkListConstraints {
+    /// limit on the number of objects to return
+    pub limit: Option<i64>,
+
+    /// The time at which payment link is created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+
+    /// Time less than the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lt"
+    )]
+    pub created_lt: Option<PrimitiveDateTime>,
+
+    /// Time greater than the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.gt"
+    )]
+    pub created_gt: Option<PrimitiveDateTime>,
+
+    /// Time less than or equals to the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lte"
+    )]
+    pub created_lte: Option<PrimitiveDateTime>,
+
+    /// Time greater than or equals to the payment link created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.gte")]
+    pub created_gte: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PaymentLinkListResponse {
+    /// The number of payment links included in the list
+    pub size: usize,
+    // The list of payment link response objects
+    pub data: Vec<PaymentLinkResponse>,
 }

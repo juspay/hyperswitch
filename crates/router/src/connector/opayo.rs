@@ -109,6 +109,7 @@ impl ConnectorCommon for Opayo {
             message: response.message,
             reason: response.reason,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

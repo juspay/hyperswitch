@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use api_models::payments::GetPaymentMethodType;
+use api_models::payments::{CardToken, GetPaymentMethodType};
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
@@ -601,19 +601,19 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
-/// if confirm = true and capture method = automatic, amount_to_capture(if provided) must be equal to amount
+/// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
 #[instrument(skip_all)]
 pub fn validate_amount_to_capture_in_create_call_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic
-        && request.confirm.unwrap_or(false)
-    {
-        if let Some((amount_to_capture, amount)) = request.amount_to_capture.zip(request.amount) {
-            let amount_int: i64 = amount.into();
-            utils::when(amount_to_capture != amount_int, || {
+    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic {
+        let total_capturable_amount = request.get_total_capturable_amount();
+        if let Some((amount_to_capture, total_capturable_amount)) =
+            request.amount_to_capture.zip(total_capturable_amount)
+        {
+            utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "amount_to_capture must be equal to amount when confirm = true and capture_method = automatic".into()
+                    message: "amount_to_capture must be equal to total_capturable_amount when capture_method = automatic".into()
                 }))
             })
         } else {
@@ -1356,6 +1356,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
     merchant_key_store: &domain::MerchantKeyStore,
+    card_token_data: Option<&CardToken>,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
     let (pm, supplementary_data) =
         vault::Vault::get_payment_method_data_from_locker(state, token, merchant_key_store)
@@ -1375,9 +1376,30 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
     Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm {
         Some(api::PaymentMethodData::Card(card)) => {
+            let mut updated_card = card.clone();
+            let mut is_card_updated = false;
+
+            let name_on_card = if card.card_holder_name.clone().expose().is_empty() {
+                card_token_data
+                    .and_then(|token_data| token_data.card_holder_name.clone())
+                    .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+                    .map(|name_on_card| {
+                        is_card_updated = true;
+                        name_on_card
+                    })
+            } else {
+                Some(card.card_holder_name.clone())
+            };
+
+            if let Some(name_on_card) = name_on_card {
+                updated_card.card_holder_name = name_on_card;
+            }
+
             if let Some(cvc) = card_cvc {
-                let mut updated_card = card;
+                is_card_updated = true;
                 updated_card.card_cvc = cvc;
+            }
+            if is_card_updated {
                 let updated_pm = api::PaymentMethodData::Card(updated_card);
                 vault::Vault::store_payment_method_data_in_locker(
                     state,
@@ -1423,6 +1445,7 @@ pub async fn retrieve_card_with_permanent_token(
     token: &str,
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
+    card_token_data: Option<&CardToken>,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1437,13 +1460,23 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to fetch card information from the permanent locker")?;
 
+    let name_on_card = if let Some(name_on_card) = card.name_on_card.clone() {
+        if card.name_on_card.unwrap_or_default().expose().is_empty() {
+            card_token_data
+                .and_then(|token_data| token_data.card_holder_name.clone())
+                .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+        } else {
+            Some(name_on_card)
+        }
+    } else {
+        card_token_data
+            .and_then(|token_data| token_data.card_holder_name.clone())
+            .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+    };
+
     let api_card = api::Card {
         card_number: card.card_number,
-        card_holder_name: card
-            .name_on_card
-            .get_required_value("name_on_card")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("card holder name was not saved in permanent locker")?,
+        card_holder_name: name_on_card.unwrap_or(masking::Secret::from("".to_string())),
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_cvc.unwrap_or_default(),
@@ -1529,6 +1562,11 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
     let card_cvc = payment_data.card_cvc.clone();
 
+    let card_token_data = request.as_ref().and_then(|pmd| match pmd {
+        api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
+        _ => None,
+    });
+
     // TODO: Handle case where payment method and token both are present in request properly.
     let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
@@ -1538,6 +1576,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_cvc,
+                card_token_data,
             )
             .await
             .attach_printable("in 'make_pm_data'")?;
@@ -1693,7 +1732,8 @@ pub(crate) fn validate_status_with_capture_method(
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially_captured, processing".to_string()
+                states: "requires_capture, partially_captured_and_capturable, processing"
+                    .to_string()
             }))
         },
     )
@@ -3315,6 +3355,9 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::GiftCard(_) => {
             api_models::payments::AdditionalPaymentData::GiftCard {}
         }
+        api_models::payments::PaymentMethodData::CardToken(_) => {
+            api_models::payments::AdditionalPaymentData::CardToken {}
+        }
     }
 }
 
@@ -3614,6 +3657,12 @@ pub fn get_key_params_for_surcharge_details(
             gift_card.get_payment_method_type(),
             None,
         )),
+        api_models::payments::PaymentMethodData::CardToken(_) => {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            }
+            .into())
+        }
     }
 }
 
@@ -3684,4 +3733,23 @@ pub async fn get_gsm_record(
             err
         })
         .ok()
+}
+
+pub fn validate_order_details_amount(
+    order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
+    amount: i64,
+) -> Result<(), errors::ApiErrorResponse> {
+    let total_order_details_amount: i64 = order_details
+        .iter()
+        .map(|order| order.amount * i64::from(order.quantity))
+        .sum();
+
+    if total_order_details_amount != amount {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Total sum of order details doesn't match amount in payment request"
+                .to_string(),
+        })
+    } else {
+        Ok(())
+    }
 }

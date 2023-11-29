@@ -77,6 +77,7 @@ impl ConnectorCommon for Klarna {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -401,7 +402,8 @@ impl
             | api_payments::PaymentMethodData::Reward
             | api_payments::PaymentMethodData::Upi(_)
             | api_payments::PaymentMethodData::Voucher(_)
-            | api_payments::PaymentMethodData::GiftCard(_) => Err(error_stack::report!(
+            | api_payments::PaymentMethodData::GiftCard(_)
+            | api_payments::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
                 errors::ConnectorError::MismatchedPaymentData
             )),
         }

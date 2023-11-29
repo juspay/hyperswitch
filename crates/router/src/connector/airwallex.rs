@@ -96,6 +96,7 @@ impl ConnectorCommon for Airwallex {
             message: response.message,
             reason: response.source,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

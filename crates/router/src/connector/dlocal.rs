@@ -132,6 +132,7 @@ impl ConnectorCommon for Dlocal {
             message: response.message,
             reason: response.param,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

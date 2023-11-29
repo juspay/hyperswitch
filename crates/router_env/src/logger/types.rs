@@ -163,6 +163,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    // Retrieve forex flow.
+    RetrieveForexFlow,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config
@@ -223,6 +225,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// Payment Link List flow
+    PaymentLinkList,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -253,6 +257,8 @@ pub enum Flow {
     DecisionManagerDeleteConfig,
     /// Retrieve Decision Manager Config
     DecisionManagerRetrieveConfig,
+    /// Change password flow
+    ChangePassword,
 }
 
 ///

@@ -99,6 +99,7 @@ impl ConnectorCommon for Rapyd {
                 message: response_data.status.status.unwrap_or_default(),
                 reason: response_data.status.message,
                 attempt_status: None,
+                connector_transaction_id: None,
             }),
             Err(error_msg) => {
                 logger::error!(deserialization_error =? error_msg);

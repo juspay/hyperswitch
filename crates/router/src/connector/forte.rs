@@ -132,6 +132,7 @@ impl ConnectorCommon for Forte {
             message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

@@ -100,6 +100,7 @@ impl ConnectorCommon for Shift4 {
             message: response.error.message,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

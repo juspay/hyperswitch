@@ -225,6 +225,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
             reason: String::from_utf8(res.response.to_vec()).ok(),
             status_code: res.status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 
@@ -312,6 +313,7 @@ where
                     status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
                     reason: None,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 })
             } else {
                 None
@@ -437,6 +439,7 @@ where
                                     reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                                     status_code: 504,
                                     attempt_status: None,
+                                    connector_transaction_id: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -799,7 +802,7 @@ where
     T: Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
     E: ErrorSwitch<OErr> + error_stack::Context,
-    OErr: ResponseError + error_stack::Context,
+    OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
@@ -856,7 +859,9 @@ where
         .as_millis();
 
     let mut serialized_response = None;
+    let mut error = None;
     let mut overhead_latency = None;
+
     let status_code = match output.as_ref() {
         Ok(res) => {
             if let ApplicationResponse::Json(data) = res {
@@ -884,10 +889,21 @@ where
 
             metrics::request::track_response_status_code(res)
         }
-        Err(err) => err.current_context().status_code().as_u16().into(),
+        Err(err) => {
+            error.replace(
+                serde_json::to_value(err.current_context())
+                    .into_report()
+                    .attach_printable("Failed to serialize json response")
+                    .change_context(errors::ApiErrorResponse::InternalServerError.switch())
+                    .ok()
+                    .into(),
+            );
+            err.current_context().status_code().as_u16().into()
+        }
     };
 
     let api_event = ApiEvent::new(
+        Some(merchant_id.clone()),
         flow,
         &request_id,
         request_duration,
@@ -896,8 +912,10 @@ where
         serialized_response,
         overhead_latency,
         auth_type,
+        error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
+        Some(request.method().to_string()),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
