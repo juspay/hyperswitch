@@ -7,6 +7,10 @@ rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
 
+[features]
+default = ["dummy_connector"]
+dummy_connector = []
+
 [dependencies]
 diesel = { version = "2.1.0", features = ["postgres"] }
 serde = { version = "1.0.160", features = ["derive"] }
