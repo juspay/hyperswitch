@@ -449,9 +449,8 @@ pub async fn backfill_metadata(
             } else if let Some(stripe_test_connected) = get_merchant_connector_account_by_name(
                 state,
                 &user.merchant_id,
-                api_models::enums::RoutableConnectors::DummyConnector4
-                    .to_string()
-                    .as_str(),
+                //TODO: Use Enum with proper feature flag
+                "stripe_test",
                 &key_store,
             )
             .await?
@@ -490,9 +489,8 @@ pub async fn backfill_metadata(
             } else if let Some(paypal_test_connected) = get_merchant_connector_account_by_name(
                 state,
                 &user.merchant_id,
-                api_models::enums::RoutableConnectors::DummyConnector7
-                    .to_string()
-                    .as_str(),
+                //TODO: Use Enum with proper feature flag
+                "paypal_test",
                 &key_store,
             )
             .await?
