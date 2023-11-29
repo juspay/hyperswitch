@@ -5036,6 +5036,55 @@
           }
         }
       },
+      "ConnectorSelection": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "ConnectorStatus": {
         "type": "string",
         "enum": [
@@ -5056,6 +5105,23 @@
           "payout_processor",
           "payment_method_auth"
         ]
+      },
+      "ConnectorVolumeSplit": {
+        "type": "object",
+        "required": [
+          "connector",
+          "split"
+        ],
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/RoutableConnectorChoice"
+          },
+          "split": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
       },
       "CountryAlpha2": {
         "type": "string",

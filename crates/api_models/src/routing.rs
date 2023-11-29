@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 use crate::enums::{self, RoutableConnectors};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ConnectorSelection {
     Priority(Vec<RoutableConnectorChoice>),
@@ -154,7 +154,7 @@ impl EuclidAnalysable for ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorVolumeSplit {
     pub connector: RoutableConnectorChoice,
     pub split: u8,
