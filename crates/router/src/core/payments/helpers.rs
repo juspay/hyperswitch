@@ -1381,9 +1381,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             let name_on_card = if card.card_holder_name.clone().expose().is_empty() {
                 card_token_data
-                    .and_then(|token_data| {
-                        token_data.card_holder_name.clone()
-                    })
+                    .and_then(|token_data| token_data.card_holder_name.clone())
                     .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
                     .map(|name_on_card| {
                         is_card_updated = true;
