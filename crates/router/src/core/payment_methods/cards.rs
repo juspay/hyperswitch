@@ -236,9 +236,10 @@ pub async fn add_card_to_locker(
             })
         },
         &metrics::CARD_ADD_TIME,
-        &[router_env::opentelemetry::KeyValue::new(
-            "locker", "basilisk",
-        )],
+        &[
+            router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+            router_env::opentelemetry::KeyValue::new("operation", "add"),
+        ],
     )
     .await?;
     logger::debug!("card added to basilisk locker");
@@ -259,7 +260,10 @@ pub async fn add_card_to_locker(
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
-                    &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+                    &[
+                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                        router_env::opentelemetry::KeyValue::new("operation", "add"),
+                    ],
                 );
                 error
             })
@@ -321,7 +325,10 @@ pub async fn get_card_from_locker(
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
-                    &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+                    &[
+                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                        router_env::opentelemetry::KeyValue::new("operation", "get"),
+                    ],
                 );
                 error
             })
@@ -348,9 +355,10 @@ pub async fn get_card_from_locker(
                     metrics::CARD_LOCKER_FAILURES.add(
                         &metrics::CONTEXT,
                         1,
-                        &[router_env::opentelemetry::KeyValue::new(
-                            "locker", "basilisk",
-                        )],
+                        &[
+                            router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+                            router_env::opentelemetry::KeyValue::new("operation", "get"),
+                        ],
                     );
                     error
                 })
