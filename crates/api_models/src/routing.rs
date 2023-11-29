@@ -11,6 +11,7 @@ use euclid::{
     },
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::enums::{self, RoutableConnectors};
 
@@ -32,7 +33,7 @@ impl ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -40,7 +41,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
     pub profile_id: String,
     pub connectors: Vec<RoutableConnectorChoice>,
@@ -66,14 +67,14 @@ pub struct RoutingRetrieveResponse {
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum LinkedRoutingConfigRetrieveResponse {
     MerchantAccountBased(RoutingRetrieveResponse),
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MerchantRoutingAlgorithm {
     pub id: String,
     #[cfg(feature = "business_profile_routing")]
@@ -181,7 +182,7 @@ pub enum RoutableChoiceSerde {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg_attr(
     feature = "connector_choice_bcompat",
     serde(from = "RoutableChoiceSerde"),
@@ -581,7 +582,7 @@ impl RoutingAlgorithmRef {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct RoutingDictionaryRecord {
     pub id: String,
@@ -601,7 +602,7 @@ pub struct RoutingDictionary {
     pub records: Vec<RoutingDictionaryRecord>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, ToSchema)]
 #[serde(untagged)]
 pub enum RoutingKind {
     Config(RoutingDictionary),
