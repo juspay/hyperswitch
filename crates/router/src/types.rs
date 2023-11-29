@@ -27,6 +27,7 @@ use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
+use crate::types::transformers::ForeignFrom;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -980,40 +981,36 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
     }
 }
 
-impl Into<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
-    fn into(self) -> api_models::admin::ConnectorAuthType {
-        match self {
-            Self::TemporaryAuth => api_models::admin::ConnectorAuthType::TemporaryAuth,
-            Self::HeaderKey { api_key } => {
-                api_models::admin::ConnectorAuthType::HeaderKey { api_key }
-            }
-            Self::BodyKey { api_key, key1 } => {
-                api_models::admin::ConnectorAuthType::BodyKey { api_key, key1 }
-            }
-            Self::SignatureKey {
+impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
+    fn foreign_from(from: ConnectorAuthType) -> Self {
+        match from {
+            ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            ConnectorAuthType::HeaderKey { api_key } => Self::HeaderKey { api_key },
+            ConnectorAuthType::BodyKey { api_key, key1 } => Self::BodyKey { api_key, key1 },
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
-            } => api_models::admin::ConnectorAuthType::SignatureKey {
+            } => Self::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
             },
-            Self::MultiAuthKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
                 key2,
-            } => api_models::admin::ConnectorAuthType::MultiAuthKey {
+            } => Self::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
                 key2,
             },
-            Self::CurrencyAuthKey { auth_key_map } => {
-                api_models::admin::ConnectorAuthType::CurrencyAuthKey { auth_key_map }
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
             }
-            Self::NoKey => api_models::admin::ConnectorAuthType::NoKey,
+            ConnectorAuthType::NoKey => Self::NoKey,
         }
     }
 }
