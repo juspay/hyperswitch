@@ -42,7 +42,9 @@ mod vec;
 #[cfg(feature = "serde")]
 mod serde;
 #[cfg(feature = "serde")]
-pub use crate::serde::{masked_serialize, Deserialize, SerializableSecret, Serialize};
+pub use crate::serde::{
+    masked_serialize, Deserialize, ErasedMaskSerialize, SerializableSecret, Serialize,
+};
 
 /// This module should be included with asterisk.
 ///

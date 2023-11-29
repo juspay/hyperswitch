@@ -10,6 +10,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
@@ -19,13 +21,16 @@ use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*, files::*, gsm::*, user::*};
-use super::{cache::*, health::*, payment_link::*};
+use super::{
+    admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
+    user::*,
+};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-use crate::{
+pub use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     events::{event_logger::EventLogger, EventHandler},
@@ -112,56 +117,59 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        #[cfg(feature = "kms")]
-        let kms_client = kms::get_kms_client(&conf.kms).await;
-        let testable = storage_impl == StorageImpl::PostgresqlTest;
-        let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+        Box::pin(async move {
+            #[cfg(feature = "kms")]
+            let kms_client = kms::get_kms_client(&conf.kms).await;
+            let testable = storage_impl == StorageImpl::PostgresqlTest;
+            let store: Box<dyn StorageInterface> = match storage_impl {
+                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                    #[allow(clippy::expect_used)]
+                    get_store(&conf, shut_down_signal, testable)
+                        .await
+                        .expect("Failed to create store"),
+                ),
                 #[allow(clippy::expect_used)]
-                get_store(&conf, shut_down_signal, testable)
-                    .await
-                    .expect("Failed to create store"),
-            ),
-            #[allow(clippy::expect_used)]
-            StorageImpl::Mock => Box::new(
-                MockDb::new(&conf.redis)
-                    .await
-                    .expect("Failed to create mock store"),
-            ),
-        };
+                StorageImpl::Mock => Box::new(
+                    MockDb::new(&conf.redis)
+                        .await
+                        .expect("Failed to create mock store"),
+                ),
+            };
 
-        #[cfg(feature = "olap")]
-        let pool = crate::analytics::AnalyticsProvider::from_conf(
-            &conf.analytics,
-            #[cfg(feature = "kms")]
-            kms_client,
-        )
-        .await;
-
-        #[cfg(feature = "kms")]
-        #[allow(clippy::expect_used)]
-        let kms_secrets = settings::ActiveKmsSecrets {
-            jwekey: conf.jwekey.clone().into(),
-        }
-        .decrypt_inner(kms_client)
-        .await
-        .expect("Failed while performing KMS decryption");
-
-        #[cfg(feature = "email")]
-        let email_client = Arc::new(AwsSes::new(&conf.email).await);
-        Self {
-            flow_name: String::from("default"),
-            store,
-            conf: Arc::new(conf),
-            #[cfg(feature = "email")]
-            email_client,
-            #[cfg(feature = "kms")]
-            kms_secrets: Arc::new(kms_secrets),
-            api_client,
-            event_handler: Box::<EventLogger>::default(),
             #[cfg(feature = "olap")]
-            pool,
-        }
+            let pool = crate::analytics::AnalyticsProvider::from_conf(
+                &conf.analytics,
+                #[cfg(feature = "kms")]
+                kms_client,
+            )
+            .await;
+
+            #[cfg(feature = "kms")]
+            #[allow(clippy::expect_used)]
+            let kms_secrets = settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
+            }
+            .decrypt_inner(kms_client)
+            .await
+            .expect("Failed while performing KMS decryption");
+
+            #[cfg(feature = "email")]
+            let email_client = Arc::new(AwsSes::new(&conf.email).await);
+            Self {
+                flow_name: String::from("default"),
+                store,
+                conf: Arc::new(conf),
+                #[cfg(feature = "email")]
+                email_client,
+                #[cfg(feature = "kms")]
+                kms_secrets: Arc::new(kms_secrets),
+                api_client,
+                event_handler: Box::<EventLogger>::default(),
+                #[cfg(feature = "olap")]
+                pool,
+            }
+        })
+        .await
     }
 
     pub async fn new(
@@ -169,7 +177,13 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
+        Box::pin(Self::with_storage(
+            conf,
+            StorageImpl::Postgresql,
+            shut_down_signal,
+            api_client,
+        ))
+        .await
     }
 }
 
@@ -290,6 +304,22 @@ impl Payments {
     }
 }
 
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub struct Forex;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Forex {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/forex")
+            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/rates").route(web::get().to(currency::retrieve_forex)))
+            .service(
+                web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
+            )
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Routing;
 
@@ -315,6 +345,20 @@ impl Routing {
             .service(
                 web::resource("/deactivate")
                     .route(web::post().to(cloud_routing::routing_unlink_config)),
+            )
+            .service(
+                web::resource("/decision")
+                    .route(web::put().to(cloud_routing::upsert_decision_manager_config))
+                    .route(web::get().to(cloud_routing::retrieve_decision_manager_config))
+                    .route(web::delete().to(cloud_routing::delete_decision_manager_config)),
+            )
+            .service(
+                web::resource("/decision/surcharge")
+                    .route(web::put().to(cloud_routing::upsert_surcharge_decision_manager_config))
+                    .route(web::get().to(cloud_routing::retrieve_surcharge_decision_manager_config))
+                    .route(
+                        web::delete().to(cloud_routing::delete_surcharge_decision_manager_config),
+                    ),
             )
             .service(
                 web::resource("/{algorithm_id}")
@@ -652,11 +696,12 @@ impl Cache {
 }
 
 pub struct PaymentLink;
-
+#[cfg(feature = "olap")]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::post().to(payments_link_list)))
             .service(
                 web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
             )
@@ -732,5 +777,19 @@ impl User {
             .service(web::resource("/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/change_password").route(web::post().to(change_password)))
+    }
+}
+
+pub struct LockerMigrate;
+
+#[cfg(feature = "olap")]
+impl LockerMigrate {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("locker_migration/{merchant_id}")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
+            )
     }
 }

@@ -122,6 +122,7 @@ pub fn mk_app(
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
+            .service(routes::Forex::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
@@ -133,7 +134,6 @@ pub fn mk_app(
             .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
-            .service(routes::PaymentLink::server(state.clone()));
     }
 
     #[cfg(feature = "olap")]
@@ -145,7 +145,9 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
+            .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
     }
 
@@ -189,7 +191,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = routes::AppState::new(conf, tx, api_client).await;
+    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?

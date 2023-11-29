@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use data_models::errors::{StorageError, StorageResult};
-use diesel_models::{self as store};
+use diesel_models as store;
 use error_stack::ResultExt;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};

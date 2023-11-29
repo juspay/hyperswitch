@@ -31,11 +31,12 @@ pub struct ApiEvent {
     status_code: i64,
     #[serde(flatten)]
     auth_type: AuthenticationType,
-    request: serde_json::Value,
+    request: String,
     user_agent: Option<String>,
     ip_addr: Option<String>,
     url_path: String,
-    response: Option<serde_json::Value>,
+    response: Option<String>,
+    error: Option<serde_json::Value>,
     #[serde(flatten)]
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
@@ -52,18 +53,20 @@ impl ApiEvent {
         response: Option<serde_json::Value>,
         hs_latency: Option<u128>,
         auth_type: AuthenticationType,
+        error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
     ) -> Self {
         Self {
             api_flow: api_flow.to_string(),
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
+            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: request_id.as_hyphenated().to_string(),
             latency,
             status_code,
-            request,
-            response,
+            request: request.to_string(),
+            response: response.map(|resp| resp.to_string()),
             auth_type,
+            error,
             ip_addr: http_req
                 .connection_info()
                 .realip_remote_addr()

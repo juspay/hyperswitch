@@ -1,5 +1,6 @@
 pub mod customer;
 pub mod gsm;
+mod locker_migration;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
@@ -35,6 +36,7 @@ impl_misc_api_event_type!(
     MandateResponse,
     MandateRevokedResponse,
     RetrievePaymentLinkRequest,
+    PaymentLinkListConstraints,
     MandateId,
     DisputeListConstraints,
     RetrieveApiKeyResponse,

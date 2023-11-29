@@ -29,3 +29,21 @@ pub async fn user_connect_account(
     ))
     .await
 }
+
+pub async fn change_password(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::ChangePasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::ChangePassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, user, req| user::change_password(state, req, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

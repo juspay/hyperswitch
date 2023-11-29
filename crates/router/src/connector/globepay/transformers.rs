@@ -258,6 +258,7 @@ fn get_error_response(
         reason: return_msg,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 
