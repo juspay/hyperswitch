@@ -27,10 +27,16 @@ pub enum UserErrors {
     MerchantAccountCreationError(String),
     #[error("InvalidEmailError")]
     InvalidEmailError,
-    #[error("DuplicateOrganizationId")]
-    DuplicateOrganizationId,
     #[error("MerchantIdNotFound")]
     MerchantIdNotFound,
+    #[error("DuplicateOrganizationId")]
+    DuplicateOrganizationId,
+    #[error("InvalidRoleId")]
+    InvalidRoleId,
+    #[error("InvalidRoleOperation")]
+    InvalidRoleOperation,
+    #[error("MerchantIdParsingError")]
+    MerchantIdParsingError,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -77,14 +83,26 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidEmailError => {
                 AER::BadRequest(ApiError::new(sub_code, 16, "Invalid Email", None))
             }
+            Self::MerchantIdNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
+            }
             Self::DuplicateOrganizationId => AER::InternalServerError(ApiError::new(
                 sub_code,
                 21,
                 "An Organization with the id already exists",
                 None,
             )),
-            Self::MerchantIdNotFound => {
-                AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
+            Self::InvalidRoleId => {
+                AER::BadRequest(ApiError::new(sub_code, 22, "Invalid Role ID", None))
+            }
+            Self::InvalidRoleOperation => AER::BadRequest(ApiError::new(
+                sub_code,
+                23,
+                "User Role Operation Not Supported",
+                None,
+            )),
+            Self::MerchantIdParsingError => {
+                AER::BadRequest(ApiError::new(sub_code, 28, "Invalid Merchant Id", None))
             }
         }
     }

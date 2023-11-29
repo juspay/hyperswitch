@@ -25,6 +25,8 @@ pub mod routing;
 pub mod surcharge_decision_config;
 #[cfg(feature = "olap")]
 pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
 pub mod utils;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;

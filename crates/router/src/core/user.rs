@@ -62,7 +62,7 @@ pub async fn connect_account(
         let user_role = new_user
             .insert_user_role_in_db(
                 state.clone(),
-                consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+                consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
             )
             .await?;
