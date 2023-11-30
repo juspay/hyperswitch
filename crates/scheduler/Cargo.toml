@@ -5,7 +5,7 @@ edition = "2021"
 
 [features]
 default = ["kv_store", "olap"]
-olap = []
+olap = ["storage_impl/olap"]
 kv_store = []
 
 [dependencies]

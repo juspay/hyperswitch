@@ -1554,7 +1554,7 @@ fn check_apple_pay_metadata(
                         })
                 })
                 .map_err(
-                    |error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
+                    |error| logger::warn!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
                 );
 
             parsed_metadata.ok().map(|metadata| match metadata {
