@@ -21,7 +21,10 @@ use scheduler::{
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
-use super::{user::UserInterface, user_role::UserRoleInterface};
+use super::{
+    user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user_role::UserRoleInterface,
+};
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
@@ -1913,5 +1916,120 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.list_user_roles_by_user_id(user_id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl BatchSampleDataInterface for KafkaStore {
+    async fn insert_payment_intents_batch_for_sample_data(
+        &self,
+        batch: Vec<data_models::payments::payment_intent::PaymentIntentNew>,
+    ) -> CustomResult<Vec<data_models::payments::PaymentIntent>, data_models::errors::StorageError>
+    {
+        let payment_intents_list = self
+            .diesel_store
+            .insert_payment_intents_batch_for_sample_data(batch)
+            .await?;
+
+        for payment_intent in payment_intents_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_intent(payment_intent, None)
+                .await;
+        }
+        Ok(payment_intents_list)
+    }
+
+    async fn insert_payment_attempts_batch_for_sample_data(
+        &self,
+        batch: Vec<diesel_models::user::sample_data::PaymentAttemptBatchNew>,
+    ) -> CustomResult<
+        Vec<data_models::payments::payment_attempt::PaymentAttempt>,
+        data_models::errors::StorageError,
+    > {
+        let payment_attempts_list = self
+            .diesel_store
+            .insert_payment_attempts_batch_for_sample_data(batch)
+            .await?;
+
+        for payment_attempt in payment_attempts_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_attempt(payment_attempt, None)
+                .await;
+        }
+        Ok(payment_attempts_list)
+    }
+
+    async fn insert_refunds_batch_for_sample_data(
+        &self,
+        batch: Vec<diesel_models::RefundNew>,
+    ) -> CustomResult<Vec<diesel_models::Refund>, data_models::errors::StorageError> {
+        let refunds_list = self
+            .diesel_store
+            .insert_refunds_batch_for_sample_data(batch)
+            .await?;
+
+        for refund in refunds_list.iter() {
+            let _ = self.kafka_producer.log_refund(refund, None).await;
+        }
+        Ok(refunds_list)
+    }
+
+    async fn delete_payment_intents_for_sample_data(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<data_models::payments::PaymentIntent>, data_models::errors::StorageError>
+    {
+        let payment_intents_list = self
+            .diesel_store
+            .delete_payment_intents_for_sample_data(merchant_id)
+            .await?;
+
+        for payment_intent in payment_intents_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_intent_delete(payment_intent)
+                .await;
+        }
+        Ok(payment_intents_list)
+    }
+
+    async fn delete_payment_attempts_for_sample_data(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<
+        Vec<data_models::payments::payment_attempt::PaymentAttempt>,
+        data_models::errors::StorageError,
+    > {
+        let payment_attempts_list = self
+            .diesel_store
+            .delete_payment_attempts_for_sample_data(merchant_id)
+            .await?;
+
+        for payment_attempt in payment_attempts_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_attempt_delete(payment_attempt)
+                .await;
+        }
+
+        Ok(payment_attempts_list)
+    }
+
+    async fn delete_refunds_for_sample_data(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<diesel_models::Refund>, data_models::errors::StorageError> {
+        let refunds_list = self
+            .diesel_store
+            .delete_refunds_for_sample_data(merchant_id)
+            .await?;
+
+        for refund in refunds_list.iter() {
+            let _ = self.kafka_producer.log_refund_delete(refund).await;
+        }
+
+        Ok(refunds_list)
     }
 }
