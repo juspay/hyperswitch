@@ -4049,16 +4049,11 @@
       "BusinessPaymentLinkConfig": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentLinkDesignConfig"
+            "$ref": "#/components/schemas/PaymentLinkConfig"
           },
           {
             "type": "object",
             "properties": {
-              "expiry": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
-              },
               "domain_name": {
                 "type": "string",
                 "nullable": true
@@ -8490,17 +8485,10 @@
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PaymentLinkDesignConfig"
+            "$ref": "#/components/schemas/PaymentLinkConfig"
           },
           {
-            "type": "object",
-            "properties": {
-              "expiry": {
-                "type": "string",
-                "format": "date-time",
-                "nullable": true
-              }
-            }
+            "type": "object"
           }
         ]
       },
@@ -8568,9 +8556,15 @@
           }
         ]
       },
-      "PaymentLinkDesignConfig": {
+      "PaymentLinkConfig": {
         "type": "object",
         "properties": {
+          "max_age": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Custom Payment link expiry",
+            "nullable": true
+          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link",
@@ -11619,6 +11613,7 @@
           "link_to_pay",
           "amount",
           "created_at",
+          "max_age",
           "status"
         ],
         "properties": {
@@ -11639,10 +11634,9 @@
             "type": "string",
             "format": "date-time"
           },
-          "expiry": {
+          "max_age": {
             "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "format": "date-time"
           },
           "description": {
             "type": "string",
