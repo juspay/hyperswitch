@@ -194,6 +194,8 @@ pub async fn generate_sample_data(
             payment_confirm_source: Default::default(),
             updated_by: merchant_from_db.storage_scheme.to_string(),
             surcharge_applicable: Default::default(),
+            request_incremental_authorization: Default::default(),
+            incremental_authorization_allowed: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

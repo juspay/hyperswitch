@@ -1,13 +1,14 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;
-use api_models::{errors::types::ApiErrorResponse, user::{self as user_api};
-use common_utils::errors::ReportSwitchExt};
+use api_models::{
+    errors::types::ApiErrorResponse,
+    user::{self as user_api},
+};
+use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
 use super::AppState;
-#[cfg(feature = "dummy_connector")]
-use crate::services::authorization::permissions::Permission;
 use crate::{
     core::{api_locking, user},
     services::{

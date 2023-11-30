@@ -148,7 +148,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleDelete => Self::Gsm,
 
             Flow::UserConnectAccount
-           
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
             | Flow::GetMutltipleDashboardMetadata

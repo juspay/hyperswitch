@@ -807,7 +807,12 @@ impl User {
             .service(web::resource("/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
-            .service(web::resource("/change_password").route(web::post().to(change_password)));
+            .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(
+                web::resource("/data/merchant")
+                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
+            )
+            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)));
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -816,11 +821,6 @@ impl User {
                 .service(web::resource("/sample_data").route(web::delete().to(delete_sample_data)))
         }
         route
-            .service(
-                web::resource("/data/merchant")
-                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
-            )
-            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)))
     }
 }
 

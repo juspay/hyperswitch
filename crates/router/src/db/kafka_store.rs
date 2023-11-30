@@ -23,11 +23,9 @@ use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
 use super::{
-    dashboard_metadata::DashboardMetadataInterface, 
+    dashboard_metadata::DashboardMetadataInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
-   
     user_role::UserRoleInterface,
-,
 };
 use crate::{
     core::errors::{self, ProcessTrackerError},
