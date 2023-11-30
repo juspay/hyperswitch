@@ -267,7 +267,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
+    use common_utils::{date_time, if_err_reverse_lookup};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
@@ -277,7 +277,6 @@ mod storage {
         connection,
         core::errors::{self, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
-        logger,
         services::Store,
         types::storage::{self as storage_types, enums, kv},
         utils::{self, db_utils},
@@ -305,9 +304,11 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{internal_reference_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await?;
+                    let lookup = if_err_reverse_lookup!(
+                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                            .await,
+                        database_call().await
+                    );
 
                     let key = &lookup.pk_id;
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
@@ -382,6 +383,50 @@ mod storage {
                         },
                     };
 
+                    let mut reverse_lookups = vec![
+                        storage_types::ReverseLookupNew {
+                            sk_id: field.clone(),
+                            lookup_id: format!(
+                                "{}_{}",
+                                created_refund.merchant_id, created_refund.refund_id
+                            ),
+                            pk_id: key.clone(),
+                            source: "refund".to_string(),
+                            updated_by: storage_scheme.to_string(),
+                        },
+                        // [#492]: A discussion is required on whether this is required?
+                        storage_types::ReverseLookupNew {
+                            sk_id: field.clone(),
+                            lookup_id: format!(
+                                "{}_{}",
+                                created_refund.merchant_id, created_refund.internal_reference_id
+                            ),
+                            pk_id: key.clone(),
+                            source: "refund".to_string(),
+                            updated_by: storage_scheme.to_string(),
+                        },
+                    ];
+                    if let Some(connector_refund_id) = created_refund.to_owned().connector_refund_id
+                    {
+                        reverse_lookups.push(storage_types::ReverseLookupNew {
+                            sk_id: field.clone(),
+                            lookup_id: format!(
+                                "{}_{}_{}",
+                                created_refund.merchant_id,
+                                connector_refund_id,
+                                created_refund.connector
+                            ),
+                            pk_id: key.clone(),
+                            source: "refund".to_string(),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    };
+                    let rev_look = reverse_lookups
+                        .into_iter()
+                        .map(|rev| self.insert_reverse_lookup(rev, storage_scheme));
+
+                    futures::future::try_join_all(rev_look).await?;
+
                     match kv_wrapper::<storage_types::Refund, _, _>(
                         self,
                         KvOperation::<storage_types::Refund>::HSetNx(
@@ -400,55 +445,7 @@ mod storage {
                             key: Some(created_refund.refund_id),
                         })
                         .into_report(),
-                        Ok(HsetnxReply::KeySet) => {
-                            let mut reverse_lookups = vec![
-                                storage_types::ReverseLookupNew {
-                                    sk_id: field.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}",
-                                        created_refund.merchant_id, created_refund.refund_id
-                                    ),
-                                    pk_id: key.clone(),
-                                    source: "refund".to_string(),
-                                    updated_by: storage_scheme.to_string(),
-                                },
-                                // [#492]: A discussion is required on whether this is required?
-                                storage_types::ReverseLookupNew {
-                                    sk_id: field.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}",
-                                        created_refund.merchant_id,
-                                        created_refund.internal_reference_id
-                                    ),
-                                    pk_id: key.clone(),
-                                    source: "refund".to_string(),
-                                    updated_by: storage_scheme.to_string(),
-                                },
-                            ];
-                            if let Some(connector_refund_id) =
-                                created_refund.to_owned().connector_refund_id
-                            {
-                                reverse_lookups.push(storage_types::ReverseLookupNew {
-                                    sk_id: field.clone(),
-                                    lookup_id: format!(
-                                        "{}_{}_{}",
-                                        created_refund.merchant_id,
-                                        connector_refund_id,
-                                        created_refund.connector
-                                    ),
-                                    pk_id: key,
-                                    source: "refund".to_string(),
-                                    updated_by: storage_scheme.to_string(),
-                                })
-                            };
-                            let rev_look = reverse_lookups
-                                .into_iter()
-                                .map(|rev| self.insert_reverse_lookup(rev, storage_scheme));
-
-                            futures::future::try_join_all(rev_look).await?;
-
-                            Ok(created_refund)
-                        }
+                        Ok(HsetnxReply::KeySet) => Ok(created_refund),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -476,16 +473,12 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
-                    let lookup = match self
-                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await
-                    {
-                        Ok(l) => l,
-                        Err(err) => {
-                            logger::error!(?err);
-                            return Ok(vec![]);
-                        }
-                    };
+                    let lookup = if_err_reverse_lookup!(
+                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                            .await,
+                        database_call().await
+                    );
+
                     let key = &lookup.pk_id;
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
@@ -576,9 +569,11 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{refund_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await?;
+                    let lookup = if_err_reverse_lookup!(
+                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                            .await,
+                        database_call().await
+                    );
 
                     let key = &lookup.pk_id;
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
@@ -621,9 +616,11 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_refund_id}_{connector}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await?;
+                    let lookup = if_err_reverse_lookup!(
+                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                            .await,
+                        database_call().await
+                    );
 
                     let key = &lookup.pk_id;
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
