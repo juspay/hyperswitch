@@ -27,7 +27,7 @@ use crate::{
     routes::AppState,
     services::{
         authentication::{AuthToken, UserFromToken},
-        authorization::{info, predefined_permissions},
+        authorization::info,
     },
     types::transformers::ForeignFrom,
     utils::user::password,
@@ -623,33 +623,6 @@ impl UserFromStorage {
             .find_user_role_by_user_id(self.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
-    }
-}
-
-pub struct UserAndRoleJoined(pub storage_user::User, pub UserRole);
-
-impl TryFrom<UserAndRoleJoined> for user_role_api::UserDetails {
-    type Error = ();
-    fn try_from(user_and_role: UserAndRoleJoined) -> Result<Self, Self::Error> {
-        let status = match user_and_role.1.status {
-            UserStatus::Active => user_role_api::UserStatus::Active,
-            UserStatus::InvitationSent => user_role_api::UserStatus::InvitationSent,
-        };
-
-        let role_id = user_and_role.1.role_id;
-        let role_name = predefined_permissions::get_role_name_from_id(role_id.as_str())
-            .ok_or(())?
-            .to_string();
-
-        Ok(Self {
-            user_id: user_and_role.0.user_id,
-            email: user_and_role.0.email,
-            name: user_and_role.0.name,
-            role_id,
-            status,
-            role_name,
-            last_modified_at: user_and_role.1.last_modified_at,
-        })
     }
 }
 

@@ -1,6 +1,3 @@
-use common_utils::pii;
-use masking::Secret;
-
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
@@ -76,43 +73,6 @@ pub struct ModuleInfo {
 pub struct PermissionInfo {
     pub enum_name: Permission,
     pub description: &'static str,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct GetUsersResponse(pub Vec<UserDetails>);
-
-#[derive(Debug, serde::Serialize)]
-pub enum UserStatus {
-    Active,
-    InvitationSent,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct UserDetails {
-    pub user_id: String,
-    pub email: pii::Email,
-    pub name: Secret<String>,
-    pub role_id: String,
-    pub role_name: String,
-    pub status: UserStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: time::PrimitiveDateTime,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct InviteUserRequest {
-    pub email: pii::Email,
-    pub name: Secret<String>,
-    pub role_id: String,
-}
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ReInviteUserRequest {
-    pub user_id: String,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct InviteUserResponse {
-    pub is_email_sent: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
