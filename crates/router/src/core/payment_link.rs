@@ -320,15 +320,6 @@ pub fn get_payment_link_config_based_on_priority(
                     .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
             );
 
-            // let max_age = payment_create.config.max_age.unwrap_or_else(|| {
-            //     let current_time = common_utils::date_time::now();
-            //     current_time.saturating_add(time::Duration::seconds(
-            //         business_link_config
-            //             .expiry
-            //             .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
-            //     ))
-            // });
-
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {
@@ -355,17 +346,6 @@ pub fn get_payment_link_config_based_on_priority(
                 .config
                 .max_age
                 .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
-
-            //  common_utils::date_time::now().saturating_add(time::Duration::seconds(
-            //     payment_create.
-            //         config.max_age
-            //         .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
-            // ));
-
-            //  payment_create.config.max_age.unwrap_or_else(|| {
-            //     let current_time = common_utils::date_time::now();
-            //     current_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY))
-            // });
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
@@ -401,13 +381,6 @@ pub fn get_payment_link_config_based_on_priority(
                 .config
                 .max_age
                 .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
-
-            // common_utils::date_time::now().saturating_add(time::Duration::seconds(
-            //     business_link_config
-            //         config.max_age
-            //         .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
-            // ));
-
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {

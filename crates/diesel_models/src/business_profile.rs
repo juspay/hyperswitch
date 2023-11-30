@@ -122,6 +122,7 @@ impl BusinessProfileUpdateInternal {
             payout_routing_algorithm,
             is_recon_enabled,
             applepay_verified_domains,
+            payment_link_config,
         } = self;
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -132,15 +133,15 @@ impl BusinessProfileUpdateInternal {
             payment_response_hash_key,
             redirect_to_merchant_with_http_post: redirect_to_merchant_with_http_post
                 .unwrap_or(source.redirect_to_merchant_with_http_post),
-            webhook_details: self.webhook_details,
-            metadata: self.metadata,
-            routing_algorithm: self.routing_algorithm,
-            intent_fulfillment_time: self.intent_fulfillment_time,
-            frm_routing_algorithm: self.frm_routing_algorithm,
-            payout_routing_algorithm: self.payout_routing_algorithm,
-            is_recon_enabled: self.is_recon_enabled.unwrap_or(source.is_recon_enabled),
-            applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config: self.payment_link_config,
+            webhook_details,
+            metadata,
+            routing_algorithm,
+            intent_fulfillment_time,
+            frm_routing_algorithm,
+            payout_routing_algorithm,
+            is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
+            applepay_verified_domains,
+            payment_link_config,
             ..source
         }
     }
