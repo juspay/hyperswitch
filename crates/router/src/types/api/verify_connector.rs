@@ -47,6 +47,7 @@ impl VerifyConnectorData {
             complete_authorize_url: None,
             related_transaction_id: None,
             statement_descriptor_suffix: None,
+            request_incremental_authorization: false,
         }
     }
 

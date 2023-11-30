@@ -146,6 +146,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.data.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
