@@ -579,6 +579,9 @@ impl<F, T>
                         .client_reference_information
                         .map(|cref| cref.code)
                         .unwrap_or(Some(item.response.id)),
+                    incremental_authorization_allowed: Some(
+                        status == enums::AttemptStatus::Authorized,
+                    ),
                 }),
             },
             ..item.data
@@ -642,7 +645,7 @@ impl<F, T>
                         .map(|cref| cref.code)
                         .unwrap_or(Some(item.response.id)),
                     incremental_authorization_allowed: Some(
-                        status == enums::AttemptStatus::Authorized,
+                        mandate_status == enums::AttemptStatus::Authorized,
                     ),
                 }),
             },
