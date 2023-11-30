@@ -694,6 +694,7 @@ impl<F, T>
                         connector_response_reference_id: Some(
                             payment_response.data.order_id.clone(),
                         ),
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })

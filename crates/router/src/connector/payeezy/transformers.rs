@@ -440,6 +440,7 @@ impl<F, T>
                         .reference
                         .unwrap_or(item.response.transaction_id),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

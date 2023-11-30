@@ -4,6 +4,7 @@ use api_models::{
     enums::{DisputeStage, DisputeStatus},
     payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
 };
+use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
@@ -1132,4 +1133,33 @@ pub async fn get_individual_surcharge_detail_from_redis(
     redis_conn
         .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetailsResponse")
         .await
+}
+
+pub fn get_request_incremental_authorization_value(
+    request_incremental_authorization: Option<bool>,
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> RouterResult<RequestIncrementalAuthorization> {
+    request_incremental_authorization
+        .map(|request_incremental_authorization| {
+            if request_incremental_authorization {
+                if capture_method == Some(common_enums::CaptureMethod::Automatic) {
+                    Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() }).into_report()?
+                }
+                Ok(RequestIncrementalAuthorization::True)
+            } else {
+                Ok(RequestIncrementalAuthorization::False)
+            }
+        })
+        .unwrap_or(Ok(RequestIncrementalAuthorization::default()))
+}
+
+pub fn get_incremental_authorization_allowed_value(
+    incremental_authorization_allowed: Option<bool>,
+    request_incremental_authorization: RequestIncrementalAuthorization,
+) -> Option<bool> {
+    if request_incremental_authorization == common_enums::RequestIncrementalAuthorization::False {
+        Some(false)
+    } else {
+        incremental_authorization_allowed
+    }
 }

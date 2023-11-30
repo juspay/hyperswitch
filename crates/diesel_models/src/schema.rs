@@ -678,6 +678,8 @@ diesel::table! {
         #[max_length = 32]
         updated_by -> Varchar,
         surcharge_applicable -> Nullable<Bool>,
+        request_incremental_authorization -> RequestIncrementalAuthorization,
+        incremental_authorization_allowed -> Nullable<Bool>,
     }
 }
 
