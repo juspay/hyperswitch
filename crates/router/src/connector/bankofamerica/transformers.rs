@@ -528,6 +528,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -585,6 +586,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -642,6 +644,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -719,6 +722,7 @@ impl<F>
                         .client_reference_information
                         .map(|cref| cref.code)
                         .unwrap_or(Some(app_response.id)),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -733,6 +737,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(error_response.id),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),

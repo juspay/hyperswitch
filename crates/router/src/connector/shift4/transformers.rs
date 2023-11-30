@@ -702,6 +702,7 @@ impl<F>
                 ),
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -743,6 +744,7 @@ impl<T, F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
