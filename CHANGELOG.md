@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.92.0 (2023-11-29)
+
+### Features
+
+- **analytics:** Add Clickhouse based analytics ([#2988](https://github.com/juspay/hyperswitch/pull/2988)) ([`9df4e01`](https://github.com/juspay/hyperswitch/commit/9df4e0193ffeb6d1cc323bdebb7e2bdfb2a375e2))
+- **ses_email:** Add email services to hyperswitch ([#2977](https://github.com/juspay/hyperswitch/pull/2977)) ([`5f5e895`](https://github.com/juspay/hyperswitch/commit/5f5e895f638701a0e6ab3deea9101ef39033dd16))
+
+### Bug Fixes
+
+- **router:** Make use of warning to log errors when apple pay metadata parsing fails ([#3010](https://github.com/juspay/hyperswitch/pull/3010)) ([`2e57745`](https://github.com/juspay/hyperswitch/commit/2e57745352c547323ac2df2554f6bc2dbd6da37f))
+
+**Full Changelog:** [`v1.91.1...v1.92.0`](https://github.com/juspay/hyperswitch/compare/v1.91.1...v1.92.0)
+
+- - -
+
+
 ## 1.91.1 (2023-11-29)
 
 ### Bug Fixes
