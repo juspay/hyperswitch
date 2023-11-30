@@ -238,6 +238,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                 )
             }
@@ -281,6 +282,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             amount_captured: Some(item.response.amount),
             ..item.data

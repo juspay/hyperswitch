@@ -381,6 +381,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub customer_id: Option<String>,
+    pub request_incremental_authorization: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -536,6 +537,7 @@ pub struct SetupMandateRequestData {
     pub email: Option<Email>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub request_incremental_authorization: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -669,6 +671,7 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        incremental_authorization_allowed: Option<bool>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -1200,6 +1203,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_method_type: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: data.request.request_incremental_authorization,
         }
     }
 }

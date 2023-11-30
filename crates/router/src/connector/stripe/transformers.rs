@@ -2334,6 +2334,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: item.response.amount_received,
             ..item.data
@@ -2494,6 +2495,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             Err,
         );
@@ -2535,6 +2537,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -3076,6 +3079,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
