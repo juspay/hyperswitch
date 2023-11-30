@@ -113,7 +113,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "powertranz",
             })

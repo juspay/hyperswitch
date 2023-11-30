@@ -284,7 +284,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | api::PaymentMethodData::Reward {}
                     | api::PaymentMethodData::Upi(_)
                     | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_) => {
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
                             connector: "Noon",

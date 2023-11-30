@@ -3,6 +3,7 @@ pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod vault;
 
+use api_models::payments::CardToken;
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
@@ -42,6 +43,7 @@ pub trait PaymentMethodRetrieve {
         token: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,
+        card_token_data: Option<&CardToken>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>>;
 }
 
@@ -125,6 +127,7 @@ impl PaymentMethodRetrieve for Oss {
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,
+        card_token_data: Option<&CardToken>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>> {
         match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -134,6 +137,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     card_cvc,
                     merchant_key_store,
+                    card_token_data,
                 )
                 .await
             }
@@ -145,6 +149,7 @@ impl PaymentMethodRetrieve for Oss {
                     payment_intent,
                     card_cvc,
                     merchant_key_store,
+                    card_token_data,
                 )
                 .await
             }
@@ -155,6 +160,7 @@ impl PaymentMethodRetrieve for Oss {
                     &card_token.token,
                     payment_intent,
                     card_cvc,
+                    card_token_data,
                 )
                 .await
                 .map(|card| Some((card, enums::PaymentMethod::Card)))
@@ -166,6 +172,7 @@ impl PaymentMethodRetrieve for Oss {
                     &card_token.token,
                     payment_intent,
                     card_cvc,
+                    card_token_data,
                 )
                 .await
                 .map(|card| Some((card, enums::PaymentMethod::Card)))
