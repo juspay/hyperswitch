@@ -77,7 +77,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("tsys"),
             ))?,
         }
@@ -203,6 +204,7 @@ fn get_error_response(
         reason: Some(connector_error_response.response_message),
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 

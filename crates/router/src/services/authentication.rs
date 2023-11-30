@@ -9,10 +9,13 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
+use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
 #[cfg(feature = "olap")]
 use crate::consts;
+#[cfg(feature = "olap")]
+use crate::core::errors::UserResult;
 use crate::{
     configs::settings,
     core::{
@@ -44,14 +47,17 @@ pub enum AuthenticationType {
         key_id: String,
     },
     AdminApiKey,
-    MerchantJWT {
+    MerchantJwt {
         merchant_id: String,
         user_id: Option<String>,
     },
-    MerchantID {
+    MerchantId {
         merchant_id: String,
     },
     PublishableKey {
+        merchant_id: String,
+    },
+    WebhookAuth {
         merchant_id: String,
     },
     NoAuth,
@@ -64,12 +70,13 @@ impl AuthenticationType {
                 merchant_id,
                 key_id: _,
             }
-            | Self::MerchantID { merchant_id }
+            | Self::MerchantId { merchant_id }
             | Self::PublishableKey { merchant_id }
-            | Self::MerchantJWT {
+            | Self::MerchantJwt {
                 merchant_id,
                 user_id: _,
-            } => Some(merchant_id.as_ref()),
+            }
+            | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
             Self::AdminApiKey | Self::NoAuth => None,
         }
     }
@@ -92,7 +99,7 @@ impl AuthToken {
         role_id: String,
         settings: &settings::Settings,
         org_id: String,
-    ) -> errors::UserResult<String> {
+    ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let token_payload = Self {
@@ -104,6 +111,14 @@ impl AuthToken {
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
+}
+
+#[derive(Clone)]
+pub struct UserFromToken {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub org_id: String,
 }
 
 pub trait AuthInfo {
@@ -337,7 +352,7 @@ where
         };
         Ok((
             auth.clone(),
-            AuthenticationType::MerchantID {
+            AuthenticationType::MerchantId {
                 merchant_id: auth.merchant_account.merchant_id.clone(),
             },
         ))
@@ -383,7 +398,7 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth;
+pub(crate) struct JWTAuth(pub Permission);
 
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchUnit {
@@ -402,9 +417,41 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
         Ok((
             (),
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
             },
@@ -414,6 +461,7 @@ where
 
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: String,
+    pub required_permission: Permission,
 }
 
 #[async_trait]
@@ -428,13 +476,16 @@ where
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
 
-        // Check if token has access to merchantID that has been requested through query param
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.required_permission, permissions)?;
+
+        // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
         Ok((
             (),
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
             },
@@ -456,6 +507,7 @@ where
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchMerchantAccount {
     merchant_id: String,
+    role_id: String,
 }
 
 #[async_trait]
@@ -471,6 +523,10 @@ where
         let payload =
             parse_jwt_payload::<A, JwtAuthPayloadFetchMerchantAccount>(request_headers, state)
                 .await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
@@ -493,11 +549,58 @@ where
         };
         Ok((
             auth.clone(),
-            AuthenticationType::MerchantJWT {
+            AuthenticationType::MerchantJwt {
                 merchant_id: auth.merchant_account.merchant_id.clone(),
                 user_id: None,
             },
         ))
+    }
+}
+
+pub struct DashboardNoPermissionAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok(((), AuthenticationType::NoAuth))
     }
 }
 

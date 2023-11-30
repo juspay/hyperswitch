@@ -12,8 +12,7 @@ impl utils::Connector for ProphetpayTest {
         use router::connector::Prophetpay;
         types::api::ConnectorData {
             connector: Box::new(&Prophetpay),
-            // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Prophetpay,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }

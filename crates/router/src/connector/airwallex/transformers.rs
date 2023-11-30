@@ -196,7 +196,8 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("airwallex"),
             )),
         }?;
@@ -824,7 +825,8 @@ pub enum AirwallexDisputeStage {
 
 #[derive(Debug, Deserialize)]
 pub struct AirwallexWebhookDataResource {
-    pub object: serde_json::Value,
+    // Should this be a secret by default since it represents webhook payload
+    pub object: Secret<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]

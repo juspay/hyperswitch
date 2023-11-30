@@ -260,12 +260,12 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Maestro => Ok(Self::Maestro),
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            utils::CardIssuer::DinersClub | utils::CardIssuer::JCB => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Multisafe pay"),
-                )
-                .into())
-            }
+            utils::CardIssuer::DinersClub
+            | utils::CardIssuer::JCB
+            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Multisafe pay"),
+            )
+            .into()),
         }
     }
 }
@@ -364,7 +364,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("multisafepay"),
             ))?,
         };
@@ -508,7 +509,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("multisafepay"),
             ))?,
         };
@@ -702,6 +704,7 @@ impl<F, T>
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -809,6 +812,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -846,6 +850,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
                     reason: Some(error_response.error_info),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
