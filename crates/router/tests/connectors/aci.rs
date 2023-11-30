@@ -160,6 +160,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -204,6 +205,7 @@ async fn payments_create_failure() {
         let conf = Settings::new().unwrap();
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
@@ -265,6 +267,7 @@ async fn refund_for_successful_payments() {
         merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -333,6 +336,7 @@ async fn refunds_create_failure() {
         merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,

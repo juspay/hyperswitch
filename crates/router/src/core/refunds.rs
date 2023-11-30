@@ -211,7 +211,10 @@ pub async fn trigger_refund_to_gateway(
                     errors::ConnectorError::NotImplemented(message) => {
                         Some(storage::RefundUpdate::ErrorUpdate {
                             refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(message.to_string()),
+                            refund_error_message: Some(
+                                errors::ConnectorError::NotImplemented(message.to_owned())
+                                    .to_string(),
+                            ),
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                         })
@@ -927,7 +930,9 @@ pub async fn start_refund_workflow(
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
         Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
-        Some("SYNC_REFUND") => sync_refund_with_gateway_workflow(state, refund_tracker).await,
+        Some("SYNC_REFUND") => {
+            Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await
+        }
         _ => Err(errors::ProcessTrackerError::JobNotFound),
     }
 }
