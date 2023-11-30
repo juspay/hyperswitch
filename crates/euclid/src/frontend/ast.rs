@@ -2,10 +2,11 @@ pub mod lowering;
 #[cfg(feature = "ast_parser")]
 pub mod parser;
 
-use crate::types::{DataType, Metadata};
 use common_enums::RoutableConnectors;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use crate::types::{DataType, Metadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
