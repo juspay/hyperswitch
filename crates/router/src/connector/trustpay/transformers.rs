@@ -499,6 +499,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
             true,
             "Transaction declined (maximum transaction frequency exceeded)",
         ),
+        "800.100.165" => (true, "Transaction declined (card lost)"),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
         "800.100.171" => (true, "transaction declined (pick up card)"),
@@ -511,6 +512,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.700.100" => (
             true,
             "Transaction for the same session is currently being processed, please try again later",
+        ),
+        "900.100.100" => (
+            true,
+            "Unexpected communication error with connector/acquirer",
         ),
         "900.100.300" => (true, "Timeout, uncertain result"),
         _ => (false, ""),
