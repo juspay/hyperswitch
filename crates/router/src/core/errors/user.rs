@@ -68,7 +68,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
                 sub_code,
                 6,
-                "Old password incorrect. Pleasesymotion-f) enter the correct password",
+                "Old password incorrect. Please enter the correct password",
                 None,
             )),
             Self::EmailParsingError => {
