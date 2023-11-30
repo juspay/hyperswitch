@@ -11,6 +11,8 @@ pub mod customers;
 pub mod disputes;
 pub mod errors;
 pub mod files;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
 pub mod gsm;
 pub mod locker_migration;
 pub mod mandate;

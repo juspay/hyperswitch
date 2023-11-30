@@ -10,6 +10,8 @@ pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 
+#[cfg(feature = "frm")]
+use crate::types::fraud_check as frm_types;
 use crate::{
     connector,
     core::{
@@ -169,6 +171,7 @@ default_imp_for_complete_authorize!(
     connector::Payeezy,
     connector::Payu,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -246,6 +249,7 @@ default_imp_for_webhook_source_verification!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -325,6 +329,7 @@ default_imp_for_create_customer!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Trustpay,
     connector::Tsys,
@@ -393,6 +398,7 @@ default_imp_for_connector_redirect_response!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Tsys,
@@ -452,6 +458,7 @@ default_imp_for_connector_request_id!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -534,6 +541,7 @@ default_imp_for_accept_dispute!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -634,6 +642,7 @@ default_imp_for_file_upload!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Trustpay,
@@ -712,6 +721,7 @@ default_imp_for_submit_evidence!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Trustpay,
@@ -790,6 +800,7 @@ default_imp_for_defend_dispute!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -867,6 +878,7 @@ default_imp_for_pre_processing_steps!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Shift4,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Tsys,
@@ -927,6 +939,7 @@ default_imp_for_payouts!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1006,6 +1019,7 @@ default_imp_for_payouts_create!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1088,6 +1102,7 @@ default_imp_for_payouts_eligibility!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1167,6 +1182,7 @@ default_imp_for_payouts_fulfill!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1246,6 +1262,7 @@ default_imp_for_payouts_cancel!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1326,6 +1343,7 @@ default_imp_for_payouts_quote!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1406,6 +1424,7 @@ default_imp_for_payouts_recipient!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1485,6 +1504,7 @@ default_imp_for_approve!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,
@@ -1526,6 +1546,491 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_fraud_check {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::FraudCheck for $path::$connector {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
+
+default_imp_for_fraud_check!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "frm")]
+macro_rules! default_imp_for_frm_sale {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::FraudCheckSale for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Sale,
+            frm_types::FraudCheckSaleData,
+            frm_types::FraudCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::FraudCheckSale for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Sale,
+        frm_types::FraudCheckSaleData,
+        frm_types::FraudCheckResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_frm_sale!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "frm")]
+macro_rules! default_imp_for_frm_checkout {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::FraudCheckCheckout for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Checkout,
+            frm_types::FraudCheckCheckoutData,
+            frm_types::FraudCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::FraudCheckCheckout for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Checkout,
+        frm_types::FraudCheckCheckoutData,
+        frm_types::FraudCheckResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_frm_checkout!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "frm")]
+macro_rules! default_imp_for_frm_transaction {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::FraudCheckTransaction for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Transaction,
+            frm_types::FraudCheckTransactionData,
+            frm_types::FraudCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::FraudCheckTransaction for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Transaction,
+        frm_types::FraudCheckTransactionData,
+        frm_types::FraudCheckResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_frm_transaction!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "frm")]
+macro_rules! default_imp_for_frm_fulfillment {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::FraudCheckFulfillment for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Fulfillment,
+            frm_types::FraudCheckFulfillmentData,
+            frm_types::FraudCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::FraudCheckFulfillment for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Fulfillment,
+        frm_types::FraudCheckFulfillmentData,
+        frm_types::FraudCheckResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_frm_fulfillment!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "frm")]
+macro_rules! default_imp_for_frm_record_return {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::FraudCheckRecordReturn for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::RecordReturn,
+            frm_types::FraudCheckRecordReturnData,
+            frm_types::FraudCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::FraudCheckRecordReturn for connector::DummyConnector<T> {}
+#[cfg(feature = "frm")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::RecordReturn,
+        frm_types::FraudCheckRecordReturnData,
+        frm_types::FraudCheckResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_frm_record_return!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

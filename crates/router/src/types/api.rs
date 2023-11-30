@@ -6,6 +6,8 @@ pub mod disputes;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod files;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
 pub mod mandates;
 pub mod payment_link;
 pub mod payment_methods;
@@ -20,6 +22,8 @@ use std::{fmt::Debug, str::FromStr};
 use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
+#[cfg(feature = "frm")]
+pub use self::fraud_check::*;
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
     payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
@@ -148,6 +152,7 @@ pub trait Connector:
     + ConnectorTransactionId
     + Payouts
     + ConnectorVerifyWebhookSource
+    + FraudCheck
 {
 }
 
@@ -167,7 +172,8 @@ impl<
             + FileUpload
             + ConnectorTransactionId
             + Payouts
-            + ConnectorVerifyWebhookSource,
+            + ConnectorVerifyWebhookSource
+            + FraudCheck,
     > Connector for T
 {
 }
@@ -403,6 +409,20 @@ impl ConnectorData {
         }
     }
 }
+
+#[cfg(feature = "frm")]
+pub trait FraudCheck:
+    ConnectorCommon
+    + FraudCheckSale
+    + FraudCheckTransaction
+    + FraudCheckCheckout
+    + FraudCheckFulfillment
+    + FraudCheckRecordReturn
+{
+}
+
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheck {}
 
 #[cfg(test)]
 mod test {

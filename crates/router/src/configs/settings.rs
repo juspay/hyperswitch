@@ -109,6 +109,14 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "frm")]
+    pub frm: Frm,
+}
+
+#[cfg(feature = "frm")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Frm {
+    pub is_frm_enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]

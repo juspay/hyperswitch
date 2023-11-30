@@ -262,3 +262,6 @@ connection_timeout = 10
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds
+
+[frm]
+is_frm_enabled = true

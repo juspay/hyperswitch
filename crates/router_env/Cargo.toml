@@ -38,9 +38,10 @@ cargo_metadata = "0.15.4"
 vergen = { version = "8.2.1", features = ["cargo", "git", "git2", "rustc"], optional = true }
 
 [features]
-default = ["actix_web", "payouts"]
+default = ["actix_web", "payouts", "frm"]
 actix_web = ["tracing-actix-web"]
 log_custom_entries_to_extra = []
 log_extra_implicit_fields = []
 log_active_span_json = []
 payouts = []
+frm = []
