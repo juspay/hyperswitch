@@ -221,8 +221,8 @@ impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     }
 }
 
-impl From<user_role_api::CreateInternalUserRequest> for NewUserOrganization {
-    fn from(_value: user_role_api::CreateInternalUserRequest) -> Self {
+impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
+    fn from(_value: user_api::CreateInternalUserRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
@@ -350,10 +350,10 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
     }
 }
 
-impl TryFrom<user_role_api::CreateInternalUserRequest> for NewUserMerchant {
+impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_role_api::CreateInternalUserRequest) -> UserResult<Self> {
+    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
         let merchant_id =
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
         let new_organization = NewUserOrganization::from(value);
@@ -366,11 +366,8 @@ impl TryFrom<user_role_api::CreateInternalUserRequest> for NewUserMerchant {
     }
 }
 
-type UserMerchantCreateRequestWithToken = (
-    UserFromStorage,
-    user_role_api::UserMerchantCreate,
-    UserFromToken,
-);
+type UserMerchantCreateRequestWithToken =
+    (UserFromStorage, user_api::UserMerchantCreate, UserFromToken);
 
 impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
@@ -516,10 +513,10 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
-impl TryFrom<user_role_api::CreateInternalUserRequest> for NewUser {
+impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_role_api::CreateInternalUserRequest) -> UserResult<Self> {
+    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;

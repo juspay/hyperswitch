@@ -1,35 +1,6 @@
 use common_utils::pii;
 use masking::Secret;
 
-pub struct CreateInternalUserRequest {
-    pub name: Secret<String>,
-    pub email: pii::Email,
-    pub password: Secret<String>,
-}
-
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
-pub struct UserListRequest {
-    #[serde(skip_deserializing)]
-    pub onboarding_steps: String,
-    pub subscribed: bool,
-    pub start_date: String,
-    pub last_date: Option<String>,
-    pub last_modified: Option<String>,
-}
-
-#[derive(serde::Serialize, Clone, Debug)]
-pub struct UserListResponse {
-    email: pii::Email,
-    user_id: String,
-    onboarding_modified_at: time::PrimitiveDateTime,
-    onboarding_step: i32,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct SwitchMerchantIdRequest {
-    pub merchant_id: String,
-}
-
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
@@ -148,9 +119,4 @@ pub struct InviteUserResponse {
 pub struct UpdateUserRoleRequest {
     pub user_id: String,
     pub role_id: String,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UserMerchantCreate {
-    pub company_name: String,
 }
