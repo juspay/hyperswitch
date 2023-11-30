@@ -4316,6 +4316,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "nullable": true
           }
         }
       },
