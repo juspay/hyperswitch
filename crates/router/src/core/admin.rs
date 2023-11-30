@@ -418,7 +418,6 @@ pub async fn update_business_profile_cascade(
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
             payment_link_config: None,
-            merchant_custom_domain: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1485,7 +1484,6 @@ pub async fn update_business_profile(
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
-        merchant_custom_domain: request.merchant_custom_domain,
     };
 
     let updated_business_profile = db

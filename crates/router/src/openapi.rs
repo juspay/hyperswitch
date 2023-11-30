@@ -187,7 +187,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorWebhookDetails,
         api_models::admin::PaymentCreatePaymentLinkConfig,
         api_models::admin::BusinessPaymentLinkConfig,
-        api_models::admin::PaymentLinkDesignConfig,
+        api_models::admin::PaymentLinkConfig,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::gsm::GsmCreateRequest,

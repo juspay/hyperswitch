@@ -3209,8 +3209,8 @@ pub struct RetrievePaymentLinkResponse {
     pub amount: i64,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub max_age: PrimitiveDateTime,
     pub description: Option<String>,
     pub status: String,
     #[schema(value_type = Option<Currency>)]
@@ -3230,8 +3230,8 @@ pub struct PaymentLinkDetails {
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,

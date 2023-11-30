@@ -2331,9 +2331,7 @@ pub async fn get_merchant_fullfillment_time(
             .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
         let curr_time = common_utils::date_time::now();
-        Ok(payment_link_db
-            .fulfilment_time
-            .map(|merchant_expiry_time| (merchant_expiry_time - curr_time).whole_seconds()))
+        Ok(Some((payment_link_db.max_age - curr_time).whole_seconds()))
     } else {
         Ok(intent_fulfillment_time)
     }
@@ -3625,10 +3623,17 @@ pub fn validate_payment_link_request(
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(cnf) = confirm {
         if !cnf {
-            let current_time = Some(common_utils::date_time::now());
-            if current_time > payment_link_config.expiry {
+            let current_time = common_utils::date_time::now();
+            let max_age_time =
+                common_utils::date_time::now().saturating_add(time::Duration::seconds(
+                    payment_link_config
+                        .config
+                        .max_age
+                        .unwrap_or(common_utils::consts::DEFAULT_PAYMENT_LINK_EXPIRY),
+                ));
+            if current_time > max_age_time {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "expiry time cannot be less than current time".to_string(),
+                    message: "max_age cannot be less than current time".to_string(),
                 });
             } else if order_details.is_none() {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {

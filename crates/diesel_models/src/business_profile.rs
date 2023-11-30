@@ -33,7 +33,6 @@ pub struct BusinessProfile {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
-    pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -58,7 +57,6 @@ pub struct BusinessProfileNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
-    pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -80,7 +78,6 @@ pub struct BusinessProfileUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
-    pub merchant_custom_domain: Option<String>,
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
@@ -104,7 +101,6 @@ impl From<BusinessProfileNew> for BusinessProfile {
             is_recon_enabled: new.is_recon_enabled,
             applepay_verified_domains: new.applepay_verified_domains,
             payment_link_config: new.payment_link_config,
-            merchant_custom_domain: new.merchant_custom_domain,
         }
     }
 }
@@ -131,7 +127,6 @@ impl BusinessProfileUpdateInternal {
             is_recon_enabled: self.is_recon_enabled.unwrap_or(source.is_recon_enabled),
             applepay_verified_domains: self.applepay_verified_domains,
             payment_link_config: self.payment_link_config,
-            merchant_custom_domain: self.merchant_custom_domain,
             ..source
         }
     }

@@ -823,6 +823,13 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
+    let max_age = common_utils::date_time::now().saturating_add(time::Duration::seconds(
+        payment_link_config
+            .config
+            .max_age
+            .unwrap_or(common_utils::consts::DEFAULT_PAYMENT_LINK_EXPIRY),
+    ));
+
     let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
         api_models::admin::PaymentCreatePaymentLinkConfig,
     >::encode_to_value(&payment_link_config)
@@ -839,7 +846,7 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        fulfilment_time: payment_link_config.expiry,
+        max_age,
         description,
         payment_link_config: payment_link_config_encoded_value,
         profile_id,

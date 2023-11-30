@@ -84,8 +84,6 @@ diesel::table! {
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
-        #[max_length = 256]
-        merchant_custom_domain -> Nullable<Varchar>,
     }
 }
 
@@ -676,7 +674,7 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        fulfilment_time -> Nullable<Timestamp>,
+        max_age -> Timestamp,
         payment_link_config -> Jsonb,
         #[max_length = 255]
         description -> Nullable<Varchar>,

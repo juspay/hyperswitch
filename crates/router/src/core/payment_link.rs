@@ -33,7 +33,7 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_config.fulfilment_time);
+    let status = check_payment_link_status(payment_link_config.max_age);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
         payment_link_config,
@@ -102,13 +102,11 @@ pub async fn intiate_payment_link_flow(
     let (default_sdk_theme, default_background_color) =
         (DEFAULT_SDK_THEME, DEFAULT_BACKGROUND_COLOR);
 
-    let design_config = payment_link_config.clone().design_config;
-
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency,
         payment_id: payment_intent.payment_id,
-        merchant_name: design_config.clone().seller_name.unwrap_or(
+        merchant_name: payment_link_config.clone().config.seller_name.unwrap_or(
             merchant_account
                 .merchant_name
                 .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -116,15 +114,17 @@ pub async fn intiate_payment_link_flow(
         ),
         order_details,
         return_url,
-        expiry: payment_link.fulfilment_time,
+        expiry: payment_link.max_age,
         pub_key,
         client_secret,
-        merchant_logo: design_config
+        merchant_logo: payment_link_config
+            .config
             .clone()
             .logo
             .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string()),
         max_items_visible_after_collapse: 3,
-        theme: design_config
+        theme: payment_link_config
+            .config
             .clone()
             .theme
             .unwrap_or(default_sdk_theme.to_string()),
@@ -164,7 +164,7 @@ fn get_color_scheme_css(
     default_primary_color: String,
 ) -> String {
     let background_primary_color = payment_link_config
-        .design_config
+        .config
         .theme
         .unwrap_or(default_primary_color.clone());
     format!(
@@ -211,10 +211,10 @@ pub async fn list_payment_link(
     Ok(services::ApplicationResponse::Json(payment_link_list))
 }
 
-pub fn check_payment_link_status(fulfillment_time: Option<PrimitiveDateTime>) -> String {
-    let curr_time = Some(common_utils::date_time::now());
+pub fn check_payment_link_status(max_age: PrimitiveDateTime) -> String {
+    let curr_time = common_utils::date_time::now();
 
-    if curr_time > fulfillment_time {
+    if curr_time > max_age {
         "expired".to_string()
     } else {
         "active".to_string()
@@ -294,38 +294,45 @@ pub fn get_payment_link_config_based_on_priority(
                 .map(|domain_name| format!("https://{}", domain_name))
                 .unwrap_or(default_domain_name);
 
-            //format!("https://{}", business_link_config.domain_name.unwrap_or(default_domain_name));
-            let theme = payment_create.design_config.theme.unwrap_or_else(|| {
+            let theme = payment_create.config.theme.unwrap_or_else(|| {
                 business_link_config
-                    .design_config
+                    .config
                     .theme
                     .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string())
             });
-            let logo = payment_create.design_config.logo.unwrap_or_else(|| {
+            let logo = payment_create.config.logo.unwrap_or_else(|| {
                 business_link_config
-                    .design_config
+                    .config
                     .logo
                     .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string())
             });
-            let seller_name = payment_create.design_config.seller_name.unwrap_or_else(|| {
+            let seller_name = payment_create.config.seller_name.unwrap_or_else(|| {
                 business_link_config
-                    .design_config
+                    .config
                     .seller_name
                     .unwrap_or(merchant_name)
             });
-            let expiry = payment_create.expiry.unwrap_or_else(|| {
-                let current_time = common_utils::date_time::now();
-                current_time.saturating_add(time::Duration::seconds(
-                    business_link_config
-                        .expiry
-                        .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
-                ))
-            });
+
+            let max_age = payment_create.config.max_age.unwrap_or(
+                business_link_config
+                    .config
+                    .max_age
+                    .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+            );
+
+            // let max_age = payment_create.config.max_age.unwrap_or_else(|| {
+            //     let current_time = common_utils::date_time::now();
+            //     current_time.saturating_add(time::Duration::seconds(
+            //         business_link_config
+            //             .expiry
+            //             .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+            //     ))
+            // });
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
-                    expiry: Some(expiry),
-                    design_config: admin_types::PaymentLinkDesignConfig {
+                    config: admin_types::PaymentLinkConfig {
+                        max_age: Some(max_age),
                         theme: Some(theme),
                         logo: Some(logo),
                         seller_name: Some(seller_name),
@@ -336,26 +343,34 @@ pub fn get_payment_link_config_based_on_priority(
         }
         (Some(payment_create), None) => {
             let theme = payment_create
-                .design_config
+                .config
                 .theme
                 .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
             let logo = payment_create
-                .design_config
+                .config
                 .logo
                 .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
-            let seller_name = payment_create
-                .design_config
-                .seller_name
-                .unwrap_or(merchant_name);
-            let expiry = payment_create.expiry.unwrap_or_else(|| {
-                let current_time = common_utils::date_time::now();
-                current_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY))
-            });
+            let seller_name = payment_create.config.seller_name.unwrap_or(merchant_name);
+            let max_age = payment_create
+                .config
+                .max_age
+                .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
+
+            //  common_utils::date_time::now().saturating_add(time::Duration::seconds(
+            //     payment_create.
+            //         config.max_age
+            //         .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+            // ));
+
+            //  payment_create.config.max_age.unwrap_or_else(|| {
+            //     let current_time = common_utils::date_time::now();
+            //     current_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY))
+            // });
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
-                    expiry: Some(expiry),
-                    design_config: admin_types::PaymentLinkDesignConfig {
+                    config: admin_types::PaymentLinkConfig {
+                        max_age: Some(max_age),
                         theme: Some(theme),
                         logo: Some(logo),
                         seller_name: Some(seller_name),
@@ -371,27 +386,32 @@ pub fn get_payment_link_config_based_on_priority(
                 .map(|domain_name| format!("https://{}", domain_name))
                 .unwrap_or(default_domain_name);
             let theme = business_link_config
-                .design_config
+                .config
                 .theme
                 .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
             let logo = business_link_config
-                .design_config
+                .config
                 .logo
                 .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
             let seller_name = business_link_config
-                .design_config
+                .config
                 .seller_name
                 .unwrap_or(merchant_name);
-            let expiry = common_utils::date_time::now().saturating_add(time::Duration::seconds(
-                business_link_config
-                    .expiry
-                    .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
-            ));
+            let max_age = business_link_config
+                .config
+                .max_age
+                .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
+
+            // common_utils::date_time::now().saturating_add(time::Duration::seconds(
+            //     business_link_config
+            //         config.max_age
+            //         .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+            // ));
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
-                    expiry: Some(expiry),
-                    design_config: admin_types::PaymentLinkDesignConfig {
+                    config: admin_types::PaymentLinkConfig {
+                        max_age: Some(max_age),
                         theme: Some(theme),
                         logo: Some(logo),
                         seller_name: Some(seller_name),
@@ -402,14 +422,12 @@ pub fn get_payment_link_config_based_on_priority(
         }
         (None, None) => {
             let default_payment_config = admin_types::PaymentCreatePaymentLinkConfig {
-                design_config: admin_types::PaymentLinkDesignConfig {
+                config: admin_types::PaymentLinkConfig {
+                    max_age: Some(DEFAULT_PAYMENT_LINK_EXPIRY),
                     theme: Some(DEFAULT_BACKGROUND_COLOR.to_string()),
                     logo: Some(DEFAULT_MERCHANT_LOGO.to_string()),
-                    seller_name: Some("sahkal".to_string()),
+                    seller_name: Some(merchant_name),
                 },
-                expiry: Some(
-                    common_utils::date_time::now().saturating_add(time::Duration::seconds(86400)),
-                ),
             };
             Ok((default_payment_config, default_domain_name))
         }

@@ -1002,7 +1002,7 @@ impl ForeignFrom<(storage::PaymentLink, String)>
             link_to_pay: payment_link_config.link_to_pay,
             amount: payment_link_config.amount,
             created_at: payment_link_config.created_at,
-            expiry: payment_link_config.fulfilment_time,
+            max_age: payment_link_config.max_age,
             description: payment_link_config.description,
             currency: payment_link_config.currency,
             status,

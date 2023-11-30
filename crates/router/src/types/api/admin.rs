@@ -73,7 +73,6 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             payout_routing_algorithm: item.payout_routing_algorithm,
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
-            merchant_custom_domain: item.merchant_custom_domain,
         })
     }
 }
@@ -154,7 +153,6 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: request.applepay_verified_domains,
             payment_link_config: payment_link_config_value,
-            merchant_custom_domain: request.merchant_custom_domain,
         })
     }
 }
