@@ -21,7 +21,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums as storage_enums},
+        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
     },
     utils::OptionExt,
 };
@@ -80,6 +80,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::PartiallyCaptured,
                 storage_enums::IntentStatus::RequiresCapture,
             ],
             "update",
@@ -133,6 +134,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
+
+        helpers::validate_request_amount_and_amount_to_capture(
+            request.amount,
+            request.amount_to_capture,
+            request
+                .surcharge_details
+                .or(payment_attempt.get_surcharge_details()),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount_to_capture".to_string(),
+            expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
+        })?;
 
         currency = request
             .currency
@@ -322,7 +337,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })?;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
-            request_surcharge_details.get_surcharge_details_object(payment_attempt.amount)
+            payments::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
         let payment_data = PaymentData {
@@ -629,6 +644,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
             request.amount_to_capture,
+            request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount_to_capture".to_string(),
