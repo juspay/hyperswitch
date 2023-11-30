@@ -27,6 +27,8 @@ use crate::{
     utils::user::password,
 };
 
+pub mod dashboard_metadata;
+
 #[derive(Clone)]
 pub struct UserName(Secret<String>);
 

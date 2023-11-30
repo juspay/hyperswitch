@@ -367,6 +367,7 @@ impl<F, T>
                 connector_response_reference_id: Some(
                     item.response.idempotency_id.unwrap_or(item.response.id),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

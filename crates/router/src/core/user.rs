@@ -15,6 +15,8 @@ use crate::{
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
 
+pub mod dashboard_metadata;
+
 pub async fn connect_account(
     state: AppState,
     request: api::ConnectAccountRequest,

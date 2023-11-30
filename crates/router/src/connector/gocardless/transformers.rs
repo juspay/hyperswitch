@@ -577,6 +577,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference,
@@ -732,6 +733,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -766,6 +768,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

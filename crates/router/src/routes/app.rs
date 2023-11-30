@@ -30,6 +30,8 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(feature = "olap")]
+use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
@@ -549,6 +551,10 @@ impl MerchantConnectorAccount {
 
             route = route
                 .service(
+                    web::resource("/connectors/verify")
+                        .route(web::post().to(payment_connector_verify)),
+                )
+                .service(
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(payment_connector_create))
                         .route(web::get().to(payment_connector_list)),
@@ -810,6 +816,11 @@ impl User {
                 .service(web::resource("/sample_data").route(web::delete().to(delete_sample_data)))
         }
         route
+            .service(
+                web::resource("/data/merchant")
+                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
+            )
+            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)))
     }
 }
 

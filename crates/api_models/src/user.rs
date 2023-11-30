@@ -2,6 +2,7 @@ use common_utils::pii;
 use masking::Secret;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod dashboard_metadata;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct ConnectAccountRequest {

@@ -205,6 +205,7 @@ impl<F, T>
                     .response
                     .ext_order_id
                     .or(Some(item.response.order_id)),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: None,
             ..item.data
@@ -257,6 +258,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             amount_captured: None,
             ..item.data
@@ -342,6 +344,7 @@ impl<F, T>
                     .response
                     .ext_order_id
                     .or(Some(item.response.order_id)),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: None,
             ..item.data
@@ -475,6 +478,7 @@ impl<F, T>
                     .ext_order_id
                     .clone()
                     .or(Some(order.order_id.clone())),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: Some(
                 order
