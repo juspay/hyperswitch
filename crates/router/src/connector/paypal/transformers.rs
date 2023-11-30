@@ -926,8 +926,20 @@ pub struct PaypalThreeDsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaypalPreProcessingResponse {
+#[serde(untagged)]
+pub enum PaypalPreProcessingResponse {
+    PaypalLiabilityResponse(PaypalLiabilityResponse),
+    PaypalNonLiablityResponse(PaypalNonLiablityResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalLiabilityResponse {
     pub payment_source: CardParams,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalNonLiablityResponse {
+    payment_source: CardsData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
