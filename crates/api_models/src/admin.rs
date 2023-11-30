@@ -988,7 +988,7 @@ pub struct BusinessProfileCreate {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     /// Default Payment Link config for all payment links
-    pub payment_link_config: Option<serde_json::Value>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// merchant own domain name as display to customer which routes to hyperswitch
     pub merchant_custom_domain: Option<String>,
@@ -1130,6 +1130,7 @@ pub struct BusinessProfileUpdate {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct BusinessPaymentLinkConfig {
     pub expiry: Option<i64>,
+    pub domain_name: Option<String>,
     #[serde(flatten)]
     pub design_config: PaymentLinkDesignConfig,
 }

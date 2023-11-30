@@ -3793,6 +3793,27 @@
           }
         }
       },
+      "BusinessPaymentLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentLinkDesignConfig"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "expiry": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
+              "domain_name": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "CaptureMethod": {
         "type": "string",
         "enum": [
@@ -8200,6 +8221,23 @@
           }
         }
       },
+      "PaymentCreatePaymentLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentLinkDesignConfig"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "expiry": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "PaymentExperience": {
         "type": "string",
         "enum": [
@@ -8264,14 +8302,9 @@
           }
         ]
       },
-      "PaymentLinkConfig": {
+      "PaymentLinkDesignConfig": {
         "type": "object",
         "properties": {
-          "expiry": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link",
@@ -9382,7 +9415,7 @@
             "nullable": true
           },
           "payment_link_config": {
-            "$ref": "#/components/schemas/PaymentLinkConfig"
+            "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
           },
           "profile_id": {
             "type": "string",
@@ -9751,7 +9784,7 @@
             "nullable": true
           },
           "payment_link_config": {
-            "$ref": "#/components/schemas/PaymentLinkConfig"
+            "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
           },
           "profile_id": {
             "type": "string",

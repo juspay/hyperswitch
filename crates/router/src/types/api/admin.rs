@@ -14,6 +14,7 @@ use masking::Secret;
 use crate::{
     core::errors,
     types::{domain, storage, transformers::ForeignTryFrom},
+    utils::{self},
 };
 
 impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
@@ -106,6 +107,18 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             .or(merchant_account.payment_response_hash_key)
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
+        let payment_link_config_value = request
+            .payment_link_config
+            .map(|pl_config| {
+                utils::Encode::<api_models::admin::BusinessPaymentLinkConfig>::encode_to_value(
+                    &pl_config,
+                )
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                })
+            })
+            .transpose()?;
+
         Ok(Self {
             profile_id,
             merchant_id: merchant_account.merchant_id,
@@ -140,7 +153,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .or(merchant_account.payout_routing_algorithm),
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: request.applepay_verified_domains,
-            payment_link_config: request.payment_link_config,
+            payment_link_config: payment_link_config_value,
             merchant_custom_domain: request.merchant_custom_domain,
         })
     }

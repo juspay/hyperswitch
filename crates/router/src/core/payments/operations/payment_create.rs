@@ -165,21 +165,26 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .clone()
                     .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
                     .unwrap_or_default();
-                let payment_link_config = payment_link::get_payment_link_config_based_on_priority(
-                    request.payment_link_config.clone(),
-                    business_profile.payment_link_config.clone(),
-                    merchant_name,
-                )?;
+
+                let default_domain_name = state.conf.server.base_url.clone();
+
+                let (payment_link_config, domain_name) =
+                    payment_link::get_payment_link_config_based_on_priority(
+                        request.payment_link_config.clone(),
+                        business_profile.payment_link_config.clone(),
+                        merchant_name,
+                        default_domain_name,
+                    )?;
                 create_payment_link(
                     request,
                     payment_link_config,
                     merchant_id.clone(),
                     payment_id.clone(),
                     db,
-                    state,
                     amount,
                     request.description.clone(),
                     profile_id.clone(),
+                    domain_name,
                 )
                 .await?
             } else {
@@ -804,18 +809,16 @@ async fn create_payment_link(
     merchant_id: String,
     payment_id: String,
     db: &dyn StorageInterface,
-    state: &AppState,
     amount: api::Amount,
     description: Option<String>,
     profile_id: String,
+    domain_name: String,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
-    let domain = state.conf.server.base_url.clone();
-
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let payment_link = format!(
         "{}/payment_link/{}/{}",
-        domain,
+        domain_name,
         merchant_id.clone(),
         payment_id.clone()
     );
