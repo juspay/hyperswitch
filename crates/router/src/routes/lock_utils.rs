@@ -150,7 +150,9 @@ impl From<Flow> for ApiIdentifier {
             Flow::UserConnectAccount
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
-            | Flow::GetMutltipleDashboardMetadata => Self::User,
+            | Flow::GetMutltipleDashboardMetadata | Flow::VerifyPaymentConnector => {
+                Self::User
+            }
         }
     }
 }

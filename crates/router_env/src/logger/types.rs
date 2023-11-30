@@ -263,6 +263,8 @@ pub enum Flow {
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
     GetMutltipleDashboardMetadata,
+    /// Payment Connector Verify
+    VerifyPaymentConnector,
 }
 
 ///
