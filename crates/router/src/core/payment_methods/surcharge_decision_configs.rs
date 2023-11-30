@@ -107,8 +107,10 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                     card_network_type.surcharge_details = surcharge_output
                         .surcharge_details
                         .map(|surcharge_details| {
-                            let surcharge_details =
-                                get_surcharge_details_response(surcharge_details, payment_attempt)?;
+                            let surcharge_details = get_surcharge_details_from_surcharge_output(
+                                surcharge_details,
+                                payment_attempt,
+                            )?;
                             surcharge_metadata.insert_surcharge_details(
                                 &payment_methods_enabled.payment_method,
                                 &payment_method_type_response.payment_method_type,
@@ -117,7 +119,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                             );
                             SurchargeDetailsResponse::foreign_try_from((
                                 &surcharge_details,
-                                &payment_attempt,
+                                payment_attempt,
                             ))
                             .into_report()
                             .change_context(ConfigError::DslExecutionError)
@@ -131,8 +133,10 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                 payment_method_type_response.surcharge_details = surcharge_output
                     .surcharge_details
                     .map(|surcharge_details| {
-                        let surcharge_details =
-                            get_surcharge_details_response(surcharge_details, payment_attempt)?;
+                        let surcharge_details = get_surcharge_details_from_surcharge_output(
+                            surcharge_details,
+                            payment_attempt,
+                        )?;
                         surcharge_metadata.insert_surcharge_details(
                             &payment_methods_enabled.payment_method,
                             &payment_method_type_response.payment_method_type,
@@ -141,7 +145,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                         );
                         SurchargeDetailsResponse::foreign_try_from((
                             &surcharge_details,
-                            &payment_attempt,
+                            payment_attempt,
                         ))
                         .into_report()
                         .change_context(ConfigError::DslExecutionError)
@@ -197,8 +201,10 @@ where
         let surcharge_output =
             execute_dsl_and_get_conditional_config(backend_input.clone(), interpreter)?;
         if let Some(surcharge_details) = surcharge_output.surcharge_details {
-            let surcharge_details_response =
-                get_surcharge_details_response(surcharge_details, &payment_data.payment_attempt)?;
+            let surcharge_details_response = get_surcharge_details_from_surcharge_output(
+                surcharge_details,
+                &payment_data.payment_attempt,
+            )?;
             surcharge_metadata.insert_surcharge_details(
                 &payment_method_type.to_owned().into(),
                 payment_method_type,
@@ -210,7 +216,7 @@ where
     Ok(surcharge_metadata)
 }
 
-fn get_surcharge_details_response(
+fn get_surcharge_details_from_surcharge_output(
     surcharge_details: surcharge_decision_configs::SurchargeDetailsOutput,
     payment_attempt: &oss_storage::PaymentAttempt,
 ) -> ConditionalConfigResult<types::SurchargeDetails> {
