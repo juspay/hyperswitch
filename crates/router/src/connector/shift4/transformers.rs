@@ -183,13 +183,8 @@ impl TryFrom<&api_models::payments::WalletData> for Shift4PaymentMethod {
         match wallet_data {
             payments::WalletData::AliPayRedirect(_)
             | payments::WalletData::ApplePay(_)
-            | payments::WalletData::WeChatPayRedirect(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
-            payments::WalletData::AliPayQr(_)
+            | payments::WalletData::WeChatPayRedirect(_)
+            | payments::WalletData::AliPayQr(_)
             | payments::WalletData::AliPayHkRedirect(_)
             | payments::WalletData::MomoRedirect(_)
             | payments::WalletData::KakaoPayRedirect(_)
