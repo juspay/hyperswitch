@@ -13,6 +13,8 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod routing;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};

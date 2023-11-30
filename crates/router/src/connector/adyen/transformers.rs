@@ -879,7 +879,126 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
             api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
             api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            _ => Err(errors::ConnectorError::NotSupported {
+            enums::BankNames::AmericanExpress
+            | enums::BankNames::AffinBank
+            | enums::BankNames::AgroBank
+            | enums::BankNames::AllianceBank
+            | enums::BankNames::AmBank
+            | enums::BankNames::BankOfAmerica
+            | enums::BankNames::BankIslam
+            | enums::BankNames::BankMuamalat
+            | enums::BankNames::BankRakyat
+            | enums::BankNames::BankSimpananNasional
+            | enums::BankNames::BlikPSP
+            | enums::BankNames::CapitalOne
+            | enums::BankNames::Chase
+            | enums::BankNames::Citi
+            | enums::BankNames::CimbBank
+            | enums::BankNames::Discover
+            | enums::BankNames::NavyFederalCreditUnion
+            | enums::BankNames::PentagonFederalCreditUnion
+            | enums::BankNames::SynchronyBank
+            | enums::BankNames::WellsFargo
+            | enums::BankNames::AbnAmro
+            | enums::BankNames::AsnBank
+            | enums::BankNames::Bunq
+            | enums::BankNames::Handelsbanken
+            | enums::BankNames::HongLeongBank
+            | enums::BankNames::Ing
+            | enums::BankNames::Knab
+            | enums::BankNames::KuwaitFinanceHouse
+            | enums::BankNames::Moneyou
+            | enums::BankNames::Rabobank
+            | enums::BankNames::Regiobank
+            | enums::BankNames::SnsBank
+            | enums::BankNames::TriodosBank
+            | enums::BankNames::VanLanschot
+            | enums::BankNames::ArzteUndApothekerBank
+            | enums::BankNames::AustrianAnadiBankAg
+            | enums::BankNames::BankAustria
+            | enums::BankNames::Bank99Ag
+            | enums::BankNames::BankhausCarlSpangler
+            | enums::BankNames::BankhausSchelhammerUndSchatteraAg
+            | enums::BankNames::BankMillennium
+            | enums::BankNames::BankPEKAOSA
+            | enums::BankNames::BawagPskAg
+            | enums::BankNames::BksBankAg
+            | enums::BankNames::BrullKallmusBankAg
+            | enums::BankNames::BtvVierLanderBank
+            | enums::BankNames::CapitalBankGraweGruppeAg
+            | enums::BankNames::CeskaSporitelna
+            | enums::BankNames::Dolomitenbank
+            | enums::BankNames::EasybankAg
+            | enums::BankNames::EPlatbyVUB
+            | enums::BankNames::ErsteBankUndSparkassen
+            | enums::BankNames::FrieslandBank
+            | enums::BankNames::HypoAlpeadriabankInternationalAg
+            | enums::BankNames::HypoNoeLbFurNiederosterreichUWien
+            | enums::BankNames::HypoOberosterreichSalzburgSteiermark
+            | enums::BankNames::HypoTirolBankAg
+            | enums::BankNames::HypoVorarlbergBankAg
+            | enums::BankNames::HypoBankBurgenlandAktiengesellschaft
+            | enums::BankNames::KomercniBanka
+            | enums::BankNames::MBank
+            | enums::BankNames::MarchfelderBank
+            | enums::BankNames::Maybank
+            | enums::BankNames::OberbankAg
+            | enums::BankNames::OsterreichischeArzteUndApothekerbank
+            | enums::BankNames::OcbcBank
+            | enums::BankNames::PayWithING
+            | enums::BankNames::PlaceZIPKO
+            | enums::BankNames::PlatnoscOnlineKartaPlatnicza
+            | enums::BankNames::PosojilnicaBankEGen
+            | enums::BankNames::PostovaBanka
+            | enums::BankNames::PublicBank
+            | enums::BankNames::RaiffeisenBankengruppeOsterreich
+            | enums::BankNames::RhbBank
+            | enums::BankNames::SchelhammerCapitalBankAg
+            | enums::BankNames::StandardCharteredBank
+            | enums::BankNames::SchoellerbankAg
+            | enums::BankNames::SpardaBankWien
+            | enums::BankNames::SporoPay
+            | enums::BankNames::TatraPay
+            | enums::BankNames::Viamo
+            | enums::BankNames::VolksbankGruppe
+            | enums::BankNames::VolkskreditbankAg
+            | enums::BankNames::VrBankBraunau
+            | enums::BankNames::UobBank
+            | enums::BankNames::PayWithAliorBank
+            | enums::BankNames::BankiSpoldzielcze
+            | enums::BankNames::PayWithInteligo
+            | enums::BankNames::BNPParibasPoland
+            | enums::BankNames::BankNowySA
+            | enums::BankNames::CreditAgricole
+            | enums::BankNames::PayWithBOS
+            | enums::BankNames::PayWithCitiHandlowy
+            | enums::BankNames::PayWithPlusBank
+            | enums::BankNames::ToyotaBank
+            | enums::BankNames::VeloBank
+            | enums::BankNames::ETransferPocztowy24
+            | enums::BankNames::PlusBank
+            | enums::BankNames::EtransferPocztowy24
+            | enums::BankNames::BankiSpbdzielcze
+            | enums::BankNames::BankNowyBfgSa
+            | enums::BankNames::GetinBank
+            | enums::BankNames::Blik
+            | enums::BankNames::NoblePay
+            | enums::BankNames::IdeaBank
+            | enums::BankNames::EnveloBank
+            | enums::BankNames::NestPrzelew
+            | enums::BankNames::MbankMtransfer
+            | enums::BankNames::Inteligo
+            | enums::BankNames::PbacZIpko
+            | enums::BankNames::BnpParibas
+            | enums::BankNames::BankPekaoSa
+            | enums::BankNames::VolkswagenBank
+            | enums::BankNames::AliorBank
+            | enums::BankNames::Boz
+            | enums::BankNames::BangkokBank
+            | enums::BankNames::KrungsriBank
+            | enums::BankNames::KrungThaiBank
+            | enums::BankNames::TheSiamCommercialBank
+            | enums::BankNames::KasikornBank => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
             })?,
@@ -2102,7 +2221,12 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             ),
             api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
                 AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
-                    issuer: OpenBankingUKIssuer::try_from(issuer)?,
+                    issuer: match issuer {
+                        Some(bank_name) => OpenBankingUKIssuer::try_from(bank_name)?,
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "issuer",
+                        })?,
+                    },
                 })),
             ),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
@@ -2580,7 +2704,7 @@ impl<'a>
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
-        let (shopper_locale, country) = get_redirect_extra_details(item.router_data);
+        let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
         let line_items = Some(get_line_items(item));
 
         Ok(AdyenPaymentRequest {
@@ -2611,7 +2735,7 @@ impl<'a>
 
 fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> (Option<String>, Option<api_enums::CountryAlpha2>) {
+) -> Result<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError> {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
             match redirect_data {
@@ -2619,17 +2743,20 @@ fn get_redirect_extra_details(
                     country,
                     preferred_language,
                     ..
-                } => (
+                } => Ok((
                     Some(preferred_language.to_string()),
                     Some(country.to_owned()),
-                ),
+                )),
                 api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
-                    (None, Some(country.to_owned()))
+                    let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "country",
+                    })?;
+                    Ok((None, Some(country)))
                 }
-                _ => (None, None),
+                _ => Ok((None, None)),
             }
         }
-        _ => (None, None),
+        _ => Ok((None, None)),
     }
 }
 
