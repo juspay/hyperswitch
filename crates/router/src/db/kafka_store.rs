@@ -6,6 +6,7 @@ use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
 use diesel_models::{
+    enums,
     enums::ProcessTrackerStatus,
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
@@ -21,7 +22,10 @@ use scheduler::{
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
-use super::{user::UserInterface, user_role::UserRoleInterface};
+use super::{
+    dashboard_metadata::DashboardMetadataInterface, user::UserInterface,
+    user_role::UserRoleInterface,
+};
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
@@ -1913,5 +1917,37 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.list_user_roles_by_user_id(user_id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl DashboardMetadataInterface for KafkaStore {
+    async fn insert_metadata(
+        &self,
+        metadata: storage::DashboardMetadataNew,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store.insert_metadata(metadata).await
+    }
+
+    async fn find_user_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+        self.diesel_store
+            .find_user_scoped_dashboard_metadata(user_id, merchant_id, org_id, data_keys)
+            .await
+    }
+    async fn find_merchant_scoped_dashboard_metadata(
+        &self,
+        merchant_id: &str,
+        org_id: &str,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+        self.diesel_store
+            .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
+            .await
     }
 }
