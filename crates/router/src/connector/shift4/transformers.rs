@@ -220,13 +220,8 @@ impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
         bank_transfer_data: &api_models::payments::BankTransferData,
     ) -> Result<Self, Self::Error> {
         match bank_transfer_data {
-            payments::BankTransferData::MultibancoBankTransfer { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
-            payments::BankTransferData::AchBankTransfer { .. }
+            payments::BankTransferData::MultibancoBankTransfer { .. }
+            | payments::BankTransferData::AchBankTransfer { .. }
             | payments::BankTransferData::SepaBankTransfer { .. }
             | payments::BankTransferData::BacsBankTransfer { .. }
             | payments::BankTransferData::PermataBankTransfer { .. }
@@ -249,11 +244,8 @@ impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
-            .into()),
-            payments::VoucherData::Efecty
+            payments::VoucherData::Boleto(_)
+            | payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
             | payments::VoucherData::RedPagos
@@ -407,13 +399,8 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             payments::BankRedirectData::BancontactCard { .. }
             | payments::BankRedirectData::Blik { .. }
             | payments::BankRedirectData::Trustly { .. }
-            | payments::BankRedirectData::Przelewy24 { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
-            payments::BankRedirectData::Bizum {}
+            | payments::BankRedirectData::Przelewy24 { .. }
+            | payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Interac { .. }
             | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | payments::BankRedirectData::OnlineBankingFinland { .. }
