@@ -1389,6 +1389,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
             } else {
                 Some(card.card_holder_name.clone())
             };
+
             if let Some(name_on_card) = name_on_card {
                 updated_card.card_holder_name = name_on_card;
             }
@@ -1504,32 +1505,22 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
 )> {
-    let pmd = payment_data.payment_method_data.clone();
-    if payment_data.payment_method_data.is_none() {
-        payment_data.payment_method_data = Some(api_models::payments::PaymentMethodData::CardToken(
-            CardToken::default(),
-        ))
-    }
+    let request = &payment_data.payment_method_data.clone();
 
-    let request = payment_data.payment_method_data.as_mut();
+    let mut card_token_data = payment_data
+        .payment_method_data
+        .clone()
+        .and_then(|pmd| match pmd {
+            api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
+            _ => None,
+        })
+        .or(Some(CardToken::default()));
 
-    let card_token_data = {
-        if let Some(cvc) = payment_data.card_cvc.clone() {
-            request.and_then(|pmd| match pmd {
-                api_models::payments::PaymentMethodData::CardToken(token_data) => {
-                    token_data.card_cvc = Some(cvc);
-                    Some(token_data)
-                }
-                _ => None,
-            })
-        } else {
-            request.and_then(|pmd| match pmd {
-                api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
-                _ => None,
-            })
+    if let Some(cvc) = payment_data.card_cvc.clone() {
+        if let Some(token_data) = card_token_data.as_mut() {
+            token_data.card_cvc = Some(cvc);
         }
     }
-    .cloned();
 
     let token = payment_data.token.clone();
 
@@ -1591,7 +1582,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     };
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let payment_method = match (pmd, hyperswitch_token) {
+    let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
             let payment_method_details = Ctx::retrieve_payment_method_with_token(
                 state,
@@ -1615,7 +1606,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
         (Some(_), _) => {
             let payment_method_data = Ctx::retrieve_payment_method(
-                &payment_data.payment_method_data,
+                request,
                 state,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
