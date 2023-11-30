@@ -175,6 +175,39 @@ pub enum NoonApiOperations {
     Reverse,
     Refund,
 }
+
+#[derive(Debug, Serialize)]
+pub struct NoonRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for NoonRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = conn_utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsRequest {
@@ -186,10 +219,16 @@ pub struct NoonPaymentsRequest {
     billing: Option<NoonBilling>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
+impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let (payment_data, currency, category) = match item.request.connector_mandate_id() {
+    fn try_from(
+        item: &NoonRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let (payment_data, currency, category) = match item
+            .router_data
+            .request
+            .connector_mandate_id()
+        {
             Some(subscription_identifier) => (
                 NoonPaymentData::Subscription(NoonSubscription {
                     subscription_identifier,
@@ -198,7 +237,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 None,
             ),
             _ => (
-                match item.request.payment_method_data.clone() {
+                match item.router_data.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
                         name_on_card: req_card.card_holder_name.clone(),
                         number_plain: req_card.card_number.clone(),
@@ -242,7 +281,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         }
                         api_models::payments::WalletData::PaypalRedirect(_) => {
                             Ok(NoonPaymentData::PayPal(NoonPayPal {
-                                return_url: item.request.get_router_return_url()?,
+                                return_url: item.router_data.request.get_router_return_url()?,
                             }))
                         }
                         api_models::payments::WalletData::AliPayQr(_)
@@ -292,13 +331,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         })
                     }
                 }?,
-                Some(item.request.currency),
-                item.request.order_category.clone(),
+                Some(item.router_data.request.currency),
+                item.router_data.request.order_category.clone(),
             ),
         };
 
         // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
         let name: String = item
+            .router_data
             .get_description()?
             .trim()
             .replace("  ", " ")
@@ -306,11 +346,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             .take(50)
             .collect();
 
-        let ip_address = item.request.get_ip_address_as_optional();
+        let ip_address = item.router_data.request.get_ip_address_as_optional();
 
         let channel = NoonChannels::Web;
 
         let billing = item
+            .router_data
             .address
             .billing
             .clone()
@@ -327,27 +368,34 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let (subscription, tokenize_c_c) =
-            match item.request.setup_future_usage.is_some().then_some((
+        let (subscription, tokenize_c_c) = match item
+            .router_data
+            .request
+            .setup_future_usage
+            .is_some()
+            .then_some((
                 NoonSubscriptionData {
                     subscription_type: NoonSubscriptionType::Unscheduled,
                     name: name.clone(),
                 },
                 true,
             )) {
-                Some((a, b)) => (Some(a), Some(b)),
-                None => (None, None),
-            };
+            Some((a, b)) => (Some(a), Some(b)),
+            None => (None, None),
+        };
         let order = NoonOrder {
-            amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            amount: conn_utils::to_currency_base_unit(
+                item.router_data.request.amount,
+                item.router_data.request.currency,
+            )?,
             currency,
             channel,
             category,
-            reference: item.connector_request_reference_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
             name,
             ip_address,
         };
-        let payment_action = if item.request.is_auto_capture()? {
+        let payment_action = if item.router_data.request.is_auto_capture()? {
             NoonPaymentActions::Sale
         } else {
             NoonPaymentActions::Authorize
@@ -358,7 +406,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             billing,
             configuration: NoonConfiguration {
                 payment_action,
-                return_url: item.request.router_return_url.clone(),
+                return_url: item.router_data.request.router_return_url.clone(),
                 tokenize_c_c,
             },
             payment_data,
@@ -599,19 +647,19 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
+impl<F> TryFrom<&NoonRouterData<&types::RefundsRouterData<F>>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &NoonRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
-            id: item.request.connector_transaction_id.clone(),
+            id: item.router_data.request.connector_transaction_id.clone(),
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
+                item.router_data.request.refund_amount,
+                item.router_data.request.currency,
             )?,
-            currency: item.request.currency,
-            transaction_reference: Some(item.request.refund_id.clone()),
+            currency: item.router_data.request.currency,
+            transaction_reference: Some(item.router_data.request.refund_id.clone()),
         };
         Ok(Self {
             api_operation: NoonApiOperations::Refund,

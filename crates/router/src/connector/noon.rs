@@ -114,6 +114,10 @@ impl ConnectorCommon for Noon {
         "noon"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -213,7 +217,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = noon::NoonPaymentsRequest::try_from(req)?;
+        let router_obj = noon::NoonRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = noon::NoonPaymentsRequest::try_from(&router_obj)?;
         let noon_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json,
@@ -519,7 +529,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = noon::NoonPaymentsActionRequest::try_from(req)?;
+        let router_obj = noon::NoonRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = noon::NoonPaymentsActionRequest::try_from(&router_obj)?;
         let noon_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<noon::NoonPaymentsActionRequest>::encode_to_string_of_json,
