@@ -183,35 +183,3 @@ impl DashboardMetadataInterface for MockDb {
     }
 }
 
-#[cfg(feature = "kafka_events")]
-#[async_trait::async_trait]
-impl DashboardMetadataInterface for super::KafkaStore {
-    async fn insert_metadata(
-        &self,
-        metadata: storage::DashboardMetadataNew,
-    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        self.diesel_store.insert_metadata(metadata).await
-    }
-
-    async fn find_user_scoped_dashboard_metadata(
-        &self,
-        user_id: &str,
-        merchant_id: &str,
-        org_id: &str,
-        data_keys: Vec<enums::DashboardMetadata>,
-    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        self.diesel_store
-            .find_user_scoped_dashboard_metadata(user_id, merchant_id, org_id, data_keys)
-            .await
-    }
-    async fn find_merchant_scoped_dashboard_metadata(
-        &self,
-        merchant_id: &str,
-        org_id: &str,
-        data_keys: Vec<enums::DashboardMetadata>,
-    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        self.diesel_store
-            .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
-            .await
-    }
-}
