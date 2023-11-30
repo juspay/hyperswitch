@@ -3,9 +3,12 @@
     "Merchant Account - Create",
     "API Key - Create",
     "Payment Connector - Create",
+    "Payout Connector - Create",
     "Payments - Create",
     "Payments - Retrieve",
     "Refunds - Create",
-    "Refunds - Retrieve"
+    "Refunds - Retrieve",
+    "Payouts - Create",
+    "Payouts - Retrieve"
   ]
 }

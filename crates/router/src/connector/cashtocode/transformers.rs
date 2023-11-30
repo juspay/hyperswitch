@@ -217,6 +217,8 @@ impl<F, T>
                     status_code: item.http_code,
                     message: error_data.error_description,
                     reason: None,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
@@ -288,7 +290,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: String,
+    pub error: serde_json::Value,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }

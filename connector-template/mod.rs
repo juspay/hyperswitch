@@ -105,6 +105,8 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             code: response.code,
             message: response.message,
             reason: response.reason,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -156,7 +158,7 @@ impl
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
-    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data =
             {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
                 &self.get_currency_unit(),
@@ -185,7 +187,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -301,6 +303,7 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
@@ -318,7 +321,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -373,7 +376,7 @@ impl
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
-    fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data =
             {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
                 &self.get_currency_unit(),
@@ -393,7 +396,7 @@ impl
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(self, req, connectors)?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .body(types::RefundExecuteType::get_request_body(self, req, connectors)?)
             .build();
         Ok(Some(request))
     }
@@ -441,7 +444,7 @@ impl
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
+                .body(types::RefundSyncType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -483,7 +486,7 @@ impl api::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

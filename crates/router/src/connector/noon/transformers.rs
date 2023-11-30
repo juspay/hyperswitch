@@ -284,7 +284,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | api::PaymentMethodData::Reward {}
                     | api::PaymentMethodData::Upi(_)
                     | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_) => {
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
                             connector: "Noon",
@@ -511,6 +512,8 @@ impl<F, T>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 _ => {
                     let connector_response_reference_id =

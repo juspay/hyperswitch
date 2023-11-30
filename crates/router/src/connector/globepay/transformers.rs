@@ -257,6 +257,8 @@ fn get_error_response(
         message: consts::NO_ERROR_MESSAGE.to_string(),
         reason: return_msg,
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 

@@ -188,7 +188,8 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "nmi",
             })
@@ -440,6 +441,8 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
             message: response.responsetext,
             reason: None,
             status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }

@@ -1,28 +1,40 @@
-use std::{env, process::Command};
+use std::{env, io::Write, path::Path, process::Command};
 
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
 
 use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
-
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
 struct Args {
     /// Admin API Key of the environment
-    #[arg(short, long = "admin_api_key")]
+    #[arg(short, long)]
     admin_api_key: String,
     /// Base URL of the Hyperswitch environment
-    #[arg(short, long = "base_url")]
+    #[arg(short, long)]
     base_url: String,
     /// Name of the connector
-    #[arg(short, long = "connector_name")]
+    #[arg(short, long)]
     connector_name: String,
+    /// Custom headers
+    #[arg(short = 'H', long = "header")]
+    custom_headers: Option<Vec<String>>,
+    /// Minimum delay in milliseconds to be added before sending a request
+    /// By default, 7 milliseconds will be the delay
+    #[arg(short, long, default_value_t = 7)]
+    delay_request: u32,
     /// Folder name of specific tests
     #[arg(short, long = "folder")]
     folders: Option<String>,
     /// Optional Verbose logs
     #[arg(short, long)]
     verbose: bool,
+}
+
+pub struct ReturnArgs {
+    pub newman_command: Command,
+    pub file_modified_flag: bool,
+    pub collection_path: String,
 }
 
 // Just by the name of the connector, this function generates the name of the collection dir
@@ -32,7 +44,29 @@ fn get_path(name: impl AsRef<str>) -> String {
     format!("postman/collection-dir/{}", name.as_ref())
 }
 
-pub fn command_generate() -> Command {
+// This function currently allows you to add only custom headers.
+// In future, as we scale, this can be modified based on the need
+fn insert_content<T, U>(dir: T, content_to_insert: U) -> std::io::Result<()>
+where
+    T: AsRef<Path>,
+    U: AsRef<str>,
+{
+    let file_name = "event.prerequest.js";
+    let file_path = dir.as_ref().join(file_name);
+
+    // Open the file in write mode or create it if it doesn't exist
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .create(true)
+        .open(file_path)?;
+
+    write!(file, "{}", content_to_insert.as_ref())?;
+
+    Ok(())
+}
+
+pub fn generate_newman_command() -> ReturnArgs {
     let args = Args::parse();
 
     let connector_name = args.connector_name;
@@ -129,7 +163,10 @@ pub fn command_generate() -> Command {
         ]);
     }
 
-    newman_command.arg("--delay-request").arg("7"); // 7 milli seconds delay
+    newman_command.args([
+        "--delay-request",
+        format!("{}", &args.delay_request).as_str(),
+    ]);
 
     newman_command.arg("--color").arg("on");
 
@@ -151,5 +188,24 @@ pub fn command_generate() -> Command {
         newman_command.arg("--verbose");
     }
 
-    newman_command
+    let mut modified = false;
+    if let Some(headers) = &args.custom_headers {
+        for header in headers {
+            if let Some((key, value)) = header.split_once(':') {
+                let content_to_insert =
+                    format!(r#"pm.request.headers.add({{key: "{key}", value: "{value}"}});"#);
+                if insert_content(&collection_path, &content_to_insert).is_ok() {
+                    modified = true;
+                }
+            } else {
+                eprintln!("Invalid header format: {}", header);
+            }
+        }
+    }
+
+    ReturnArgs {
+        newman_command,
+        file_modified_flag: modified,
+        collection_path,
+    }
 }
