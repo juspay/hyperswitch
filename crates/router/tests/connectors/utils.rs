@@ -80,7 +80,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn create_connector_customer(
@@ -96,6 +96,7 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -104,7 +105,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn create_connector_pm_token(
@@ -120,6 +121,7 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -128,7 +130,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// For initiating payments when `CaptureMethod` is set to `Automatic`
@@ -148,6 +150,7 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -156,7 +159,7 @@ pub trait ConnectorActions: Connector {
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn sync_payment(
@@ -169,7 +172,7 @@ pub trait ConnectorActions: Connector {
             payment_data.unwrap_or_else(|| PaymentSyncType::default().0),
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// will retry the psync till the given status matches or retry max 3 times
@@ -207,7 +210,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn authorize_and_capture_payment(
@@ -243,7 +246,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn authorize_and_void_payment(
@@ -280,7 +283,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn capture_payment_and_refund(
@@ -400,7 +403,7 @@ pub trait ConnectorActions: Connector {
             }),
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// will retry the rsync till the given status matches or retry max 3 times
@@ -561,6 +564,7 @@ pub trait ConnectorActions: Connector {
             .get_connector_integration();
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -601,6 +605,7 @@ pub trait ConnectorActions: Connector {
             .get_connector_integration();
         let mut request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -642,6 +647,7 @@ pub trait ConnectorActions: Connector {
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         request.connector_customer = connector_customer;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -683,6 +689,7 @@ pub trait ConnectorActions: Connector {
         let mut request =
             self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -770,6 +777,7 @@ pub trait ConnectorActions: Connector {
             .get_connector_integration();
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -802,6 +810,7 @@ async fn call_connector<
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -899,6 +908,7 @@ impl Default for PaymentAuthorizeType {
             webhook_url: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: false,
         };
         Self(data)
     }
@@ -1034,6 +1044,7 @@ pub fn get_connector_metadata(
             connector_metadata,
             network_txn_id: _,
             connector_response_reference_id: _,
+            incremental_authorization_allowed: _,
         }) => connector_metadata,
         _ => None,
     }

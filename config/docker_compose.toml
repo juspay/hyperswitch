@@ -15,7 +15,7 @@ level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
 traces_enabled = false                                      # Whether traces are enabled.
-metrics_enabled = false                                     # Whether metrics are enabled.
+metrics_enabled = true                                     # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
 use_xray_generator = false
@@ -27,6 +27,15 @@ host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+
+[forex_api]
+call_delay = 21600
+local_fetch_retry_count = 5
+local_fetch_retry_delay = 1000
+api_timeout = 20000
+api_key = "YOUR API KEY HERE"
+fallback_api_key = "YOUR API KEY HERE"
+redis_lock_timeout = 26000
 
 [replica_database]
 username = "db_user"
@@ -44,6 +53,7 @@ recon_admin_api_key = "recon_test_admin"
 
 [locker]
 host = ""
+host_rs = ""
 mock_locker = true
 basilisk_host = ""
 
@@ -55,6 +65,7 @@ locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
+rust_locker_encryption_key = ""
 vault_private_key = ""
 
 [redis]
@@ -283,6 +294,9 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.stripe]
 cashapp = {country = "US", currency = "USD"}
 
+[pm_filters.prophetpay]
+card_redirect = { currency = "USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -319,16 +333,32 @@ supported_connectors = "braintree"
 redis_lock_expiry_seconds = 180 # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
 
+[events.kafka]
+brokers = ["localhost:9092"]
+intent_analytics_topic = "hyperswitch-payment-intent-events"
+attempt_analytics_topic = "hyperswitch-payment-attempt-events"
+refund_analytics_topic = "hyperswitch-refund-events"
+api_logs_topic = "hyperswitch-api-log-events"
+connector_events_topic = "hyperswitch-connector-api-events"
+
 [analytics]
 source = "sqlx"
+
+[analytics.clickhouse]
+username = "default"
+# password = ""
+host = "http://localhost:8123"
+database_name = "default"
 
 [analytics.sqlx]
 username = "db_user"
 password = "db_pass"
-host = "pg"
+host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+connection_timeout = 10
+queue_strategy = "Fifo"
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
