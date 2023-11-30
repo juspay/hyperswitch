@@ -1,3 +1,7 @@
+use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::user_role as user_role_api;
+use router_env::Flow;
+
 use super::AppState;
 use crate::{
     core::{api_locking, user_role as user_role_core},
@@ -7,9 +11,6 @@ use crate::{
         authorization::permissions::Permission,
     },
 };
-use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::user_role as user_role_api;
-use router_env::Flow;
 
 pub async fn get_authorization_info(
     state: web::Data<AppState>,
