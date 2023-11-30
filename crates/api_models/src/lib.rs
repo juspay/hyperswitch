@@ -27,4 +27,5 @@ pub mod routing;
 pub mod surcharge_decision_configs;
 pub mod user;
 pub mod verifications;
+pub mod verify_connector;
 pub mod webhooks;

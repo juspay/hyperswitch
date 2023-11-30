@@ -33,7 +33,7 @@ use crate::{
         payments::{PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::storage::payment_attempt::PaymentAttemptExt,
+    types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -940,6 +940,78 @@ pub enum ConnectorAuthType {
     },
     #[default]
     NoKey,
+}
+
+impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+        match value {
+            api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
+                Self::HeaderKey { api_key }
+            }
+            api_models::admin::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Self::BodyKey { api_key, key1 }
+            }
+            api_models::admin::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            api_models::admin::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            api_models::admin::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
+    fn foreign_from(from: ConnectorAuthType) -> Self {
+        match from {
+            ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            ConnectorAuthType::HeaderKey { api_key } => Self::HeaderKey { api_key },
+            ConnectorAuthType::BodyKey { api_key, key1 } => Self::BodyKey { api_key, key1 },
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
