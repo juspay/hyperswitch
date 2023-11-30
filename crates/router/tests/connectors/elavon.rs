@@ -1,8 +1,5 @@
 use masking::Secret;
-use router::{
-    core::utils as core_utils,
-    types::{self, api, storage::enums},
-};
+use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -17,6 +14,7 @@ impl utils::Connector for ElavonTest {
             connector: Box::new(&Elavon),
             connector_name: types::Connector::Elavon,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
