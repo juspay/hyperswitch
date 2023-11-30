@@ -39,6 +39,56 @@ use crate::{
     configs::settings,
     core::errors::{self},
 };
+use tracing_subscriber::fmt;
+
+use actix_web_opentelemetry::{RequestMetrics, RequestTracing};
+use opentelemetry::{self, global};
+use router_env::{
+    tracing,
+    tracing_subscriber::{self, prelude::*},
+};
+
+// start trace code
+#[derive(Debug, Clone)]
+pub struct OpenTelemetryStack {
+    request_metrics: RequestMetrics,
+}
+
+impl Default for OpenTelemetryStack {
+    fn default() -> Self {
+        let app_name = std::env::var("CARGO_BIN_NAME").unwrap_or("demo".to_string());
+
+        global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+
+        #[allow(clippy::expect_used)]
+        let tracer = opentelemetry_jaeger::new_agent_pipeline()
+            .with_endpoint(std::env::var("JAEGER_ENDPOINT").unwrap_or("localhost:6831".to_string()))
+            .with_service_name(app_name.clone())
+            .with_auto_split_batch(true)
+            .install_batch(opentelemetry::runtime::Tokio)
+            .expect("Failed to install OpenTelemetry tracer.");
+
+        let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+        let logging_layer = fmt::layer().with_timer(fmt::time::time()).pretty();
+
+        #[allow(clippy::expect_used)]
+        let subscriber = tracing_subscriber::Registry::default()
+            .with(telemetry)
+            .with(logging_layer);
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("Failed to install `tracing` subscriber.");
+
+        let request_metrics = RequestMetrics::default();
+        Self { request_metrics }
+    }
+}
+
+impl OpenTelemetryStack {
+    pub fn metrics(&self) -> RequestMetrics {
+        self.request_metrics.clone()
+    }
+}
+// end trace code
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -193,11 +243,21 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
     );
     let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
-        .bind((server.host.as_str(), server.port))?
-        .workers(server.workers)
-        .shutdown_timeout(server.shutdown_timeout)
-        .run();
+    // let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
+    //     .bind((server.host.as_str(), server.port))?
+    //     .workers(server.workers)
+    //     .shutdown_timeout(server.shutdown_timeout)
+    //     .run();
+    let telemetry = OpenTelemetryStack::default();
+    let server = actix_web::HttpServer::new(move || {
+        mk_app(state.clone(), request_body_limit)
+            .wrap(RequestTracing::new())
+            .wrap(telemetry.metrics())
+    })
+    .bind((server.host.as_str(), server.port))?
+    .workers(server.workers)
+    .shutdown_timeout(server.shutdown_timeout)
+    .run();
     tokio::spawn(receiver_for_error(rx, server.handle()));
     Ok(server)
 }
@@ -259,7 +319,7 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(middleware::RequestId)
+        //.wrap(middleware::RequestId)
         .wrap(cors::cors())
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

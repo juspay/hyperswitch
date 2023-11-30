@@ -43,7 +43,7 @@ ARG CONFIG_DIR=/local/config
 ARG BIN_DIR=/local/bin
 
 # RUN_ENV decides the corresponding config file to be used
-ARG RUN_ENV=sandbox
+ARG RUN_ENV=development
 
 # args for deciding the executable to export. three binaries:
 # 1. BINARY=router - for main application

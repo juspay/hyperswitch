@@ -38,85 +38,85 @@ pub fn setup(
 ) -> TelemetryGuard {
     let mut guards = Vec::new();
 
-    // Setup OpenTelemetry traces and metrics
-    let traces_layer = if config.telemetry.traces_enabled {
-        setup_tracing_pipeline(&config.telemetry, service_name)
-    } else {
-        None
-    };
-    let _metrics_controller = if config.telemetry.metrics_enabled {
-        setup_metrics_pipeline(&config.telemetry)
-    } else {
-        None
-    };
+    // // Setup OpenTelemetry traces and metrics
+    // let traces_layer = if config.telemetry.traces_enabled {
+    //     setup_tracing_pipeline(&config.telemetry, service_name)
+    // } else {
+    //     None
+    // };
+    // let _metrics_controller = if config.telemetry.metrics_enabled {
+    //     setup_metrics_pipeline(&config.telemetry)
+    // } else {
+    //     None
+    // };
 
-    // Setup file logging
-    let file_writer = if config.file.enabled {
-        let mut path = crate::env::workspace_path();
-        // Using an absolute path for file log path would replace workspace path with absolute path,
-        // which is the intended behavior for us.
-        path.push(&config.file.path);
+    // // Setup file logging
+    // let file_writer = if config.file.enabled {
+    //     let mut path = crate::env::workspace_path();
+    //     // Using an absolute path for file log path would replace workspace path with absolute path,
+    //     // which is the intended behavior for us.
+    //     path.push(&config.file.path);
 
-        let file_appender = tracing_appender::rolling::hourly(&path, &config.file.file_name);
-        let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
-        guards.push(guard);
+    //     let file_appender = tracing_appender::rolling::hourly(&path, &config.file.file_name);
+    //     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
+    //     guards.push(guard);
 
-        let file_filter = get_envfilter(
-            config.file.filtering_directive.as_ref(),
-            config::Level(tracing::Level::WARN),
-            config.file.level,
-            &crates_to_filter,
-        );
-        println!("Using file logging filter: {file_filter}");
+    //     let file_filter = get_envfilter(
+    //         config.file.filtering_directive.as_ref(),
+    //         config::Level(tracing::Level::WARN),
+    //         config.file.level,
+    //         &crates_to_filter,
+    //     );
+    //     println!("Using file logging filter: {file_filter}");
 
-        Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
-    } else {
-        None
-    };
+    //     Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
+    // } else {
+    //     None
+    // };
 
-    let subscriber = tracing_subscriber::registry()
-        .with(traces_layer)
-        .with(StorageSubscription)
-        .with(file_writer);
+    // let subscriber = tracing_subscriber::registry()
+    //     .with(traces_layer)
+    //     .with(StorageSubscription)
+    //     .with(file_writer);
 
-    // Setup console logging
-    if config.console.enabled {
-        let (console_writer, guard) = tracing_appender::non_blocking(std::io::stdout());
-        guards.push(guard);
+    // // Setup console logging
+    // if config.console.enabled {
+    //     let (console_writer, guard) = tracing_appender::non_blocking(std::io::stdout());
+    //     guards.push(guard);
 
-        let console_filter = get_envfilter(
-            config.console.filtering_directive.as_ref(),
-            config::Level(tracing::Level::WARN),
-            config.console.level,
-            &crates_to_filter,
-        );
-        println!("Using console logging filter: {console_filter}");
+    //     let console_filter = get_envfilter(
+    //         config.console.filtering_directive.as_ref(),
+    //         config::Level(tracing::Level::WARN),
+    //         config.console.level,
+    //         &crates_to_filter,
+    //     );
+    //     println!("Using console logging filter: {console_filter}");
 
-        match config.console.log_format {
-            config::LogFormat::Default => {
-                let logging_layer = fmt::layer()
-                    .with_timer(fmt::time::time())
-                    .pretty()
-                    .with_writer(console_writer)
-                    .with_filter(console_filter);
-                subscriber.with(logging_layer).init();
-            }
-            config::LogFormat::Json => {
-                error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
-                let logging_layer =
-                    FormattingLayer::new(service_name, console_writer).with_filter(console_filter);
-                subscriber.with(logging_layer).init();
-            }
-        }
-    } else {
-        subscriber.init();
-    };
+    //     match config.console.log_format {
+    //         config::LogFormat::Default => {
+    //             let logging_layer = fmt::layer()
+    //                 .with_timer(fmt::time::time())
+    //                 .pretty()
+    //                 .with_writer(console_writer)
+    //                 .with_filter(console_filter);
+    //             subscriber.with(logging_layer).init();
+    //         }
+    //         config::LogFormat::Json => {
+    //             error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
+    //             let logging_layer =
+    //                 FormattingLayer::new(service_name, console_writer).with_filter(console_filter);
+    //             subscriber.with(logging_layer).init();
+    //         }
+    //     }
+    // } else {
+    //     subscriber.init();
+    // };
 
     // Returning the TelemetryGuard for logs to be printed and metrics to be collected until it is
     // dropped
     TelemetryGuard {
         _log_guards: guards,
-        _metrics_controller,
+        _metrics_controller : None,
     }
 }
 
@@ -224,7 +224,7 @@ fn setup_tracing_pipeline(
     service_name: &str,
 ) -> Option<tracing_opentelemetry::OpenTelemetryLayer<tracing_subscriber::Registry, trace::Tracer>>
 {
-    global::set_text_map_propagator(TraceContextPropagator::new());
+    //global::set_text_map_propagator(TraceContextPropagator::new());
 
     let mut trace_config = trace::config()
         .with_sampler(trace::Sampler::ParentBased(Box::new(ConditionalSampler(

@@ -21,6 +21,19 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+  
+  jaeger:
+    image: jaegertracing/all-in-one:1.43.0
+    networks:
+      - router_net
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "9411:9411"
+      - "5778:5778"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5775:5775/udp"
 
   redis-standalone:
     image: redis:7
@@ -48,8 +61,11 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
-    command: /local/bin/router -f /local/config/docker_compose.toml
+    # image: juspaydotin/hyperswitch-router:standalone
+    # command: /local/bin/router -f /local/config/docker_compose.toml
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     networks:
@@ -64,6 +80,8 @@ services:
       retries: 3
       start_period: 5s
       timeout: 10s
+    environment:
+      - JAEGER_ENDPOINT=jaeger:6831
 
   hyperswitch-producer:
     image: juspaydotin/hyperswitch-producer:standalone
