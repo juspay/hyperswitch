@@ -182,4 +182,3 @@ impl DashboardMetadataInterface for MockDb {
         Ok(query_result)
     }
 }
-
