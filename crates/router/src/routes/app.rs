@@ -522,7 +522,7 @@ impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(user_merchant_account_create)))
+            .service(web::resource("").route(web::post().to(merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(merchant_account_list)))
             .service(
                 web::resource("/{id}/kv")
