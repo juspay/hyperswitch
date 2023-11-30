@@ -108,7 +108,8 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 ))
@@ -297,12 +298,11 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                )
-                .into())
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Gocardless"),
+            )
+            .into()),
         }
     }
 }
@@ -483,11 +483,10 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-                ))
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+            )),
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
@@ -578,6 +577,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference,
@@ -733,6 +733,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -767,6 +768,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

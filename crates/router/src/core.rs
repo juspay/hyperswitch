@@ -5,6 +5,8 @@ pub mod cache;
 pub mod cards_info;
 pub mod conditional_config;
 pub mod configs;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod currency;
 pub mod customers;
 pub mod disputes;
 pub mod errors;
@@ -26,4 +28,6 @@ pub mod user;
 pub mod utils;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 pub mod webhooks;

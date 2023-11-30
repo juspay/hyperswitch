@@ -410,7 +410,8 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => {
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Bank of America"),
                 )
@@ -527,6 +528,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -584,6 +586,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -641,6 +644,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -718,6 +722,7 @@ impl<F>
                         .client_reference_information
                         .map(|cref| cref.code)
                         .unwrap_or(Some(app_response.id)),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -732,6 +737,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(error_response.id),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),

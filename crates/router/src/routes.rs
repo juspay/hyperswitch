@@ -4,6 +4,8 @@ pub mod app;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod currency;
 pub mod customers;
 pub mod disputes;
 #[cfg(feature = "dummy_connector")]
@@ -27,11 +29,15 @@ pub mod routing;
 pub mod user;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 pub mod webhooks;
 
 pub mod locker_migration;
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub use self::app::Forex;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
 #[cfg(feature = "olap")]

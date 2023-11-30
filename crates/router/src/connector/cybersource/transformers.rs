@@ -367,7 +367,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => {
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?
@@ -498,6 +499,16 @@ pub struct CybersourcePaymentsResponse {
     token_information: Option<CybersourceTokenInformation>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceSetupMandatesResponse {
+    id: String,
+    status: CybersourcePaymentStatus,
+    error_information: Option<CybersourceErrorInformation>,
+    client_reference_information: Option<ClientReferenceInformation>,
+    token_information: Option<CybersourceTokenInformation>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
@@ -543,8 +554,9 @@ impl<F, T>
                     connector_mandate_id: Some(token_info.instrument_identifier.id),
                     payment_method_id: None,
                 });
+        let status = get_payment_status(is_capture, item.response.status.into());
         Ok(Self {
-            status: get_payment_status(is_capture, item.response.status.into()),
+            status,
             response: match item.response.error_information {
                 Some(error) => Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -552,7 +564,7 @@ impl<F, T>
                     reason: Some(error.reason),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(item.response.id),
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
@@ -567,6 +579,74 @@ impl<F, T>
                         .client_reference_information
                         .map(|cref| cref.code)
                         .unwrap_or(Some(item.response.id)),
+                    incremental_authorization_allowed: Some(
+                        status == enums::AttemptStatus::Authorized,
+                    ),
+                }),
+            },
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            CybersourceSetupMandatesResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            CybersourceSetupMandatesResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let mandate_reference =
+            item.response
+                .token_information
+                .map(|token_info| types::MandateReference {
+                    connector_mandate_id: Some(token_info.instrument_identifier.id),
+                    payment_method_id: None,
+                });
+        let mut mandate_status: enums::AttemptStatus = item.response.status.into();
+        if matches!(mandate_status, enums::AttemptStatus::Authorized) {
+            //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
+            mandate_status = enums::AttemptStatus::Charged
+        }
+        Ok(Self {
+            status: mandate_status,
+            response: match item.response.error_information {
+                Some(error) => Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error.message,
+                    reason: Some(error.reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.id),
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(item.response.id)),
+                    incremental_authorization_allowed: Some(
+                        mandate_status == enums::AttemptStatus::Authorized,
+                    ),
                 }),
             },
             ..item.data
@@ -621,11 +701,12 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let is_capture = data.1;
+        let status = get_payment_status(
+            is_capture,
+            item.response.application_information.status.into(),
+        );
         Ok(Self {
-            status: get_payment_status(
-                is_capture,
-                item.response.application_information.status.into(),
-            ),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
@@ -637,6 +718,7 @@ impl<F, T>
                     .client_reference_information
                     .map(|cref| cref.code)
                     .unwrap_or(Some(item.response.id)),
+                incremental_authorization_allowed: Some(status == enums::AttemptStatus::Authorized),
             }),
             ..item.data
         })

@@ -1431,13 +1431,13 @@ fn create_stripe_payment_method(
             .into()),
         },
 
-        payments::PaymentMethodData::Upi(_) | payments::PaymentMethodData::MandatePayment => {
-            Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
-            .into())
+        payments::PaymentMethodData::Upi(_)
+        | payments::PaymentMethodData::MandatePayment
+        | payments::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+            message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "stripe",
         }
+        .into()),
     }
 }
 
@@ -2334,6 +2334,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: item.response.amount_received,
             ..item.data
@@ -2494,6 +2495,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             Err,
         );
@@ -2535,6 +2537,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -2995,6 +2998,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::GiftCard(..))
             | Some(payments::PaymentMethodData::CardRedirect(..))
             | Some(payments::PaymentMethodData::Voucher(..))
+            | Some(payments::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -3075,6 +3079,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -3416,7 +3421,8 @@ impl
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
             })?,

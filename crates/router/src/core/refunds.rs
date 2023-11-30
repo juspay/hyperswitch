@@ -50,10 +50,16 @@ pub async fn refund_create_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     utils::when(
-        payment_intent.status != enums::IntentStatus::Succeeded,
+        !(payment_intent.status == enums::IntentStatus::Succeeded
+            || payment_intent.status == enums::IntentStatus::PartiallyCaptured),
         || {
-            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                .attach_printable("unable to refund for a unsuccessful payment intent"))
+            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                current_flow: "refund".into(),
+                field_name: "status".into(),
+                current_value: payment_intent.status.to_string(),
+                states: "succeeded, partially_captured".to_string()
+            })
+            .attach_printable("unable to refund for a unsuccessful payment intent"))
         },
     )?;
 
@@ -75,7 +81,7 @@ pub async fn refund_create_core(
     })?;
 
     payment_attempt = db
-        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
             &req.payment_id,
             merchant_id,
             merchant_account.storage_scheme,
@@ -205,7 +211,10 @@ pub async fn trigger_refund_to_gateway(
                     errors::ConnectorError::NotImplemented(message) => {
                         Some(storage::RefundUpdate::ErrorUpdate {
                             refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(message.to_string()),
+                            refund_error_message: Some(
+                                errors::ConnectorError::NotImplemented(message.to_owned())
+                                    .to_string(),
+                            ),
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                         })
@@ -921,7 +930,9 @@ pub async fn start_refund_workflow(
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
         Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
-        Some("SYNC_REFUND") => sync_refund_with_gateway_workflow(state, refund_tracker).await,
+        Some("SYNC_REFUND") => {
+            Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await
+        }
         _ => Err(errors::ProcessTrackerError::JobNotFound),
     }
 }

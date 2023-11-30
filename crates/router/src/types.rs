@@ -33,7 +33,7 @@ use crate::{
         payments::{PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::storage::payment_attempt::PaymentAttemptExt,
+    types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -323,7 +323,7 @@ pub struct ApplePayCryptogramData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodBalance {
     pub amount: i64,
-    pub currency: String,
+    pub currency: storage_enums::Currency,
 }
 
 #[cfg(feature = "payouts")]
@@ -381,6 +381,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub customer_id: Option<String>,
+    pub request_incremental_authorization: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -442,6 +443,7 @@ pub struct PaymentsPreProcessingData {
     pub complete_authorize_url: Option<String>,
     pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -535,6 +537,7 @@ pub struct SetupMandateRequestData {
     pub email: Option<Email>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub request_incremental_authorization: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -668,6 +671,7 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        incremental_authorization_allowed: Option<bool>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -941,6 +945,78 @@ pub enum ConnectorAuthType {
     NoKey,
 }
 
+impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+        match value {
+            api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
+                Self::HeaderKey { api_key }
+            }
+            api_models::admin::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Self::BodyKey { api_key, key1 }
+            }
+            api_models::admin::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            api_models::admin::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            api_models::admin::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
+    fn foreign_from(from: ConnectorAuthType) -> Self {
+        match from {
+            ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            ConnectorAuthType::HeaderKey { api_key } => Self::HeaderKey { api_key },
+            ConnectorAuthType::BodyKey { api_key, key1 } => Self::BodyKey { api_key, key1 },
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
@@ -1127,6 +1203,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_method_type: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: data.request.request_incremental_authorization,
         }
     }
 }
