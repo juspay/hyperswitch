@@ -2,10 +2,10 @@ pub mod lowering;
 #[cfg(feature = "ast_parser")]
 pub mod parser;
 
+use crate::types::{DataType, Metadata};
 use common_enums::RoutableConnectors;
 use serde::{Deserialize, Serialize};
-
-use crate::types::{DataType, Metadata};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
@@ -21,7 +21,7 @@ pub struct MetadataValue {
 }
 
 /// Represents a value in the DSL
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ValueType {
     /// Represents a number literal
@@ -68,7 +68,7 @@ pub struct NumberComparison {
 }
 
 /// Conditional comparison type
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ComparisonType {
     Equal,
@@ -80,7 +80,7 @@ pub enum ComparisonType {
 }
 
 /// Represents a single comparison condition.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparison {
     /// The left hand side which will always be a domain input identifier like "payment.method.cardtype"
@@ -112,9 +112,10 @@ pub type IfCondition = Vec<Comparison>;
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IfStatement {
+    #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
     pub nested: Option<Vec<IfStatement>>,
 }
@@ -134,7 +135,7 @@ pub struct IfStatement {
 /// }
 /// ```
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Rule<O> {
     pub name: String,
@@ -145,10 +146,11 @@ pub struct Rule<O> {
 
 /// The program, having a default connector selection and
 /// a bunch of rules. Also can hold arbitrary metadata.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Program<O> {
     pub default_selection: O,
     pub rules: Vec<Rule<O>>,
+    #[schema(value_type=HashMap<String, serde_json::Value>)]
     pub metadata: Metadata,
 }

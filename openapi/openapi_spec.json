@@ -11929,6 +11929,17 @@
           }
         }
       },
+      "ProgramConnectorSelection": {
+        "type": "object",
+        "required": [
+          "hello"
+        ],
+        "properties": {
+          "hello": {
+            "$ref": "#/components/schemas/ast.Program"
+          }
+        }
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
