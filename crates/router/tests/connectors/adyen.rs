@@ -157,6 +157,7 @@ impl AdyenTest {
             complete_authorize_url: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: false,
         })
     }
 }

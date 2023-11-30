@@ -1,11 +1,15 @@
+pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
-#[cfg(feature = "olap")]
-pub mod user;
-
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
+#[cfg(feature = "olap")]
+pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 use std::fmt::Debug;
 
@@ -24,6 +28,7 @@ use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -404,6 +409,7 @@ pub fn handle_json_response_deserialization_failure(
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }
@@ -753,22 +759,46 @@ where
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
         {
-            Box::pin(
-                webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                    state.clone(),
-                    merchant_account,
-                    business_profile,
-                    event_type,
-                    diesel_models::enums::EventClass::Payments,
-                    None,
-                    payment_id,
-                    diesel_models::enums::EventObjectType::PaymentDetails,
-                    webhooks::OutgoingWebhookContent::PaymentDetails(payments_response_json),
-                ),
-            )
-            .await?;
+            let m_state = state.clone();
+            // This spawns this futures in a background thread, the exception inside this future won't affect
+            // the current thread and the lifecycle of spawn thread is not handled by runtime.
+            // So when server shutdown won't wait for this thread's completion.
+            tokio::spawn(
+                async move {
+                    Box::pin(
+                        webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
+                            m_state,
+                            merchant_account,
+                            business_profile,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            None,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
+                            ),
+                        ),
+                    )
+                    .await
+                }
+                .in_current_span(),
+            );
         }
     }
 
     Ok(())
+}
+
+type Handle<T> = tokio::task::JoinHandle<RouterResult<T>>;
+
+pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
+    match handle.await {
+        Ok(Ok(t)) => Ok(t),
+        Ok(Err(err)) => Err(err),
+        Err(err) => Err(err)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Join Error"),
+    }
 }

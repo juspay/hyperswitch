@@ -152,6 +152,7 @@ impl ConnectorCommon for Fiserv {
                         reason: first_error.field.to_owned(),
                         status_code: res.status_code,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
             })
             .unwrap_or(types::ErrorResponse {
@@ -160,6 +161,7 @@ impl ConnectorCommon for Fiserv {
                 reason: None,
                 status_code: res.status_code,
                 attempt_status: None,
+                connector_transaction_id: None,
             }))
     }
 }
@@ -787,7 +789,7 @@ impl api::IncomingWebhook for Fiserv {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

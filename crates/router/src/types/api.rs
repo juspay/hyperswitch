@@ -7,11 +7,14 @@ pub mod enums;
 pub mod ephemeral_key;
 pub mod files;
 pub mod mandates;
+pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod routing;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
@@ -20,8 +23,8 @@ use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
-    payments::*, payouts::*, refunds::*, webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
+    payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -113,6 +116,7 @@ pub trait ConnectorCommon {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -329,7 +333,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
-                // enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)), Added as template code for future usage
+                enums::Connector::Bankofamerica => Ok(Box::new(&connector::Bankofamerica)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
@@ -371,7 +375,7 @@ impl ConnectorData {
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
-                // enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
+                enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),

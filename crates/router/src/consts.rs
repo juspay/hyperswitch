@@ -1,5 +1,6 @@
 #[cfg(feature = "olap")]
 pub mod user;
+pub mod user_role;
 
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
@@ -27,7 +28,10 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
+pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+pub(crate) const CANNOT_CONTINUE_AUTH: &str =
+    "Cannot continue with Authorization due to failed Liability Shift.";
 
 // General purpose base64 engines
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -58,3 +62,11 @@ pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+
+#[cfg(feature = "email")]
+pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
+
+#[cfg(feature = "olap")]
+pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
+#[cfg(feature = "olap")]
+pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";

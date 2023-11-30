@@ -168,7 +168,6 @@ default_imp_for_complete_authorize!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
-    connector::Prophetpay,
     connector::Rapyd,
     connector::Square,
     connector::Stax,
@@ -833,7 +832,6 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Aci,
-    connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
@@ -864,7 +862,6 @@ default_imp_for_pre_processing_steps!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Paypal,
     connector::Payu,
     connector::Powertranz,
     connector::Prophetpay,

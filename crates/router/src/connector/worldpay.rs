@@ -95,6 +95,7 @@ impl ConnectorCommon for Worldpay {
             message: response.message,
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -208,6 +209,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..data.clone()
                 })
@@ -308,6 +310,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..data.clone()
         })
@@ -367,6 +370,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..data.clone()
                 })
@@ -754,15 +758,12 @@ impl api::IncomingWebhook for Worldpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let body: WorldpayWebhookEventType = request
             .body
             .parse_struct("WorldpayWebhookEventType")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let psync_body = WorldpayEventResponse::try_from(body)?;
-        let res_json = serde_json::to_value(psync_body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
-        Ok(res_json)
+        Ok(Box::new(psync_body))
     }
 }
