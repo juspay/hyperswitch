@@ -7,6 +7,7 @@ use crate::{
     types::domain::MerchantAccount,
 };
 
+pub mod dashboard_metadata;
 pub mod password;
 
 impl UserFromToken {

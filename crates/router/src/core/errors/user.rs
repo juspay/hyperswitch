@@ -27,14 +27,20 @@ pub enum UserErrors {
     MerchantAccountCreationError(String),
     #[error("InvalidEmailError")]
     InvalidEmailError,
-    #[error("MerchantIdNotFound")]
-    MerchantIdNotFound,
     #[error("DuplicateOrganizationId")]
     DuplicateOrganizationId,
+    #[error("MerchantIdNotFound")]
+    MerchantIdNotFound,
+    #[error("MetadataAlreadySet")]
+    MetadataAlreadySet,
     #[error("InvalidRoleId")]
     InvalidRoleId,
     #[error("InvalidRoleOperation")]
     InvalidRoleOperation,
+    #[error("IpAddressParsingFailed")]
+    IpAddressParsingFailed,
+    #[error("InvalidMetadataRequest")]
+    InvalidMetadataRequest,
     #[error("MerchantIdParsingError")]
     MerchantIdParsingError,
 }
@@ -86,6 +92,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantIdNotFound => {
                 AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
             }
+            Self::MetadataAlreadySet => {
+                AER::BadRequest(ApiError::new(sub_code, 19, "Metadata already set", None))
+            }
             Self::DuplicateOrganizationId => AER::InternalServerError(ApiError::new(
                 sub_code,
                 21,
@@ -99,6 +108,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 sub_code,
                 23,
                 "User Role Operation Not Supported",
+                None,
+            )),
+            Self::IpAddressParsingFailed => {
+                AER::InternalServerError(ApiError::new(sub_code, 24, "Something Went Wrong", None))
+            }
+            Self::InvalidMetadataRequest => AER::BadRequest(ApiError::new(
+                sub_code,
+                26,
+                "Invalid Metadata Request",
                 None,
             )),
             Self::MerchantIdParsingError => {

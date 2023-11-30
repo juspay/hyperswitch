@@ -1,5 +1,6 @@
 use common_utils::pii;
 use masking::Secret;
+pub mod dashboard_metadata;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct ConnectAccountRequest {

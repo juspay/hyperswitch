@@ -6,6 +6,7 @@ pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod customers;
+pub mod dashboard_metadata;
 pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
@@ -68,6 +69,7 @@ pub trait StorageInterface:
     + configs::ConfigInterface
     + capture::CaptureInterface
     + customers::CustomerInterface
+    + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface

@@ -807,6 +807,11 @@ impl User {
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(
+                web::resource("/data/merchant")
+                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
+            )
+            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
             .service(

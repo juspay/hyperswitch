@@ -14,6 +14,8 @@ use crate::{
     utils,
 };
 
+pub mod dashboard_metadata;
+
 pub async fn connect_account(
     state: AppState,
     request: user_api::ConnectAccountRequest,
