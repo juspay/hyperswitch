@@ -18,7 +18,6 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 
-
 # Third party deps
 async-trait = "0.1.68"
 error-stack = "0.3.1"

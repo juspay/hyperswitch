@@ -89,7 +89,7 @@ pub async fn diesel_make_pg_pool(
     let mut pool = bb8::Pool::builder()
         .max_size(database.pool_size)
         .min_idle(database.min_idle)
-        .queue_strategy(database.queue_strategy)
+        .queue_strategy(database.queue_strategy.into())
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
         .max_lifetime(database.max_lifetime.map(std::time::Duration::from_secs));
 
