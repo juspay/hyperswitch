@@ -130,10 +130,9 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 | api_models::payments::BankRedirectData::Trustly { .. }
                 | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
                 | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "Volt",
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("Volt"),
+                    )
                     .into())
                 }
             },
@@ -150,10 +149,9 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_)
             | api_models::payments::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Volt",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Volt"),
+                )
                 .into())
             }
         }
