@@ -796,26 +796,18 @@ impl User {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
-       
-        
-            route = route
-                .service(web::resource("/signin").route(web::post().to(user_connect_account)))
-                .service(web::resource("/signup").route(web::post().to(user_connect_account)))
-                .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
-                .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
-                .service(web::resource("/change_password").route(web::post().to(change_password)));
+        route = route
+            .service(web::resource("/signin").route(web::post().to(user_connect_account)))
+            .service(web::resource("/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
+            .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
+            .service(web::resource("/change_password").route(web::post().to(change_password)));
 
         #[cfg(feature = "dummy_connector")]
         {
             route = route
-                .service(
-                    web::resource("/sample_data")
-                        .route(web::post().to(generate_sample_data)),
-                )
-                .service(
-                    web::resource("/sample_data")
-                        .route(web::delete().to(delete_sample_data)),
-                )
+                .service(web::resource("/sample_data").route(web::post().to(generate_sample_data)))
+                .service(web::resource("/sample_data").route(web::delete().to(delete_sample_data)))
         }
         route
     }
