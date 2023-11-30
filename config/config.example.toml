@@ -322,9 +322,17 @@ region = "" # The AWS region used by the KMS SDK for decrypting data.
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
-from_email = "notify@example.com" # Sender email
-aws_region = ""                   # AWS region used by AWS SES
-base_url = ""                     # Base url used when adding links that should redirect to self
+sender_email = "example@example.com" # Sender email
+aws_region = ""                      # AWS region used by AWS SES
+base_url = ""                        # Base url used when adding links that should redirect to self
+allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+active_email_client = "SES"          # The currently active email client
+
+# Configuration for aws ses, applicable when the active email client is SES
+[email.aws_ses]
+email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
+sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
+
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -426,9 +434,6 @@ red_pagos = { country = "UY", currency = "UYU" }
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 ach = { currency = "USD" }
-
-[pm_filters.stripe]
-cashapp = { country = "US", currency = "USD" }
 
 [pm_filters.prophetpay]
 card_redirect = { currency = "USD" }

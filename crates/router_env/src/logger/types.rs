@@ -262,6 +262,8 @@ pub enum Flow {
     FrmFulfillment,
     /// Change password flow
     ChangePassword,
+    /// Payment Connector Verify
+    VerifyPaymentConnector,
 }
 
 ///

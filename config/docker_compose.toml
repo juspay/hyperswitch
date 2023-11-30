@@ -333,16 +333,32 @@ supported_connectors = "braintree"
 redis_lock_expiry_seconds = 180 # 3 * 60 seconds
 delay_between_retries_in_milliseconds = 500
 
+[events.kafka]
+brokers = ["localhost:9092"]
+intent_analytics_topic = "hyperswitch-payment-intent-events"
+attempt_analytics_topic = "hyperswitch-payment-attempt-events"
+refund_analytics_topic = "hyperswitch-refund-events"
+api_logs_topic = "hyperswitch-api-log-events"
+connector_events_topic = "hyperswitch-connector-api-events"
+
 [analytics]
 source = "sqlx"
+
+[analytics.clickhouse]
+username = "default"
+# password = ""
+host = "http://localhost:8123"
+database_name = "default"
 
 [analytics.sqlx]
 username = "db_user"
 password = "db_pass"
-host = "pg"
+host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+connection_timeout = 10
+queue_strategy = "Fifo"
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds

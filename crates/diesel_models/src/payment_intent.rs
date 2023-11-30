@@ -217,50 +217,61 @@ pub struct PaymentIntentUpdateInternal {
 
 impl PaymentIntentUpdate {
     pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
-        let internal_update: PaymentIntentUpdateInternal = self.into();
+        let PaymentIntentUpdateInternal {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at: _,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            profile_id,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+        } = self.into();
         PaymentIntent {
-            amount: internal_update.amount.unwrap_or(source.amount),
-            currency: internal_update.currency.or(source.currency),
-            status: internal_update.status.unwrap_or(source.status),
-            amount_captured: internal_update.amount_captured.or(source.amount_captured),
-            customer_id: internal_update.customer_id.or(source.customer_id),
-            return_url: internal_update.return_url.or(source.return_url),
-            setup_future_usage: internal_update
-                .setup_future_usage
-                .or(source.setup_future_usage),
-            off_session: internal_update.off_session.or(source.off_session),
-            metadata: internal_update.metadata.or(source.metadata),
-            billing_address_id: internal_update
-                .billing_address_id
-                .or(source.billing_address_id),
-            shipping_address_id: internal_update
-                .shipping_address_id
-                .or(source.shipping_address_id),
+            amount: amount.unwrap_or(source.amount),
+            currency: currency.or(source.currency),
+            status: status.unwrap_or(source.status),
+            amount_captured: amount_captured.or(source.amount_captured),
+            customer_id: customer_id.or(source.customer_id),
+            return_url: return_url.or(source.return_url),
+            setup_future_usage: setup_future_usage.or(source.setup_future_usage),
+            off_session: off_session.or(source.off_session),
+            metadata: metadata.or(source.metadata),
+            billing_address_id: billing_address_id.or(source.billing_address_id),
+            shipping_address_id: shipping_address_id.or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
-            active_attempt_id: internal_update
-                .active_attempt_id
-                .unwrap_or(source.active_attempt_id),
-            business_country: internal_update.business_country.or(source.business_country),
-            business_label: internal_update.business_label.or(source.business_label),
-            description: internal_update.description.or(source.description),
-            statement_descriptor_name: internal_update
-                .statement_descriptor_name
+            active_attempt_id: active_attempt_id.unwrap_or(source.active_attempt_id),
+            business_country: business_country.or(source.business_country),
+            business_label: business_label.or(source.business_label),
+            description: description.or(source.description),
+            statement_descriptor_name: statement_descriptor_name
                 .or(source.statement_descriptor_name),
-            statement_descriptor_suffix: internal_update
-                .statement_descriptor_suffix
+            statement_descriptor_suffix: statement_descriptor_suffix
                 .or(source.statement_descriptor_suffix),
-            order_details: internal_update.order_details.or(source.order_details),
-            attempt_count: internal_update
-                .attempt_count
-                .unwrap_or(source.attempt_count),
-            profile_id: internal_update.profile_id.or(source.profile_id),
-            merchant_decision: internal_update
-                .merchant_decision
-                .or(source.merchant_decision),
-            payment_confirm_source: internal_update
-                .payment_confirm_source
-                .or(source.payment_confirm_source),
-            updated_by: internal_update.updated_by,
+            order_details: order_details.or(source.order_details),
+            attempt_count: attempt_count.unwrap_or(source.attempt_count),
+            profile_id: profile_id.or(source.profile_id),
+            merchant_decision: merchant_decision.or(source.merchant_decision),
+            payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
+            updated_by,
+            surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
             ..source
         }
     }

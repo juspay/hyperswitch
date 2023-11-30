@@ -905,6 +905,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         .attach_printable("Could not convert webhook effect to string")?;
 
     let api_event = ApiEvent::new(
+        Some(merchant_account.merchant_id.clone()),
         flow,
         &request_id,
         request_duration,
@@ -916,6 +917,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         None,
         api_event,
         req,
+        Some(req.method().to_string()),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
