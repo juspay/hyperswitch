@@ -27,12 +27,12 @@ pub enum UserErrors {
     MerchantAccountCreationError(String),
     #[error("InvalidEmailError")]
     InvalidEmailError,
+    #[error("MerchantIdNotFound")]
+    MerchantIdNotFound,
     #[error("MetadataAlreadySet")]
     MetadataAlreadySet,
     #[error("DuplicateOrganizationId")]
     DuplicateOrganizationId,
-    #[error("MerchantIdNotFound")]
-    MerchantIdNotFound,
     #[error("IpAddressParsingFailed")]
     IpAddressParsingFailed,
     #[error("InvalidMetadataRequest")]
@@ -83,6 +83,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidEmailError => {
                 AER::BadRequest(ApiError::new(sub_code, 16, "Invalid Email", None))
             }
+            Self::MerchantIdNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
+            }
             Self::MetadataAlreadySet => {
                 AER::BadRequest(ApiError::new(sub_code, 19, "Metadata already set", None))
             }
@@ -92,9 +95,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "An Organization with the id already exists",
                 None,
             )),
-            Self::MerchantIdNotFound => {
-                AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
-            }
             Self::IpAddressParsingFailed => {
                 AER::InternalServerError(ApiError::new(sub_code, 24, "Something Went Wrong", None))
             }
