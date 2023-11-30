@@ -276,6 +276,7 @@ impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
                 .into())
             }
         }
+    }
 }
 
 impl<T>
