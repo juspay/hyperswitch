@@ -141,7 +141,8 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_data),
                     connector: "Helcim",
@@ -223,12 +224,11 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.router_data.request.payment_method_data),
-                    connector: "Helcim",
-                })?
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.router_data.request.payment_method_data),
+                connector: "Helcim",
+            })?,
         }
     }
 }
@@ -328,6 +328,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -382,6 +383,7 @@ impl<F>
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -440,6 +442,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -526,6 +529,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -588,6 +592,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data

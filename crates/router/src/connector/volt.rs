@@ -130,6 +130,7 @@ impl ConnectorCommon for Volt {
             message: response.exception.message.clone(),
             reason: Some(reason),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -589,7 +590,7 @@ impl api::IncomingWebhook for Volt {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

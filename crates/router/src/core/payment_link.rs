@@ -3,10 +3,12 @@ use common_utils::{
     consts::{
         DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
     },
-    ext_traits::ValueExt,
+    ext_traits::{OptionExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
+use futures::future;
 use masking::{PeekInterface, Secret};
+use time::PrimitiveDateTime;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
@@ -14,8 +16,10 @@ use crate::{
     errors::RouterResponse,
     routes::AppState,
     services,
-    types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
-    utils::OptionExt,
+    types::{
+        api::payment_link::PaymentLinkResponseExt, domain, storage::enums as storage_enums,
+        transformers::ForeignFrom,
+    },
 };
 
 pub async fn retrieve_payment_link(
@@ -28,8 +32,12 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let response =
-        api_models::payments::RetrievePaymentLinkResponse::foreign_from(payment_link_object);
+    let status = check_payment_link_status(payment_link_object.fulfilment_time);
+
+    let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
+        payment_link_object,
+        status,
+    ));
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -63,7 +71,7 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresCapture,
             storage_enums::IntentStatus::RequiresMerchantAction,
         ],
-        "create payment link",
+        "use payment link for",
     )?;
 
     let payment_link = db
@@ -71,16 +79,11 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let payment_link_config = merchant_account
-        .payment_link_config
-        .map(|pl_config| {
-            serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
-        })
-        .transpose()?;
+    let payment_link_config = if let Some(pl_config) = payment_link.payment_link_config.clone() {
+        extract_payment_link_config(Some(pl_config))?
+    } else {
+        extract_payment_link_config(merchant_account.payment_link_config.clone())?
+    };
 
     let order_details = validate_order_details(payment_intent.order_details)?;
 
@@ -203,6 +206,34 @@ fn validate_sdk_requirements(
     Ok((pub_key, currency, client_secret))
 }
 
+pub async fn list_payment_link(
+    state: AppState,
+    merchant: domain::MerchantAccount,
+    constraints: api_models::payments::PaymentLinkListConstraints,
+) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
+    let db = state.store.as_ref();
+    let payment_link = db
+        .list_payment_link_by_merchant_id(&merchant.merchant_id, constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve payment link")?;
+    let payment_link_list = future::try_join_all(payment_link.into_iter().map(|payment_link| {
+        api_models::payments::RetrievePaymentLinkResponse::from_db_payment_link(payment_link)
+    }))
+    .await?;
+    Ok(services::ApplicationResponse::Json(payment_link_list))
+}
+
+pub fn check_payment_link_status(fulfillment_time: Option<PrimitiveDateTime>) -> String {
+    let curr_time = Some(common_utils::date_time::now());
+
+    if curr_time > fulfillment_time {
+        "expired".to_string()
+    } else {
+        "active".to_string()
+    }
+}
+
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
 ) -> Result<
@@ -234,4 +265,18 @@ fn validate_order_details(
         order_details
     });
     Ok(updated_order_details)
+}
+
+fn extract_payment_link_config(
+    pl_config: Option<serde_json::Value>,
+) -> Result<Option<admin_types::PaymentLinkConfig>, error_stack::Report<errors::ApiErrorResponse>> {
+    pl_config
+        .map(|config| {
+            serde_json::from_value::<admin_types::PaymentLinkConfig>(config)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()
 }
