@@ -282,16 +282,13 @@ impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
     type Error = Error;
     fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
-            .into()),
-            payments::GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
-            .into()),
+            payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
+                )
+                .into())
+            }
         }
-    }
 }
 
 impl<T>
