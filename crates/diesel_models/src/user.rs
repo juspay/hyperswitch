@@ -5,6 +5,8 @@ use time::PrimitiveDateTime;
 
 use crate::schema::users;
 
+pub mod dashboard_metadata;
+
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(table_name = users)]
 pub struct User {

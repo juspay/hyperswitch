@@ -409,7 +409,8 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Aci"),
             ))?,
         }
@@ -731,6 +732,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

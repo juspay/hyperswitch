@@ -4,6 +4,8 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(feature = "olap")]
+use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -13,14 +15,17 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
+use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    events::EventsConfig,
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;
@@ -70,6 +75,7 @@ pub struct Settings {
     pub secrets: Secrets,
     pub locker: Locker,
     pub connectors: Connectors,
+    pub forex_api: ForexApi,
     pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
@@ -107,6 +113,9 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "olap")]
+    pub report_download_config: ReportConfig,
+    pub events: EventsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -117,6 +126,37 @@ pub struct KvConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentLink {
     pub sdk_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ForexApi {
+    pub local_fetch_retry_count: u64,
+    pub api_key: masking::Secret<String>,
+    pub fallback_api_key: masking::Secret<String>,
+    /// in ms
+    pub call_delay: i64,
+    /// in ms
+    pub local_fetch_retry_delay: u64,
+    /// in ms
+    pub api_timeout: u64,
+    /// in ms
+    pub redis_lock_timeout: u64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DefaultExchangeRates {
+    pub base_currency: String,
+    pub conversion: HashMap<String, Conversion>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Conversion {
+    #[serde(with = "rust_decimal::serde::str")]
+    pub to_factor: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub from_factor: Decimal,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -420,6 +460,7 @@ pub struct Secrets {
 #[serde(default)]
 pub struct Locker {
     pub host: String,
+    pub host_rs: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
@@ -448,6 +489,7 @@ pub struct Jwekey {
     pub locker_decryption_key1: String,
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
+    pub rust_locker_encryption_key: String,
     pub vault_private_key: String,
     pub tunnel_private_key: String,
 }
@@ -482,23 +524,8 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum QueueStrategy {
-    #[default]
-    Fifo,
-    Lifo,
-}
-
-impl From<QueueStrategy> for bb8::QueueStrategy {
-    fn from(value: QueueStrategy) -> Self {
-        match value {
-            QueueStrategy::Fifo => Self::Fifo,
-            QueueStrategy::Lifo => Self::Lifo,
-        }
-    }
+    pub min_idle: Option<u32>,
+    pub max_lifetime: Option<u64>,
 }
 
 #[cfg(not(feature = "kms"))]
@@ -513,6 +540,8 @@ impl From<Database> for storage_impl::config::Database {
             pool_size: val.pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy.into(),
+            min_idle: val.min_idle,
+            max_lifetime: val.max_lifetime,
         }
     }
 }
@@ -798,6 +827,7 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         self.lock_settings.validate()?;
+        self.events.validate()?;
         Ok(())
     }
 }

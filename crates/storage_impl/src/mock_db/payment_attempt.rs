@@ -144,6 +144,8 @@ impl PaymentAttemptInterface for MockDb {
             authentication_data: payment_attempt.authentication_data,
             encoded_data: payment_attempt.encoded_data,
             merchant_connector_id: payment_attempt.merchant_connector_id,
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -199,6 +201,26 @@ impl PaymentAttemptInterface for MockDb {
             .find(|payment_attempt| {
                 payment_attempt.payment_id == payment_id
                     && payment_attempt.merchant_id == merchant_id
+            })
+            .cloned()
+            .unwrap())
+    }
+    #[allow(clippy::unwrap_used)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        let payment_attempts = self.payment_attempts.lock().await;
+
+        Ok(payment_attempts
+            .iter()
+            .find(|payment_attempt| {
+                payment_attempt.payment_id == payment_id
+                    && payment_attempt.merchant_id == merchant_id
+                    && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
+                        || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })
             .cloned()
             .unwrap())

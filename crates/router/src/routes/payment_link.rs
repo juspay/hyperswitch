@@ -62,7 +62,7 @@ pub async fn initiate_payment_link(
         payment_id,
         merchant_id: merchant_id.clone(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -76,6 +76,49 @@ pub async fn initiate_payment_link(
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payment Link - List
+///
+/// To list the payment links
+#[utoipa::path(
+    get,
+    path = "/payment_link/list",
+    params(
+        ("limit" = Option<i64>, Query, description = "The maximum number of payment_link Objects to include in the response"),
+        ("connector" = Option<String>, Query, description = "The connector linked to payment_link"),
+        ("created_time" = Option<PrimitiveDateTime>, Query, description = "The time at which payment_link is created"),
+        ("created_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the payment_link created time"),
+        ("created_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the payment_link created time"),
+        ("created_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the payment_link created time"),
+        ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment_link created time"),
+    ),
+    responses(
+        (status = 200, description = "The payment link list was retrieved successfully"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Payment Link",
+    operation_id = "List all Payment links",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentLinkList))]
+pub async fn payments_link_list(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<api_models::payments::PaymentLinkListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentLinkList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, payload| list_payment_link(state, auth.merchant_account, payload),
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
     .await

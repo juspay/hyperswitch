@@ -6,6 +6,7 @@ pub mod cards_info;
 pub mod configs;
 
 pub mod customers;
+pub mod dashboard_metadata;
 pub mod dispute;
 pub mod events;
 pub mod file;

@@ -574,6 +574,7 @@ impl<F, T>
                         reason: None,
                         status_code: item.http_code,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -609,6 +610,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -649,6 +651,7 @@ impl<F, T>
                         reason: None,
                         status_code: item.http_code,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -678,6 +681,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -792,6 +796,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         });
 
@@ -974,6 +979,7 @@ impl<F, Req>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        incremental_authorization_allowed: None,
                     }),
                     status: payment_status,
                     ..item.data
@@ -1025,6 +1031,7 @@ fn get_err_response(status_code: u16, message: ResponseMessages) -> types::Error
         reason: None,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 
