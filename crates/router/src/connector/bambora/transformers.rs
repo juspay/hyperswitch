@@ -215,6 +215,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(pg_response.order_number.to_string()),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -241,6 +242,7 @@ impl<F, T>
                         connector_response_reference_id: Some(
                             item.data.connector_request_reference_id.to_string(),
                         ),
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })

@@ -77,7 +77,9 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
             match value.split('.').last() {
-                Some(decimal_part) => decimal_part.trim_end_matches('0').len() <= PRECISION.into(),
+                Some(decimal_part) => {
+                    decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
+                }
                 // will never be None
                 None => false,
             }

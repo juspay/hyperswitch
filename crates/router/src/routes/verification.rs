@@ -5,7 +5,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::{api_locking, verification},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::Verification))]
@@ -18,7 +18,7 @@ pub async fn apple_pay_merchant_registration(
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();
     let kms_conf = &state.clone().conf.kms;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -32,9 +32,13 @@ pub async fn apple_pay_merchant_registration(
                 merchant_id.clone(),
             )
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -60,7 +64,11 @@ pub async fn retrieve_apple_pay_verified_domains(
                 mca_id.to_string(),
             )
         },
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MerchantAccountRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await

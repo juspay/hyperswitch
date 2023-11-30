@@ -286,6 +286,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: connector_response_reference_id.clone(),
+                    incremental_authorization_allowed: None,
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -299,6 +300,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: connector_response_reference_id.clone(),
+                        incremental_authorization_allowed: None,
                     })
                 },
             ),

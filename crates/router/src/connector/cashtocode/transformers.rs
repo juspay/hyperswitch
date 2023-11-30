@@ -218,6 +218,7 @@ impl<F, T>
                     message: error_data.error_description,
                     reason: None,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
@@ -237,6 +238,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                 )
             }
@@ -280,6 +282,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             amount_captured: Some(item.response.amount),
             ..item.data
@@ -289,7 +292,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: String,
+    pub error: serde_json::Value,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
