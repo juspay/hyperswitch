@@ -28,4 +28,6 @@ pub mod user;
 pub mod utils;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 pub mod webhooks;
