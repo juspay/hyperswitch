@@ -23,7 +23,7 @@ use fred::{
     },
 };
 use futures::StreamExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, debug};
 
 use crate::{
     errors,
@@ -253,19 +253,16 @@ impl super::RedisConnectionPool {
     where
         V: TryInto<RedisMap> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
-    {
-        let output: Result<(), _> = self
-            .pool
+    {   let pipeline = self.pool.pipeline();
+        let a: String = pipeline
             .hset(key, values)
             .await
             .into_report()
-            .change_context(errors::RedisError::SetHashFailed);
-        // setting expiry for the key
-        output
-            .async_and_then(|_| {
-                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
-            })
-            .await
+            .change_context(errors::RedisError::SetHashFailed)?;
+        debug!("{}", format!{"{:?}", a});
+        let b: String = pipeline.expire(key, ttl.unwrap_or(self.config.default_hash_ttl.into())).await.into_report().change_context(errors::RedisError::SetExpiryFailed)?;
+        pipeline.all().await.into_report().change_context(errors::RedisError::PipelineError)?;
+        Ok(())
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -752,6 +749,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_non_existing_key_success() {
+        
         let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
                 // Arrange
@@ -771,4 +769,5 @@ mod tests {
 
         assert!(is_success);
     }
+
 }

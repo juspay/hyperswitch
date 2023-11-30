@@ -2745,6 +2745,9 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    print!("what are el connectors here {:?} \n", eligible_connectors);
+    print!("what are connectors here {:?} \n", connectors);
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -2758,6 +2761,8 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+
+    print!("what are connectors  yet  here {:?} \n", connectors);
 
     let first_connector_choice = connectors
         .first()

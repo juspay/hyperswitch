@@ -754,7 +754,7 @@ where
 
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
-        {
+        {   print!("before spawning");
             let m_state = state.clone();
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.

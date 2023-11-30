@@ -64,6 +64,8 @@ pub enum RedisError {
     PublishError,
     #[error("Failed while receiving message from publisher")]
     OnMessageError,
+    #[error("Pipeline error")]
+    PipelineError,
     #[error("Got an unknown result from redis")]
     UnknownResult,
 }
