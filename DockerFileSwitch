@@ -1,5 +1,4 @@
-#FROM debian:bookworm-slim
-FROM rust:slim-bookworm as builder
+FROM debian:bookworm-slim
 ARG EXTRA_FEATURES=""
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev pkg-config
@@ -9,11 +8,10 @@ EXPOSE 8080
 RUN mkdir -p /app
 
 COPY ./config/docker_compose.toml /app/docker_compose.toml
-#COPY ./target/debug/router /app/router
+COPY ./target/debug/router /app/router
 
 WORKDIR /app
 
 COPY . .
-RUN cargo build --release --features release ${EXTRA_FEATURES}
 
-CMD ["./release/router","-f","./docker_compose.toml"]
+CMD ["./router","-f","./docker_compose.toml"]

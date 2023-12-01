@@ -65,7 +65,7 @@ services:
     # command: /local/bin/router -f /local/config/docker_compose.toml
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: DockerFileSwitch
     ports:
       - "8080:8080"
     networks:
