@@ -19,16 +19,6 @@ pub enum DBOperation {
     Delete,
 }
 
-impl std::fmt::Display for DBOperation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DBOperation::Insert { .. } => f.write_str("Insert"),
-            DBOperation::Update { .. } => f.write_str("Update"),
-            DBOperation::Delete => f.write_str("Delete"),
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TypedSql {
     #[serde(flatten)]
