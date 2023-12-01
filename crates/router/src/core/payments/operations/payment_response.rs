@@ -35,8 +35,8 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
-    ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,approvedata,rejectdata,setupmandatedata,sessiondata"
+    operations = "post_update_tracker",
+    flow = "sync_data, authorize_data, cancel_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data"
 )]
 pub struct PaymentResponse;
 
@@ -375,6 +375,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             updated_by: storage_scheme.to_string(),
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
+                            connector_transaction_id: err.connector_transaction_id,
                         }),
                     )
                 }
@@ -417,8 +418,18 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 redirection_data,
                 connector_metadata,
                 connector_response_reference_id,
+                incremental_authorization_allowed,
                 ..
             } => {
+                payment_data
+                    .payment_intent
+                    .incremental_authorization_allowed =
+                    core_utils::get_incremental_authorization_allowed_value(
+                        incremental_authorization_allowed,
+                        payment_data
+                            .payment_intent
+                            .request_incremental_authorization,
+                    );
                 let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,
                     types::ResponseId::ConnectorTransactionId(id)
@@ -494,8 +505,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 } else {
                                     None
                                 },
-                                surcharge_amount: router_data.request.get_surcharge_amount(),
-                                tax_amount: router_data.request.get_tax_on_surcharge_amount(),
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
@@ -628,6 +637,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 payment_data.payment_attempt.status,
             ),
             updated_by: storage_scheme.to_string(),
+            incremental_authorization_allowed: Some(false),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: api_models::enums::IntentStatus::foreign_from(
@@ -636,6 +646,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
+            incremental_authorization_allowed: payment_data
+                .payment_intent
+                .incremental_authorization_allowed,
         },
     };
 
@@ -749,7 +762,7 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
         None => {
             //Non multiple capture
-            let amount = request.get_capture_amount();
+            let amount = request.get_capture_amount(payment_data);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {
                     amount

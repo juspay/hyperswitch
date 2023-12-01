@@ -63,10 +63,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
         item: &StaxRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency != enums::Currency::USD {
-            Err(errors::ConnectorError::NotSupported {
-                message: item.router_data.request.currency.to_string(),
-                connector: "Stax",
-            })?
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?
         }
         let total = item.amount;
 
@@ -118,10 +117,10 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: "SELECTED_PAYMENT_METHOD".to_string(),
-                connector: "Stax",
-            })?,
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -268,10 +267,10 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: "SELECTED_PAYMENT_METHOD".to_string(),
-                connector: "Stax",
-            })?,
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -368,6 +367,7 @@ impl<F, T>
                 connector_response_reference_id: Some(
                     item.response.idempotency_id.unwrap_or(item.response.id),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

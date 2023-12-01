@@ -187,6 +187,30 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    dashboard_metadata (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        org_id -> Varchar,
+        #[max_length = 64]
+        data_key -> Varchar,
+        data_value -> Json,
+        #[max_length = 64]
+        created_by -> Varchar,
+        created_at -> Timestamp,
+        #[max_length = 64]
+        last_modified_by -> Varchar,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     dispute (id) {
         id -> Int4,
         #[max_length = 64]
@@ -654,6 +678,8 @@ diesel::table! {
         #[max_length = 32]
         updated_by -> Varchar,
         surcharge_applicable -> Nullable<Bool>,
+        request_incremental_authorization -> RequestIncrementalAuthorization,
+        incremental_authorization_allowed -> Nullable<Bool>,
     }
 }
 
@@ -678,6 +704,8 @@ diesel::table! {
         #[max_length = 64]
         custom_merchant_name -> Nullable<Varchar>,
         payment_link_config -> Nullable<Jsonb>,
+        #[max_length = 255]
+        description -> Nullable<Varchar>,
     }
 }
 
@@ -755,7 +783,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
     }
@@ -963,6 +991,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     cards_info,
     configs,
     customers,
+    dashboard_metadata,
     dispute,
     events,
     file_metadata,

@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(ops = "all", flow = "cancel")]
+#[operation(operations = "all", flow = "cancel")]
 pub struct PaymentCancel;
 
 #[async_trait]
@@ -212,6 +212,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
+                    incremental_authorization_allowed: None,
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

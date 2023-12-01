@@ -121,6 +121,7 @@ impl ConnectorCommon for Bitpay {
             message: response.error,
             reason: response.message,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }

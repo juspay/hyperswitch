@@ -127,6 +127,7 @@ impl ConnectorCommon for Bluesnap {
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: Some(reason),
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }
             }
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
@@ -135,6 +136,7 @@ impl ConnectorCommon for Bluesnap {
                 message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
                 attempt_status: None,
+                connector_transaction_id: None,
             },
             bluesnap::BluesnapErrors::General(error_response) => {
                 let (error_res, attempt_status) = if res.status_code == 403
@@ -156,6 +158,7 @@ impl ConnectorCommon for Bluesnap {
                     message: error_response,
                     reason: Some(error_res),
                     attempt_status,
+                    connector_transaction_id: None,
                 }
             }
         };
@@ -710,6 +713,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..data.clone()
                 })
