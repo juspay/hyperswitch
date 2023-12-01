@@ -1,6 +1,8 @@
 use std::{collections::HashSet, ops, str::FromStr};
 
-use api_models::{admin as admin_api, organization as api_org, user as user_api};
+use api_models::{
+    admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
+};
 use common_utils::pii;
 use diesel_models::{
     enums::UserStatus,
@@ -12,17 +14,21 @@ use diesel_models::{
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use router_env::env;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    consts::user as consts,
+    consts,
     core::{
         admin,
         errors::{UserErrors, UserResult},
     },
     db::StorageInterface,
     routes::AppState,
-    services::authentication::AuthToken,
+    services::{
+        authentication::{AuthToken, UserFromToken},
+        authorization::info,
+    },
     types::transformers::ForeignFrom,
     utils::user::password,
 };
@@ -36,7 +42,7 @@ impl UserName {
     pub fn new(name: Secret<String>) -> UserResult<Self> {
         let name = name.expose();
         let is_empty_or_whitespace = name.trim().is_empty();
-        let is_too_long = name.graphemes(true).count() > consts::MAX_NAME_LENGTH;
+        let is_too_long = name.graphemes(true).count() > consts::user::MAX_NAME_LENGTH;
 
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         let contains_forbidden_characters = name.chars().any(|g| forbidden_characters.contains(&g));
@@ -167,7 +173,8 @@ impl UserCompanyName {
     pub fn new(company_name: String) -> UserResult<Self> {
         let company_name = company_name.trim();
         let is_empty_or_whitespace = company_name.is_empty();
-        let is_too_long = company_name.graphemes(true).count() > consts::MAX_COMPANY_NAME_LENGTH;
+        let is_too_long =
+            company_name.graphemes(true).count() > consts::user::MAX_COMPANY_NAME_LENGTH;
 
         let is_all_valid_characters = company_name
             .chars()
@@ -216,9 +223,47 @@ impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     }
 }
 
+impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
+    fn from(_value: user_api::CreateInternalUserRequest) -> Self {
+        let new_organization = api_org::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
+impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
+    fn from(value: UserMerchantCreateRequestWithToken) -> Self {
+        Self(diesel_org::OrganizationNew {
+            org_id: value.2.org_id,
+            org_name: Some(value.1.company_name),
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct MerchantId(String);
+
+impl MerchantId {
+    pub fn new(merchant_id: String) -> UserResult<Self> {
+        let merchant_id = merchant_id.trim().to_lowercase().replace(' ', "_");
+        let is_empty_or_whitespace = merchant_id.is_empty();
+
+        let is_all_valid_characters = merchant_id.chars().all(|x| x.is_alphanumeric() || x == '_');
+        if is_empty_or_whitespace || !is_all_valid_characters {
+            Err(UserErrors::MerchantIdParsingError.into())
+        } else {
+            Ok(Self(merchant_id.to_string()))
+        }
+    }
+
+    pub fn get_secret(&self) -> String {
+        self.0.clone()
+    }
+}
+
 #[derive(Clone)]
 pub struct NewUserMerchant {
-    merchant_id: String,
+    merchant_id: MerchantId,
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
 }
@@ -229,7 +274,7 @@ impl NewUserMerchant {
     }
 
     pub fn get_merchant_id(&self) -> String {
-        self.merchant_id.clone()
+        self.merchant_id.get_secret()
     }
 
     pub fn get_new_organization(&self) -> NewUserOrganization {
@@ -293,13 +338,55 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
-        let merchant_id = format!("merchant_{}", common_utils::date_time::now_unix_timestamp());
+        let merchant_id = MerchantId::new(format!(
+            "merchant_{}",
+            common_utils::date_time::now_unix_timestamp()
+        ))?;
         let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
+        })
+    }
+}
+
+impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
+        let merchant_id =
+            MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
+        let new_organization = NewUserOrganization::from(value);
+
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        })
+    }
+}
+
+type UserMerchantCreateRequestWithToken =
+    (UserFromStorage, user_api::UserMerchantCreate, UserFromToken);
+
+impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
+        let merchant_id = if matches!(env::which(), env::Env::Production) {
+            MerchantId::new(value.1.company_name.clone())?
+        } else {
+            MerchantId::new(format!(
+                "merchant_{}",
+                common_utils::date_time::now_unix_timestamp()
+            ))?
+        };
+        Ok(Self {
+            merchant_id,
+            company_name: Some(UserCompanyName::new(value.1.company_name.clone())?),
+            new_organization: NewUserOrganization::from(value),
         })
     }
 }
@@ -428,6 +515,44 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
+impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.email.clone().try_into()?;
+        let name = UserName::new(value.name.clone())?;
+        let password = UserPassword::new(value.password.clone())?;
+        let new_merchant = NewUserMerchant::try_from(value)?;
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password,
+            new_merchant,
+        })
+    }
+}
+
+impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
+        let user = value.0.clone();
+        let new_merchant = NewUserMerchant::try_from(value)?;
+
+        Ok(Self {
+            user_id: user.0.user_id,
+            name: UserName::new(user.0.name)?,
+            email: user.0.email.clone().try_into()?,
+            password: UserPassword::new(user.0.password)?,
+            new_merchant,
+        })
+    }
+}
+
+#[derive(Clone)]
 pub struct UserFromStorage(pub storage_user::User);
 
 impl From<storage_user::User> for UserFromStorage {
@@ -475,11 +600,74 @@ impl UserFromStorage {
         .await
     }
 
+    pub async fn get_jwt_auth_token_with_custom_merchant_id(
+        &self,
+        state: AppState,
+        merchant_id: String,
+        org_id: String,
+    ) -> UserResult<String> {
+        let role_id = self.get_role_from_db(state.clone()).await?.role_id;
+        AuthToken::new_token(
+            self.0.user_id.clone(),
+            merchant_id,
+            role_id,
+            &state.conf,
+            org_id,
+        )
+        .await
+    }
+
     pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
         state
             .store
             .find_user_role_by_user_id(self.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
+    }
+}
+
+impl TryFrom<info::ModuleInfo> for user_role_api::ModuleInfo {
+    type Error = ();
+    fn try_from(value: info::ModuleInfo) -> Result<Self, Self::Error> {
+        let mut permissions = Vec::with_capacity(value.permissions.len());
+        for permission in value.permissions {
+            let permission = permission.try_into()?;
+            permissions.push(permission);
+        }
+        Ok(Self {
+            module: value.module.into(),
+            description: value.description,
+            permissions,
+        })
+    }
+}
+
+impl From<info::PermissionModule> for user_role_api::PermissionModule {
+    fn from(value: info::PermissionModule) -> Self {
+        match value {
+            info::PermissionModule::Payments => Self::Payments,
+            info::PermissionModule::Refunds => Self::Refunds,
+            info::PermissionModule::MerchantAccount => Self::MerchantAccount,
+            info::PermissionModule::Forex => Self::Forex,
+            info::PermissionModule::Connectors => Self::Connectors,
+            info::PermissionModule::Routing => Self::Routing,
+            info::PermissionModule::Analytics => Self::Analytics,
+            info::PermissionModule::Mandates => Self::Mandates,
+            info::PermissionModule::Disputes => Self::Disputes,
+            info::PermissionModule::Files => Self::Files,
+            info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
+            info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
+        }
+    }
+}
+
+impl TryFrom<info::PermissionInfo> for user_role_api::PermissionInfo {
+    type Error = ();
+    fn try_from(value: info::PermissionInfo) -> Result<Self, Self::Error> {
+        let enum_name = (&value.enum_name).try_into()?;
+        Ok(Self {
+            enum_name,
+            description: value.description,
+        })
     }
 }
