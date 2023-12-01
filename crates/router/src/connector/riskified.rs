@@ -8,7 +8,6 @@ use transformers as riskified;
 
 #[cfg(feature = "frm")]
 use super::utils::FrmTransactionRouterDataRequest;
-
 #[cfg(feature = "frm")]
 use crate::{
     configs::settings,
