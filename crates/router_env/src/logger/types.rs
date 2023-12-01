@@ -265,6 +265,20 @@ pub enum Flow {
     GetMutltipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
+    /// Internal user signup
+    InternalUserSignup,
+    /// Switch merchant
+    SwitchMerchant,
+    /// Get permission info
+    GetAuthorizationInfo,
+    /// List roles
+    ListRoles,
+    /// Get role
+    GetRole,
+    /// Update user role
+    UpdateUserRole,
+    /// Create merchant account for user in a org
+    UserMerchantAccountCreate,
 }
 
 ///
