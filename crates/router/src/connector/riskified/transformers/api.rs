@@ -25,7 +25,7 @@ pub struct RiskifiedPaymentsCheckoutRequest {
 pub struct CheckoutRequest {
     id: String,
     note: Option<String>,
-    email: Option<String>,
+    email: Option<Email>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     currency: Option<common_enums::Currency>,
