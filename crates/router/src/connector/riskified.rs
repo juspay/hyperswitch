@@ -8,7 +8,7 @@ use transformers as riskified;
 
 #[cfg(feature = "frm")]
 use super::utils::FrmTransactionRouterDataRequest;
-#[cfg(feature = "frm")]
+
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -16,10 +16,7 @@ use crate::{
     services::{request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
-        api::{
-            self, Checkout, ConnectorCommon, ConnectorCommonExt, Fulfillment, RecordReturn, Sale,
-            Transaction,
-        },
+        api::{self, ConnectorCommon, ConnectorCommonExt},
     },
 };
 #[cfg(feature = "frm")]
@@ -131,7 +128,7 @@ impl ConnectorCommon for Riskified {
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-        Checkout,
+    frm_api::Checkout,
         frm_types::FraudCheckCheckoutData,
         frm_types::FraudCheckResponseData,
     > for Riskified
@@ -227,7 +224,7 @@ impl api::RefundSync for Riskified {}
 impl ConnectorValidation for Riskified {}
 
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<Sale, frm_types::FraudCheckSaleData, frm_types::FraudCheckResponseData>
+impl ConnectorIntegration<frm_api::Sale, frm_types::FraudCheckSaleData, frm_types::FraudCheckResponseData>
     for Riskified
 {
 }
@@ -235,7 +232,7 @@ impl ConnectorIntegration<Sale, frm_types::FraudCheckSaleData, frm_types::FraudC
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-        Transaction,
+    frm_api::Transaction,
         frm_types::FraudCheckTransactionData,
         frm_types::FraudCheckResponseData,
     > for Riskified
@@ -362,7 +359,7 @@ impl
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-        Fulfillment,
+    frm_api::Fulfillment,
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,
     > for Riskified
@@ -451,7 +448,7 @@ impl
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-        RecordReturn,
+    frm_api::RecordReturn,
         frm_types::FraudCheckRecordReturnData,
         frm_types::FraudCheckResponseData,
     > for Riskified
