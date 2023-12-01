@@ -499,6 +499,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
             true,
             "Transaction declined (maximum transaction frequency exceeded)",
         ),
+        "800.100.165" => (true, "Transaction declined (card lost)"),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
         "800.100.171" => (true, "transaction declined (pick up card)"),
@@ -511,6 +512,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.700.100" => (
             true,
             "Transaction for the same session is currently being processed, please try again later",
+        ),
+        "900.100.100" => (
+            true,
+            "Unexpected communication error with connector/acquirer",
         ),
         "900.100.300" => (true, "Timeout, uncertain result"),
         _ => (false, ""),
@@ -729,6 +734,7 @@ fn handle_cards_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -757,6 +763,7 @@ fn handle_bank_redirects_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -789,6 +796,7 @@ fn handle_bank_redirects_error_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -831,6 +839,7 @@ fn handle_bank_redirects_sync_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -853,6 +862,7 @@ pub fn handle_webhook_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, None, payment_response_data))
 }

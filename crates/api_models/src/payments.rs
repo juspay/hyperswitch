@@ -310,6 +310,9 @@ pub struct PaymentsRequest {
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+
+    ///Request for an incremental authorization
+    pub request_incremental_authorization: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -1204,10 +1207,10 @@ pub enum BankRedirectData {
     OpenBankingUk {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: Option<api_enums::BankNames>,
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Przelewy24 {
         //Issuer banks
@@ -2210,6 +2213,9 @@ pub struct PaymentsResponse {
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     pub merchant_connector_id: Option<String>,
+
+    /// If true incremental authorization can be performed on this payment
+    pub incremental_authorization_allowed: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
