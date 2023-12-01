@@ -1939,6 +1939,25 @@ impl DashboardMetadataInterface for KafkaStore {
         self.diesel_store.insert_metadata(metadata).await
     }
 
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store
+            .update_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                data_key,
+                dashboard_metadata_update,
+            )
+            .await
+    }
+
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
