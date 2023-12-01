@@ -378,6 +378,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::RoutingKind,
         api_models::routing::RoutableConnectorChoice,
         api_models::routing::LinkedRoutingConfigRetrieveResponse,
+        api_models::routing::RoutingRetrieveResponse,
         api_models::routing::ProfileDefaultRoutingConfig,
         api_models::routing::MerchantRoutingAlgorithm,
         api_models::routing::RoutingAlgorithmKind,

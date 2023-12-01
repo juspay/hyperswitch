@@ -61,7 +61,7 @@ pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingRetrieveResponse {
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
