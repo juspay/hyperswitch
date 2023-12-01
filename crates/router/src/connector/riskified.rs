@@ -16,12 +16,13 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        ErrorResponse, Response,
     },
 };
 #[cfg(feature = "frm")]
 use crate::{
     services,
-    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
+    types::{api::fraud_check as frm_api, fraud_check as frm_types},
     utils::{self, BytesExt},
 };
 
@@ -105,6 +106,8 @@ impl ConnectorCommon for Riskified {
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.riskified.base_url.as_ref()
     }
+
+    #[cfg(feature = "frm")]
     fn build_error_response(
         &self,
         res: Response,
