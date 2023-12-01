@@ -13,6 +13,8 @@ use crate::{
     types::domain,
     utils,
 };
+#[cfg(feature = "dummy_connector")]
+pub mod sample_data;
 
 pub mod dashboard_metadata;
 

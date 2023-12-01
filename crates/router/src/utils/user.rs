@@ -9,6 +9,8 @@ use crate::{
 
 pub mod dashboard_metadata;
 pub mod password;
+#[cfg(feature = "dummy_connector")]
+pub mod sample_data;
 
 impl UserFromToken {
     pub async fn get_merchant_account(&self, state: AppState) -> UserResult<MerchantAccount> {
