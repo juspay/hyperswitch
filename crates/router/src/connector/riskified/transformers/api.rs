@@ -76,7 +76,7 @@ pub struct ClientDetails {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct RiskifiedCustomer {
-    email: Option<String>,
+    email: Option<Email>,
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
