@@ -55,7 +55,7 @@ macro_rules! async_spawn {
 }
 
 #[macro_export]
-macro_rules! if_err_reverse_lookup {
+macro_rules! fallback_reverse_lookup_not_found {
     ($a:expr,$b:expr) => {
         match $a {
             Ok(res) => res,
