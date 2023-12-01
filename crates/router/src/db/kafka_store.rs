@@ -1878,6 +1878,15 @@ impl UserInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store.delete_user_by_user_id(user_id).await
     }
+
+    async fn find_users_and_roles_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<(storage::User, user_storage::UserRole)>, errors::StorageError> {
+        self.diesel_store
+            .find_users_and_roles_by_merchant_id(merchant_id)
+            .await
+    }
 }
 
 impl RedisConnInterface for KafkaStore {
@@ -1928,6 +1937,25 @@ impl DashboardMetadataInterface for KafkaStore {
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         self.diesel_store.insert_metadata(metadata).await
+    }
+
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store
+            .update_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                data_key,
+                dashboard_metadata_update,
+            )
+            .await
     }
 
     async fn find_user_scoped_dashboard_metadata(

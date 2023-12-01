@@ -1,5 +1,7 @@
 use common_utils::pii;
 use masking::Secret;
+
+use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
@@ -44,4 +46,19 @@ pub struct CreateInternalUserRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GetUsersResponse(pub Vec<UserDetails>);
+
+#[derive(Debug, serde::Serialize)]
+pub struct UserDetails {
+    pub user_id: String,
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+    pub role_name: String,
+    pub status: UserStatus,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: time::PrimitiveDateTime,
 }
