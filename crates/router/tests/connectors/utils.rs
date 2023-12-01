@@ -908,6 +908,7 @@ impl Default for PaymentAuthorizeType {
             webhook_url: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: false,
         };
         Self(data)
     }
@@ -1043,6 +1044,7 @@ pub fn get_connector_metadata(
             connector_metadata,
             network_txn_id: _,
             connector_response_reference_id: _,
+            incremental_authorization_allowed: _,
         }) => connector_metadata,
         _ => None,
     }

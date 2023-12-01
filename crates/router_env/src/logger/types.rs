@@ -259,8 +259,26 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Change password flow
     ChangePassword,
+    /// Set Dashboard Metadata flow
+    SetDashboardMetadata,
+    /// Get Multiple Dashboard Metadata flow
+    GetMutltipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
+    /// Internal user signup
+    InternalUserSignup,
+    /// Switch merchant
+    SwitchMerchant,
+    /// Get permission info
+    GetAuthorizationInfo,
+    /// List roles
+    ListRoles,
+    /// Get role
+    GetRole,
+    /// Update user role
+    UpdateUserRole,
+    /// Create merchant account for user in a org
+    UserMerchantAccountCreate,
 }
 
 ///

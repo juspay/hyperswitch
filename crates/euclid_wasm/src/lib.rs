@@ -254,12 +254,25 @@ pub fn add_two(n1: i64, n2: i64) -> i64 {
 }
 
 #[wasm_bindgen(js_name = getDescriptionCategory)]
-pub fn get_description_category(key: &str) -> JsResult {
-    let key = dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+pub fn get_description_category() -> JsResult {
+    let keys = dir::DirKeyKind::VARIANTS
+        .iter()
+        .copied()
+        .filter(|s| s != &"Connector")
+        .collect::<Vec<&'static str>>();
+    let mut category: HashMap<Option<&str>, Vec<types::Details<'_>>> = HashMap::new();
+    for key in keys {
+        let dir_key =
+            dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+        let details = types::Details {
+            description: dir_key.get_detailed_message(),
+            kind: dir_key.clone(),
+        };
+        category
+            .entry(dir_key.get_str("Category"))
+            .and_modify(|val| val.push(details.clone()))
+            .or_insert(vec![details]);
+    }
 
-    let result = types::Details {
-        description: key.get_detailed_message(),
-        category: key.get_str("Category"),
-    };
-    Ok(serde_wasm_bindgen::to_value(&result)?)
+    Ok(serde_wasm_bindgen::to_value(&category)?)
 }

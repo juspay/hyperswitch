@@ -178,6 +178,7 @@ impl<F, T>
                     .data
                     .order_id
                     .or(Some(item.response.data.id)),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
