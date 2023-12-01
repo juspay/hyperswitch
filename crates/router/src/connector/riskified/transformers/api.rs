@@ -7,8 +7,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{
-        AddressDetailsData, FraudCheckCheckoutRequest,
-        FraudCheckTransactionRequest, RouterData,
+        AddressDetailsData, FraudCheckCheckoutRequest, FraudCheckTransactionRequest, RouterData,
     },
     core::{errors, fraud_check::types as core_types},
     types::{
@@ -358,7 +357,7 @@ pub struct RiskifiedFailedTransactionResponse {
 #[serde(untagged)]
 pub enum RiskifiedTransactionResponse {
     FailedResponse(RiskifiedFailedTransactionResponse),
-    SucceessResponse(RiskifiedPaymentsResponse),
+    SuccessResponse(RiskifiedPaymentsResponse),
 }
 
 impl<F, T>
@@ -469,11 +468,11 @@ pub enum FulfillmentRequestStatus {
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct OrderFullfillment {
     id: String,
-    fulfillments: FullfilmentData,
+    fulfillments: FulfilmentData,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
-pub struct FullfilmentData {
+pub struct FulfilmentData {
     fulfillment_id: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
@@ -489,7 +488,7 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequ
         Ok(Self {
             order: OrderFullfillment {
                 id: item.attempt_id.clone(),
-                fulfillments: FullfilmentData {
+                fulfillments: FulfilmentData {
                     fulfillment_id: item.payment_id.clone(),
                     created_at: common_utils::date_time::now(),
                     status: item

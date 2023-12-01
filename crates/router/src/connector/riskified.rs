@@ -337,7 +337,7 @@ impl
                     http_code: res.status_code,
                 })
             }
-            riskified::RiskifiedTransactionResponse::SucceessResponse(response_data) => {
+            riskified::RiskifiedTransactionResponse::SuccessResponse(response_data) => {
                 <frm_types::FrmTransactionRouterData>::try_from(types::ResponseRouterData {
                     response: response_data,
                     data: data.clone(),
