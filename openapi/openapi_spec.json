@@ -12724,7 +12724,7 @@
                 ]
               },
               "data": {
-                "$ref": "#/components/schemas/euclid.frontend.ast.Program"
+                "$ref": "#/components/schemas/ProgramConnectorSelection"
               }
             }
           }

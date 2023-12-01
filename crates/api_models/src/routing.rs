@@ -351,6 +351,7 @@ pub enum RoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
+    #[schema(value_type=ProgramConnectorSelection)]
     Advanced(euclid::frontend::ast::Program<ConnectorSelection>),
 }
 
