@@ -79,7 +79,7 @@ pub struct FraudCheckCheckoutData {
     pub currency: Option<common_enums::Currency>,
     pub browser_info: Option<types::BrowserInformation>,
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
-    pub email: Option<String>,
+    pub email: Option<Email>,
     pub gateway: Option<String>,
 }
 
