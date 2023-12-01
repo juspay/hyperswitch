@@ -86,9 +86,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                     })
                     .transpose()
                     .unwrap_or_default(),
-                email: customer.clone().and_then(|customer_data| {
-                    customer_data.email.map(|email| email.into_inner().expose())
-                }),
+                email: customer.clone().and_then(|cd| cd.email),
                 gateway: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
