@@ -11,10 +11,7 @@ use crate::{
         AddressDetailsData, FraudCheckCheckoutRequest, FraudCheckRecordReturnRequest,
         FraudCheckSaleRequest, FraudCheckTransactionRequest, RouterData,
     },
-    core::{
-        errors,
-        fraud_check::types as core_types
-    },
+    core::{errors, fraud_check::types as core_types},
     types::{
         self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
