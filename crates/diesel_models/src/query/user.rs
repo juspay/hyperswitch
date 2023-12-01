@@ -1,6 +1,7 @@
 use diesel::{associations::HasTable, ExpressionMethods};
 use error_stack::report;
 use router_env::tracing::{self, instrument};
+pub mod sample_data;
 
 use crate::{
     errors::{self},

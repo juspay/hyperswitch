@@ -13,6 +13,8 @@ use crate::{
     types::domain,
     utils,
 };
+#[cfg(feature = "dummy_connector")]
+pub mod sample_data;
 
 pub mod dashboard_metadata;
 
@@ -155,9 +157,10 @@ pub async fn connect_account(
 
             use crate::services::email::types as email_types;
 
-            let email_contents = email_types::WelcomeEmail {
+            let email_contents = email_types::VerifyEmail {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
                 settings: state.conf.clone(),
+                subject: "Welcome to the Hyperswitch community!",
             };
 
             let send_email_result = state
