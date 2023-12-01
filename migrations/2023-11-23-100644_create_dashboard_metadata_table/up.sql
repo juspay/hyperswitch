@@ -1,7 +1,6 @@
 -- Your SQL goes here
 
-CREATE TABLE
-    IF NOT EXISTS dashboard_metadata (
+CREATE TABLE IF NOT EXISTS dashboard_metadata (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(64),
         merchant_id VARCHAR(64) NOT NULL,

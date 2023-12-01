@@ -847,9 +847,11 @@ impl User {
 
         #[cfg(feature = "dummy_connector")]
         {
-            route = route
-                .service(web::resource("/sample_data").route(web::post().to(generate_sample_data)))
-                .service(web::resource("/sample_data").route(web::delete().to(delete_sample_data)))
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
+            )
         }
         route
     }
