@@ -9721,6 +9721,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_incremental_authorization": {
+            "type": "boolean",
+            "description": "Request for an incremental authorization",
+            "nullable": true
           }
         }
       },
@@ -10084,6 +10089,11 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "request_incremental_authorization": {
+            "type": "boolean",
+            "description": "Request for an incremental authorization",
             "nullable": true
           }
         }
@@ -10517,6 +10527,11 @@
           "merchant_connector_id": {
             "type": "string",
             "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "nullable": true
+          },
+          "incremental_authorization_allowed": {
+            "type": "boolean",
+            "description": "If true incremental authorization can be performed on this payment",
             "nullable": true
           }
         }
