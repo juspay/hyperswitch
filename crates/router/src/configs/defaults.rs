@@ -4107,7 +4107,7 @@ impl Default for super::settings::RequiredFields {
                 enums::PaymentMethod::BankRedirect,
                 PaymentMethodType(HashMap::from([
                     (
-                        enums::PaymentMethodType::BancontactCard,
+                        enums::PaymentMethodType::OpenBankingUk,
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
