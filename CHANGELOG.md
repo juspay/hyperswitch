@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.94.0 (2023-12-01)
+
+### Features
+
+- **user_role:** Add APIs for user roles ([#3013](https://github.com/juspay/hyperswitch/pull/3013)) ([`3fa0bdf`](https://github.com/juspay/hyperswitch/commit/3fa0bdf76558ec91df8d3beef3c36658cd138b37))
+
+### Bug Fixes
+
+- **config:** Add kms decryption support for sqlx password ([#3029](https://github.com/juspay/hyperswitch/pull/3029)) ([`b593467`](https://github.com/juspay/hyperswitch/commit/b5934674e518f991a8a575ad01b971dd086eeb40))
+
+### Refactors
+
+- **connector:**
+  - [Multisafe Pay] change error message from not supported to not implemented ([#2851](https://github.com/juspay/hyperswitch/pull/2851)) ([`668b943`](https://github.com/juspay/hyperswitch/commit/668b943403df2b3bb354dd093b8ec073a2618bda))
+  - [Shift4] change error message from NotSupported to NotImplemented ([#2880](https://github.com/juspay/hyperswitch/pull/2880)) ([`bc79d52`](https://github.com/juspay/hyperswitch/commit/bc79d522c30aa036378cf1e01354c422585cc226))
+
+**Full Changelog:** [`v1.93.0...v1.94.0`](https://github.com/juspay/hyperswitch/compare/v1.93.0...v1.94.0)
+
+- - -
+
+
 ## 1.93.0 (2023-11-30)
 
 ### Features

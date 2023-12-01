@@ -8,6 +8,7 @@ use crate::{
     core::errors::{self, CustomResult},
     services::Store,
 };
+pub mod sample_data;
 
 #[async_trait::async_trait]
 pub trait UserInterface {
