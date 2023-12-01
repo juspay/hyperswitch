@@ -20,4 +20,4 @@ histogram_metric!(QUERY_EXECUTION_TIME, DRAINER_METER); // Time in (ms) millisec
 histogram_metric!(REDIS_STREAM_READ_TIME, DRAINER_METER); // Time in (ms) milliseconds
 histogram_metric!(REDIS_STREAM_TRIM_TIME, DRAINER_METER); // Time in (ms) milliseconds
 histogram_metric!(CLEANUP_TIME, DRAINER_METER); // Time in (ms) milliseconds
-histogram_metric_i64!(DRAINER_DELAY_MS, DRAINER_METER); // Time in (ms) milliseconds
+histogram_metric_i64!(DRAINER_DELAY_SECONDS, DRAINER_METER); // Time in (s) seconds

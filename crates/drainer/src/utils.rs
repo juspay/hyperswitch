@@ -132,10 +132,12 @@ pub fn push_drainer_delay(pushed_at: Option<&String>, operation: String) {
     if let Some(pushed_at) = pushed_at {
         if let Ok(time) = pushed_at.parse::<i64>() {
             let drained_at = common_utils::date_time::now_unix_timestamp();
-            let delay_ms = (drained_at - time) * 1000;
-            metrics::DRAINER_DELAY_MS.record(
+            let delay = drained_at - time;
+
+            logger::debug!(operation = operation, delay = delay);
+            metrics::DRAINER_DELAY_SECONDS.record(
                 &metrics::CONTEXT,
-                delay_ms,
+                delay,
                 &[metrics::KeyValue {
                     key: "operation".into(),
                     value: operation.into(),
