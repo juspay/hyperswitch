@@ -3,8 +3,6 @@ use masking::{ExposeInterface, Secret};
 
 use crate::{core::errors, types};
 
-// #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
-// #[serde(rename_all = "camelCase")]
 pub struct RiskifiedAuthType {
     pub secret_token: Secret<String>,
     pub domain_name: String,
