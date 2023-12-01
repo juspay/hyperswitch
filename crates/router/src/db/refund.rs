@@ -303,7 +303,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{merchant_id}_{internal_reference_id}");
+                    let lookup_id = format!("ref_inter_ref_{merchant_id}_{internal_reference_id}");
                     let lookup = if_err_reverse_lookup!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -387,7 +387,7 @@ mod storage {
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
                             lookup_id: format!(
-                                "{}_{}",
+                                "ref_ref_id_{}_{}",
                                 created_refund.merchant_id, created_refund.refund_id
                             ),
                             pk_id: key.clone(),
@@ -398,7 +398,7 @@ mod storage {
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
                             lookup_id: format!(
-                                "{}_{}",
+                                "ref_inter_ref_{}_{}",
                                 created_refund.merchant_id, created_refund.internal_reference_id
                             ),
                             pk_id: key.clone(),
@@ -411,7 +411,7 @@ mod storage {
                         reverse_lookups.push(storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
                             lookup_id: format!(
-                                "{}_{}_{}",
+                                "ref_connector_{}_{}_{}",
                                 created_refund.merchant_id,
                                 connector_refund_id,
                                 created_refund.connector
@@ -472,7 +472,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
+                    let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
                     let lookup = if_err_reverse_lookup!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -568,7 +568,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{merchant_id}_{refund_id}");
+                    let lookup_id = format!("ref_ref_id_{merchant_id}_{refund_id}");
                     let lookup = if_err_reverse_lookup!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -615,7 +615,8 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("{merchant_id}_{connector_refund_id}_{connector}");
+                    let lookup_id =
+                        format!("ref_connector_{merchant_id}_{connector_refund_id}_{connector}");
                     let lookup = if_err_reverse_lookup!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
