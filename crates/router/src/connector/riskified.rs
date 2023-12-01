@@ -6,7 +6,10 @@ use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use transformers as riskified;
 
+#[cfg(feature = "frm")]
 use super::utils::FrmTransactionRouterDataRequest;
+
+#[cfg(feature = "frm")]
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -49,6 +52,7 @@ impl Riskified {
     }
 }
 
+#[cfg(feature = "frm")]
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Riskified
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -125,6 +129,7 @@ impl ConnectorCommon for Riskified {
     }
 }
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         Checkout,
@@ -222,6 +227,7 @@ impl api::RefundExecute for Riskified {}
 impl api::RefundSync for Riskified {}
 impl ConnectorValidation for Riskified {}
 
+#[cfg(feature = "frm")]
 impl ConnectorIntegration<Sale, frm_types::FraudCheckSaleData, frm_types::FraudCheckResponseData>
     for Riskified
 {
@@ -443,6 +449,7 @@ impl
     }
 }
 
+#[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
         RecordReturn,
