@@ -9777,14 +9777,13 @@
             ],
             "nullable": true
           },
-<<<<<<< HEAD
-          "frm_metadata": {
-            "description": "additional data related to some frm connectors",
-=======
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
->>>>>>> frm_oss
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
@@ -10151,14 +10150,13 @@
             ],
             "nullable": true
           },
-<<<<<<< HEAD
-          "frm_metadata": {
-            "description": "additional data related to some frm connectors",
-=======
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
->>>>>>> frm_oss
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
