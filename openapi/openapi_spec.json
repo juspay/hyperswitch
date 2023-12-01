@@ -4945,6 +4945,45 @@
       "CashappQr": {
         "type": "object"
       },
+      "Comparison": {
+        "type": "object",
+        "description": "Represents a single comparison condition.",
+        "required": [
+          "lhs",
+          "comparison",
+          "value",
+          "metadata"
+        ],
+        "properties": {
+          "lhs": {
+            "type": "string",
+            "description": "The left hand side which will always be a domain input identifier like \"payment.method.cardtype\""
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/ComparisonType"
+          },
+          "value": {
+            "$ref": "#/components/schemas/ValueType"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata that the Static Analyzer and Backend does not touch.\nThis can be used to store useful information for the frontend and is required for communication\nbetween the static analyzer and the frontend.",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "ComparisonType": {
+        "type": "string",
+        "description": "Conditional comparison type",
+        "enum": [
+          "equal",
+          "not_equal",
+          "less_than",
+          "less_than_equal",
+          "greater_than",
+          "greater_than_equal"
+        ]
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -7103,6 +7142,28 @@
           }
         }
       },
+      "IfStatement": {
+        "type": "object",
+        "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
+        "required": [
+          "condition"
+        ],
+        "properties": {
+          "condition": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comparison"
+            }
+          },
+          "nested": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            },
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "required": [
@@ -8487,6 +8548,21 @@
           }
         }
       },
+      "MetadataValue": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -8749,6 +8825,23 @@
             "type": "string",
             "description": "Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like \"pay\", \"food\", or any other custom string set by the merchant in Noon's Dashboard)",
             "nullable": true
+          }
+        }
+      },
+      "NumberComparison": {
+        "type": "object",
+        "description": "Represents a number comparison for \"NumberComparisonArrayValue\"",
+        "required": [
+          "comparisonType",
+          "number"
+        ],
+        "properties": {
+          "comparisonType": {
+            "$ref": "#/components/schemas/ComparisonType"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -11931,12 +12024,22 @@
       },
       "ProgramConnectorSelection": {
         "type": "object",
+        "description": "The program, having a default connector selection and\na bunch of rules. Also can hold arbitrary metadata.",
         "required": [
-          "hello"
+          "defaultSelection",
+          "rules",
+          "metadata"
         ],
         "properties": {
-          "hello": {
-            "$ref": "#/components/schemas/ast.Program"
+          "defaultSelection": {
+            "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/RuleConnectorSelection"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
           }
         }
       },
@@ -12732,6 +12835,29 @@
           }
         ]
       },
+      "RuleConnectorSelection": {
+        "type": "object",
+        "description": "Represents a rule\n\n```text\nrule_name: [stripe, adyen, checkout]\n{\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n\npayment.method.cardtype = credit\n}\n}\n```",
+        "required": [
+          "name",
+          "connectorSelection",
+          "statements"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectorSelection": {
+            "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            }
+          }
+        }
+      },
       "SamsungPayWalletData": {
         "type": "object",
         "required": [
@@ -13058,6 +13184,157 @@
             "example": "successtest@iata",
             "nullable": true
           }
+        }
+      },
+      "ValueType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Represents a number literal"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "enum_variant"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents an enum variant"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "metadata_variant"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/MetadataValue"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "str_value"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents a arbitrary String value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "enum_variant_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Similar to NumberArray but for enum variants\neg: payment.method.cardtype = (debit, credit)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number_comparison_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/NumberComparison"
+                },
+                "description": "Like a number array but can include comparisons. Useful for\nconditions like \"500 < amount < 1000\"\neg: payment.amount = (> 500, < 1000)"
+              }
+            }
+          }
+        ],
+        "description": "Represents a value in the DSL",
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "VoucherData": {

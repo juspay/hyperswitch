@@ -548,10 +548,3 @@ pub enum RoutingKind {
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(transparent)]
 pub struct RoutingAlgorithmId(pub String);
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[aliases(ProgramConnectorSelection = Program<ConnectorSelection>)]
-#[serde(transparent)]
-pub struct Program<O> {
-    hello: ast::Program<O>,
-}

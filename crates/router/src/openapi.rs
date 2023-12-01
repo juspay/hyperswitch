@@ -387,7 +387,14 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
         common_enums::enums::RoutableConnectors,
-        api_models::routing::ProgramConnectorSelection
+        euclid::frontend::ast::ProgramConnectorSelection,
+        euclid::frontend::ast::RuleConnectorSelection,
+        euclid::frontend::ast::IfStatement,
+        euclid::frontend::ast::Comparison,
+        euclid::frontend::ast::ComparisonType,
+        euclid::frontend::ast::ValueType,
+        euclid::frontend::ast::MetadataValue,
+        euclid::frontend::ast::NumberComparison,
     )),
     modifiers(&SecurityAddon)
 )]
