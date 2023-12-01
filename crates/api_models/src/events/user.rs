@@ -7,6 +7,7 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     ChangePasswordRequest, ConnectAccountRequest, ConnectAccountResponse,
+    CreateInternalUserRequest, SwitchMerchantIdRequest, UserMerchantCreate,
 };
 
 impl ApiEventMetric for ConnectAccountResponse {
@@ -25,7 +26,10 @@ common_utils::impl_misc_api_event_type!(
     GetMultipleMetaDataPayload,
     GetMetaDataResponse,
     GetMetaDataRequest,
-    SetMetaDataRequest
+    SetMetaDataRequest,
+    SwitchMerchantIdRequest,
+    CreateInternalUserRequest,
+    UserMerchantCreate
 );
 
 #[cfg(feature = "dummy_connector")]
