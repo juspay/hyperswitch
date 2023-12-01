@@ -157,7 +157,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SwitchMerchant
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
-            | Flow::DeleteSampleData => Self::User,
+            | Flow::DeleteSampleData
+            | Flow::UserMerchantAccountList
+            | Flow::GetUserDetails => Self::User,
 
             Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
                 Self::UserRole

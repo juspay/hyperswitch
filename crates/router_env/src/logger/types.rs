@@ -283,6 +283,10 @@ pub enum Flow {
     GenerateSampleData,
     /// Delete Sample Data
     DeleteSampleData,
+    /// List merchant accounts for user
+    UserMerchantAccountList,
+    /// Get users for merchant account
+    GetUserDetails,
 }
 
 ///
