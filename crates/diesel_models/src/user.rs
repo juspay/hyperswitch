@@ -7,6 +7,7 @@ use crate::schema::users;
 
 pub mod dashboard_metadata;
 
+pub mod sample_data;
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(table_name = users)]
 pub struct User {

@@ -820,8 +820,9 @@ pub struct User;
 #[cfg(feature = "olap")]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/user")
-            .app_data(web::Data::new(state))
+        let mut route = web::scope("/user").app_data(web::Data::new(state));
+
+        route = route
             .service(web::resource("/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
@@ -842,7 +843,17 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
-            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)));
+
+        #[cfg(feature = "dummy_connector")]
+        {
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
+            )
+        }
+        route
     }
 }
 

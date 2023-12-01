@@ -1,5 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::{errors::types::ApiErrorResponse, user as user_api};
+#[cfg(feature = "dummy_connector")]
+use api_models::user::sample_data::SampleDataRequest;
+use api_models::{
+    errors::types::ApiErrorResponse,
+    user::{self as user_api},
+};
 use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
@@ -154,6 +159,47 @@ pub async fn user_merchant_account_create(
             user_core::create_merchant_account(state, auth, json_payload)
         },
         &auth::JWTAuth(Permission::MerchantAccountCreate),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "dummy_connector")]
+pub async fn generate_sample_data(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    payload: web::Json<SampleDataRequest>,
+) -> impl actix_web::Responder {
+    use crate::core::user::sample_data;
+
+    let flow = Flow::GenerateSampleData;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payload.into_inner(),
+        sample_data::generate_sample_data_for_user,
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(feature = "dummy_connector")]
+pub async fn delete_sample_data(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    payload: web::Json<SampleDataRequest>,
+) -> impl actix_web::Responder {
+    use crate::core::user::sample_data;
+
+    let flow = Flow::DeleteSampleData;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payload.into_inner(),
+        sample_data::delete_sample_data_for_user,
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
