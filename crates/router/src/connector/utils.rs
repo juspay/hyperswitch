@@ -1684,3 +1684,42 @@ impl PaymentsAttemptData for PaymentAttempt {
             })
     }
 }
+
+#[cfg(feature = "frm")]
+pub trait FrmTransactionRouterDataRequest {
+    fn is_payment_successful(&self) -> Option<bool>;
+}
+
+#[cfg(feature = "frm")]
+impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
+    fn is_payment_successful(&self) -> Option<bool> {
+        match self.status {
+            storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::CaptureFailed
+            | storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
+
+            storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::Charged => Some(true),
+
+            storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::CaptureInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::PartialCharged
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => None,
+        }
+    }
+}

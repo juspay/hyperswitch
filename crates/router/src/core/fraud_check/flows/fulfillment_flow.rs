@@ -3,9 +3,9 @@ use error_stack::ResultExt;
 use router_env::tracing::{self, instrument};
 
 use crate::{
-    connector::signifyd::transformers::FrmFullfillmentSignifydApiRequest,
     core::{
         errors::RouterResult,
+        fraud_check::frm_core_types::FrmFulfillmentRequest,
         payments::{helpers, PaymentAddress},
         utils as core_utils,
     },
@@ -26,7 +26,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector: String,
-    fulfillment_request: FrmFullfillmentSignifydApiRequest,
+    fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
     let profile_id = core_utils::get_profile_id_from_business_details(
         payment_intent.business_country,
@@ -79,7 +79,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         request: FraudCheckFulfillmentData {
             amount: payment_attempt.amount,
             order_details: payment_intent.order_details.clone(),
-            fulfillment_request,
+            fulfillment_req: fulfillment_request,
         },
         response: Err(ErrorResponse::default()),
         access_token: None,
@@ -105,6 +105,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
+        frm_metadata: None,
     };
     Ok(router_data)
 }

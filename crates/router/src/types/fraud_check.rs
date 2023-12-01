@@ -1,9 +1,11 @@
 use crate::{
-    connector::signifyd::transformers::{FrmFullfillmentSignifydApiRequest, RefundMethod},
+    connector::signifyd::transformers::RefundMethod,
+    core::fraud_check::types::FrmFulfillmentRequest,
     pii::Serialize,
     services,
-    types::{api, storage_enums, ErrorResponse, ResponseId, RouterData},
+    types::{self, api, storage_enums, ErrorResponse, ResponseId, RouterData},
 };
+
 pub type FrmSaleRouterData = RouterData<api::Sale, FraudCheckSaleData, FraudCheckResponseData>;
 
 pub type FrmSaleType =
@@ -74,6 +76,11 @@ pub type FrmCheckoutType = dyn services::ConnectorIntegration<
 pub struct FraudCheckCheckoutData {
     pub amount: i64,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub currency: Option<common_enums::Currency>,
+    pub browser_info: Option<types::BrowserInformation>,
+    pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
+    pub email: Option<String>,
+    pub gateway: Option<String>,
 }
 
 pub type FrmTransactionRouterData =
@@ -91,6 +98,9 @@ pub struct FraudCheckTransactionData {
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub connector_transaction_id: Option<String>,
 }
 
 pub type FrmFulfillmentRouterData =
@@ -114,7 +124,7 @@ pub type FrmRecordReturnType = dyn services::ConnectorIntegration<
 pub struct FraudCheckFulfillmentData {
     pub amount: i64,
     pub order_details: Option<Vec<masking::Secret<serde_json::Value>>>,
-    pub fulfillment_request: FrmFullfillmentSignifydApiRequest,
+    pub fulfillment_req: FrmFulfillmentRequest,
 }
 
 #[derive(Debug, Clone)]

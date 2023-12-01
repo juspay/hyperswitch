@@ -478,10 +478,10 @@ impl
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = &req.request.fulfillment_request;
+        let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
         let signifyd_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<transformers::FrmFullfillmentSignifydApiRequest>::encode_to_string_of_json,
+            utils::Encode::<transformers::FrmFullfillmentSignifydRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(signifyd_req))
