@@ -170,13 +170,15 @@ pub async fn generate_sample_data(
     http_req: HttpRequest,
     payload: web::Json<SampleDataRequest>,
 ) -> impl actix_web::Responder {
+    use crate::core::user::sample_data;
+
     let flow = Flow::GenerateSampleData;
     Box::pin(api::server_wrap(
         flow,
         state,
         &http_req,
         payload.into_inner(),
-        user::sample_data::generate_sample_data_for_user,
+        sample_data::generate_sample_data_for_user,
         &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -188,13 +190,15 @@ pub async fn delete_sample_data(
     http_req: HttpRequest,
     payload: web::Json<SampleDataRequest>,
 ) -> impl actix_web::Responder {
+    use crate::core::user::sample_data;
+
     let flow = Flow::DeleteSampleData;
     Box::pin(api::server_wrap(
         flow,
         state,
         &http_req,
         payload.into_inner(),
-        user::sample_data::delete_sample_data_for_user,
+        sample_data::delete_sample_data_for_user,
         &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
