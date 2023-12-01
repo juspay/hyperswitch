@@ -26,3 +26,20 @@ pub struct ChangePasswordRequest {
     pub new_password: Secret<String>,
     pub old_password: Secret<String>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SwitchMerchantIdRequest {
+    pub merchant_id: String,
+}
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct CreateInternalUserRequest {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub password: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserMerchantCreate {
+    pub company_name: String,
+}
