@@ -51,8 +51,8 @@ pub struct CheckoutRequest {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct PaymentDetails {
-    credit_card_bin: Option<String>,
-    credit_card_number: Option<String>,
+    credit_card_bin: Option<Secret<String>>,
+    credit_card_number: Option<Secret<String>>,
     credit_card_company: Option<api_models::enums::CardNetwork>,
 }
 
