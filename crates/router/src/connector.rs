@@ -16,6 +16,7 @@ pub mod cybersource;
 pub mod dlocal;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
+pub mod elavon;
 pub mod fiserv;
 pub mod forte;
 pub mod globalpay;
@@ -58,8 +59,8 @@ pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bankofamerica::Bankofamerica, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
     braintree::Braintree, cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase,
-    cryptopay::Cryptopay, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv, forte::Forte,
-    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, helcim::Helcim,
+    cryptopay::Cryptopay, cybersource::Cybersource, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
+    forte::Forte, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, helcim::Helcim,
     iatapay::Iatapay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay,
     nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
     payeezy::Payeezy, payme::Payme, paypal::Paypal, payu::Payu, powertranz::Powertranz,

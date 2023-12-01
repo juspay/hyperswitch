@@ -87,6 +87,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Dlocal,
+    Elavon,
     Fiserv,
     Forte,
     Globalpay,
