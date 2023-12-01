@@ -472,7 +472,8 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
+                    let lookup_id =
+                        format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
                     let lookup = if_err_reverse_lookup!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
