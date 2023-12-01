@@ -97,6 +97,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_confirm_source: new.payment_confirm_source,
                     updated_by: storage_scheme.to_string(),
                     surcharge_applicable: new.surcharge_applicable,
+                    request_incremental_authorization: new.request_incremental_authorization,
+                    incremental_authorization_allowed: new.incremental_authorization_allowed,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -758,6 +760,8 @@ impl DataModelExt for PaymentIntentNew {
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
             surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            incremental_authorization_allowed: self.incremental_authorization_allowed,
         }
     }
 
@@ -798,6 +802,8 @@ impl DataModelExt for PaymentIntentNew {
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
             surcharge_applicable: storage_model.surcharge_applicable,
+            request_incremental_authorization: storage_model.request_incremental_authorization,
+            incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
         }
     }
 }
@@ -843,6 +849,8 @@ impl DataModelExt for PaymentIntent {
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
             surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            incremental_authorization_allowed: self.incremental_authorization_allowed,
         }
     }
 
@@ -884,6 +892,8 @@ impl DataModelExt for PaymentIntent {
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
             surcharge_applicable: storage_model.surcharge_applicable,
+            request_incremental_authorization: storage_model.request_incremental_authorization,
+            incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
         }
     }
 }
@@ -898,11 +908,13 @@ impl DataModelExt for PaymentIntentUpdate {
                 amount_captured,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
                 amount_captured,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             },
             Self::MetadataUpdate {
                 metadata,
@@ -937,9 +949,15 @@ impl DataModelExt for PaymentIntentUpdate {
                 billing_address_id,
                 updated_by,
             },
-            Self::PGStatusUpdate { status, updated_by } => {
-                DieselPaymentIntentUpdate::PGStatusUpdate { status, updated_by }
-            }
+            Self::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => DieselPaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            },
             Self::Update {
                 amount,
                 currency,

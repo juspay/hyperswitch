@@ -29,8 +29,12 @@ pub mod refunds;
 pub mod routing;
 #[cfg(feature = "olap")]
 pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 pub mod webhooks;
 
 pub mod locker_migration;

@@ -1381,18 +1381,19 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             let name_on_card = if card.card_holder_name.clone().expose().is_empty() {
                 card_token_data
-                    .and_then(|token_data| {
-                        is_card_updated = true;
-                        token_data.card_holder_name.clone()
-                    })
+                    .and_then(|token_data| token_data.card_holder_name.clone())
                     .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "card_holder_name",
-                    })?
+                    .map(|name_on_card| {
+                        is_card_updated = true;
+                        name_on_card
+                    })
             } else {
-                card.card_holder_name.clone()
+                Some(card.card_holder_name.clone())
             };
-            updated_card.card_holder_name = name_on_card;
+
+            if let Some(name_on_card) = name_on_card {
+                updated_card.card_holder_name = name_on_card;
+            }
 
             if let Some(cvc) = card_cvc {
                 is_card_updated = true;
@@ -2569,6 +2570,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2619,6 +2623,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2669,6 +2676,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);

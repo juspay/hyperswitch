@@ -4,6 +4,8 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(feature = "olap")]
+use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -16,12 +18,14 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
+use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    events::EventsConfig,
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;
@@ -111,6 +115,9 @@ pub struct Settings {
     pub kv_config: KvConfig,
     #[cfg(feature = "frm")]
     pub frm: Frm,
+    #[cfg(feature = "olap")]
+    pub report_download_config: ReportConfig,
+    pub events: EventsConfig,
 }
 
 #[cfg(feature = "frm")]
@@ -529,23 +536,6 @@ pub struct Database {
     pub max_lifetime: Option<u64>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum QueueStrategy {
-    #[default]
-    Fifo,
-    Lifo,
-}
-
-impl From<QueueStrategy> for bb8::QueueStrategy {
-    fn from(value: QueueStrategy) -> Self {
-        match value {
-            QueueStrategy::Fifo => Self::Fifo,
-            QueueStrategy::Lifo => Self::Lifo,
-        }
-    }
-}
-
 #[cfg(not(feature = "kms"))]
 impl From<Database> for storage_impl::config::Database {
     fn from(val: Database) -> Self {
@@ -619,6 +609,7 @@ pub struct Connectors {
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
@@ -846,6 +837,7 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         self.lock_settings.validate()?;
+        self.events.validate()?;
         Ok(())
     }
 }

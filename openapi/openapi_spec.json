@@ -9777,8 +9777,14 @@
             ],
             "nullable": true
           },
+<<<<<<< HEAD
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+=======
+          "request_incremental_authorization": {
+            "type": "boolean",
+            "description": "Request for an incremental authorization",
+>>>>>>> frm_oss
             "nullable": true
           }
         }
@@ -10145,8 +10151,14 @@
             ],
             "nullable": true
           },
+<<<<<<< HEAD
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+=======
+          "request_incremental_authorization": {
+            "type": "boolean",
+            "description": "Request for an incremental authorization",
+>>>>>>> frm_oss
             "nullable": true
           }
         }
@@ -10580,6 +10592,11 @@
           "merchant_connector_id": {
             "type": "string",
             "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "nullable": true
+          },
+          "incremental_authorization_allowed": {
+            "type": "boolean",
+            "description": "If true incremental authorization can be performed on this payment",
             "nullable": true
           }
         }

@@ -322,6 +322,7 @@ impl
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -415,6 +416,7 @@ impl<T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -470,6 +472,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -519,6 +522,7 @@ impl<T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -570,6 +574,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

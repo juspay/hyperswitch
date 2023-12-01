@@ -419,6 +419,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .attach_printable("Error converting feature_metadata to Value")?
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
+        payment_intent.request_incremental_authorization = request
+            .request_incremental_authorization
+            .map(|request_incremental_authorization| {
+                core_utils::get_request_incremental_authorization_value(
+                    Some(request_incremental_authorization),
+                    payment_attempt.capture_method,
+                )
+            })
+            .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()

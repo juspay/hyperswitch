@@ -53,8 +53,8 @@ impl ConnectorCommon for Signifyd {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn base_url<'a>(&self, _connectors: &'a settings::Connectors) -> &'a str {
-        "https://api.signifyd.com"
+    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+        connectors.signifyd.base_url.as_ref()
     }
 
     fn get_auth_header(
