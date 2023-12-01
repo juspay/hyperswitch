@@ -8,7 +8,6 @@ use transformers as riskified;
 
 #[cfg(feature = "frm")]
 use super::utils::FrmTransactionRouterDataRequest;
-
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -128,7 +127,7 @@ impl ConnectorCommon for Riskified {
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-    frm_api::Checkout,
+        frm_api::Checkout,
         frm_types::FraudCheckCheckoutData,
         frm_types::FraudCheckResponseData,
     > for Riskified
@@ -224,15 +223,19 @@ impl api::RefundSync for Riskified {}
 impl ConnectorValidation for Riskified {}
 
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<frm_api::Sale, frm_types::FraudCheckSaleData, frm_types::FraudCheckResponseData>
-    for Riskified
+impl
+    ConnectorIntegration<
+        frm_api::Sale,
+        frm_types::FraudCheckSaleData,
+        frm_types::FraudCheckResponseData,
+    > for Riskified
 {
 }
 
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-    frm_api::Transaction,
+        frm_api::Transaction,
         frm_types::FraudCheckTransactionData,
         frm_types::FraudCheckResponseData,
     > for Riskified
@@ -359,7 +362,7 @@ impl
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-    frm_api::Fulfillment,
+        frm_api::Fulfillment,
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,
     > for Riskified
@@ -448,7 +451,7 @@ impl
 #[cfg(feature = "frm")]
 impl
     ConnectorIntegration<
-    frm_api::RecordReturn,
+        frm_api::RecordReturn,
         frm_types::FraudCheckRecordReturnData,
         frm_types::FraudCheckResponseData,
     > for Riskified
