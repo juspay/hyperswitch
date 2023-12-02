@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
+#[cfg(all(feature = "kms", feature = "olap"))]
+use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(all(feature = "olap", feature = "kms"))]
+use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
@@ -123,7 +127,8 @@ impl AppState {
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        conf: settings::Settings,
+        #[cfg_attr(not(all(feature = "olap", feature = "kms")), allow(unused_mut))]
+        mut conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
@@ -163,6 +168,21 @@ impl AppState {
                         .await
                         .expect("Failed to create mock store"),
                 ),
+            };
+
+            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            match conf.analytics {
+                AnalyticsConfig::Clickhouse { .. } => {}
+                AnalyticsConfig::Sqlx { ref mut sqlx }
+                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
+                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
+                    sqlx.password = kms_client
+                        .decrypt(&sqlx.password.peek())
+                        .await
+                        .expect("Failed to decrypt password")
+                        .into();
+                }
             };
 
             #[cfg(feature = "olap")]

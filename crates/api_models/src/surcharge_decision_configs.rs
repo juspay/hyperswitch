@@ -30,7 +30,6 @@ impl EuclidDirFilter for SurchargeDecisionConfigs {
         DirKeyKind::PaymentAmount,
         DirKeyKind::PaymentCurrency,
         DirKeyKind::BillingCountry,
-        DirKeyKind::CardType,
         DirKeyKind::CardNetwork,
         DirKeyKind::PayLaterType,
         DirKeyKind::WalletType,
