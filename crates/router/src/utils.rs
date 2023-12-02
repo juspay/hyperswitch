@@ -6,6 +6,10 @@ pub mod ext_traits;
 pub mod storage_partitioning;
 #[cfg(feature = "olap")]
 pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 use std::fmt::Debug;
 
