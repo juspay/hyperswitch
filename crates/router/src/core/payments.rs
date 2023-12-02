@@ -451,6 +451,12 @@ where
                     .into());
                 }
             }
+            (None, Some(_calculated_surcharge_details)) => {
+                return Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "surcharge_details",
+                }
+                .into());
+            }
             (Some(request_surcharge_details), None) => {
                 if request_surcharge_details.is_surcharge_zero() {
                     return Ok(());
@@ -460,9 +466,6 @@ where
                     }
                     .into());
                 }
-            }
-            (None, Some(calculated_surcharge_details)) => {
-                payment_data.surcharge_details = Some(calculated_surcharge_details);
             }
             (None, None) => return Ok(()),
         };
