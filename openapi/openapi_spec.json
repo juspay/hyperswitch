@@ -2888,6 +2888,43 @@
           "no_three_ds"
         ]
       },
+      "AuthorizationResponse": {
+        "type": "object",
+        "required": [
+          "authorization_id",
+          "amount",
+          "status"
+        ],
+        "properties": {
+          "authorization_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationStatus"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AuthorizationStatus": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure",
+          "created",
+          "unresolved"
+        ]
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -10532,6 +10569,20 @@
           "incremental_authorization_allowed": {
             "type": "boolean",
             "description": "If true incremental authorization can be performed on this payment",
+            "nullable": true
+          },
+          "authorization_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of authorizations happened in an incremental_authorization payment",
+            "nullable": true
+          },
+          "authorizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationResponse"
+            },
+            "description": "List of authorizations happened to the payment",
             "nullable": true
           }
         }

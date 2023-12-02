@@ -2295,6 +2295,7 @@ pub struct PaymentListResponse {
 pub struct AuthorizationResponse {
     pub authorization_id: String,
     pub amount: i64,
+    #[schema(value_type= AuthorizationStatus)]
     pub status: common_enums::AuthorizationStatus,
     pub code: Option<String>,
     pub message: Option<String>,
