@@ -3568,6 +3568,7 @@ version = "0.1.0"
 dependencies = [
  "bytes 1.5.0",
  "diesel",
+ "erased-serde",
  "serde",
  "serde_json",
  "subtle",

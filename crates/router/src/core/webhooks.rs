@@ -1133,9 +1133,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
         let webhook_details = api::IncomingWebhookDetails {
             object_reference_id: object_ref_id,
-            resource_object: event_object
-                .raw_serialize()
-                .and_then(|ref val| serde_json::to_vec(val))
+            resource_object: serde_json::to_vec(&event_object)
                 .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
                 .attach_printable_lazy(|| {
