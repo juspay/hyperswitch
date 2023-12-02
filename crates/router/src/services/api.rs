@@ -876,6 +876,7 @@ where
     };
 
     let api_event = ApiEvent::new(
+        Some(merchant_id.clone()),
         flow,
         &request_id,
         request_duration,
@@ -887,6 +888,7 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
+        Some(request.method().to_string()),
     );
     match api_event.clone().try_into() {
         Ok(event) => {

@@ -7,6 +7,7 @@ pub mod configs;
 
 pub mod authorization;
 pub mod customers;
+pub mod dashboard_metadata;
 pub mod dispute;
 pub mod events;
 pub mod file;

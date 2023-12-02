@@ -27,6 +27,7 @@ pub enum ApiIdentifier {
     RustLockerMigration,
     Gsm,
     User,
+    UserRole,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -148,7 +149,22 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
 
-            Flow::UserConnectAccount | Flow::ChangePassword => Self::User,
+            Flow::UserConnectAccount
+            | Flow::ChangePassword
+            | Flow::SetDashboardMetadata
+            | Flow::GetMutltipleDashboardMetadata
+            | Flow::VerifyPaymentConnector
+            | Flow::InternalUserSignup
+            | Flow::SwitchMerchant
+            | Flow::UserMerchantAccountCreate
+            | Flow::GenerateSampleData
+            | Flow::DeleteSampleData
+            | Flow::UserMerchantAccountList
+            | Flow::GetUserDetails => Self::User,
+
+            Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
+                Self::UserRole
+            }
         }
     }
 }

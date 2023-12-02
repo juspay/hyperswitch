@@ -1207,10 +1207,10 @@ pub enum BankRedirectData {
     OpenBankingUk {
         // Issuer banks
         #[schema(value_type = BankNames)]
-        issuer: api_enums::BankNames,
+        issuer: Option<api_enums::BankNames>,
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Przelewy24 {
         //Issuer banks
@@ -2361,9 +2361,11 @@ pub struct PaymentListFilters {
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
     pub start_time: PrimitiveDateTime,
     /// The end time to filter payments list or to get list of filters. If not passed the default time is now
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
     pub end_time: Option<PrimitiveDateTime>,
 }
 
