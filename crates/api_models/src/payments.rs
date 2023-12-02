@@ -2216,6 +2216,12 @@ pub struct PaymentsResponse {
 
     /// If true incremental authorization can be performed on this payment
     pub incremental_authorization_allowed: Option<bool>,
+
+    /// Total number of authorizations happened in an incremental_authorization payment
+    pub authorization_count: Option<i32>,
+
+    /// List of authorizations happened to the payment
+    pub authorizations: Option<Vec<AuthorizationResponse>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2284,6 +2290,16 @@ pub struct PaymentListResponse {
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct AuthorizationResponse {
+    pub authorization_id: String,
+    pub amount: i64,
+    pub status: common_enums::AuthorizationStatus,
+    pub code: Option<String>,
+    pub message: Option<String>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListResponseV2 {
     /// The number of payments included in the list for given constraints
@@ -2988,6 +3004,18 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = MerchantConnectorDetailsWrap)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsIncrementalAuthorizationRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// The total amount including previously authorized amount and additional amount
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: i64,
+    /// Reason for incremental authorization
+    pub reason: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

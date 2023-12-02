@@ -269,6 +269,9 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         updated_by: String,
     },
+    AmountUpdate {
+        amount: i64,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -677,6 +680,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 connector,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::AmountUpdate { amount } => Self {
+                amount: Some(amount),
                 ..Default::default()
             },
         }

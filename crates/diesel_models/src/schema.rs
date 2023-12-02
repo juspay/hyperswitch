@@ -61,6 +61,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    authorization (authorization_id, merchant_id) {
+        #[max_length = 64]
+        authorization_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Varchar,
+        amount -> Int8,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        status -> AuthorizationStatus,
+        #[max_length = 255]
+        code -> Nullable<Varchar>,
+        message -> Nullable<Text>,
+        #[max_length = 64]
+        connector_authorization_id -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     business_profile (profile_id) {
         #[max_length = 64]
         profile_id -> Varchar,
@@ -656,6 +679,7 @@ diesel::table! {
         surcharge_applicable -> Nullable<Bool>,
         request_incremental_authorization -> RequestIncrementalAuthorization,
         incremental_authorization_allowed -> Nullable<Bool>,
+        authorization_count -> Nullable<Int4>,
     }
 }
 
@@ -962,6 +986,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    authorization,
     business_profile,
     captures,
     cards_info,

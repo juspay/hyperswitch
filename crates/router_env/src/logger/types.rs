@@ -259,6 +259,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Change password flow
     ChangePassword,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
 }
 
 ///

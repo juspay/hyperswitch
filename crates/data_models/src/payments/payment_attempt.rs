@@ -359,6 +359,9 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         updated_by: String,
     },
+    AmountUpdate {
+        amount: i64,
+    },
 }
 
 impl ForeignIDRef for PaymentAttempt {

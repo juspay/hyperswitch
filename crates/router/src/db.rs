@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod authorization;
 pub mod business_profile;
 pub mod cache;
 pub mod capture;
@@ -84,6 +85,7 @@ pub trait StorageInterface:
     + gsm::GsmInterface
     + user::UserInterface
     + user_role::UserRoleInterface
+    + authorization::AuthorizationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

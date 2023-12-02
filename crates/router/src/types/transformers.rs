@@ -685,6 +685,18 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     }
 }
 
+impl ForeignFrom<storage::Authorization> for payments::AuthorizationResponse {
+    fn foreign_from(authorization: storage::Authorization) -> Self {
+        Self {
+            authorization_id: authorization.authorization_id,
+            amount: authorization.amount,
+            status: authorization.status,
+            code: authorization.code,
+            message: authorization.message,
+        }
+    }
+}
+
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaymentsRetrieve {
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {

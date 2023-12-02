@@ -323,6 +323,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details,
             frm_message: None,
             payment_link_data,
+            incremental_authorization_details: None,
+            authorizations: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -757,6 +759,7 @@ impl PaymentCreate {
             updated_by: merchant_account.storage_scheme.to_string(),
             request_incremental_authorization,
             incremental_authorization_allowed: None,
+            authorization_count: None,
         })
     }
 

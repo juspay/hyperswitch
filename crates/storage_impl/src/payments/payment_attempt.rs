@@ -1467,6 +1467,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 updated_by,
             },
+            Self::AmountUpdate { amount } => DieselPaymentAttemptUpdate::AmountUpdate { amount },
         }
     }
 
@@ -1728,6 +1729,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 updated_by,
             },
+            DieselPaymentAttemptUpdate::AmountUpdate { amount } => Self::AmountUpdate { amount },
         }
     }
 }
