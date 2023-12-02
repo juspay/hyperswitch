@@ -228,7 +228,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.id.clone());
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.transaction.id.clone());
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.transaction.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -237,7 +237,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(item.response.transaction.id),
                 incremental_authorization_allowed: None,
             }),
             ..item.data
