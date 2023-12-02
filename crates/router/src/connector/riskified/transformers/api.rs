@@ -1,5 +1,5 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -176,11 +176,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 total_discounts: 0,
                 currency: payment_data.request.currency,
                 referring_site: "hyperswitch.io".to_owned(),
-                discount_codes: [DiscountCodes {
-                    amount: 0,
-                    code: Some("ABC".to_owned()),
-                }]
-                .to_vec(),
+                discount_codes: Vec::new(),
                 shipping_lines: metadata.shipping_lines,
                 customer: RiskifiedCustomer {
                     email: payment_data.request.email.clone(),
@@ -216,11 +212,12 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 vendor_name: metadata.vendor_name,
                 payment_details: match payment_data.request.payment_method_data.as_ref() {
                     Some(AdditionalPaymentData::Card(card_info)) => Some(PaymentDetails {
-                        credit_card_bin: card_info.card_isin.clone(),
+                        credit_card_bin: card_info.card_isin.clone().map(Secret::new),
                         credit_card_number: card_info
                             .last4
                             .clone()
-                            .map(|last_four| format!("XXXX-XXXX-XXXX-{}", last_four)),
+                            .map(|last_four| format!("XXXX-XXXX-XXXX-{}", last_four))
+                            .map(Secret::new),
                         credit_card_company: card_info.card_network.clone(),
                     }),
                     Some(_) | None => None,
@@ -505,15 +502,12 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequ
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "tracking_company",
                         })?,
-                    tracking_numbers: item
-                        .request
-                        .fulfillment_req
-                        .tracking_numbers
-                        .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                    tracking_numbers: item.request.fulfillment_req.tracking_number.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
                             field_name: "tracking_numbers",
-                        })?,
-                    tracking_urls: item.request.fulfillment_req.tracking_urls.clone(),
+                        },
+                    )?,
+                    tracking_urls: item.request.fulfillment_req.tracking_url.clone(),
                 },
             },
         })

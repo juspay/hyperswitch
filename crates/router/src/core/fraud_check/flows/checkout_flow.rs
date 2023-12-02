@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
@@ -86,7 +86,11 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                     })
                     .transpose()
                     .unwrap_or_default(),
-                email: customer.clone().and_then(|cd| cd.email),
+                email: customer.clone().and_then(|customer_data| {
+                    customer_data
+                        .email
+                        .and_then(|email| Email::try_from(email.into_inner().expose()).ok())
+                }),
                 gateway: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {

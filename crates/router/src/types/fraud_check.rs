@@ -1,3 +1,5 @@
+use common_utils::pii::Email;
+
 use crate::{
     connector::signifyd::transformers::RefundMethod,
     core::fraud_check::types::FrmFulfillmentRequest,
