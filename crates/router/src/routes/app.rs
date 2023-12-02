@@ -57,6 +57,7 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
+    pub request_id: Option<RequestId>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -93,7 +94,8 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string())
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
     }
 
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
@@ -212,6 +214,7 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
+                request_id: None,
             }
         })
         .await

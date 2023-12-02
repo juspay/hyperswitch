@@ -35,7 +35,10 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
+    events::{
+        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
+        connector_api_logs::ConnectorEvent,
+    },
     logger,
     routes::{
         app::AppStateInfo,
@@ -361,10 +364,48 @@ where
             match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+
+                    let masked_request_body = match &request.body {
+                        Some(request) => match request {
+                            RequestContent::Json(i)
+                            | RequestContent::FormUrlEncoded(i)
+                            | RequestContent::Xml(i) => i
+                                .masked_serialize()
+                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
+                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                        },
+                        None => json!({"error": "EMPTY_REQUEST_BODY"}),
+                    };
+                    let request_url = request.url.clone();
+                    let request_method = request.method;
+
                     let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
+
+                    let connector_event = ConnectorEvent::new(
+                        req.connector.clone(),
+                        std::any::type_name::<T>().to_string(),
+                        masked_request_body,
+                        None,
+                        request_url,
+                        request_method,
+                        req.payment_id.clone(),
+                        req.merchant_id.clone(),
+                        &state.request_id,
+                        external_latency,
+                    );
+
+                    match connector_event.try_into() {
+                        Ok(event) => {
+                            state.event_handler().log_event(event);
+                        }
+                        Err(err) => {
+                            logger::error!(error=?err, "Error Logging Connector Event");
+                        }
+                    }
+
                     match response {
                         Ok(body) => {
                             let response = match body {

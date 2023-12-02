@@ -464,6 +464,12 @@ sdk_url = "http://localhost:9090/dist/HyperLoader.js"
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
 
+[analytics.clickhouse]
+username = ""      # Clickhouse username
+password = ""      # Clickhouse password (optional)
+host = ""          # Clickhouse host in http(s)://<URL>:<PORT> format
+database_name = "" # Clickhouse database name
+
 [analytics.sqlx]
 username = "db_user"      # Analytics DB Username
 password = "db_pass"      # Analytics DB Password
@@ -472,8 +478,20 @@ port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
 connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 
 # Config for KV setup
 [kv_config]
 # TTL for KV in seconds
 ttl = 900
+
+[events]
+source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
+
+[events.kafka]
+brokers = []                       # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"   # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"  # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"   # Kafka topic to be used for Refund events
+api_logs_topic = "topic"           # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"     # Kafka topic to be used for connector api events
