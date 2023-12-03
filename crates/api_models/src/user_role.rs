@@ -80,3 +80,9 @@ pub struct UpdateUserRoleRequest {
     pub user_id: String,
     pub role_id: String,
 }
+
+#[derive(Debug, serde::Serialize)]
+pub enum UserStatus {
+    Active,
+    InvitationSent,
+}

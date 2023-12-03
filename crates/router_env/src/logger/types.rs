@@ -279,6 +279,14 @@ pub enum Flow {
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Generate Sample Data
+    GenerateSampleData,
+    /// Delete Sample Data
+    DeleteSampleData,
+    /// List merchant accounts for user
+    UserMerchantAccountList,
+    /// Get users for merchant account
+    GetUserDetails,
 }
 
 ///
