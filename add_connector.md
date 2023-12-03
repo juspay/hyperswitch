@@ -9,6 +9,13 @@ This is a guide to contributing new connector to Router. This guide includes ins
 - Understanding of the Connector APIs which you wish to integrate with Router
 - Setup of Router repository and running it on local
 - Access to API credentials for testing the Connector API (you can quickly sign up for sandbox/uat credentials by visiting the website of the connector you wish to integrate)
+-  Ensure that you have Rust installed. We recommend using the nightly version. Install it using `rustup`:
+
+    ```bash
+    rustup toolchain install nightly
+    ```
+
+Note: This project requires features only available in the nightly version of Rust.
 
 In Router, there are Connectors and Payment Methods, examples of both are shown below from which the difference is apparent.
 
@@ -17,7 +24,7 @@ In Router, there are Connectors and Payment Methods, examples of both are shown 
 A connector is an integration to fulfill payments. Related use cases could be any of the below
 
 - Payment processor (Stripe, Adyen, ChasePaymentTech etc.,)
-- Fraud and Risk management platform (like Ravelin, Riskified etc.,)
+- Fraud and Risk management platform (like Signifyd, Riskified etc.,)
 - Payment network (Visa, Master)
 - Payment authentication services (Cardinal etc.,)
   Router supports "Payment Processors" right now. Support will be extended to the other categories in the near future.
@@ -26,13 +33,21 @@ A connector is an integration to fulfill payments. Related use cases could be an
 
 Each Connector (say, a Payment Processor) could support multiple payment methods
 
-- **Cards :** Bancontact , Knet, Mada
-- **Bank Transfers :** EPS , giropay, sofort
-- **Bank Direct Debit :** Sepa direct debit
-- **Wallets :** Apple Pay , Google Pay , Paypal
+- **Cards :** Visa, Mastercard, Bancontact , Knet, Mada, Discover, UnionPay
+- **Bank Redirects :** Ideal, EPS , Giropay, Sofort, Bancontact, Bizum, Blik, Interac, Onlnie Banking Czec Republic, Onlnie Banking Finland, Onlnie Banking Poland, Onlnie Banking Slovakia, Online Banking UK, Prezelwy24, Trustly, Online Banking Fpx, Online Banking Thailand
+- **Bank Transfers :** Multibanco, Sepa, Bacs, Ach, Permata, Bca, Bni, Bri Va, Danamon Va Bank, Pix, Pse
+- **Bank Direct Debit :** Sepa direct debit, Ach Debit, Becs Bank Debit, Bacs Bank Debit
+- **Wallets :** Apple Pay , Google Pay , Paypal , Ali pay ,Mb pay ,Samsung Pay, Wechat Pay, TouchNGo, Cashapp
+- **Card Redirect :** Knet, Benefit, MomoAtm
+- **PayLater :** Klarna, Affirm, Afterpay, Paybright, Walley, Alma, Atome
+- **Crypto :**  Crypto Currency
+- **Reward :** Classic
+- **Voucher :** Boleto, Efecty, PagoEfectivo, RedCompra, RedPagos, Alfarmart, Indomaret, Oxxo, SevenEleven, Lawson, MiniStop, FamilyMart, Seicomart, PayEasy
+- **GiftCard :** Givex, Pay Safe Card
+- **Upi :** Upi Collect
 
-Cards and Bank Transfer payment methods are already included in Router. Hence, adding a new connector which offers payment_methods available in Router is easy and requires almost no breaking changes.
-Adding a new payment method (say Wallets or Bank Direct Debit) might require some changes in core business logic of Router, which we are actively working upon.
+The above mentioned payment methods are already included in Router. Hence, adding a new connector which offers payment_methods available in Router is easy and requires almost no breaking changes.
+Adding a new payment method might require some changes in core business logic of Router, which we are actively working upon.
 
 ## How to Integrate a Connector
 
@@ -46,8 +61,7 @@ Below is a step-by-step tutorial for integrating a new connector.
 ### **Generate the template**
 
 ```bash
-cd scripts
-bash add_connector.sh <connector-name> <connector-base-url>
+sh scripts/add_connector.sh <connector-name> <connector-base-url>
 ```
 
 For this tutorial `<connector-name>` would be `checkout`.
@@ -83,16 +97,17 @@ Now let's implement Request type for checkout
 
 ```rust
 #[derive(Debug, Serialize)]
-pub struct CheckoutPaymentsRequest {
-    pub source: Source,
+pub struct PaymentsRequest {
+    pub source: PaymentSource,
     pub amount: i64,
     pub currency: String,
-    #[serde(default = "generate_processing_channel_id")]
-    pub processing_channel_id: Cow<'static, str>,
-}
-
-fn generate_processing_channel_id() -> Cow<'static, str> {
-    "pc_e4mrdrifohhutfurvuawughfwu".into()
+    pub processing_channel_id: Secret<String>,
+    #[serde(rename = "3ds")]
+    pub three_ds: CheckoutThreeDS,
+    #[serde(flatten)]
+    pub return_url: ReturnUrl,
+    pub capture: bool,
+    pub reference: String,
 }
 ```
 
@@ -105,25 +120,37 @@ Let's define `Source`
 #[derive(Debug, Serialize)]
 pub struct CardSource {
     #[serde(rename = "type")]
-    pub source_type: Option<String>,
-    pub number: Option<String>,
-    pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>,
+    pub source_type: CheckoutSourceTypes,
+    pub number: cards::CardNumber,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum Source {
+pub enum PaymentSource {
     Card(CardSource),
-    // TODO: Add other sources here.
+    Wallets(WalletSource),
+    ApplePayPredecrypt(Box<ApplePayPredecrypt>),
 }
 ```
 
-`Source` is an enum type. Request types will need to derive `Serialize` and response types will need to derive `Deserialize`. For request types `From<RouterData>` needs to be implemented.
+`PaymentSource` is an enum type. Request types will need to derive `Serialize` and response types will need to derive `Deserialize`. For request types `From<RouterData>` needs to be implemented.
+
+For request types that involve an amount, the implementation of `TryFrom<&ConnectorRouterData<&T>>` is required:
 
 ```rust
-impl<'a> From<&types::RouterData<'a>> for CheckoutRequestType
+impl TryFrom<&CheckoutRouterData<&T>> for PaymentsRequest 
 ```
+else 
+```rust
+impl TryFrom<T> for PaymentsRequest 
+```
+
+where  T is genric type which can `types::PaymentsAuthorizeRouterData`, `types::PaymentsCaptureRouterData` etc.
+
+Note : As amount converion is being handled at one place . amount needs to be consumed from `ConnectorRouterData`
 
 In this impl block we build the request type from RouterData which will almost always contain all the required information you need for payment processing.
 `RouterData` contains all the information required for processing the payment.
@@ -165,26 +192,40 @@ While implementing the Response Type, the important Enum to be defined for every
 It stores the different status types that the connector can give in its response that is listed in its API spec. Below is the definition for checkout
 
 ```rust
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum CheckoutPaymentStatus {
     Authorized,
+    #[default]
     Pending,
     #[serde(rename = "Card Verified")]
     CardVerified,
     Declined,
+    Captured,
 }
 ```
 
 The important part is mapping it to the Router status codes.
 
 ```rust
-impl From<CheckoutPaymentStatus> for enums::AttemptStatus {
-    fn from(item: CheckoutPaymentStatus) -> Self {
-        match item {
-            CheckoutPaymentStatus::Authorized => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<Balances>)) -> Self {
+        let (status, balances) = item;
+
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if let Some(Balances {
+                    available_to_capture: 0,
+                }) = balances
+                {
+                    Self::Charged
+                } else {
+                    Self::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
     }
 }
@@ -195,9 +236,11 @@ Note: `enum::AttemptStatus` is Router status.
 Router status are given below
 
 - **Charged :** The amount has been debited
-- **PendingVBV :** Pending but verified by visa
+- **Pending :** Pending but verified by visa
 - **Failure :** The payment Failed
-- **Authorizing :** In the process of authorizing.
+- **Authorized :** In the process of authorizing.
+- **AuthenticationPending :** Customer action is required.
+- **Voided :** The payment Cancelled
 
 It is highly recommended that the default status is Pending. Only explicit failure and explicit success from the connector shall be marked as success or failure respectively.
 
@@ -213,25 +256,91 @@ impl Default for CheckoutPaymentStatus {
 Below is rest of the response type implementation for checkout
 
 ```rust
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CheckoutPaymentsResponse {
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentsResponse {
     id: String,
-    amount: i64,
+    amount: Option<i32>,
+    action_id: Option<String>,
     status: CheckoutPaymentStatus,
+    #[serde(rename = "_links")]
+    links: Links,
+    balances: Option<Balances>,
+    reference: Option<String>,
+    response_code: Option<String>,
+    response_summary: Option<String>,
 }
 
-impl<'a> From<types::ResponseRouterData<'a, CheckoutPaymentsResponse>> for types::RouterData<'a> {
-    fn from(item: types::ResponseRouterData<'a, CheckoutPaymentsResponse>) -> Self {
-        types::RouterData {
-            connector_transaction_id: Some(item.response.id),
-            amount_received: Some(item.response.amount),
-            status: enums::Status::from(item.response.status),
+#[derive(Deserialize, Debug)]
+pub struct ActionResponse {
+    #[serde(rename = "id")]
+    pub action_id: String,
+    pub amount: i64,
+    #[serde(rename = "type")]
+    pub action_type: ActionType,
+    pub approved: Option<bool>,
+    pub reference: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaymentsResponseEnum {
+    ActionResponse(Vec<ActionResponse>),
+    PaymentResponse(Box<PaymentsResponse>),
+}
+
+impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PaymentsResponseRouterData<PaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
+        });
+        let status = enums::AttemptStatus::foreign_from((
+            item.response.status,
+            item.data.request.capture_method,
+        ));
+        let error_response = if status == enums::AttemptStatus::Failure {
+            Some(types::ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .response_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .response_summary
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        } else {
+            None
+        };
+        let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                item.response.reference.unwrap_or(item.response.id),
+            ),
+        };
+        Ok(Self {
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
             ..item.data
-        }
+        })
     }
 }
 ```
+
+Using an enum for a response struct in Rust is not recommended due to potential deserialization issues where the deserializer attempts to deserialize into all the enum variants. A preferable alternative is to employ a separate enum for the possible response variants and include it as a field within the response struct. To implement the redirection flow, assign the redirection link to the `redirection_data`.
 
 And finally the error type implementation
 
@@ -261,13 +370,16 @@ There are four types of tasks that are done by implementing traits:
 We create a struct with the connector name and have trait implementations for it.
 The following trait implementations are mandatory
 
-- **ConnectorCommon :** contains common description of the connector, like the base endpoint, content-type, error message, id.
+- **ConnectorCommon :** contains common description of the connector, like the base endpoint, content-type, error message, id, currency unit.
 - **Payment :** Trait Relationship, has impl block.
 - **PaymentAuthorize :** Trait Relationship, has impl block.
+- **PaymentCapture :** Trait Relationship, has impl block.
+- **PaymentSync :** Trait Relationship, has impl block.
 - **ConnectorIntegration :** For every api endpoint contains the url, using request transform and response transform and headers.
-- **Refund :** Trait Relationship, has empty body.
-- **RefundExecute :** Trait Relationship, has empty body.
-- **RefundSync :** Trait Relationship, has empty body.
+- **Refund :** Trait Relationship, has impl block.
+- **RefundExecute :** Trait Relationship, has impl block.
+- **RefundSync :** Trait Relationship, has impl block.
+
 
 And the below derive traits
 
@@ -280,6 +392,38 @@ There is a trait bound to implement refunds, if you don't want to implement refu
 Don’t forget to add logs lines in appropriate places.
 Refer to other connector code for trait implementations. Mostly the rust compiler will guide you to do it easily.
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
+
+### **Set the currency Unit**
+The `get_currency_unit` function, part of the ConnectorCommon trait, enables connectors to specify their accepted currency unit as either `Base` or `Minor`. For instance, Paypal designates its currency in the Base unit, whereas Hyperswitch processes amounts in the minor unit. If a connector accepts amounts in the base unit, conversion is required, as illustrated.
+
+``` rust
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for PaypalRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+```
+
+`Note`: Since the amount is being converted in the aforementioned try_from, it is necessary to retrieve amounts from `ConnectorRouterData` in all other try_from instances.
 
 ### **Test the connector**
 
