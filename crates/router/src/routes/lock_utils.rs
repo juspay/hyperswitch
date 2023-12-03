@@ -155,7 +155,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
             | Flow::SwitchMerchant
-            | Flow::UserMerchantAccountCreate => Self::User,
+            | Flow::UserMerchantAccountCreate
+            | Flow::GenerateSampleData
+            | Flow::DeleteSampleData
+            | Flow::UserMerchantAccountList
+            | Flow::GetUserDetails => Self::User,
 
             Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
                 Self::UserRole
