@@ -13,10 +13,7 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
-use api_models::{
-    self, enums,
-    payments::HeaderPayload,
-};
+use api_models::{self, enums, payments::HeaderPayload};
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
