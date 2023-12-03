@@ -442,9 +442,16 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             | BankofamericaPaymentStatus::AuthorizedPendingReview => {
                 if auto_capture {
                     // Because BankOfAmerica will return Payment Status as Authorized even in AutoCapture Payment
-                    Self::Pending
+                    Self::Charged
                 } else {
                     Self::Authorized
+                }
+            }
+            BankofamericaPaymentStatus::Pending => {
+                if auto_capture {
+                    Self::Charged
+                } else {
+                    Self::Pending
                 }
             }
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
@@ -456,7 +463,6 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Failed | BankofamericaPaymentStatus::Declined => {
                 Self::Failure
             }
-            BankofamericaPaymentStatus::Pending => Self::Pending,
         }
     }
 }
