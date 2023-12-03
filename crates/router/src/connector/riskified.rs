@@ -16,13 +16,12 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
     },
 };
 #[cfg(feature = "frm")]
 use crate::{
     services,
-    types::{api::fraud_check as frm_api, fraud_check as frm_types},
+    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::{self, BytesExt},
 };
 
@@ -48,7 +47,6 @@ impl Riskified {
     }
 }
 
-#[cfg(feature = "frm")]
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Riskified
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
