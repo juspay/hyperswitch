@@ -204,9 +204,9 @@ pub struct PaymentsRequest {
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
 
-    /// This is used when payment is to be confirmed and the card is not saved
-    #[schema(deprecated)]
-    #[schema(value_type = Option<String>)]
+    /// This is used when payment is to be confirmed and the card is not saved.
+    /// This field will be deprecated soon, use the CardToken object instead
+    #[schema(value_type = Option<String>, deprecated)]
     pub card_cvc: Option<Secret<String>>,
 
     /// The shipping address for the payment
