@@ -13,6 +13,8 @@ use crate::{
     types::domain,
     utils,
 };
+#[cfg(feature = "dummy_connector")]
+pub mod sample_data;
 
 pub mod dashboard_metadata;
 
@@ -81,9 +83,10 @@ pub async fn connect_account(
 
             use crate::services::email::types as email_types;
 
-            let email_contents = email_types::WelcomeEmail {
+            let email_contents = email_types::VerifyEmail {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
                 settings: state.conf.clone(),
+                subject: "Welcome to the Hyperswitch community!",
             };
 
             let send_email_result = state
@@ -320,4 +323,30 @@ pub async fn create_merchant_account(
     }
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn list_merchant_ids_for_user(
+    state: AppState,
+    user: auth::UserFromToken,
+) -> UserResponse<Vec<String>> {
+    Ok(ApplicationResponse::Json(
+        utils::user::get_merchant_ids_for_user(state, &user.user_id).await?,
+    ))
+}
+
+pub async fn get_users_for_merchant_account(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::GetUsersResponse> {
+    let users = state
+        .store
+        .find_users_and_roles_by_merchant_id(user_from_token.merchant_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("No users for given merchant id")?
+        .into_iter()
+        .filter_map(|(user, role)| domain::UserAndRoleJoined(user, role).try_into().ok())
+        .collect();
+
+    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(users)))
 }
