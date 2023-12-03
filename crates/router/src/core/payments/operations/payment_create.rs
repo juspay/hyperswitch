@@ -287,7 +287,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let setup_mandate = setup_mandate.map(MandateData::from);
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
-            payments::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
+            payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
         let payment_method_data_after_card_bin_call = request

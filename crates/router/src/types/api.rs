@@ -238,7 +238,11 @@ impl SessionSurchargeDetails {
     ) -> Option<payments_types::SurchargeDetails> {
         match self {
             Self::Calculated(surcharge_metadata) => surcharge_metadata
-                .get_surcharge_details(payment_method, payment_method_type, card_network)
+                .get_surcharge_details(payments_types::SurchargeKey::PaymentMethodData(
+                    *payment_method,
+                    *payment_method_type,
+                    card_network.cloned(),
+                ))
                 .cloned(),
             Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
         }

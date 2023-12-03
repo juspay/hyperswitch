@@ -275,6 +275,9 @@ pub struct CardNetworkTypes {
             "tax_on_surcharge": {
                 "percentage": 1.5
             }
+            "display_surcharge": 12,
+            "display_tax_on_surcharge_amount": 12,
+            "display_final_amount: 1234
         }
     "#)]
     pub surcharge_details: Option<SurchargeDetailsResponse>,
@@ -324,6 +327,9 @@ pub struct ResponsePaymentMethodTypes {
             "tax_on_surcharge": {
                 "percentage": 1.5
             }
+            "display_surcharge": 12,
+            "display_tax_on_surcharge_amount": 12,
+            "display_final_amount: 1234
         }
     "#)]
     pub surcharge_details: Option<SurchargeDetailsResponse>,
@@ -713,6 +719,25 @@ pub struct CustomerPaymentMethod {
     /// Masked bank details from PM auth services
     #[schema(example = json!({"mask": "0000"}))]
     pub bank: Option<MaskedBankDetails>,
+
+    /// Surcharge details for this saved card
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": 2.5
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+            "display_surcharge": 12,
+            "display_tax_on_surcharge_amount": 12,
+            "display_final_amount: 1234
+        }
+    "#)]
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 
     /// Whether this payment method requires CVV to be collected
     #[schema(example = true)]

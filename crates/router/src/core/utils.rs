@@ -4,17 +4,12 @@ use api_models::enums::{DisputeStage, DisputeStatus};
 use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::{AsyncExt, Encode},
-};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, IntoReport, ResultExt};
-use euclid::enums as euclid_enums;
-use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
-use super::payments::{helpers, types as payments_types, PaymentAddress};
+use super::payments::{helpers, PaymentAddress};
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
@@ -1066,71 +1061,6 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
         .into_report()
         .attach_printable("Flow stringify failed")?
         .to_string())
-}
-
-#[instrument(skip_all)]
-pub async fn persist_individual_surcharge_details_in_redis(
-    state: &AppState,
-    merchant_account: &domain::MerchantAccount,
-    surcharge_metadata: &payments_types::SurchargeMetadata,
-) -> RouterResult<()> {
-    if !surcharge_metadata.is_empty_result() {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
-        let redis_key = payments_types::SurchargeMetadata::get_surcharge_metadata_redis_key(
-            &surcharge_metadata.payment_attempt_id,
-        );
-
-        let mut value_list = Vec::with_capacity(surcharge_metadata.get_surcharge_results_size());
-        for (key, value) in surcharge_metadata
-            .get_individual_surcharge_key_value_pairs()
-            .into_iter()
-        {
-            value_list.push((
-                key,
-                Encode::<payments_types::SurchargeDetails>::encode_to_string_of_json(&value)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode to string of json")?,
-            ));
-        }
-        let intent_fulfillment_time = merchant_account
-            .intent_fulfillment_time
-            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
-        redis_conn
-            .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to write to redis")?;
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
-pub async fn get_individual_surcharge_detail_from_redis(
-    state: &AppState,
-    payment_method: &euclid_enums::PaymentMethod,
-    payment_method_type: &euclid_enums::PaymentMethodType,
-    card_network: Option<euclid_enums::CardNetwork>,
-    payment_attempt_id: &str,
-) -> CustomResult<payments_types::SurchargeDetails, RedisError> {
-    let redis_conn = state
-        .store
-        .get_redis_conn()
-        .attach_printable("Failed to get redis connection")?;
-    let redis_key =
-        payments_types::SurchargeMetadata::get_surcharge_metadata_redis_key(payment_attempt_id);
-    let value_key = payments_types::SurchargeMetadata::get_surcharge_details_redis_hashset_key(
-        payment_method,
-        payment_method_type,
-        card_network.as_ref(),
-    );
-
-    redis_conn
-        .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
-        .await
 }
 
 pub fn get_request_incremental_authorization_value(
