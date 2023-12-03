@@ -1,6 +1,7 @@
 //! Types that can be used in other crates
 use error_stack::{IntoReport, ResultExt};
 use serde::{de::Visitor, Deserialize, Deserializer};
+use utoipa::ToSchema;
 
 use crate::{
     consts,
@@ -8,7 +9,7 @@ use crate::{
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
@@ -141,7 +142,7 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 }
 
 /// represents surcharge type and value
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
