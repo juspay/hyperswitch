@@ -205,6 +205,7 @@ pub struct PaymentsRequest {
     pub payment_token: Option<String>,
 
     /// This is used when payment is to be confirmed and the card is not saved
+    #[schema(deprecated)]
     #[schema(value_type = Option<String>)]
     pub card_cvc: Option<Secret<String>>,
 
