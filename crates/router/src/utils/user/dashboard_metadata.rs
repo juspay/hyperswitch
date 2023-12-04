@@ -6,7 +6,7 @@ use api_models::user::dashboard_metadata::{
 };
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
-    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew},
+    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -72,6 +72,36 @@ pub async fn get_merchant_scoped_metadata_from_db(
                 .attach_printable("DB Error Fetching DashboardMetaData"))
         }
     }
+}
+
+pub async fn update_metadata(
+    state: &AppState,
+    user_id: String,
+    merchant_id: String,
+    org_id: String,
+    metadata_key: DBEnum,
+    metadata_value: impl serde::Serialize,
+) -> UserResult<DashboardMetadata> {
+    let data_value = serde_json::to_value(metadata_value)
+        .into_report()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error Converting Struct To Serde Value")?;
+
+    state
+        .store
+        .update_metadata(
+            None,
+            merchant_id,
+            org_id,
+            metadata_key,
+            DashboardMetadataUpdate::UpdateData {
+                data_key: metadata_key,
+                data_value,
+                last_modified_by: user_id,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
 }
 
 pub fn deserialize_to_response<T>(data: Option<&DashboardMetadata>) -> UserResult<Option<T>>
