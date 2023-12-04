@@ -941,6 +941,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaErrorResponse {
+    pub id: Option<String>,
     pub error_information: Option<ErrorInformation>,
     pub status: Option<String>,
     pub message: Option<String>,
