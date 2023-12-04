@@ -24,10 +24,6 @@ pub fn get_connector_auth(
         .into()),
     }
 }
-//
-// pub fn get_connector_onboarding_conf(state: AppState) -> settings::ConnectorOnboarding {
-//     return state.conf.connector_onboarding.clone();
-// }
 
 pub fn is_enabled(
     connector: types::Connector,
