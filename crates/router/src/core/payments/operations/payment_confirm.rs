@@ -446,6 +446,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let additional_pm_data = request
+            .payment_method_data
+            .as_ref()
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+            })
+            .await;
+        let payment_method_data_after_card_bin_call = request
+            .payment_method_data
+            .as_ref()
+            .zip(additional_pm_data)
+            .map(|(payment_method_data, additional_payment_data)| {
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            });
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -462,7 +477,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: payment_method_data_after_card_bin_call,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -593,10 +608,9 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         &'a self,
         state: &AppState,
         payment_data: &mut PaymentData<F>,
-        request: &api::PaymentsRequest,
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        populate_surcharge_details(state, payment_data, request).await
+        populate_surcharge_details(state, payment_data).await
     }
 }
 
