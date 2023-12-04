@@ -5,7 +5,10 @@ use crate::{
     enums,
     query::generics,
     schema::dashboard_metadata::dsl,
-    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew},
+    user::dashboard_metadata::{
+        DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate,
+        DashboardMetadataUpdateInternal,
+    },
     PgPooledConn, StorageResult,
 };
 
@@ -17,6 +20,31 @@ impl DashboardMetadataNew {
 }
 
 impl DashboardMetadata {
+    pub async fn update(
+        conn: &PgPooledConn,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: DashboardMetadataUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::user_id
+                .eq(user_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::org_id.eq(org_id.to_owned()))
+                .and(dsl::data_key.eq(data_key.to_owned())),
+            DashboardMetadataUpdateInternal::from(dashboard_metadata_update),
+        )
+        .await
+    }
+
     pub async fn find_user_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         user_id: String,

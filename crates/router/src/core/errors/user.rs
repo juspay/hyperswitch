@@ -4,6 +4,7 @@ use crate::services::ApplicationResponse;
 
 pub type UserResult<T> = CustomResult<T, UserErrors>;
 pub type UserResponse<T> = CustomResult<ApplicationResponse<T>, UserErrors>;
+pub mod sample_data;
 
 #[derive(Debug, thiserror::Error)]
 pub enum UserErrors {
