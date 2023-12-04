@@ -10,6 +10,7 @@ pub mod api;
 pub mod domain;
 pub mod storage;
 pub mod transformers;
+pub mod pm_auth;
 
 use std::{collections::HashMap, marker::PhantomData};
 

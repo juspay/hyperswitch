@@ -29,7 +29,7 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-pub use external_services_oss::kms;
+pub use external_services::kms;
 use helpers::PaymentAuthConnectorDataExt;
 use masking::{ExposeInterface, PeekInterface};
 use pm_auth::{
@@ -341,7 +341,7 @@ async fn store_bank_details_in_payment_methods(
     #[cfg(feature = "kms")]
     let pm_auth_key = kms::get_kms_client(&state.conf.kms)
         .await
-        .decrypt(state.conf.payment_method_auth.pm_auth_key)
+        .decrypt(state.conf.payment_method_auth.pm_auth_key.clone())
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 

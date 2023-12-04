@@ -776,7 +776,7 @@ pub async fn create_payment_connector(
     let pm_auth_connector =
         api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
 
-    let is_unroutable_connector = if let Some(conn) = pm_auth_connector {
+    let is_unroutable_connector = if pm_auth_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
