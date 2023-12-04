@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use api_models::payments::{CardToken, GetPaymentMethodType};
+use api_models::payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails};
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
@@ -572,6 +572,7 @@ pub fn validate_merchant_id(
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
     op_amount_to_capture: Option<i64>,
+    surcharge_details: Option<RequestSurchargeDetails>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match (op_amount, op_amount_to_capture) {
         (None, _) => Ok(()),
@@ -581,7 +582,11 @@ pub fn validate_request_amount_and_amount_to_capture(
                 api::Amount::Value(amount_inner) => {
                     // If both amount and amount to capture is present
                     // then amount to be capture should be less than or equal to request amount
-                    utils::when(!amount_to_capture.le(&amount_inner.get()), || {
+                    let total_capturable_amount = amount_inner.get()
+                        + surcharge_details
+                            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+                            .unwrap_or(0);
+                    utils::when(!amount_to_capture.le(&total_capturable_amount), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
                             "amount_to_capture is greater than amount capture_amount: {amount_to_capture:?} request_amount: {amount:?}"
@@ -603,13 +608,34 @@ pub fn validate_request_amount_and_amount_to_capture(
 
 /// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
 #[instrument(skip_all)]
-pub fn validate_amount_to_capture_in_create_call_request(
+pub fn validate_amount_to_capture_and_capture_method(
+    payment_attempt: Option<&PaymentAttempt>,
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    if request.capture_method.unwrap_or_default() == api_enums::CaptureMethod::Automatic {
-        let total_capturable_amount = request.get_total_capturable_amount();
-        if let Some((amount_to_capture, total_capturable_amount)) =
-            request.amount_to_capture.zip(total_capturable_amount)
+    let capture_method = request
+        .capture_method
+        .or(payment_attempt
+            .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
+        .unwrap_or_default();
+    if capture_method == api_enums::CaptureMethod::Automatic {
+        let original_amount = request
+            .amount
+            .map(|amount| amount.into())
+            .or(payment_attempt.map(|payment_attempt| payment_attempt.amount));
+        let surcharge_amount = request
+            .surcharge_details
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .or_else(|| {
+                payment_attempt.map(|payment_attempt| {
+                    payment_attempt.surcharge_amount.unwrap_or(0)
+                        + payment_attempt.tax_amount.unwrap_or(0)
+                })
+            })
+            .unwrap_or(0);
+        let total_capturable_amount =
+            original_amount.map(|original_amount| original_amount + surcharge_amount);
+        if let Some((total_capturable_amount, amount_to_capture)) =
+            total_capturable_amount.zip(request.amount_to_capture)
         {
             utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {

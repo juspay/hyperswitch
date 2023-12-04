@@ -149,6 +149,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleDelete => Self::Gsm,
 
             Flow::UserConnectAccount
+            | Flow::UserSignUp
+            | Flow::UserSignIn
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
             | Flow::GetMutltipleDashboardMetadata
@@ -159,7 +161,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
             | Flow::UserMerchantAccountList
-            | Flow::GetUserDetails => Self::User,
+            | Flow::GetUserDetails
+            | Flow::UserSignUpWithMerchantId => Self::User,
 
             Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
                 Self::UserRole
