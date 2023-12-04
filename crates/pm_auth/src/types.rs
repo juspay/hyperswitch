@@ -3,6 +3,7 @@ pub mod api;
 use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken};
+use common_enums::PaymentMethodType;
 use masking::Secret;
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {
@@ -12,11 +13,12 @@ pub struct PaymentAuthRouterData<F, Request, Response> {
     pub request: Request,
     pub response: Result<Response, ErrorResponse>,
     pub connector_auth_type: ConnectorAuthType,
+    pub connector_http_status_code: Option<u16>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LinkTokenRequest {
-    pub client_name: Option<String>,
+    pub client_name: String,
     pub country_codes: Option<Vec<String>>,
     pub language: Option<String>,
     pub user_info: Option<String>,
@@ -24,9 +26,7 @@ pub struct LinkTokenRequest {
 
 #[derive(Debug, Clone)]
 pub struct LinkTokenResponse {
-    pub expiration: Option<String>,
-    pub link_token: Option<String>,
-    pub request_id: Option<String>,
+    pub link_token: String,
 }
 
 pub type LinkTokenRouterData =
@@ -39,8 +39,15 @@ pub struct ExchangeTokenRequest {
 
 #[derive(Debug, Clone)]
 pub struct ExchangeTokenResponse {
-    pub access_token: Option<String>,
-    pub request_id: Option<String>,
+    pub access_token: String,
+}
+
+impl From<ExchangeTokenResponse> for api_models::pm_auth::ExchangeTokenCreateResponse {
+    fn from(value: ExchangeTokenResponse) -> Self {
+        Self {
+            access_token: value.access_token,
+        }
+    }
 }
 
 pub type ExchangeTokenRouterData =
@@ -49,6 +56,12 @@ pub type ExchangeTokenRouterData =
 #[derive(Debug, Clone)]
 pub struct BankAccountCredentialsRequest {
     pub access_token: String,
+    pub optional_ids: Option<BankAccountOptionalIDs>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountOptionalIDs {
+    pub ids: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,10 +71,12 @@ pub struct BankAccountCredentialsResponse {
 
 #[derive(Debug, Clone)]
 pub struct BankAccountDetails {
-    pub account_id: String,
-    pub account_name: String,
+    pub account_name: Option<String>,
     pub account_number: String,
     pub routing_number: String,
+    pub payment_method_type: PaymentMethodType,
+    pub account_id: String,
+    pub account_type: Option<String>,
 }
 
 pub type BankDetailsRouterData = PaymentAuthRouterData<
@@ -82,7 +97,7 @@ pub type PaymentAuthBankAccountDetailsType = dyn self::api::ConnectorIntegration
     BankAccountCredentialsResponse,
 >;
 
-#[derive(Clone, Debug, strum::EnumString)]
+#[derive(Clone, Debug, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodAuthConnectors {
     Plaid,
@@ -129,4 +144,9 @@ pub struct Response {
     pub headers: Option<http::HeaderMap>,
     pub response: bytes::Bytes,
     pub status_code: u16,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct AuthServiceQueryParam {
+    pub client_secret: Option<String>,
 }

@@ -405,6 +405,8 @@ dependencies = [
  "common_utils",
  "error-stack",
  "euclid",
+ "frunk",
+ "frunk_core",
  "masking",
  "mime",
  "reqwest",

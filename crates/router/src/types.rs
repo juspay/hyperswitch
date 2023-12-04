@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod domain;
+pub mod pm_auth;
 pub mod storage;
 pub mod transformers;
 

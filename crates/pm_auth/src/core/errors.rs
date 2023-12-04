@@ -4,6 +4,8 @@ pub enum ConnectorError {
     FailedToObtainAuthType,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+    #[error("Failed to execute a processing step: {0:?}")]
+    ProcessingStepFailed(Option<bytes::Bytes>),
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to encode connector request")]
