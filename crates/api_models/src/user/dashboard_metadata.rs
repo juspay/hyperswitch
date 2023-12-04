@@ -55,8 +55,9 @@ pub struct IntegrationMethod {
     pub integration_type: String,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct ConfigurationType {
-    pub configurtion_type: String,
+pub enum ConfigurationType {
+   Single,
+   Multiple,
 }
 
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]

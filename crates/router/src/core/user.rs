@@ -334,9 +334,13 @@ pub async fn reset_password(
 pub async fn invite_user(
     state: AppState,
     request: user_api::InviteUserRequest,
-    user_from_token: auth::UserFromToken
+    user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::InviteUserResponse> {
-    let inviter_user = state.store.find_user_by_id(user_from_token.user_id.as_str()).await.map_err(|e| e.change_context(UserErrors::InternalServerError))?;
+    let inviter_user = state
+        .store
+        .find_user_by_id(user_from_token.user_id.as_str())
+        .await
+        .map_err(|e| e.change_context(UserErrors::InternalServerError))?;
 
     todo!()
 }

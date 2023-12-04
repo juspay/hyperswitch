@@ -302,39 +302,43 @@ async fn insert_metadata(
             .await;
 
             if utils::is_update_required(&metadata) {
-                println!("apoorv here2");
-                let data_value = serde_json::to_value(data)
-                    .into_report()
-                    .change_context(UserErrors::InternalServerError)
-                    .attach_printable("Error Converting Struct To Serde Value")?;
-
-                let a = state
-                    .store
-                    .update_metadata(
-                        None,
-                        user.merchant_id,
-                        user.org_id,
-                        metadata_key,
-                        DashboardMetadataUpdate::UpdateData {
-                            data_key: metadata_key,
-                            data_value,
-                            last_modified_by: user.user_id,
-                        },
-                    )
-                    .await;
+                metadata = utils::update_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
             }
             metadata
         }
         types::MetaData::ConfigurationType(data) => {
-            utils::insert_merchant_scoped_metadata_to_db(
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
-                user.user_id,
-                user.merchant_id,
-                user.org_id,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
                 metadata_key,
-                data,
+                data.clone(),
             )
-            .await
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
+            }
+            metadata
         }
         types::MetaData::IntegrationCompleted(data) => {
             utils::insert_merchant_scoped_metadata_to_db(
