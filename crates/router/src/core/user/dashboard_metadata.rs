@@ -1,8 +1,9 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 use diesel_models::{
-    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
+    enums::DashboardMetadata as DBEnum,
+    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataUpdate},
 };
-use error_stack::ResultExt;
+use error_stack::{ResultExt, IntoReport};
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
@@ -282,15 +283,38 @@ async fn insert_metadata(
             .await
         }
         types::MetaData::IntegrationMethod(data) => {
-            utils::insert_merchant_scoped_metadata_to_db(
+            let metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
-                user.user_id,
-                user.merchant_id,
-                user.org_id,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
                 metadata_key,
-                data,
+                data.clone(),
             )
-            .await
+            .await;
+            if utils::is_update_required(&metadata) {
+                println!("apoorv here2");
+                let data_value = serde_json::to_value(data)
+                .into_report()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Error Converting Struct To Serde Value")?;
+
+                let a = state
+                    .store
+                    .update_metadata(
+                        None,
+                        user.merchant_id,
+                        user.org_id,
+                        metadata_key,
+                        DashboardMetadataUpdate::UpdateData {
+                            data_key: metadata_key,
+                            data_value,
+                            last_modified_by: user.user_id,
+                        },
+                    )
+                    .await;
+            }
+            metadata
         }
         types::MetaData::IntegrationCompleted(data) => {
             utils::insert_merchant_scoped_metadata_to_db(

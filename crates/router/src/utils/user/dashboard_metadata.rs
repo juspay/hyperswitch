@@ -117,6 +117,7 @@ pub fn separate_metadata_type_based_on_scope(
 }
 
 pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
+    println!("apoorv here1");
     match metadata {
         Ok(_) => false,
         Err(e) => matches!(e.current_context(), UserErrors::MetadataAlreadySet),

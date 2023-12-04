@@ -49,7 +49,7 @@ pub struct TestPayment {
     pub payment_id: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct IntegrationMethod {
     pub integration_type: String,
 }
