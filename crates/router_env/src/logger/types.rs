@@ -249,6 +249,12 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// User Sign Up
+    UserSignUp,
+    /// User Sign Up
+    UserSignUpWithMerchantId,
+    /// User Sign In
+    UserSignIn,
     /// User connect account
     UserConnectAccount,
     /// Upsert Decision Manager Config
