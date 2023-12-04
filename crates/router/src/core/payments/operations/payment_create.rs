@@ -7,7 +7,7 @@ use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttem
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -297,8 +297,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
-
-        logger::debug!(payment_method_data_after_card_bin_call=?payment_method_data_after_card_bin_call);
 
         let payment_data = PaymentData {
             flow: PhantomData,

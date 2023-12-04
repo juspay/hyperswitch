@@ -1486,19 +1486,6 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to fetch card information from the permanent locker")?;
 
-    let payment_method = state
-        .store
-        .find_payment_method(token)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch payment method")?;
-    let card_network = payment_method
-        .scheme
-        .map(|scheme| scheme.parse_enum("CardNetwork"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed deserilaize card network")?;
-
     let name_on_card = if let Some(name_on_card) = card.name_on_card.clone() {
         if card.name_on_card.unwrap_or_default().expose().is_empty() {
             card_token_data
@@ -1519,12 +1506,10 @@ pub async fn retrieve_card_with_permanent_token(
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_cvc.unwrap_or_default(),
-        card_issuer: card.card_brand.or(payment_method.issuer_name),
+        card_issuer: card.card_brand,
         nick_name: card.nick_name.map(masking::Secret::new),
-        card_network,
-        card_type: payment_method
-            .payment_method_type
-            .map(|payment_method_type| payment_method_type.to_string()),
+        card_network: None,
+        card_type: None,
         card_issuing_country: None,
         bank_code: None,
     };

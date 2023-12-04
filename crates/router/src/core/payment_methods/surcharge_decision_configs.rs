@@ -103,7 +103,6 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                         Some(card_network_type.card_network.clone());
                     let surcharge_output =
                         execute_dsl_and_get_conditional_config(backend_input.clone(), interpreter)?;
-                    // let surcharge_details =
                     card_network_type.surcharge_details = surcharge_output
                         .surcharge_details
                         .map(|surcharge_details| {
