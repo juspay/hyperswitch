@@ -298,7 +298,7 @@ pub enum Flow {
     /// Reset password using link
     ResetPassword,
     /// Invite users
-    InviteUser
+    InviteUser,
 }
 
 ///

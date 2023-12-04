@@ -12,7 +12,6 @@ use router_env::logger;
 use super::errors::{UserErrors, UserResponse};
 #[cfg(feature = "email")]
 use crate::services::email::{types as email_types, types::EmailToken};
-
 use crate::{
     consts,
     db::user::UserInterface,
@@ -404,25 +403,25 @@ pub async fn invite_user(
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-            let email_contents = email_types::InviteUser {
-                recipient_email: invitee_email,
-                user_name: domain::UserName::new(new_user.get_name())?,
-                settings: state.conf.clone(),
-                subject: "You have been invited to join Hyperswitch Community!",
-            };
+        let email_contents = email_types::InviteUser {
+            recipient_email: invitee_email,
+            user_name: domain::UserName::new(new_user.get_name())?,
+            settings: state.conf.clone(),
+            subject: "You have been invited to join Hyperswitch Community!",
+        };
 
-            let send_email_result = state
-                .email_client
-                .compose_and_send_email(
-                    Box::new(email_contents),
-                    state.conf.proxy.https_url.as_ref(),
-                )
-                .await;
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
 
-            logger::info!(?send_email_result);
+        logger::info!(?send_email_result);
 
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
-            is_email_sent: send_email_result.is_ok()
+            is_email_sent: send_email_result.is_ok(),
         }))
     } else {
         Err(UserErrors::InternalServerError.into())
