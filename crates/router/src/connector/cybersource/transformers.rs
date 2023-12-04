@@ -555,8 +555,8 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
     fn from(item: CybersourceIncrementalAuthorizationStatus) -> Self {
         match item {
-            CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
-            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Unresolved,
+            CybersourceIncrementalAuthorizationStatus::Authorized
+            | CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Success,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
         }
     }
