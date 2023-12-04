@@ -220,8 +220,8 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
         let display_final_amount =
             currency.to_currency_base_unit_asf64(surcharge_details.final_amount)?;
         Ok(Self {
-            surcharge: surcharge_details.surcharge.clone(),
-            tax_on_surcharge: surcharge_details.tax_on_surcharge.clone(),
+            surcharge: surcharge_details.surcharge.clone().into(),
+            tax_on_surcharge: surcharge_details.tax_on_surcharge.clone().map(Into::into),
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
             display_total_surcharge_amount: display_surcharge_amount
