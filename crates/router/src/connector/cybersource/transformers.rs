@@ -561,22 +561,18 @@ impl<F, T>
         Ok(Self {
             status,
             response: match item.response.error_information {
-                Some(error) => {
-                    let result = Err(types::ErrorResponse {
-                        code: consts::NO_ERROR_CODE.to_string(),
-                        message: error.message,
-                        reason: Some(error.reason),
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: if is_auth_call {
-                            Some(item.response.id)
-                        } else {
-                            None
-                        },
-                    });
-
-                    result
-                }
+                Some(error) => Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error.message,
+                    reason: Some(error.reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: if is_auth_call {
+                        Some(item.response.id)
+                    } else {
+                        None
+                    },
+                }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
