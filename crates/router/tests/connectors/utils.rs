@@ -542,6 +542,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1029,6 +1030,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Err(_) => None,
     }
 }
