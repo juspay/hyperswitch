@@ -102,6 +102,7 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::ConfiguredRouting
             | DBEnum::TestPayment
             | DBEnum::IntegrationMethod
+            | DBEnum::ConfigurationType
             | DBEnum::IntegrationCompleted
             | DBEnum::StripeConnected
             | DBEnum::PaypalConnected

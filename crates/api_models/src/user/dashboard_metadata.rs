@@ -12,6 +12,7 @@ pub enum SetMetaDataRequest {
     ConfiguredRouting(ConfiguredRouting),
     TestPayment(TestPayment),
     IntegrationMethod(IntegrationMethod),
+    ConfigurationType(ConfigurationType),
     IntegrationCompleted,
     SPRoutingConfigured(ConfiguredRouting),
     SPTestPayment,
@@ -53,6 +54,10 @@ pub struct TestPayment {
 pub struct IntegrationMethod {
     pub integration_type: String,
 }
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ConfigurationType {
+    pub configurtion_type: String,
+}
 
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]
 pub enum GetMetaDataRequest {
@@ -65,6 +70,7 @@ pub enum GetMetaDataRequest {
     ConfiguredRouting,
     TestPayment,
     IntegrationMethod,
+    ConfigurationType,
     IntegrationCompleted,
     StripeConnected,
     PaypalConnected,
@@ -98,6 +104,7 @@ pub enum GetMetaDataResponse {
     ConfiguredRouting(Option<ConfiguredRouting>),
     TestPayment(Option<TestPayment>),
     IntegrationMethod(Option<IntegrationMethod>),
+    ConfigurationType(Option<ConfigurationType>),
     IntegrationCompleted(bool),
     StripeConnected(Option<ProcessorConnected>),
     PaypalConnected(Option<ProcessorConnected>),

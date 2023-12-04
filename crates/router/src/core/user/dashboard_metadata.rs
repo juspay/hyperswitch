@@ -82,6 +82,9 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::IntegrationMethod(req) => {
             Ok(types::MetaData::IntegrationMethod(req))
         }
+        api::SetMetaDataRequest::ConfigurationType(req) => {
+            Ok(types::MetaData::ConfigurationType(req))
+        }
         api::SetMetaDataRequest::IntegrationCompleted => {
             Ok(types::MetaData::IntegrationCompleted(true))
         }
@@ -111,6 +114,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::ConfiguredRouting => DBEnum::ConfiguredRouting,
         api::GetMetaDataRequest::TestPayment => DBEnum::TestPayment,
         api::GetMetaDataRequest::IntegrationMethod => DBEnum::IntegrationMethod,
+        api::GetMetaDataRequest::ConfigurationType => DBEnum::ConfigurationType,
         api::GetMetaDataRequest::IntegrationCompleted => DBEnum::IntegrationCompleted,
         api::GetMetaDataRequest::StripeConnected => DBEnum::StripeConnected,
         api::GetMetaDataRequest::PaypalConnected => DBEnum::PaypalConnected,
@@ -158,6 +162,10 @@ fn into_response(
         DBEnum::IntegrationMethod => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::IntegrationMethod(resp))
+        }
+        DBEnum::ConfigurationType => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::ConfigurationType(resp))
         }
         DBEnum::IntegrationCompleted => Ok(api::GetMetaDataResponse::IntegrationCompleted(
             data.is_some(),
@@ -315,6 +323,17 @@ async fn insert_metadata(
                     .await;
             }
             metadata
+        }
+        types::MetaData::ConfigurationType(data) => {
+            utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id,
+                user.merchant_id,
+                user.org_id,
+                metadata_key,
+                data,
+            )
+            .await
         }
         types::MetaData::IntegrationCompleted(data) => {
             utils::insert_merchant_scoped_metadata_to_db(

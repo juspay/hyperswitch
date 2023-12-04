@@ -452,6 +452,7 @@ pub enum DashboardMetadata {
     ConfiguredRouting,
     TestPayment,
     IntegrationMethod,
+    ConfigurationType,
     IntegrationCompleted,
     StripeConnected,
     PaypalConnected,
