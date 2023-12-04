@@ -219,6 +219,8 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             tax_on_surcharge: surcharge_details.tax_on_surcharge.clone(),
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
+            display_total_surcharge_amount: display_surcharge_amount
+                + display_tax_on_surcharge_amount,
             display_final_amount,
         })
     }
