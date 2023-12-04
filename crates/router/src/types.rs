@@ -30,7 +30,7 @@ use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLO
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{PaymentData, RecurringMandatePaymentData},
+        payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
     types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
@@ -379,7 +379,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
 }
@@ -441,7 +441,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
 }
@@ -517,7 +517,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 

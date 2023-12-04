@@ -16,7 +16,6 @@ use crate::{
     admin, disputes,
     enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
-    payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
 };
 
@@ -339,17 +338,6 @@ pub struct RequestSurchargeDetails {
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
         self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
-    }
-    pub fn get_surcharge_details_object(&self, original_amount: i64) -> SurchargeDetailsResponse {
-        let surcharge_amount = self.surcharge_amount;
-        let tax_on_surcharge_amount = self.tax_amount.unwrap_or(0);
-        SurchargeDetailsResponse {
-            surcharge: Surcharge::Fixed(self.surcharge_amount),
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
-        }
     }
     pub fn get_total_surcharge_amount(&self) -> i64 {
         self.surcharge_amount + self.tax_amount.unwrap_or(0)
