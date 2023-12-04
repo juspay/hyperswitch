@@ -30,3 +30,4 @@ pub mod user_role;
 pub mod verifications;
 pub mod verify_connector;
 pub mod webhooks;
+pub mod connector_onboarding;

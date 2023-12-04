@@ -185,6 +185,16 @@ impl AppState {
                 }
             };
 
+            #[cfg(all(feature = "kms", feature = "olap"))]
+            {
+                conf.connector_onboarding = conf
+                    .connector_onboarding
+                    .decrypt_inner(kms_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials")
+                    .into();
+            }
+
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
 

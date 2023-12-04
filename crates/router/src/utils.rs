@@ -10,6 +10,8 @@ pub mod user;
 pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 
 use std::fmt::Debug;
 

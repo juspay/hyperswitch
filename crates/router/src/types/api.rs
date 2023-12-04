@@ -16,6 +16,8 @@ pub mod routing;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 pub mod webhooks;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 
 use std::{fmt::Debug, str::FromStr};
 

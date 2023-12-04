@@ -33,3 +33,5 @@ pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 pub mod webhooks;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;

@@ -116,6 +116,8 @@ pub struct Settings {
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     pub events: EventsConfig,
+    #[cfg(feature = "olap")]
+    pub connector_onboarding: ConnectorOnboarding,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -883,4 +885,19 @@ impl<'de> Deserialize<'de> for LockSettings {
             lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
         })
     }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorOnboarding {
+    pub paypal: PayPalOnboarding,
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PayPalOnboarding {
+    pub client_id: masking::Secret<String>,
+    pub client_secret: masking::Secret<String>,
+    pub partner_id: masking::Secret<String>,
+    pub enabled: bool,
 }
