@@ -1,5 +1,5 @@
 use api_models::user as user_api;
-use diesel_models::user_role::UserRole;
+use diesel_models::{user_role::UserRole, enums::UserStatus};
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -53,6 +53,22 @@ impl UserFromToken {
             .change_context(UserErrors::InternalServerError)?;
         Ok(user)
     }
+}
+
+pub async fn get_merchant_ids_for_user(state: AppState, user_id: &str) -> UserResult<Vec<String>> {
+    Ok(state
+        .store
+        .list_user_roles_by_user_id(user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter_map(|ele| {
+            if ele.status == UserStatus::Active {
+                return Some(ele.merchant_id);
+            }
+            None
+        })
+        .collect())
 }
 
 pub async fn generate_jwt_auth_token(
