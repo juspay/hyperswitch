@@ -299,6 +299,8 @@ pub enum Flow {
     ResetPassword,
     /// Invite users
     InviteUser,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
 }
 
 ///

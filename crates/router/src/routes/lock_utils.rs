@@ -96,7 +96,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
-            | Flow::PaymentsRedirect => Self::Payments,
+            | Flow::PaymentsRedirect
+            | Flow::PaymentsIncrementalAuthorization => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

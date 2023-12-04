@@ -337,7 +337,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })?;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
-            payments::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
+            payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
         let payment_data = PaymentData {
@@ -373,6 +373,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
