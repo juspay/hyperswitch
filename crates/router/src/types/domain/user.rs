@@ -25,7 +25,10 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    services::{authentication::UserFromToken, authorization::{info, predefined_permissions}},
+    services::{
+        authentication::UserFromToken,
+        authorization::{info, predefined_permissions},
+    },
     types::transformers::ForeignFrom,
     utils::user::password,
 };

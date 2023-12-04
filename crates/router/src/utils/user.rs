@@ -1,5 +1,5 @@
 use api_models::user as user_api;
-use diesel_models::{user_role::UserRole, enums::UserStatus};
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 use masking::Secret;
 
