@@ -43,6 +43,13 @@ pub struct ResetPasswordRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct InviteUserRequest {
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }

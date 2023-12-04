@@ -199,8 +199,29 @@ pub async fn reset_password(
     let password = domain::UserPassword::new(request.password)?;
 
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
-    
-    
+
+    //TODO: Create Update by email query
+    let user_id = state
+        .store
+        .find_user_by_email(token.get_email())
+        .await
+        .map_err(|e| e.change_context(UserErrors::InternalServerError))?
+        .user_id;
+
+    state
+        .store
+        .update_user_by_user_id(
+            user_id.as_str(),
+            storage_user::UserUpdate::AccountUpdate {
+                name: None,
+                password: Some(hash_password),
+                is_verified: Some(true),
+            },
+        )
+        .await
+        .map_err(|e| e.change_context(UserErrors::InternalServerError))?;
+
+    //TODO: Update User role status for invited user
 
     Ok(ApplicationResponse::StatusOk)
 }
