@@ -713,6 +713,12 @@ impl PaymentCreate {
 
         let payment_link_id = payment_link_data.map(|pl_data| pl_data.payment_link_id);
 
+        let request_incremental_authorization =
+            core_utils::get_request_incremental_authorization_value(
+                request.request_incremental_authorization,
+                request.capture_method,
+            )?;
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -749,6 +755,8 @@ impl PaymentCreate {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: merchant_account.storage_scheme.to_string(),
+            request_incremental_authorization,
+            incremental_authorization_allowed: None,
         })
     }
 

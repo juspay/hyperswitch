@@ -204,8 +204,9 @@ pub struct PaymentsRequest {
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
 
-    /// This is used when payment is to be confirmed and the card is not saved
-    #[schema(value_type = Option<String>)]
+    /// This is used when payment is to be confirmed and the card is not saved.
+    /// This field will be deprecated soon, use the CardToken object instead
+    #[schema(value_type = Option<String>, deprecated)]
     pub card_cvc: Option<Secret<String>>,
 
     /// The shipping address for the payment
@@ -310,6 +311,9 @@ pub struct PaymentsRequest {
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+
+    ///Request for an incremental authorization
+    pub request_incremental_authorization: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -717,12 +721,16 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>)]
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2210,6 +2218,9 @@ pub struct PaymentsResponse {
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     pub merchant_connector_id: Option<String>,
+
+    /// If true incremental authorization can be performed on this payment
+    pub incremental_authorization_allowed: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

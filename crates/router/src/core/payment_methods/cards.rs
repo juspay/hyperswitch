@@ -225,12 +225,21 @@ pub async fn add_card_to_locker(
             )
             .await
             .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::CARD_LOCKER_FAILURES.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+                        router_env::opentelemetry::KeyValue::new("operation", "add"),
+                    ],
+                );
                 error
             })
         },
         &metrics::CARD_ADD_TIME,
-        &[],
+        &[router_env::opentelemetry::KeyValue::new(
+            "locker", "basilisk",
+        )],
     )
     .await?;
     logger::debug!("card added to basilisk locker");
@@ -248,22 +257,45 @@ pub async fn add_card_to_locker(
             )
             .await
             .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::CARD_LOCKER_FAILURES.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                        router_env::opentelemetry::KeyValue::new("operation", "add"),
+                    ],
+                );
                 error
             })
         },
         &metrics::CARD_ADD_TIME,
-        &[],
+        &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
     )
     .await;
 
     match add_card_to_rs_resp {
         value @ Ok(_) => {
-            logger::debug!("Card added successfully");
+            logger::debug!("card added to rust locker");
+            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                    router_env::opentelemetry::KeyValue::new("operation", "add"),
+                ],
+            );
             value
         }
         Err(err) => {
-            logger::debug!(error =? err,"failed to add card");
+            logger::debug!(error =? err,"failed to add card to rust locker");
+            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+                    router_env::opentelemetry::KeyValue::new("operation", "add"),
+                ],
+            );
             Ok(add_card_to_hs_resp)
         }
     }
@@ -290,12 +322,19 @@ pub async fn get_card_from_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while getting card from basilisk_hs")
             .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::CARD_LOCKER_FAILURES.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                        router_env::opentelemetry::KeyValue::new("operation", "get"),
+                    ],
+                );
                 error
             })
         },
         &metrics::CARD_GET_TIME,
-        &[],
+        &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
     )
     .await;
 
@@ -313,20 +352,45 @@ pub async fn get_card_from_locker(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card from basilisk_hs")
                 .map_err(|error| {
-                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::CARD_LOCKER_FAILURES.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+                            router_env::opentelemetry::KeyValue::new("operation", "get"),
+                        ],
+                    );
                     error
                 })
             },
             &metrics::CARD_GET_TIME,
-            &[],
+            &[router_env::opentelemetry::KeyValue::new(
+                "locker", "basilisk",
+            )],
         )
         .await
         .map(|inner_card| {
             logger::debug!("card retrieved from basilisk locker");
+            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
+                    router_env::opentelemetry::KeyValue::new("operation", "get"),
+                ],
+            );
             inner_card
         }),
         Ok(_) => {
             logger::debug!("card retrieved from rust locker");
+            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                    router_env::opentelemetry::KeyValue::new("operation", "get"),
+                ],
+            );
             get_card_from_rs_locker_resp
         }
     }
