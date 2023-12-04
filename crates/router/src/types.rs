@@ -52,6 +52,11 @@ pub type PaymentsBalanceRouterData =
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
+    api::IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData =
     RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -140,6 +145,11 @@ pub type PaymentsVoidType =
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
     PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
+pub type IncrementalAuthorizationType = dyn services::ConnectorIntegration<
+    api::IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
 
@@ -395,6 +405,15 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PaymentsIncrementalAuthorizationData {
+    pub total_amount: i64,
+    pub additional_amount: i64,
+    pub currency: storage_enums::Currency,
+    pub reason: Option<String>,
+    pub connector_transaction_id: String,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct MultipleCaptureRequestData {
@@ -599,6 +618,7 @@ impl Capturable for PaymentsCancelData {
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
+impl Capturable for PaymentsIncrementalAuthorizationData {}
 impl Capturable for PaymentsSyncData {
     fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -706,6 +726,12 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         session_token: Option<api::SessionToken>,
         connector_response_reference_id: Option<String>,
+    },
+    IncrementalAuthorizationResponse {
+        status: common_enums::AuthorizationStatus,
+        connector_authorization_id: Option<String>,
+        error_code: Option<String>,
+        error_message: Option<String>,
     },
 }
 

@@ -343,6 +343,9 @@ impl Payments {
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::get().to(payments_complete_authorize))
                         .route(web::post().to(payments_complete_authorize)),
+                )
+                .service(
+                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments_incremental_authorization)),
                 );
         }
         route

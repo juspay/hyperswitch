@@ -32,8 +32,9 @@ use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, ut
 use time;
 
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentReject,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -1884,6 +1885,16 @@ where
     pub surcharge_details: Option<SurchargeDetails>,
     pub frm_message: Option<FraudCheck>,
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
+    pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
+    pub authorizations: Vec<diesel_models::authorization::Authorization>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct IncrementalAuthorizationDetails {
+    pub additional_amount: i64,
+    pub total_amount: i64,
+    pub reason: Option<String>,
+    pub authorization_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1984,6 +1995,10 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
         "PaymentSession" => true,
+        "PaymentIncrementalAuthorization" => matches!(
+            payment_data.payment_intent.status,
+            storage_enums::IntentStatus::RequiresCapture
+        ),
         _ => false,
     }
 }

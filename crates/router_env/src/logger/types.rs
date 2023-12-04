@@ -293,6 +293,8 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get users for merchant account
     GetUserDetails,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
 }
 
 ///

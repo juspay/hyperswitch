@@ -2417,6 +2417,20 @@ pub async fn get_merchant_fullfillment_time(
     }
 }
 
+pub(crate) fn validate_payment_status_against_allowed_statuses(
+    intent_status: &storage_enums::IntentStatus,
+    allowed_statuses: &[storage_enums::IntentStatus],
+    action: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(!allowed_statuses.contains(intent_status), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this payment because it has status {intent_status}",
+            ),
+        })
+    })
+}
+
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     intent_status: &storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
@@ -2612,6 +2626,7 @@ mod tests {
             request_incremental_authorization:
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
+            authorization_count: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2665,6 +2680,7 @@ mod tests {
             request_incremental_authorization:
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
+            authorization_count: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2718,6 +2734,7 @@ mod tests {
             request_incremental_authorization:
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
+            authorization_count: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
