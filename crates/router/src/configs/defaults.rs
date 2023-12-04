@@ -4107,6 +4107,58 @@ impl Default for super::settings::RequiredFields {
                 enums::PaymentMethod::BankRedirect,
                 PaymentMethodType(HashMap::from([
                     (
+                        enums::PaymentMethodType::OpenBankingUk,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                enums::Connector::Volt,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::from([
+                                        (
+                                            "billing.address.first_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.first_name".to_string(),
+                                                display_name: "billing_first_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.last_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.last_name".to_string(),
+                                                display_name: "billing_last_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        ),
+                                    ]),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
+                                enums::Connector::Adyen,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap:: from([
+                                        (
+                                            "payment_method_data.bank_redirect.open_banking_uk.issuer".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.bank_redirect.open_banking_uk.issuer".to_string(),
+                                                display_name: "issuer".to_string(),
+                                                field_type: enums::FieldType::UserBank,
+                                                value: None,
+                                            }
+                                        )
+                                    ]),
+                                    common: HashMap::new(),
+                                }
+                            )
+                            ]),
+                        },
+                    ),
+                    (
                         enums::PaymentMethodType::Przelewy24,
                         ConnectorFields {
                             fields: HashMap::from([

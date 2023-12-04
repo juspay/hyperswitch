@@ -204,3 +204,34 @@ pub async fn delete_sample_data(
     ))
     .await
 }
+
+pub async fn list_merchant_ids_for_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::UserMerchantAccountList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user, _| user_core::list_merchant_ids_for_user(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetUserDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _| user_core::get_users_for_merchant_account(state, user),
+        &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

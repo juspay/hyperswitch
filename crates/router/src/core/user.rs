@@ -324,3 +324,29 @@ pub async fn create_merchant_account(
 
     Ok(ApplicationResponse::StatusOk)
 }
+
+pub async fn list_merchant_ids_for_user(
+    state: AppState,
+    user: auth::UserFromToken,
+) -> UserResponse<Vec<String>> {
+    Ok(ApplicationResponse::Json(
+        utils::user::get_merchant_ids_for_user(state, &user.user_id).await?,
+    ))
+}
+
+pub async fn get_users_for_merchant_account(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::GetUsersResponse> {
+    let users = state
+        .store
+        .find_users_and_roles_by_merchant_id(user_from_token.merchant_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("No users for given merchant id")?
+        .into_iter()
+        .filter_map(|(user, role)| domain::UserAndRoleJoined(user, role).try_into().ok())
+        .collect();
+
+    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(users)))
+}
