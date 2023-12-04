@@ -42,7 +42,6 @@ pub trait PaymentMethodRetrieve {
         key_store: &domain::MerchantKeyStore,
         token: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
-        card_cvc: Option<masking::Secret<String>>,
         card_token_data: Option<&CardToken>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>>;
 }
@@ -126,7 +125,6 @@ impl PaymentMethodRetrieve for Oss {
         merchant_key_store: &domain::MerchantKeyStore,
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
-        card_cvc: Option<masking::Secret<String>>,
         card_token_data: Option<&CardToken>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>> {
         match token_data {
@@ -135,7 +133,6 @@ impl PaymentMethodRetrieve for Oss {
                     state,
                     &generic_token.token,
                     payment_intent,
-                    card_cvc,
                     merchant_key_store,
                     card_token_data,
                 )
@@ -147,7 +144,6 @@ impl PaymentMethodRetrieve for Oss {
                     state,
                     &generic_token.token,
                     payment_intent,
-                    card_cvc,
                     merchant_key_store,
                     card_token_data,
                 )
@@ -159,7 +155,6 @@ impl PaymentMethodRetrieve for Oss {
                     state,
                     &card_token.token,
                     payment_intent,
-                    card_cvc,
                     card_token_data,
                 )
                 .await
@@ -171,7 +166,6 @@ impl PaymentMethodRetrieve for Oss {
                     state,
                     &card_token.token,
                     payment_intent,
-                    card_cvc,
                     card_token_data,
                 )
                 .await
