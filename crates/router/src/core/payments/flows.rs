@@ -1679,11 +1679,9 @@ macro_rules! default_imp_for_frm_sale {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckSale for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Sale,
@@ -1763,11 +1761,9 @@ macro_rules! default_imp_for_frm_checkout {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckCheckout for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Checkout,
@@ -1847,11 +1843,9 @@ macro_rules! default_imp_for_frm_transaction {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckTransaction for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Transaction,
@@ -1931,11 +1925,9 @@ macro_rules! default_imp_for_frm_fulfillment {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckFulfillment for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Fulfillment,
@@ -2015,11 +2007,9 @@ macro_rules! default_imp_for_frm_record_return {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckRecordReturn for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::RecordReturn,

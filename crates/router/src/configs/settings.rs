@@ -123,7 +123,7 @@ pub struct Settings {
 #[cfg(feature = "frm")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Frm {
-    pub is_frm_enabled: bool,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]

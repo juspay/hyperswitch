@@ -478,7 +478,7 @@ delay_between_retries_in_milliseconds = 500
 ttl = 900 # 15 * 60 seconds
 
 [frm]
-is_frm_enabled = true
+enabled = true
 
 [events]
 source = "logs"

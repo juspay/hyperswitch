@@ -185,7 +185,7 @@ where
         #[allow(unused_variables, unused_mut)]
         let mut should_continue_transaction: bool = true;
         #[cfg(feature = "frm")]
-        let frm_configs = if state.conf.frm.is_frm_enabled {
+        let frm_configs = if state.conf.frm.enabled {
             frm_core::call_frm_before_connector_call(
                 db,
                 &operation,

@@ -480,4 +480,4 @@ connection_timeout = 10   # Timeout for database connection in seconds
 ttl = 900
 
 [frm]
-is_frm_enabled = true
+enabled = true

@@ -265,4 +265,4 @@ connection_timeout = 10
 ttl = 300 # 5 * 60 seconds
 
 [frm]
-is_frm_enabled = true
+enabled = true
