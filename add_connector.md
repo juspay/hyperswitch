@@ -148,9 +148,9 @@ else
 impl TryFrom<T> for PaymentsRequest 
 ```
 
-where  T is genric type which can `types::PaymentsAuthorizeRouterData`, `types::PaymentsCaptureRouterData` etc.
+where  T is generic type which can `types::PaymentsAuthorizeRouterData`, `types::PaymentsCaptureRouterData` etc.
 
-Note : As amount converion is being handled at one place . amount needs to be consumed from `ConnectorRouterData`
+Note : As amount conversion is being handled at one place . amount needs to be consumed from `ConnectorRouterData`
 
 In this impl block we build the request type from RouterData which will almost always contain all the required information you need for payment processing.
 `RouterData` contains all the information required for processing the payment.
