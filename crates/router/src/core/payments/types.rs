@@ -1,13 +1,18 @@
 use std::{collections::HashMap, num::TryFromIntError};
 
 use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
-use common_utils::{consts, types as common_types};
+use common_utils::{consts, errors::CustomResult, ext_traits::Encode, types as common_types};
 use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::{IntoReport, ResultExt};
+use redis_interface::errors::RedisError;
+use router_env::{instrument, tracing};
 
 use crate::{
+    consts as router_consts,
     core::errors::{self, RouterResult},
+    routes::AppState,
     types::{
+        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
@@ -215,8 +220,8 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
         let display_final_amount =
             currency.to_currency_base_unit_asf64(surcharge_details.final_amount)?;
         Ok(Self {
-            surcharge: surcharge_details.surcharge.clone(),
-            tax_on_surcharge: surcharge_details.tax_on_surcharge.clone(),
+            surcharge: surcharge_details.surcharge.clone().into(),
+            tax_on_surcharge: surcharge_details.tax_on_surcharge.clone().map(Into::into),
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
             display_total_surcharge_amount: display_surcharge_amount
@@ -239,16 +244,19 @@ impl SurchargeDetails {
     }
 }
 
+#[derive(Eq, Hash, PartialEq, Clone, Debug, strum::Display)]
+pub enum SurchargeKey {
+    Token(String),
+    PaymentMethodData(
+        common_enums::PaymentMethod,
+        common_enums::PaymentMethodType,
+        Option<common_enums::CardNetwork>,
+    ),
+}
+
 #[derive(Clone, Debug)]
 pub struct SurchargeMetadata {
-    surcharge_results: HashMap<
-        (
-            common_enums::PaymentMethod,
-            common_enums::PaymentMethodType,
-            Option<common_enums::CardNetwork>,
-        ),
-        SurchargeDetails,
-    >,
+    surcharge_results: HashMap<SurchargeKey, SurchargeDetails>,
     pub payment_attempt_id: String,
 }
 
@@ -267,30 +275,14 @@ impl SurchargeMetadata {
     }
     pub fn insert_surcharge_details(
         &mut self,
-        payment_method: &common_enums::PaymentMethod,
-        payment_method_type: &common_enums::PaymentMethodType,
-        card_network: Option<&common_enums::CardNetwork>,
+        surcharge_key: SurchargeKey,
         surcharge_details: SurchargeDetails,
     ) {
-        let key = (
-            payment_method.to_owned(),
-            payment_method_type.to_owned(),
-            card_network.cloned(),
-        );
-        self.surcharge_results.insert(key, surcharge_details);
+        self.surcharge_results
+            .insert(surcharge_key, surcharge_details);
     }
-    pub fn get_surcharge_details(
-        &self,
-        payment_method: &common_enums::PaymentMethod,
-        payment_method_type: &common_enums::PaymentMethodType,
-        card_network: Option<&common_enums::CardNetwork>,
-    ) -> Option<&SurchargeDetails> {
-        let key = &(
-            payment_method.to_owned(),
-            payment_method_type.to_owned(),
-            card_network.cloned(),
-        );
-        self.surcharge_results.get(key)
+    pub fn get_surcharge_details(&self, surcharge_key: SurchargeKey) -> Option<&SurchargeDetails> {
+        self.surcharge_results.get(&surcharge_key)
     }
     pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
         format!("surcharge_metadata_{}", payment_attempt_id)
@@ -298,25 +290,78 @@ impl SurchargeMetadata {
     pub fn get_individual_surcharge_key_value_pairs(&self) -> Vec<(String, SurchargeDetails)> {
         self.surcharge_results
             .iter()
-            .map(|((pm, pmt, card_network), surcharge_details)| {
-                let key =
-                    Self::get_surcharge_details_redis_hashset_key(pm, pmt, card_network.as_ref());
+            .map(|(surcharge_key, surcharge_details)| {
+                let key = Self::get_surcharge_details_redis_hashset_key(surcharge_key);
                 (key, surcharge_details.to_owned())
             })
             .collect()
     }
-    pub fn get_surcharge_details_redis_hashset_key(
-        payment_method: &common_enums::PaymentMethod,
-        payment_method_type: &common_enums::PaymentMethodType,
-        card_network: Option<&common_enums::CardNetwork>,
-    ) -> String {
-        if let Some(card_network) = card_network {
-            format!(
-                "{}_{}_{}",
-                payment_method, payment_method_type, card_network
-            )
-        } else {
-            format!("{}_{}", payment_method, payment_method_type)
+    pub fn get_surcharge_details_redis_hashset_key(surcharge_key: &SurchargeKey) -> String {
+        match surcharge_key {
+            SurchargeKey::Token(token) => {
+                format!("token_{}", token)
+            }
+            SurchargeKey::PaymentMethodData(payment_method, payment_method_type, card_network) => {
+                if let Some(card_network) = card_network {
+                    format!(
+                        "{}_{}_{}",
+                        payment_method, payment_method_type, card_network
+                    )
+                } else {
+                    format!("{}_{}", payment_method, payment_method_type)
+                }
+            }
         }
+    }
+    #[instrument(skip_all)]
+    pub async fn persist_individual_surcharge_details_in_redis(
+        &self,
+        state: &AppState,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        if !self.is_empty_result() {
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+            let redis_key = Self::get_surcharge_metadata_redis_key(&self.payment_attempt_id);
+
+            let mut value_list = Vec::with_capacity(self.get_surcharge_results_size());
+            for (key, value) in self.get_individual_surcharge_key_value_pairs().into_iter() {
+                value_list.push((
+                    key,
+                    Encode::<SurchargeDetails>::encode_to_string_of_json(&value)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to encode to string of json")?,
+                ));
+            }
+            let intent_fulfillment_time = merchant_account
+                .intent_fulfillment_time
+                .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
+            redis_conn
+                .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to write to redis")?;
+        }
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_individual_surcharge_detail_from_redis(
+        state: &AppState,
+        surcharge_key: SurchargeKey,
+        payment_attempt_id: &str,
+    ) -> CustomResult<SurchargeDetails, RedisError> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
+        let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
+        redis_conn
+            .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
+            .await
     }
 }

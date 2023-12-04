@@ -319,6 +319,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::IncrementalAuthorizationResponse,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::MaskedBankDetails,
+        api_models::payment_methods::SurchargeDetailsResponse,
+        api_models::payment_methods::SurchargeResponse,
+        api_models::payment_methods::SurchargePercentage,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,
@@ -363,7 +366,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkObject
+        api_models::payments::PaymentLinkObject,
     )),
     modifiers(&SecurityAddon)
 )]

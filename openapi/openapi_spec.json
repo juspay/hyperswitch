@@ -5116,6 +5116,14 @@
             ],
             "nullable": true
           },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
           "requires_cvv": {
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
@@ -12041,6 +12049,106 @@
           "initiative_context": {
             "type": "string"
           }
+        }
+      },
+      "SurchargeDetailsResponse": {
+        "type": "object",
+        "required": [
+          "surcharge",
+          "display_surcharge_amount",
+          "display_tax_on_surcharge_amount",
+          "display_total_surcharge_amount",
+          "display_final_amount"
+        ],
+        "properties": {
+          "surcharge": {
+            "$ref": "#/components/schemas/SurchargeResponse"
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            ],
+            "nullable": true
+          },
+          "display_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "surcharge amount for this payment"
+          },
+          "display_tax_on_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "tax on surcharge amount for this payment"
+          },
+          "display_total_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "display_final_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of original amount,"
+          }
+        }
+      },
+      "SurchargePercentage": {
+        "type": "object",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "SurchargeResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fixed"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Fixed Surcharge value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "rate"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SwishQrData": {
