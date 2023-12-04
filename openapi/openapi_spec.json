@@ -2888,6 +2888,15 @@
           "no_three_ds"
         ]
       },
+      "AuthorizationStatus": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure",
+          "processing",
+          "unresolved"
+        ]
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -4316,6 +4325,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "nullable": true
           }
         }
       },
@@ -6419,6 +6433,44 @@
           "unified_message": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "IncrementalAuthorizationResponse": {
+        "type": "object",
+        "required": [
+          "authorization_id",
+          "amount",
+          "status",
+          "previously_authorized_amount"
+        ],
+        "properties": {
+          "authorization_id": {
+            "type": "string",
+            "description": "The unique identifier of authorization"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount the authorization has been made for"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationStatus"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code sent by the connector for authorization",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message sent by the connector for authorization",
+            "nullable": true
+          },
+          "previously_authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Previously authorized amount for the payment"
           }
         }
       },
@@ -9553,7 +9605,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -9922,7 +9975,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -10540,6 +10594,20 @@
           "incremental_authorization_allowed": {
             "type": "boolean",
             "description": "If true incremental authorization can be performed on this payment",
+            "nullable": true
+          },
+          "authorization_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of authorizations happened in an incremental_authorization payment",
+            "nullable": true
+          },
+          "incremental_authorizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
+            },
+            "description": "List of incremental authorizations happened to the payment",
             "nullable": true
           }
         }

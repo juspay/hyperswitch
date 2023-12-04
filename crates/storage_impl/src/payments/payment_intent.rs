@@ -99,6 +99,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     surcharge_applicable: new.surcharge_applicable,
                     request_incremental_authorization: new.request_incremental_authorization,
                     incremental_authorization_allowed: new.incremental_authorization_allowed,
+                    authorization_count: new.authorization_count,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -762,6 +763,7 @@ impl DataModelExt for PaymentIntentNew {
             surcharge_applicable: self.surcharge_applicable,
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
         }
     }
 
@@ -804,6 +806,7 @@ impl DataModelExt for PaymentIntentNew {
             surcharge_applicable: storage_model.surcharge_applicable,
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+            authorization_count: storage_model.authorization_count,
         }
     }
 }
@@ -851,6 +854,7 @@ impl DataModelExt for PaymentIntent {
             surcharge_applicable: self.surcharge_applicable,
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
         }
     }
 
@@ -894,6 +898,7 @@ impl DataModelExt for PaymentIntent {
             surcharge_applicable: storage_model.surcharge_applicable,
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+            authorization_count: storage_model.authorization_count,
         }
     }
 }
@@ -1037,6 +1042,14 @@ impl DataModelExt for PaymentIntentUpdate {
             } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
+            },
+            Self::IncrementalAuthorizationAmountUpdate { amount } => {
+                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
+            }
+            Self::AuthorizationCountUpdate {
+                authorization_count,
+            } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
             },
         }
     }
