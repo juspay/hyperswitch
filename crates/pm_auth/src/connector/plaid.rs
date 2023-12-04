@@ -15,7 +15,7 @@ use crate::{
     types::{
         self as auth_types,
         api::{
-            auth_service::{self, ExchangeToken, LinkToken},
+            auth_service::{self, BankAccountCredentials, ExchangeToken, LinkToken},
             ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         },
     },
@@ -254,6 +254,91 @@ impl
             .parse_struct("PlaidExchangeTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         <auth_types::ExchangeTokenRouterData>::try_from(auth_types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+    fn get_error_response(
+        &self,
+        res: auth_types::Response,
+    ) -> errors::CustomResult<auth_types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl auth_service::AuthServiceBankAccountCredentials for Plaid {}
+
+impl
+    ConnectorIntegration<
+        BankAccountCredentials,
+        auth_types::BankAccountCredentialsRequest,
+        auth_types::BankAccountCredentialsResponse,
+    > for Plaid
+{
+    fn get_headers(
+        &self,
+        req: &auth_types::BankDetailsRouterData,
+        connectors: &auth_types::PaymentMethodAuthConnectors,
+    ) -> errors::CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &auth_types::BankDetailsRouterData,
+        connectors: &auth_types::PaymentMethodAuthConnectors,
+    ) -> errors::CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "/auth/get"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &auth_types::BankDetailsRouterData,
+    ) -> errors::CustomResult<Option<RequestBody>, errors::ConnectorError> {
+        let req_obj = plaid::PlaidBankAccountCredentialsRequest::try_from(req)?;
+        let plaid_req = RequestBody::log_and_get_request_body(
+            &req_obj,
+            Encode::<plaid::PlaidBankAccountCredentialsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(plaid_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &auth_types::BankDetailsRouterData,
+        connectors: &auth_types::PaymentMethodAuthConnectors,
+    ) -> errors::CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&auth_types::PaymentAuthBankAccountDetailsType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(auth_types::PaymentAuthBankAccountDetailsType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(auth_types::PaymentAuthBankAccountDetailsType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &auth_types::BankDetailsRouterData,
+        res: auth_types::Response,
+    ) -> errors::CustomResult<auth_types::BankDetailsRouterData, errors::ConnectorError> {
+        let response: plaid::PlaidBankAccountCredentialsResponse = res
+            .response
+            .parse_struct("PlaidBankAccountCredentialsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        <auth_types::BankDetailsRouterData>::try_from(auth_types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

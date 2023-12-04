@@ -1,4 +1,5 @@
 pub use common_enums::*;
+use std::str::FromStr;
 use utoipa::ToSchema;
 
 #[derive(
@@ -469,4 +470,27 @@ pub enum RetryAction {
 pub enum LockerChoice {
     Basilisk,
     Tartarus,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PmAuthConnectors {
+    Plaid,
+}
+
+pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
+    PmAuthConnectors::from_str(connector_name).ok()
 }

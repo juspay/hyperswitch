@@ -129,7 +129,7 @@ pub trait AuthServiceConnector: AuthService + Send + Debug {}
 
 impl<T: Send + Debug + AuthService> AuthServiceConnector for T {}
 
-type BoxedPaymentAuthConnector = Box<&'static (dyn AuthServiceConnector + Sync)>;
+pub type BoxedPaymentAuthConnector = Box<&'static (dyn AuthServiceConnector + Sync)>;
 
 #[derive(Clone, Debug)]
 pub struct PaymentAuthConnectorData {

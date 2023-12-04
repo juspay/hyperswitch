@@ -4,7 +4,10 @@ use crate::types::{
 };
 
 pub trait AuthService:
-    super::ConnectorCommon + AuthServiceLinkToken + AuthServiceExchangeToken
+    super::ConnectorCommon
+    + AuthServiceLinkToken
+    + AuthServiceExchangeToken
+    + AuthServiceBankAccountCredentials
 {
 }
 
