@@ -366,6 +366,31 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    incremental_authorization (authorization_id, merchant_id) {
+        #[max_length = 64]
+        authorization_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Varchar,
+        amount -> Int8,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 255]
+        error_code -> Nullable<Varchar>,
+        error_message -> Nullable<Text>,
+        #[max_length = 64]
+        connector_authorization_id -> Nullable<Varchar>,
+        previously_authorized_amount -> Int8,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         #[max_length = 255]
@@ -680,6 +705,7 @@ diesel::table! {
         surcharge_applicable -> Nullable<Bool>,
         request_incremental_authorization -> RequestIncrementalAuthorization,
         incremental_authorization_allowed -> Nullable<Bool>,
+        authorization_count -> Nullable<Int4>,
     }
 }
 
@@ -997,6 +1023,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     file_metadata,
     fraud_check,
     gateway_status_map,
+    incremental_authorization,
     locker_mock_up,
     mandate,
     merchant_account,

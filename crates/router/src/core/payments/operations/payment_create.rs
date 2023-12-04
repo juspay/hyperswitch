@@ -286,8 +286,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(MandateData::from);
 
-        let surcharge_details = request.surcharge_details.map(|surcharge_details| {
-            surcharge_details.get_surcharge_details_object(payment_attempt.amount)
+        let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
+            payments::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
         let payment_data = PaymentData {
@@ -323,6 +323,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details,
             frm_message: None,
             payment_link_data,
+            incremental_authorization_details: None,
+            authorizations: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -540,14 +542,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
             request.amount_to_capture,
+            request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount_to_capture".to_string(),
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
-        helpers::validate_amount_to_capture_in_create_call_request(request)?;
-
+        helpers::validate_amount_to_capture_and_capture_method(None, request)?;
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
@@ -757,6 +759,7 @@ impl PaymentCreate {
             updated_by: merchant_account.storage_scheme.to_string(),
             request_incremental_authorization,
             incremental_authorization_allowed: None,
+            authorization_count: None,
         })
     }
 

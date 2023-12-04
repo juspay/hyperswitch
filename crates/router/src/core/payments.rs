@@ -15,10 +15,9 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoI
 
 use api_models::{
     self, enums,
-    payment_methods::{Surcharge, SurchargeDetailsResponse},
     payments::{self, HeaderPayload},
 };
-use common_utils::{ext_traits::AsyncExt, pii};
+use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
@@ -33,8 +32,9 @@ use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, ut
 use time;
 
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentReject,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -42,6 +42,7 @@ use self::{
     helpers::get_key_params_for_surcharge_details,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
+    types::SurchargeDetails,
 };
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, utils as core_utils,
@@ -550,8 +551,7 @@ where
                 .payment_attempt
                 .get_surcharge_details()
                 .map(|surcharge_details| {
-                    surcharge_details
-                        .get_surcharge_details_object(payment_data.payment_attempt.amount)
+                    SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt))
                 });
         payment_data.surcharge_details = surcharge_details;
     }
@@ -584,7 +584,7 @@ where
         let final_amount =
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
-            SurchargeDetailsResponse {
+            SurchargeDetails {
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
@@ -1957,9 +1957,19 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub surcharge_details: Option<SurchargeDetailsResponse>,
+    pub surcharge_details: Option<SurchargeDetails>,
     pub frm_message: Option<FraudCheck>,
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
+    pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
+    pub authorizations: Vec<diesel_models::authorization::Authorization>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct IncrementalAuthorizationDetails {
+    pub additional_amount: i64,
+    pub total_amount: i64,
+    pub reason: Option<String>,
+    pub authorization_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -2060,6 +2070,10 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
         "PaymentSession" => true,
+        "PaymentIncrementalAuthorization" => matches!(
+            payment_data.payment_intent.status,
+            storage_enums::IntentStatus::RequiresCapture
+        ),
         _ => false,
     }
 }
