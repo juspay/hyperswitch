@@ -231,6 +231,14 @@ impl From<user_api::SignUpRequest> for NewUserOrganization {
     }
 }
 
+impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
+    fn from(_value: user_api::ConnectAccountRequest) -> Self {
+        let new_organization = api_org::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
 impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
     fn from(_value: user_api::CreateInternalUserRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
@@ -360,13 +368,34 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
     }
 }
 
+impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
+        let merchant_id = MerchantId::new(format!(
+            "merchant_{}",
+            common_utils::date_time::now_unix_timestamp()
+        ))?;
+        let new_organization = NewUserOrganization::from(value);
+
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        })
+    }
+}
+
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
+        let company_name = Some(UserCompanyName::new(value.company_name.clone())?);
+        let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
+
         Ok(Self {
-            company_name: Some(UserCompanyName::new(value.company_name.clone())?),
-            merchant_id: MerchantId::new(value.company_name.clone())?,
+            company_name,
+            merchant_id,
             new_organization,
         })
     }
@@ -454,10 +483,23 @@ impl NewUser {
         .attach_printable("Error while inserting user")
     }
 
+    pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
+        if state
+            .store
+            .find_user_by_email(self.get_email().into_inner().expose().expose().as_str())
+            .await
+            .is_ok()
+        {
+            return Err(UserErrors::UserExists).into_report();
+        }
+        Ok(())
+    }
+
     pub async fn insert_user_and_merchant_in_db(
         &self,
         state: AppState,
     ) -> UserResult<UserFromStorage> {
+        self.check_if_already_exists_in_db(state.clone()).await?;
         let db = state.store.as_ref();
         let merchant_id = self.get_new_merchant().get_merchant_id();
         self.new_merchant
@@ -465,7 +507,10 @@ impl NewUser {
             .await?;
         let created_user = self.insert_user_in_db(db).await;
         if created_user.is_err() {
-            let _ = admin::merchant_account_delete(state, merchant_id).await;
+            let some_data = admin::merchant_account_delete(state, merchant_id)
+                .await
+                .ok();
+            println!("{:#?}", some_data);
         };
         created_user
     }
@@ -519,9 +564,9 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
-        let email = value.email.try_into()?;
-        let name = UserName::new(value.name)?;
-        let password = UserPassword::new(value.password)?;
+        let email = value.email.clone().try_into()?;
+        let name = UserName::new(value.name.clone())?;
+        let password = UserPassword::new(value.password.clone())?;
         let user_id = uuid::Uuid::new_v4().to_string();
         let new_merchant = NewUserMerchant::try_from(value)?;
 
@@ -543,6 +588,26 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
         let password = UserPassword::new(value.password.clone())?;
+        let new_merchant = NewUserMerchant::try_from(value)?;
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password,
+            new_merchant,
+        })
+    }
+}
+
+impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.email.clone().try_into()?;
+        let name = UserName::try_from(value.email.clone())?;
+        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {

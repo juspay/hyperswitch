@@ -7,8 +7,7 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
     services::authentication::{AuthToken, UserFromToken},
-    types::domain::MerchantAccount,
-    types::domain::UserFromStorage,
+    types::domain::{MerchantAccount, UserFromStorage},
 };
 
 pub mod dashboard_metadata;
@@ -95,12 +94,12 @@ pub fn get_dashboard_entry_response(
     token: Secret<String>,
 ) -> user_api::DashboardEntryResponse {
     user_api::DashboardEntryResponse {
-        merchant_id: user_role.merchant_id,
+        merchant_id: user_role.merchant_id.clone(),
         token,
         name: user.get_name(),
         email: user.get_email(),
         user_id: user.get_user_id().to_string(),
         verification_days_left: None,
-        user_role: user_role.role_id,
+        user_role: user_role.role_id.clone(),
     }
 }

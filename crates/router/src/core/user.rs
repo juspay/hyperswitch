@@ -3,8 +3,12 @@ use diesel_models::{enums::UserStatus, user as storage_user};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::env;
+#[cfg(feature = "email")]
+use router_env::logger;
 
 use super::errors::{UserErrors, UserResponse};
+#[cfg(feature = "email")]
+use crate::services::email::types as email_types;
 use crate::{
     consts,
     db::user::UserInterface,
@@ -13,15 +17,14 @@ use crate::{
     types::domain,
     utils,
 };
+pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
-
-pub mod dashboard_metadata;
 
 pub async fn signup_with_merchant_id(
     state: AppState,
     request: user_api::SignUpWithMerchantIdRequest,
-) -> UserResponse<()> {
+) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
         .get_new_merchant()
@@ -29,11 +32,11 @@ pub async fn signup_with_merchant_id(
         .insert_org_in_db(state.clone())
         .await?;
 
-    let _user_from_db = new_user
+    let user_from_db = new_user
         .insert_user_and_merchant_in_db(state.clone())
         .await?;
 
-    let _user_role = new_user
+    let user_role = new_user
         .insert_user_role_in_db(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
@@ -41,7 +44,27 @@ pub async fn signup_with_merchant_id(
         )
         .await?;
 
-    Ok(ApplicationResponse::StatusOk)
+    let email_contents = email_types::ResetPassword {
+        recipient_email: user_from_db.get_email().try_into()?,
+        user_name: domain::UserName::new(user_from_db.get_name())?,
+        settings: state.conf.clone(),
+        subject: "Get back to Hyperswitch - Reset Your Password Now",
+    };
+
+    let send_email_result = state
+        .email_client
+        .compose_and_send_email(
+            Box::new(email_contents),
+            state.conf.proxy.https_url.as_ref(),
+        )
+        .await;
+
+    logger::info!(?send_email_result);
+    Ok(ApplicationResponse::Json(user_api::AuthorizeResponse {
+        is_email_sent: send_email_result.is_ok(),
+        user_id: user_from_db.get_user_id().to_string(),
+        merchant_id: user_role.merchant_id,
+    }))
 }
 
 pub async fn signup(
@@ -98,6 +121,7 @@ pub async fn signin(
     ));
 }
 
+#[cfg(feature = "email")]
 pub async fn connect_account(
     state: AppState,
     request: user_api::ConnectAccountRequest,
@@ -109,19 +133,31 @@ pub async fn connect_account(
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
-
-        user_from_db.compare_password(request.password)?;
-
         let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-        let jwt_token =
-            utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
+
+        let email_contents = email_types::MagicLink {
+            recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+            settings: state.conf.clone(),
+            user_name: domain::UserName::new(user_from_db.get_name())?,
+            subject: "Unlock Hyperswitch: Use Your Magic Link to Sign In",
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
 
         return Ok(ApplicationResponse::Json(
-            user_api::ConnectAccountResponse::Success(utils::user::get_dashboard_entry_response(
-                &user_from_db,
-                &user_role,
-                jwt_token,
-            )),
+            user_api::ConnectAccountResponse {
+                is_email_sent: send_email_result.is_ok(),
+                user_id: user_from_db.get_user_id().to_string(),
+                merchant_id: user_role.merchant_id,
+            },
         ));
     } else if find_user
         .map_err(|e| e.current_context().is_db_not_found())
@@ -148,38 +184,29 @@ pub async fn connect_account(
                 UserStatus::Active,
             )
             .await?;
-        let jwt_token =
-            utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
 
-        #[cfg(feature = "email")]
-        {
-            use router_env::logger;
+        let email_contents = email_types::VerifyEmail {
+            recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+            settings: state.conf.clone(),
+            subject: "Welcome to the Hyperswitch community!",
+        };
 
-            use crate::services::email::types as email_types;
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
 
-            let email_contents = email_types::VerifyEmail {
-                recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-                settings: state.conf.clone(),
-                subject: "Welcome to the Hyperswitch community!",
-            };
-
-            let send_email_result = state
-                .email_client
-                .compose_and_send_email(
-                    Box::new(email_contents),
-                    state.conf.proxy.https_url.as_ref(),
-                )
-                .await;
-
-            logger::info!(?send_email_result);
-        }
+        logger::info!(?send_email_result);
 
         return Ok(ApplicationResponse::Json(
-            user_api::ConnectAccountResponse::Success(utils::user::get_dashboard_entry_response(
-                &user_from_db,
-                &user_role,
-                jwt_token,
-            )),
+            user_api::ConnectAccountResponse {
+                is_email_sent: send_email_result.is_ok(),
+                user_id: user_from_db.get_user_id().to_string(),
+                merchant_id: user_role.merchant_id,
+            },
         ));
     } else {
         Err(UserErrors::InternalServerError.into())
@@ -285,7 +312,7 @@ pub async fn switch_merchant_id(
     state: AppState,
     request: user_api::SwitchMerchantIdRequest,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::ConnectAccountResponse> {
+) -> UserResponse<user_api::SwitchMerchantResponse> {
     if !utils::user_role::is_internal_role(&user_from_token.role_id) {
         let merchant_list =
             utils::user_role::get_merchant_ids_for_user(state.clone(), &user_from_token.user_id)
@@ -322,7 +349,7 @@ pub async fn switch_merchant_id(
             }
         })?;
 
-    let org_id = state
+    let _org_id = state
         .store
         .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
         .await
@@ -352,7 +379,7 @@ pub async fn switch_merchant_id(
     .into();
 
     Ok(ApplicationResponse::Json(
-        user_api::ConnectAccountResponse::Success(user_api::DashboardEntryResponse {
+        user_api::SwitchMerchantResponse {
             token,
             name: user.get_name(),
             email: user.get_email(),
@@ -360,7 +387,7 @@ pub async fn switch_merchant_id(
             verification_days_left: None,
             user_role: user_role.role_id,
             merchant_id: request.merchant_id,
-        }),
+        },
     ))
 }
 

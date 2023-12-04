@@ -12,6 +12,8 @@ pub struct SignUpWithMerchantIdRequest {
     pub company_name: String,
 }
 
+pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
+
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct SignUpRequest {
     pub email: pii::Email,
@@ -65,6 +67,8 @@ pub struct ChangePasswordRequest {
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
+
+pub type SwitchMerchantResponse = DashboardEntryResponse;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {

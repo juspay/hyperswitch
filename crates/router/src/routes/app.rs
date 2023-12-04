@@ -824,9 +824,6 @@ impl User {
 
         route = route
             .service(web::resource("/signin").route(web::post().to(user_signin)))
-            .service(web::resource("/signup").route(web::post().to(user_signup)))
-            .service(web::resource("/signup_with_merchant_id").route(web::post().to(user_signup)))
-            .service(web::resource("/connect_account").route(web::post().to(user_connect_account)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(
                 web::resource("/data/merchant")
@@ -851,6 +848,21 @@ impl User {
                     .route(web::post().to(generate_sample_data))
                     .route(web::delete().to(delete_sample_data)),
             )
+        }
+        #[cfg(feature = "email")]
+        {
+            route = route
+                .service(
+                    web::resource("/connect_account").route(web::post().to(user_connect_account)),
+                )
+                .service(
+                    web::resource("/signup_with_merchant_id")
+                        .route(web::post().to(user_signup_with_merchant_id)),
+                );
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            route = route.service(web::resource("/signup").route(web::post().to(user_signup)))
         }
         route
     }
