@@ -1,3 +1,4 @@
+use diesel_models::enums::UserStatus;
 use error_stack::ResultExt;
 
 use crate::{
@@ -9,6 +10,8 @@ use crate::{
 
 pub mod dashboard_metadata;
 pub mod password;
+#[cfg(feature = "dummy_connector")]
+pub mod sample_data;
 
 impl UserFromToken {
     pub async fn get_merchant_account(&self, state: AppState) -> UserResult<MerchantAccount> {
@@ -48,4 +51,20 @@ impl UserFromToken {
             .change_context(UserErrors::InternalServerError)?;
         Ok(user)
     }
+}
+
+pub async fn get_merchant_ids_for_user(state: AppState, user_id: &str) -> UserResult<Vec<String>> {
+    Ok(state
+        .store
+        .list_user_roles_by_user_id(user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter_map(|ele| {
+            if ele.status == UserStatus::Active {
+                return Some(ele.merchant_id);
+            }
+            None
+        })
+        .collect())
 }

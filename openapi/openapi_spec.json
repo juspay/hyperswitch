@@ -4316,6 +4316,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "nullable": true
           }
         }
       },
@@ -9545,7 +9550,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -9914,7 +9920,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {

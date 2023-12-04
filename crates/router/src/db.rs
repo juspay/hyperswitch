@@ -100,6 +100,7 @@ pub trait StorageInterface:
     + gsm::GsmInterface
     + user::UserInterface
     + user_role::UserRoleInterface
+    + user::sample_data::BatchSampleDataInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
