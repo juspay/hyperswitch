@@ -393,7 +393,7 @@ pub async fn switch_merchant_id(
             user_id: user.get_user_id().to_string(),
             verification_days_left: None,
             user_role: user_role.role_id,
-            merchant_id: request.merchant_id,
+            merchant_id: user_role.merchant_id,
         },
     ))
 }
