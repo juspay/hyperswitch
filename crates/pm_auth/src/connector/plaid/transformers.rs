@@ -26,18 +26,26 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::LinkTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            client_name: item.request.client_name.clone(),
+            client_name: item.request.client_name.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "client_name",
+                },
+            )?,
             country_codes: item.request.country_codes.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "country_codes",
                 },
             )?,
-            language: item.request.language.clone().unwrap_or("en".to_string()),
+            language: item.request.language.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "language",
+                },
+            )?,
             products: vec!["auth".to_string()],
             user: User {
                 client_user_id: item.request.user_info.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "country_codes",
+                        field_name: "user.client_user_id",
                     },
                 )?,
             },
