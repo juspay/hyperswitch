@@ -191,8 +191,7 @@ impl AppState {
                     .connector_onboarding
                     .decrypt_inner(kms_client)
                     .await
-                    .expect("Failed to decrypt connector onboarding credentials")
-                    .into();
+                    .expect("Failed to decrypt connector onboarding credentials");
             }
 
             #[cfg(feature = "olap")]
