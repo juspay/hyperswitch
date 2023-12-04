@@ -457,6 +457,8 @@ pub enum DashboardMetadata {
     StripeConnected,
     PaypalConnected,
     SpRoutingConfigured,
+    Feedback,
+    ProdIntent,
     SpTestPayment,
     DownloadWoocom,
     ConfigureWoocom,

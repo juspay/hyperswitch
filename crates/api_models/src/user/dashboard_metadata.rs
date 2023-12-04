@@ -1,3 +1,5 @@
+use common_enums::CountryAlpha2;
+use common_utils::pii;
 use masking::Secret;
 use strum::EnumString;
 
@@ -15,6 +17,8 @@ pub enum SetMetaDataRequest {
     ConfigurationType(ConfigurationType),
     IntegrationCompleted,
     SPRoutingConfigured(ConfiguredRouting),
+    Feedback(Feedback),
+    ProdIntent(ProdIntent),
     SPTestPayment,
     DownloadWoocom,
     ConfigureWoocom,
@@ -60,6 +64,30 @@ pub enum ConfigurationType {
    Multiple,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct Feedback {
+    pub email: pii::Email,
+    pub description: Option<String>,
+    pub rating: Option<i32>,
+    pub category: Option<String>,
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ProdIntent {
+    pub legal_business_name: Option<String>,
+    pub business_label: Option<String>,
+    pub business_location: Option<CountryAlpha2>,
+    pub display_name: Option<String>,
+    pub poc_email: Option<String>,
+    pub business_type: Option<String>,
+    pub business_identifier: Option<String>,
+    pub business_website: Option<String>,
+    pub poc_name: Option<String>,
+    pub poc_contact: Option<String>,
+    pub comments: Option<String>,
+    pub is_completed: bool,
+}
+
+
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]
 pub enum GetMetaDataRequest {
     ProductionAgreement,
@@ -76,6 +104,8 @@ pub enum GetMetaDataRequest {
     StripeConnected,
     PaypalConnected,
     SPRoutingConfigured,
+    Feedback,
+    ProdIntent,
     SPTestPayment,
     DownloadWoocom,
     ConfigureWoocom,
@@ -110,6 +140,8 @@ pub enum GetMetaDataResponse {
     StripeConnected(Option<ProcessorConnected>),
     PaypalConnected(Option<ProcessorConnected>),
     SPRoutingConfigured(Option<ConfiguredRouting>),
+    Feedback(Option<Feedback>),
+    ProdIntent(Option<ProdIntent>),
     SPTestPayment(bool),
     DownloadWoocom(bool),
     ConfigureWoocom(bool),

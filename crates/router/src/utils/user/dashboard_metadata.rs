@@ -50,6 +50,40 @@ pub async fn insert_merchant_scoped_metadata_to_db(
             e.change_context(UserErrors::InternalServerError)
         })
 }
+pub async fn insert_user_scoped_metadata_to_db(
+    state: &AppState,
+    user_id: String,
+    merchant_id: String,
+    org_id: String,
+    metadata_key: DBEnum,
+    metadata_value: impl serde::Serialize,
+) -> UserResult<DashboardMetadata> {
+    let now = common_utils::date_time::now();
+    let data_value = serde_json::to_value(metadata_value)
+        .into_report()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error Converting Struct To Serde Value")?;
+    state
+        .store
+        .insert_metadata(DashboardMetadataNew {
+            user_id: Some(user_id.clone()),
+            merchant_id,
+            org_id,
+            data_key: metadata_key,
+            data_value,
+            created_by: user_id.clone(),
+            created_at: now,
+            last_modified_by: user_id,
+            last_modified_at: now,
+        })
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_unique_violation() {
+                return e.change_context(UserErrors::MetadataAlreadySet);
+            }
+            e.change_context(UserErrors::InternalServerError)
+        })
+}
 
 pub async fn get_merchant_scoped_metadata_from_db(
     state: &AppState,
@@ -73,8 +107,31 @@ pub async fn get_merchant_scoped_metadata_from_db(
         }
     }
 }
+pub async fn get_user_scoped_metadata_from_db(
+    state: &AppState,
+    user_id: String,
+    merchant_id: String,
+    org_id: String,
+    metadata_keys: Vec<DBEnum>,
+) -> UserResult<Vec<DashboardMetadata>> {
+    match state
+        .store
+        .find_user_scoped_dashboard_metadata(&user_id, &merchant_id, &org_id, metadata_keys)
+        .await
+    {
+        Ok(data) => Ok(data),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                return Ok(Vec::with_capacity(0));
+            }
+            Err(e
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("DB Error Fetching DashboardMetaData"))
+        }
+    }
+}
 
-pub async fn update_metadata(
+pub async fn update_merchant_scoped_metadata(
     state: &AppState,
     user_id: String,
     merchant_id: String,
@@ -103,6 +160,35 @@ pub async fn update_metadata(
         .await
         .change_context(UserErrors::InternalServerError)
 }
+pub async fn update_user_scoped_metadata(
+    state: &AppState,
+    user_id: String,
+    merchant_id: String,
+    org_id: String,
+    metadata_key: DBEnum,
+    metadata_value: impl serde::Serialize,
+) -> UserResult<DashboardMetadata> {
+    let data_value = serde_json::to_value(metadata_value)
+        .into_report()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error Converting Struct To Serde Value")?;
+
+    state
+        .store
+        .update_metadata(
+            Some(user_id.clone()),
+            merchant_id,
+            org_id,
+            metadata_key,
+            DashboardMetadataUpdate::UpdateData {
+                data_key: metadata_key,
+                data_value,
+                last_modified_by: user_id,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
 
 pub fn deserialize_to_response<T>(data: Option<&DashboardMetadata>) -> UserResult<Option<T>>
 where
@@ -117,7 +203,7 @@ where
 pub fn separate_metadata_type_based_on_scope(
     metadata_keys: Vec<DBEnum>,
 ) -> (Vec<DBEnum>, Vec<DBEnum>) {
-    let (mut merchant_scoped, user_scoped) = (
+    let (mut merchant_scoped, mut user_scoped) = (
         Vec::with_capacity(metadata_keys.len()),
         Vec::with_capacity(metadata_keys.len()),
     );
@@ -142,6 +228,8 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::ConfigureWoocom
             | DBEnum::SetupWoocomWebhook
             | DBEnum::IsMultipleConfiguration => merchant_scoped.push(key),
+            DBEnum::Feedback
+            | DBEnum::ProdIntent => user_scoped.push(key)
         }
     }
     (merchant_scoped, user_scoped)
