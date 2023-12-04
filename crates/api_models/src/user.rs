@@ -76,7 +76,7 @@ pub struct ResetPasswordRequest {
     pub password: Secret<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize,Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct InviteUserRequest {
     pub email: pii::Email,
     pub name: Secret<String>,

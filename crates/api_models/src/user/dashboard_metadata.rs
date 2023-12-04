@@ -60,8 +60,8 @@ pub struct IntegrationMethod {
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ConfigurationType {
-   Single,
-   Multiple,
+    Single,
+    Multiple,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -86,7 +86,6 @@ pub struct ProdIntent {
     pub comments: Option<String>,
     pub is_completed: bool,
 }
-
 
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]
 pub enum GetMetaDataRequest {

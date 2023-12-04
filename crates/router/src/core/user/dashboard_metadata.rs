@@ -1,7 +1,6 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 use diesel_models::{
-    enums::DashboardMetadata as DBEnum,
-    user::dashboard_metadata::{DashboardMetadata},
+    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
 
@@ -91,12 +90,8 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::SPRoutingConfigured(req) => {
             Ok(types::MetaData::SPRoutingConfigured(req))
         }
-        api::SetMetaDataRequest::Feedback(req) => {
-            Ok(types::MetaData::Feedback(req))
-        }
-        api::SetMetaDataRequest::ProdIntent(req) => {
-            Ok(types::MetaData::ProdIntent(req))
-        }
+        api::SetMetaDataRequest::Feedback(req) => Ok(types::MetaData::Feedback(req)),
+        api::SetMetaDataRequest::ProdIntent(req) => Ok(types::MetaData::ProdIntent(req)),
         api::SetMetaDataRequest::SPTestPayment => Ok(types::MetaData::SPTestPayment(true)),
         api::SetMetaDataRequest::DownloadWoocom => Ok(types::MetaData::DownloadWoocom(true)),
         api::SetMetaDataRequest::ConfigureWoocom => Ok(types::MetaData::ConfigureWoocom(true)),
@@ -518,7 +513,8 @@ async fn fetch_metadata(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     let mut dashboard_metadata = Vec::with_capacity(metadata_keys.len());
-    let (merchant_scoped_enums, user_scoped_enums) = utils::separate_metadata_type_based_on_scope(metadata_keys);
+    let (merchant_scoped_enums, user_scoped_enums) =
+        utils::separate_metadata_type_based_on_scope(metadata_keys);
 
     if !merchant_scoped_enums.is_empty() {
         let mut res = utils::get_merchant_scoped_metadata_from_db(
@@ -541,9 +537,7 @@ async fn fetch_metadata(
         )
         .await?;
         dashboard_metadata.append(&mut res);
-
     }
-
 
     Ok(dashboard_metadata)
 }
