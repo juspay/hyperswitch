@@ -230,10 +230,11 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
     }
 }
 ```
+If you're converting ConnectorPaymentStatus to AttemptStatus without any additional conditions, you can employ the `impl From<ConnectorPaymentStatus> for enums::AttemptStatus`.
 
 Note: `enum::AttemptStatus` is Router status.
 
-Router status are given below
+Some of the router status are given below
 
 - **Charged :** The amount has been debited
 - **Pending :** Pending but verified by visa
