@@ -37,7 +37,7 @@ impl From<&MetaData> for DBEnum {
             MetaData::ConfiguredRouting(_) => Self::ConfiguredRouting,
             MetaData::TestPayment(_) => Self::TestPayment,
             MetaData::IntegrationMethod(_) => Self::IntegrationMethod,
-            MetaData::ConfigurationType(_) =>Self::ConfigurationType,
+            MetaData::ConfigurationType(_) => Self::ConfigurationType,
             MetaData::IntegrationCompleted(_) => Self::IntegrationCompleted,
             MetaData::StripeConnected(_) => Self::StripeConnected,
             MetaData::PaypalConnected(_) => Self::PaypalConnected,
