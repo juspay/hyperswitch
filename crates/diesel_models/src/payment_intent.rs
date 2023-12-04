@@ -190,7 +190,7 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: Option<bool>,
         updated_by: String,
     },
-    AmountUpdate {
+    IncrementalAuthorizationAmountUpdate {
         amount: i64,
     },
     AuthorizationCountUpdate {
@@ -460,7 +460,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::AmountUpdate { amount } => Self {
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
                 ..Default::default()
             },

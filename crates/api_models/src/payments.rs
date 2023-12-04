@@ -2293,11 +2293,16 @@ pub struct PaymentListResponse {
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct AuthorizationResponse {
+    /// The unique identifier of authorization
     pub authorization_id: String,
+    /// Amount the authorization has been made for
     pub amount: i64,
     #[schema(value_type= AuthorizationStatus)]
+    /// The status of the authorization
     pub status: common_enums::AuthorizationStatus,
+    /// The code sent by the connector for authorization
     pub code: Option<String>,
+    /// The message sent by the connector for authorization
     pub message: Option<String>,
 }
 

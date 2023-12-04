@@ -269,8 +269,9 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         updated_by: String,
     },
-    AmountUpdate {
+    IncrementalAuthorizationAmountUpdate {
         amount: i64,
+        amount_capturable: i64,
     },
 }
 
@@ -682,8 +683,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::AmountUpdate { amount } => Self {
+            PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            } => Self {
                 amount: Some(amount),
+                amount_capturable: Some(amount_capturable),
                 ..Default::default()
             },
         }

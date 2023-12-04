@@ -359,8 +359,9 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         updated_by: String,
     },
-    AmountUpdate {
+    IncrementalAuthorizationAmountUpdate {
         amount: i64,
+        amount_capturable: i64,
     },
 }
 

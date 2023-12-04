@@ -1467,7 +1467,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 updated_by,
             },
-            Self::AmountUpdate { amount } => DieselPaymentAttemptUpdate::AmountUpdate { amount },
+            Self::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            } => DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            },
         }
     }
 
@@ -1729,7 +1735,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 updated_by,
             },
-            DieselPaymentAttemptUpdate::AmountUpdate { amount } => Self::AmountUpdate { amount },
+            DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            } => Self::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            },
         }
     }
 }

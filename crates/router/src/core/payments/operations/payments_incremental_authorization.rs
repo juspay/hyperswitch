@@ -238,10 +238,16 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .store
             .insert_authorization(authorization_new.clone())
             .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+                message: format!(
+                    "Authorization with authorization_id {} already exists",
+                    authorization_new.authorization_id
+                ),
+            })
             .attach_printable("failed while inserting new authorization")?;
         // Update authorization_count in payment_intent
-        db.store
+        payment_data.payment_intent = db
+            .store
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::AuthorizationCountUpdate {

@@ -1043,7 +1043,9 @@ impl DataModelExt for PaymentIntentUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
             },
-            Self::AmountUpdate { amount } => DieselPaymentIntentUpdate::AmountUpdate { amount },
+            Self::IncrementalAuthorizationAmountUpdate { amount } => {
+                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
+            }
             Self::AuthorizationCountUpdate {
                 authorization_count,
             } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
