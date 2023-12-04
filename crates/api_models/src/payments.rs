@@ -319,6 +319,9 @@ pub struct PaymentsRequest {
 
     ///Request for an incremental authorization
     pub request_incremental_authorization: Option<bool>,
+
+    ///Request to increase particular payment duration
+    pub max_age: Option<i64>
 }
 
 impl PaymentsRequest {

@@ -418,6 +418,7 @@ pub async fn update_business_profile_cascade(
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
             payment_link_config: None,
+            max_age: None
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1468,6 +1469,10 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
+    let max_age = request.max_age.map(|age| {
+            common_utils::date_time::now().saturating_add(time::Duration::seconds(age))
+        });
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -1484,6 +1489,7 @@ pub async fn update_business_profile(
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
+        max_age
     };
 
     let updated_business_profile = db

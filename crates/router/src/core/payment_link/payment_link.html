@@ -890,7 +890,8 @@
         var client_secret = paymentDetails.client_secret;
         var appearance = {
           variables: {
-            colorPrimary: paymentDetails.sdk_theme || "rgb(0, 109, 249)",
+            colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
+            colorBackground: paymentDetails.theme,
             fontFamily: "Work Sans, sans-serif",
             fontSizeBase: "16px",
             colorText: "rgb(51, 65, 85)",

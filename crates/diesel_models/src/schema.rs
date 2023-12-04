@@ -84,6 +84,7 @@ diesel::table! {
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
+        max_age -> Nullable<Timestamp>,
     }
 }
 

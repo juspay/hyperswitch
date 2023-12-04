@@ -33,6 +33,7 @@ pub struct BusinessProfile {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
+    pub max_age: Option<time::PrimitiveDateTime>
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -57,6 +58,7 @@ pub struct BusinessProfileNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
+    pub max_age: Option<time::PrimitiveDateTime,>
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -78,6 +80,7 @@ pub struct BusinessProfileUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
+    pub max_age: Option<time::PrimitiveDateTime>
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
@@ -101,6 +104,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             is_recon_enabled: new.is_recon_enabled,
             applepay_verified_domains: new.applepay_verified_domains,
             payment_link_config: new.payment_link_config,
+            max_age: new.max_age,
         }
     }
 }
@@ -123,6 +127,7 @@ impl BusinessProfileUpdateInternal {
             is_recon_enabled,
             applepay_verified_domains,
             payment_link_config,
+            max_age
         } = self;
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -142,6 +147,7 @@ impl BusinessProfileUpdateInternal {
             is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
             applepay_verified_domains,
             payment_link_config,
+            max_age,
             ..source
         }
     }

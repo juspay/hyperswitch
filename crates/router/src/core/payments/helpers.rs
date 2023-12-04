@@ -3674,18 +3674,16 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    payment_link_config: &api_models::admin::PaymentCreatePaymentLinkConfig,
     confirm: Option<bool>,
     order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    max_age: Option<i64>
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(cnf) = confirm {
         if !cnf {
             let current_time = common_utils::date_time::now();
             let max_age_time =
                 common_utils::date_time::now().saturating_add(time::Duration::seconds(
-                    payment_link_config
-                        .config
-                        .max_age
+                        max_age
                         .unwrap_or(common_utils::consts::DEFAULT_PAYMENT_LINK_EXPIRY),
                 ));
             if current_time > max_age_time {
