@@ -167,7 +167,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let payment_attempt_new = Self::make_payment_attempt(
+        let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             merchant_id,
             money,
@@ -290,6 +290,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payments::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
+        let payment_method_data_after_card_bin_call = request
+            .payment_method_data
+            .as_ref()
+            .zip(additional_payment_data)
+            .map(|(payment_method_data, additional_payment_data)| {
+                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            });
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -306,7 +314,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: payment_method_data_after_card_bin_call,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -604,7 +612,10 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
         state: &AppState,
-    ) -> RouterResult<storage::PaymentAttemptNew> {
+    ) -> RouterResult<(
+        storage::PaymentAttemptNew,
+        Option<api_models::payments::AdditionalPaymentData>,
+    )> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
@@ -616,7 +627,8 @@ impl PaymentCreate {
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(payment_method_data, &*state.store).await
             })
-            .await
+            .await;
+        let additional_pm_data_value = additional_pm_data
             .as_ref()
             .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
             .transpose()
@@ -631,35 +643,38 @@ impl PaymentCreate {
             utils::get_payment_attempt_id(payment_id, 1)
         };
 
-        Ok(storage::PaymentAttemptNew {
-            payment_id: payment_id.to_string(),
-            merchant_id: merchant_id.to_string(),
-            attempt_id,
-            status,
-            currency,
-            amount: amount.into(),
-            payment_method,
-            capture_method: request.capture_method,
-            capture_on: request.capture_on,
-            confirm: request.confirm.unwrap_or(false),
-            created_at,
-            modified_at,
-            last_synced,
-            authentication_type: request.authentication_type,
-            browser_info,
-            payment_experience: request.payment_experience,
-            payment_method_type,
-            payment_method_data: additional_pm_data,
-            amount_to_capture: request.amount_to_capture,
-            payment_token: request.payment_token.clone(),
-            mandate_id: request.mandate_id.clone(),
-            business_sub_label: request.business_sub_label.clone(),
-            mandate_details: request
-                .mandate_data
-                .as_ref()
-                .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
-            ..storage::PaymentAttemptNew::default()
-        })
+        Ok((
+            storage::PaymentAttemptNew {
+                payment_id: payment_id.to_string(),
+                merchant_id: merchant_id.to_string(),
+                attempt_id,
+                status,
+                currency,
+                amount: amount.into(),
+                payment_method,
+                capture_method: request.capture_method,
+                capture_on: request.capture_on,
+                confirm: request.confirm.unwrap_or(false),
+                created_at,
+                modified_at,
+                last_synced,
+                authentication_type: request.authentication_type,
+                browser_info,
+                payment_experience: request.payment_experience,
+                payment_method_type,
+                payment_method_data: additional_pm_data_value,
+                amount_to_capture: request.amount_to_capture,
+                payment_token: request.payment_token.clone(),
+                mandate_id: request.mandate_id.clone(),
+                business_sub_label: request.business_sub_label.clone(),
+                mandate_details: request
+                    .mandate_data
+                    .as_ref()
+                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+                ..storage::PaymentAttemptNew::default()
+            },
+            additional_pm_data,
+        ))
     }
 
     #[instrument(skip_all)]

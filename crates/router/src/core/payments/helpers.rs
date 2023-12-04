@@ -3634,31 +3634,16 @@ pub fn get_key_params_for_surcharge_details(
 )> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
-            let card_type = card
-                .card_type
-                .get_required_value("payment_method_data.card.card_type")?;
             let card_network = card
                 .card_network
                 .get_required_value("payment_method_data.card.card_network")?;
-            match card_type.to_lowercase().as_str() {
-                "credit" => Ok((
-                    common_enums::PaymentMethod::Card,
-                    common_enums::PaymentMethodType::Credit,
-                    Some(card_network),
-                )),
-                "debit" => Ok((
-                    common_enums::PaymentMethod::Card,
-                    common_enums::PaymentMethodType::Debit,
-                    Some(card_network),
-                )),
-                _ => {
-                    logger::debug!("Invalid Card type found in payment confirm call, hence surcharge not applicable");
-                    Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_method_data.card.card_type",
-                    }
-                    .into())
-                }
-            }
+            // surcharge generated will always be same for credit as well as debit
+            // since surcharge conditions cannot be defined on card_type
+            Ok((
+                common_enums::PaymentMethod::Card,
+                common_enums::PaymentMethodType::Credit,
+                Some(card_network),
+            ))
         }
         api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Ok((
             common_enums::PaymentMethod::CardRedirect,

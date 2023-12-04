@@ -159,7 +159,6 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         &'a self,
         _state: &AppState,
         _payment_data: &mut PaymentData<F>,
-        _request: &R,
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
