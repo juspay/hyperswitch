@@ -1,6 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
-use api_models::{enums, payment_methods};
+use api_models::{
+    enums,
+    payment_methods::{self, BankAccountAccessCreds},
+    payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
+};
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -11,6 +15,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     generate_id,
 };
+use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 pub use external_services::kms;
@@ -29,9 +34,10 @@ use pm_auth::{
 
 use crate::{
     core::{
-        errors::{self, ApiErrorResponse, RouterResponse, RouterResult},
+        errors::{self, ApiErrorResponse, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::cards,
         payments::helpers as oss_helpers,
+        pm_auth::helpers::{self as pm_auth_helpers},
     },
     db::StorageInterface,
     logger,
@@ -464,7 +470,7 @@ async fn store_in_db(
     Ok(())
 }
 
-async fn get_bank_account_creds(
+pub async fn get_bank_account_creds(
     connector: PaymentAuthConnectorData,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
@@ -605,4 +611,119 @@ async fn get_selected_config_from_redis(
         .clone();
 
     Ok(selected_config)
+}
+
+pub async fn retrieve_payment_method_from_auth_service(
+    state: &AppState,
+    key_store: &domain::MerchantKeyStore,
+    auth_token: &payment_methods::BankAccountConnectorDetails,
+    payment_intent: &PaymentIntent,
+) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
+    let db = state.store.as_ref();
+
+    let connector = pm_auth_types::api::PaymentAuthConnectorData::get_connector_by_name(
+        auth_token.connector.as_str(),
+    )?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&payment_intent.merchant_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let mca = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &payment_intent.merchant_id,
+            &auth_token.mca_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: auth_token.mca_id.clone(),
+        })
+        .attach_printable(
+            "error while fetching merchant_connector_account from merchant_id and connector name",
+        )?;
+
+    let auth_type = pm_auth_helpers::get_connector_auth_type(mca)?;
+
+    let BankAccountAccessCreds::AccessToken(access_token) = &auth_token.access_token;
+
+    let bank_account_creds = get_bank_account_creds(
+        connector,
+        &merchant_account,
+        &auth_token.connector,
+        access_token,
+        auth_type,
+        state,
+        Some(auth_token.account_id.clone()),
+    )
+    .await?;
+
+    logger::debug!("bank_creds: {:?}", bank_account_creds);
+
+    let bank_account = bank_account_creds
+        .credentials
+        .first()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Bank account details not found")?;
+
+    let mut bank_type = None;
+    if let Some(account_type) = bank_account.account_type.clone() {
+        bank_type = api_models::enums::BankType::from_str(account_type.as_str())
+            .map_err(|error| logger::error!(%error,"unable to parse account_type {account_type:?}"))
+            .ok();
+    }
+
+    let address = oss_helpers::get_address_by_id(
+        &*state.store,
+        payment_intent.billing_address_id.clone(),
+        key_store,
+        payment_intent.payment_id.clone(),
+        merchant_account.merchant_id.clone(),
+        merchant_account.storage_scheme,
+    )
+    .await?;
+
+    let name = address
+        .as_ref()
+        .and_then(|addr| addr.first_name.clone().map(|name| name.into_inner()));
+
+    let address_details = address.clone().map(|addr| {
+        let line1 = addr.line1.map(|line1| line1.into_inner());
+        let line2 = addr.line2.map(|line2| line2.into_inner());
+        let line3 = addr.line3.map(|line3| line3.into_inner());
+        let zip = addr.zip.map(|zip| zip.into_inner());
+        let state = addr.state.map(|state| state.into_inner());
+        let first_name = addr.first_name.map(|first_name| first_name.into_inner());
+        let last_name = addr.last_name.map(|last_name| last_name.into_inner());
+
+        AddressDetails {
+            city: addr.city,
+            country: addr.country,
+            line1,
+            line2,
+            line3,
+            zip,
+            state,
+            first_name,
+            last_name,
+        }
+    });
+    let payment_method_data = PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+        billing_details: BankDebitBilling {
+            name: name.unwrap_or_default(),
+            email: common_utils::pii::Email::from(masking::Secret::new("".to_string())),
+            address: address_details,
+        },
+        account_number: masking::Secret::new(bank_account.account_number.clone()),
+        routing_number: masking::Secret::new(bank_account.routing_number.clone()),
+        card_holder_name: None,
+        bank_account_holder_name: None,
+        bank_name: None,
+        bank_type,
+        bank_holder_type: None,
+    });
+
+    Ok(Some((payment_method_data, enums::PaymentMethod::BankDebit)))
 }
