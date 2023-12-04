@@ -208,7 +208,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         "missing incremental_authorization_details in payment_data",
                     ),
                 )?,
-            status: common_enums::AuthorizationStatus::Created,
+            status: common_enums::AuthorizationStatus::Processing,
             error_code: None,
             error_message: None,
             connector_authorization_id: None,

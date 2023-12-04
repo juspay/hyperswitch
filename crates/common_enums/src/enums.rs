@@ -265,9 +265,9 @@ pub enum CaptureStatus {
 pub enum AuthorizationStatus {
     Success,
     Failure,
-    // Created state is before calling connector
+    // Processing state is before calling connector
     #[default]
-    Created,
+    Processing,
     // Requires merchant action
     Unresolved,
 }
