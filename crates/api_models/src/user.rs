@@ -7,13 +7,25 @@ pub mod dashboard_metadata;
 pub mod sample_data;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
-pub struct ConnectAccountRequest {
+pub struct SignUpWithMerchantIdRequest {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub password: Secret<String>,
+    pub company_name: String,
+}
+
+pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
+
+#[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
+pub struct SignUpRequest {
     pub email: pii::Email,
     pub password: Secret<String>,
 }
 
+pub type SignUpResponse = DashboardEntryResponse;
+
 #[derive(serde::Serialize, Debug, Clone)]
-pub struct ConnectAccountResponse {
+pub struct DashboardEntryResponse {
     pub token: Secret<String>,
     pub merchant_id: String,
     pub name: Secret<String>,
@@ -23,6 +35,28 @@ pub struct ConnectAccountResponse {
     //this field is added for audit/debug reasons
     #[serde(skip_serializing)]
     pub user_id: String,
+}
+
+pub type SignInRequest = SignUpRequest;
+
+pub type SignInResponse = DashboardEntryResponse;
+
+#[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
+pub struct ConnectAccountRequest {
+    pub email: pii::Email,
+}
+
+pub type ConnectAccountResponse = AuthorizeResponse;
+
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct AuthorizeResponse {
+    pub is_email_sent: bool,
+    //this field is added for audit/debug reasons
+    #[serde(skip_serializing)]
+    pub user_id: String,
+    //this field is added for audit/debug reasons
+    #[serde(skip_serializing)]
+    pub merchant_id: String,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -35,6 +69,8 @@ pub struct ChangePasswordRequest {
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
+
+pub type SwitchMerchantResponse = DashboardEntryResponse;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {

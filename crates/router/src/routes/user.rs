@@ -19,6 +19,65 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
+#[cfg(feature = "email")]
+pub async fn user_signup_with_merchant_id(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignUpWithMerchantIdRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignUpWithMerchantId;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signup_with_merchant_id(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn user_signup(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignUpRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignUp;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signup(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn user_signin(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignInRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignIn;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signin(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
 pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
