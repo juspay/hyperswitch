@@ -1,3 +1,5 @@
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
@@ -10,8 +12,6 @@ pub mod user;
 pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
-#[cfg(feature = "olap")]
-pub mod connector_onboarding;
 
 use std::fmt::Debug;
 

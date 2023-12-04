@@ -1,3 +1,11 @@
+use common_utils::{
+    ext_traits::Encode,
+    request::{Method, Request, RequestBuilder},
+};
+use error_stack::{IntoReport, ResultExt};
+use http::header;
+use serde_json::json;
+
 use crate::{
     connector,
     core::errors::{ApiErrorResponse, RouterResult},
@@ -9,13 +17,6 @@ use crate::{
     },
     utils::verify_connector as verify_connector_utils,
 };
-use common_utils::{
-    ext_traits::Encode,
-    request::{Method, Request, RequestBuilder},
-};
-use error_stack::{IntoReport, ResultExt};
-use http::header;
-use serde_json::json;
 
 pub async fn generate_access_token(state: AppState) -> RouterResult<types::AccessToken> {
     let connector = enums::Connector::Paypal;
@@ -23,10 +24,7 @@ pub async fn generate_access_token(state: AppState) -> RouterResult<types::Acces
         &state.conf.connectors,
         connector.to_string().as_str(),
     )?;
-    let connector_auth = super::get_connector_auth(
-        connector,
-        &state.conf.connector_onboarding,
-    )?;
+    let connector_auth = super::get_connector_auth(connector, &state.conf.connector_onboarding)?;
 
     connector::Paypal::get_access_token(
         &state,

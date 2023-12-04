@@ -1,6 +1,6 @@
-use crate::routes::app::settings;
 use crate::{
     core::errors::{api_error_response::NotImplementedMessage, ApiErrorResponse, RouterResult},
+    routes::app::settings,
     types::{self, api::enums},
 };
 

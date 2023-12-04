@@ -1,15 +1,16 @@
-use crate::{
-    core::errors::{ApiErrorResponse, RouterResult},
-    services::{send_request, ApplicationResponse, Request},
-    types::{self as oss_types, api as oss_api_types},
-};
 use api_models::{admin::MerchantConnectorUpdate, connector_onboarding as api};
 use common_utils::ext_traits::Encode;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    core::admin, types::api::connector_onboarding as types, utils::connector_onboarding as utils,
+    core::{
+        admin,
+        errors::{ApiErrorResponse, RouterResult},
+    },
+    services::{send_request, ApplicationResponse, Request},
+    types::{self as oss_types, api as oss_api_types, api::connector_onboarding as types},
+    utils::connector_onboarding as utils,
     AppState,
 };
 

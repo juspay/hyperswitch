@@ -1,12 +1,14 @@
+use api_models::{connector_onboarding as api, enums};
+use error_stack::ResultExt;
+use masking::Secret;
+
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse, RouterResult},
     services::{authentication as auth, ApplicationResponse},
     types::{self as oss_types},
+    utils::connector_onboarding as utils,
+    AppState,
 };
-use crate::{utils::connector_onboarding as utils, AppState};
-use api_models::{connector_onboarding as api, enums};
-use error_stack::ResultExt;
-use masking::Secret;
 
 pub mod paypal;
 

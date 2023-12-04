@@ -287,6 +287,10 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get users for merchant account
     GetUserDetails,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
 }
 
 ///

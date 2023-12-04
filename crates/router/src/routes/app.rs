@@ -26,8 +26,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
-    user::*, user_role::*,
+    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
+    locker_migration, payment_link::*, user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -879,5 +879,17 @@ impl LockerMigrate {
             .service(
                 web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
             )
+    }
+}
+
+pub struct ConnectorOnboarding;
+
+#[cfg(feature = "olap")]
+impl ConnectorOnboarding {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/connector_onboarding")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/action_url").route(web::post().to(get_action_url)))
+            .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
     }
 }
