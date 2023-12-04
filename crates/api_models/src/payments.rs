@@ -736,7 +736,7 @@ impl Card {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
