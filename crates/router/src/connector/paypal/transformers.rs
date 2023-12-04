@@ -926,8 +926,20 @@ pub struct PaypalThreeDsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaypalPreProcessingResponse {
+#[serde(untagged)]
+pub enum PaypalPreProcessingResponse {
+    PaypalLiabilityResponse(PaypalLiabilityResponse),
+    PaypalNonLiablityResponse(PaypalNonLiablityResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalLiabilityResponse {
     pub payment_source: CardParams,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalNonLiablityResponse {
+    payment_source: CardsData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1174,6 +1186,7 @@ impl<F, T>
                     .invoice_id
                     .clone()
                     .or(Some(item.response.id)),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -1278,6 +1291,7 @@ impl<F, T>
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -1314,6 +1328,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -1363,6 +1378,7 @@ impl<F>
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -1430,6 +1446,7 @@ impl<F, T>
                     .invoice_id
                     .clone()
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -1531,6 +1548,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     .response
                     .invoice_id
                     .or(Some(item.response.id)),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -1581,6 +1599,7 @@ impl<F, T>
                     .response
                     .invoice_id
                     .or(Some(item.response.id)),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

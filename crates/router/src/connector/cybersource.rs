@@ -307,18 +307,15 @@ impl
         data: &types::SetupMandateRouterData,
         res: types::Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
-        let response: cybersource::CybersourcePaymentsResponse = res
+        let response: cybersource::CybersourceSetupMandatesResponse = res
             .response
-            .parse_struct("CybersourceMandateResponse")
+            .parse_struct("CybersourceSetupMandatesResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            false,
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(

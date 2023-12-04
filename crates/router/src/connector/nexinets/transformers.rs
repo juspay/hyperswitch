@@ -372,6 +372,7 @@ impl<F, T>
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -455,6 +456,7 @@ impl<F, T>
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

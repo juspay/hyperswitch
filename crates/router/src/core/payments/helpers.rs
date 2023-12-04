@@ -1354,7 +1354,6 @@ pub async fn retrieve_payment_method_with_temporary_token(
     state: &AppState,
     token: &str,
     payment_intent: &PaymentIntent,
-    card_cvc: Option<masking::Secret<String>>,
     merchant_key_store: &domain::MerchantKeyStore,
     card_token_data: Option<&CardToken>,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
@@ -1381,23 +1380,27 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             let name_on_card = if card.card_holder_name.clone().expose().is_empty() {
                 card_token_data
-                    .and_then(|token_data| {
-                        is_card_updated = true;
-                        token_data.card_holder_name.clone()
-                    })
+                    .and_then(|token_data| token_data.card_holder_name.clone())
                     .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "card_holder_name",
-                    })?
+                    .map(|name_on_card| {
+                        is_card_updated = true;
+                        name_on_card
+                    })
             } else {
-                card.card_holder_name.clone()
+                Some(card.card_holder_name.clone())
             };
-            updated_card.card_holder_name = name_on_card;
 
-            if let Some(cvc) = card_cvc {
-                is_card_updated = true;
-                updated_card.card_cvc = cvc;
+            if let Some(name_on_card) = name_on_card {
+                updated_card.card_holder_name = name_on_card;
             }
+
+            if let Some(token_data) = card_token_data {
+                if let Some(cvc) = token_data.card_cvc.clone() {
+                    is_card_updated = true;
+                    updated_card.card_cvc = cvc;
+                }
+            }
+
             if is_card_updated {
                 let updated_pm = api::PaymentMethodData::Card(updated_card);
                 vault::Vault::store_payment_method_data_in_locker(
@@ -1443,7 +1446,6 @@ pub async fn retrieve_card_with_permanent_token(
     state: &AppState,
     token: &str,
     payment_intent: &PaymentIntent,
-    card_cvc: Option<masking::Secret<String>>,
     card_token_data: Option<&CardToken>,
 ) -> RouterResult<api::PaymentMethodData> {
     let customer_id = payment_intent
@@ -1478,7 +1480,11 @@ pub async fn retrieve_card_with_permanent_token(
         card_holder_name: name_on_card.unwrap_or(masking::Secret::from("".to_string())),
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
-        card_cvc: card_cvc.unwrap_or_default(),
+        card_cvc: card_token_data
+            .cloned()
+            .unwrap_or_default()
+            .card_cvc
+            .unwrap_or_default(),
         card_issuer: card.card_brand,
         nick_name: card.nick_name.map(masking::Secret::new),
         card_network: None,
@@ -1500,6 +1506,22 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     Option<api::PaymentMethodData>,
 )> {
     let request = &payment_data.payment_method_data.clone();
+
+    let mut card_token_data = payment_data
+        .payment_method_data
+        .clone()
+        .and_then(|pmd| match pmd {
+            api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
+            _ => None,
+        })
+        .or(Some(CardToken::default()));
+
+    if let Some(cvc) = payment_data.card_cvc.clone() {
+        if let Some(token_data) = card_token_data.as_mut() {
+            token_data.card_cvc = Some(cvc);
+        }
+    }
+
     let token = payment_data.token.clone();
 
     let hyperswitch_token = match payment_data.mandate_id {
@@ -1559,13 +1581,6 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
     };
 
-    let card_cvc = payment_data.card_cvc.clone();
-
-    let card_token_data = request.as_ref().and_then(|pmd| match pmd {
-        api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
-        _ => None,
-    });
-
     // TODO: Handle case where payment method and token both are present in request properly.
     let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
@@ -1574,8 +1589,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 merchant_key_store,
                 &hyperswitch_token,
                 &payment_data.payment_intent,
-                card_cvc,
-                card_token_data,
+                card_token_data.as_ref(),
             )
             .await
             .attach_printable("in 'make_pm_data'")?;
@@ -2569,6 +2583,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2619,6 +2636,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2669,6 +2689,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
+            request_incremental_authorization:
+                common_enums::RequestIncrementalAuthorization::default(),
+            incremental_authorization_allowed: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);

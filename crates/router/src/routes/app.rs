@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
+#[cfg(all(feature = "kms", feature = "olap"))]
+use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
-use external_services::email::{AwsSes, EmailClient};
+use external_services::email::{ses::AwsSes, EmailService};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(all(feature = "olap", feature = "kms"))]
+use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
@@ -23,17 +27,19 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
-    user::*,
+    user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(feature = "olap")]
+use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
-    events::{event_logger::EventLogger, EventHandler},
+    events::EventsHandler,
     routes::cards_info::card_iin_info,
     services::get_store,
 };
@@ -43,9 +49,9 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings>,
-    pub event_handler: Box<dyn EventHandler>,
+    pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailClient>,
+    pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
@@ -62,9 +68,9 @@ impl scheduler::SchedulerAppState for AppState {
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
-    fn event_handler(&self) -> Box<dyn EventHandler>;
+    fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailClient>;
+    fn email_client(&self) -> Arc<dyn EmailService>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
@@ -79,11 +85,11 @@ impl AppStateInfo for AppState {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailClient> {
+    fn email_client(&self) -> Arc<dyn EmailService> {
         self.email_client.to_owned()
     }
-    fn event_handler(&self) -> Box<dyn EventHandler> {
-        self.event_handler.to_owned()
+    fn event_handler(&self) -> EventsHandler {
+        self.event_handler.clone()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
@@ -107,12 +113,22 @@ impl AsRef<Self> for AppState {
     }
 }
 
+#[cfg(feature = "email")]
+pub async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
+    match settings.email.active_email_client {
+        external_services::email::AvailableEmailClients::SES => {
+            AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
+        }
+    }
+}
+
 impl AppState {
     /// # Panics
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        conf: settings::Settings,
+        #[cfg_attr(not(all(feature = "olap", feature = "kms")), allow(unused_mut))]
+        mut conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
@@ -121,13 +137,31 @@ impl AppState {
             #[cfg(feature = "kms")]
             let kms_client = kms::get_kms_client(&conf.kms).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
+            #[allow(clippy::expect_used)]
+            let event_handler = conf
+                .events
+                .get_event_handler()
+                .await
+                .expect("Failed to create event handler");
             let store: Box<dyn StorageInterface> = match storage_impl {
-                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
-                    #[allow(clippy::expect_used)]
-                    get_store(&conf, shut_down_signal, testable)
-                        .await
-                        .expect("Failed to create store"),
-                ),
+                StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
+                    EventsHandler::Kafka(kafka_client) => Box::new(
+                        crate::db::KafkaStore::new(
+                            #[allow(clippy::expect_used)]
+                            get_store(&conf.clone(), shut_down_signal, testable)
+                                .await
+                                .expect("Failed to create store"),
+                            kafka_client.clone(),
+                        )
+                        .await,
+                    ),
+                    EventsHandler::Logs(_) => Box::new(
+                        #[allow(clippy::expect_used)]
+                        get_store(&conf, shut_down_signal, testable)
+                            .await
+                            .expect("Failed to create store"),
+                    ),
+                },
                 #[allow(clippy::expect_used)]
                 StorageImpl::Mock => Box::new(
                     MockDb::new(&conf.redis)
@@ -136,13 +170,23 @@ impl AppState {
                 ),
             };
 
+            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            match conf.analytics {
+                AnalyticsConfig::Clickhouse { .. } => {}
+                AnalyticsConfig::Sqlx { ref mut sqlx }
+                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
+                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
+                    sqlx.password = kms_client
+                        .decrypt(&sqlx.password.peek())
+                        .await
+                        .expect("Failed to decrypt password")
+                        .into();
+                }
+            };
+
             #[cfg(feature = "olap")]
-            let pool = crate::analytics::AnalyticsProvider::from_conf(
-                &conf.analytics,
-                #[cfg(feature = "kms")]
-                kms_client,
-            )
-            .await;
+            let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
 
             #[cfg(feature = "kms")]
             #[allow(clippy::expect_used)]
@@ -154,7 +198,8 @@ impl AppState {
             .expect("Failed while performing KMS decryption");
 
             #[cfg(feature = "email")]
-            let email_client = Arc::new(AwsSes::new(&conf.email).await);
+            let email_client = Arc::new(create_email_client(&conf).await);
+
             Self {
                 flow_name: String::from("default"),
                 store,
@@ -164,7 +209,7 @@ impl AppState {
                 #[cfg(feature = "kms")]
                 kms_secrets: Arc::new(kms_secrets),
                 api_client,
-                event_handler: Box::<EventLogger>::default(),
+                event_handler,
                 #[cfg(feature = "olap")]
                 pool,
             }
@@ -526,6 +571,10 @@ impl MerchantConnectorAccount {
 
             route = route
                 .service(
+                    web::resource("/connectors/verify")
+                        .route(web::post().to(payment_connector_verify)),
+                )
+                .service(
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(payment_connector_create))
                         .route(web::get().to(payment_connector_list)),
@@ -771,13 +820,42 @@ pub struct User;
 #[cfg(feature = "olap")]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/user")
-            .app_data(web::Data::new(state))
+        let mut route = web::scope("/user").app_data(web::Data::new(state));
+
+        route = route
             .service(web::resource("/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
             .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(
+                web::resource("/data/merchant")
+                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
+            )
+            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)))
+            .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
+            .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
+            .service(
+                web::resource("/create_merchant")
+                    .route(web::post().to(user_merchant_account_create)),
+            )
+            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
+            .service(web::resource("/user/list").route(web::get().to(get_user_details)))
+            // User Role APIs
+            .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
+            .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
+            .service(web::resource("/role/list").route(web::get().to(list_roles)))
+            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)));
+
+        #[cfg(feature = "dummy_connector")]
+        {
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
+            )
+        }
+        route
     }
 }
 
