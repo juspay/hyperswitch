@@ -127,6 +127,7 @@ impl ConnectorCommon for Zen {
             ),
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -668,11 +669,11 @@ impl api::IncomingWebhook for Zen {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(reference_object)
+        Ok(Box::new(reference_object))
     }
     fn get_webhook_api_response(
         &self,

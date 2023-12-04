@@ -99,6 +99,7 @@ impl ConnectorCommon for Rapyd {
                 message: response_data.status.status.unwrap_or_default(),
                 reason: response_data.status.message,
                 attempt_status: None,
+                connector_transaction_id: None,
             }),
             Err(error_msg) => {
                 logger::error!(deserialization_error =? error_msg);
@@ -900,7 +901,7 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
@@ -923,7 +924,7 @@ impl api::IncomingWebhook for Rapyd {
                     .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
             }
         };
-        Ok(res_json)
+        Ok(Box::new(res_json))
     }
 
     fn get_dispute_details(

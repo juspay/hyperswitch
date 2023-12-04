@@ -1,0 +1,99 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 10000,
+      "currency": "USD",
+      "customer_id": "payout_customer",
+      "email": "payout_customer@example.com",
+      "name": "Doest John",
+      "phone": "6168205366",
+      "phone_country_code": "+1",
+      "description": "Its my first payout request",
+      "connector": ["adyen"],
+      "payout_type": "bank",
+      "payout_method_data": {
+        "bank": {
+          "bank_routing_number": "110000000",
+          "bank_account_number": "000123456789",
+          "bank_name": "Stripe Test Bank",
+          "bank_country_code": "US",
+          "bank_city": "California"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "CA",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Doest",
+          "last_name": "John"
+        },
+        "phone": {
+          "number": "6168205366",
+          "country_code": "1"
+        }
+      },
+      "entity_type": "Individual",
+      "recurring": false,
+      "metadata": {
+        "ref": "123",
+        "vendor_details": {
+          "account_type": "custom",
+          "business_type": "individual",
+          "business_profile_mcc": 5045,
+          "business_profile_url": "https://www.pastebin.com",
+          "business_profile_name": "pT",
+          "company_address_line1": "address_full_match",
+          "company_address_line2": "Kimberly Way",
+          "company_address_postal_code": "31062",
+          "company_address_city": "Milledgeville",
+          "company_address_state": "GA",
+          "company_phone": "+16168205366",
+          "company_tax_id": "000000000",
+          "company_owners_provided": false,
+          "capabilities_card_payments": true,
+          "capabilities_transfers": true
+        },
+        "individual_details": {
+          "tos_acceptance_date": 1680581051,
+          "tos_acceptance_ip": "103.159.11.202",
+          "individual_dob_day": "01",
+          "individual_dob_month": "01",
+          "individual_dob_year": "1901",
+          "individual_id_number": "000000000",
+          "individual_ssn_last_4": "0000",
+          "external_account_account_holder_type": "individual"
+        }
+      },
+      "confirm": true,
+      "auto_fulfill": true
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payouts/create",
+    "host": ["{{baseUrl}}"],
+    "path": ["payouts", "create"]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

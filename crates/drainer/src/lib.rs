@@ -23,7 +23,7 @@ pub async fn start_drainer(
     loop_interval: u32,
 ) -> errors::DrainerResult<()> {
     let mut stream_index: u8 = 0;
-    let mut jobs_picked: u8 = 0;
+    let jobs_picked = Arc::new(atomic::AtomicU8::new(0));
 
     let mut shutdown_interval =
         tokio::time::interval(std::time::Duration::from_millis(shutdown_interval.into()));
@@ -61,15 +61,15 @@ pub async fn start_drainer(
                         stream_index,
                         max_read_count,
                         active_tasks.clone(),
+                        jobs_picked.clone(),
                     ));
-                    jobs_picked += 1;
                 }
-                (stream_index, jobs_picked) = utils::increment_stream_index(
-                    (stream_index, jobs_picked),
+                stream_index = utils::increment_stream_index(
+                    (stream_index, jobs_picked.clone()),
                     number_of_streams,
-                    &mut loop_interval,
                 )
                 .await;
+                loop_interval.tick().await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::info!("Awaiting shutdown!");
@@ -114,18 +114,25 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
     }
 }
 
+#[router_env::instrument(skip_all)]
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
     max_read_count: u64,
     active_tasks: Arc<atomic::AtomicU64>,
+    jobs_picked: Arc<atomic::AtomicU8>,
 ) -> errors::DrainerResult<()> {
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
 
-    let drainer_result =
-        Box::pin(drainer(store.clone(), max_read_count, stream_name.as_str())).await;
+    let drainer_result = Box::pin(drainer(
+        store.clone(),
+        max_read_count,
+        stream_name.as_str(),
+        jobs_picked,
+    ))
+    .await;
 
     if let Err(error) = drainer_result {
         logger::error!(?error)
@@ -145,11 +152,15 @@ async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,
     stream_name: &str,
+    jobs_picked: Arc<atomic::AtomicU8>,
 ) -> errors::DrainerResult<()> {
     let stream_read =
         match utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await
         {
-            Ok(result) => result,
+            Ok(result) => {
+                jobs_picked.fetch_add(1, atomic::Ordering::SeqCst);
+                result
+            }
             Err(error) => {
                 if let errors::DrainerError::RedisError(redis_err) = error.current_context() {
                     if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
@@ -206,7 +217,6 @@ async fn drainer(
         let payment_attempt = "payment_attempt";
         let refund = "refund";
         let reverse_lookup = "reverse_lookup";
-        let connector_response = "connector_response";
         let address = "address";
         match db_op {
             // TODO: Handle errors
@@ -229,13 +239,6 @@ async fn drainer(
                         }
                         kv::Insertable::Refund(a) => {
                             macro_util::handle_resp!(a.insert(&conn).await, insert_op, refund)
-                        }
-                        kv::Insertable::ConnectorResponse(a) => {
-                            macro_util::handle_resp!(
-                                a.insert(&conn).await,
-                                insert_op,
-                                connector_response
-                            )
                         }
                         kv::Insertable::Address(addr) => {
                             macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
@@ -283,11 +286,6 @@ async fn drainer(
                                 refund
                             )
                         }
-                        kv::Updateable::ConnectorResponseUpdate(a) => macro_util::handle_resp!(
-                            a.orig.update(&conn, a.update_data).await,
-                            update_op,
-                            connector_response
-                        ),
                         kv::Updateable::AddressUpdate(a) => macro_util::handle_resp!(
                             a.orig.update(&conn, a.update_data).await,
                             update_op,

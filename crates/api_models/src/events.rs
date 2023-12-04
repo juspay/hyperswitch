@@ -1,9 +1,13 @@
 pub mod customer;
+pub mod gsm;
+mod locker_migration;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refund;
 pub mod routing;
+pub mod user;
+pub mod user_role;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
@@ -11,8 +15,16 @@ use common_utils::{
 };
 
 use crate::{
-    admin::*, api_keys::*, cards_info::*, disputes::*, files::*, mandates::*, payment_methods::*,
-    payments::*, verifications::*,
+    admin::*,
+    analytics::{api_event::*, sdk_events::*, *},
+    api_keys::*,
+    cards_info::*,
+    disputes::*,
+    files::*,
+    mandates::*,
+    payment_methods::*,
+    payments::*,
+    verifications::*,
 };
 
 impl ApiEventMetric for TimeRange {}
@@ -33,6 +45,7 @@ impl_misc_api_event_type!(
     MandateResponse,
     MandateRevokedResponse,
     RetrievePaymentLinkRequest,
+    PaymentLinkListConstraints,
     MandateId,
     DisputeListConstraints,
     RetrieveApiKeyResponse,
@@ -59,7 +72,23 @@ impl_misc_api_event_type!(
     ApplepayMerchantVerificationRequest,
     ApplepayMerchantResponse,
     ApplepayVerifiedDomainsResponse,
-    UpdateApiKeyRequest
+    UpdateApiKeyRequest,
+    GetApiEventFiltersRequest,
+    ApiEventFiltersResponse,
+    GetInfoResponse,
+    GetPaymentMetricRequest,
+    GetRefundMetricRequest,
+    GetSdkEventMetricRequest,
+    GetPaymentFiltersRequest,
+    PaymentFiltersResponse,
+    GetRefundFilterRequest,
+    RefundFiltersResponse,
+    GetSdkEventFiltersRequest,
+    SdkEventFiltersResponse,
+    ApiLogsRequest,
+    GetApiEventMetricRequest,
+    SdkEventsRequest,
+    ReportRequest
 );
 
 #[cfg(feature = "stripe")]
@@ -72,3 +101,9 @@ impl_misc_api_event_type!(
     CustomerPaymentMethodListResponse,
     CreateCustomerResponse
 );
+
+impl<T> ApiEventMetric for MetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}

@@ -188,7 +188,8 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "nmi",
             })
@@ -321,6 +322,7 @@ impl
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -414,6 +416,7 @@ impl<T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -441,6 +444,7 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
             reason: None,
             status_code: http_code,
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -468,6 +472,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -517,6 +522,7 @@ impl<T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -568,6 +574,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

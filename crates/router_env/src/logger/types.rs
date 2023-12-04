@@ -163,6 +163,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    // Retrieve forex flow.
+    RetrieveForexFlow,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config
@@ -223,6 +225,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// Payment Link List flow
+    PaymentLinkList,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -235,6 +239,54 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Rust locker migration
+    RustLockerMigration,
+    /// Gsm Rule Creation flow
+    GsmRuleCreate,
+    /// Gsm Rule Retrieve flow
+    GsmRuleRetrieve,
+    /// Gsm Rule Update flow
+    GsmRuleUpdate,
+    /// Gsm Rule Delete flow
+    GsmRuleDelete,
+    /// User connect account
+    UserConnectAccount,
+    /// Upsert Decision Manager Config
+    DecisionManagerUpsertConfig,
+    /// Delete Decision Manager Config
+    DecisionManagerDeleteConfig,
+    /// Retrieve Decision Manager Config
+    DecisionManagerRetrieveConfig,
+    /// Change password flow
+    ChangePassword,
+    /// Set Dashboard Metadata flow
+    SetDashboardMetadata,
+    /// Get Multiple Dashboard Metadata flow
+    GetMutltipleDashboardMetadata,
+    /// Payment Connector Verify
+    VerifyPaymentConnector,
+    /// Internal user signup
+    InternalUserSignup,
+    /// Switch merchant
+    SwitchMerchant,
+    /// Get permission info
+    GetAuthorizationInfo,
+    /// List roles
+    ListRoles,
+    /// Get role
+    GetRole,
+    /// Update user role
+    UpdateUserRole,
+    /// Create merchant account for user in a org
+    UserMerchantAccountCreate,
+    /// Generate Sample Data
+    GenerateSampleData,
+    /// Delete Sample Data
+    DeleteSampleData,
+    /// List merchant accounts for user
+    UserMerchantAccountList,
+    /// Get users for merchant account
+    GetUserDetails,
 }
 
 ///

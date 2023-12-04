@@ -1,6 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -80,6 +81,7 @@ where
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -346,7 +348,7 @@ pub fn payments_to_payments_response<R, Op, F: Clone>(
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
     external_latency: Option<u128>,
-    is_latency_header_enabled: Option<bool>,
+    _is_latency_header_enabled: Option<bool>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -451,23 +453,17 @@ where
             payment_confirm_source.to_string(),
         ))
     }
-    if Some(true) == is_latency_header_enabled {
-        headers.extend(
-            external_latency
-                .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
-                .unwrap_or_default(),
-        );
-    }
+
+    headers.extend(
+        external_latency
+            .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+            .unwrap_or_default(),
+    );
+
     let output = Ok(match payment_request {
         Some(_request) => {
-            if payments::is_start_pay(&operation)
-                && payment_data
-                    .connector_response
-                    .authentication_data
-                    .is_some()
-            {
-                let redirection_data = payment_data
-                    .connector_response
+            if payments::is_start_pay(&operation) && payment_attempt.authentication_data.is_some() {
+                let redirection_data = payment_attempt
                     .authentication_data
                     .get_required_value("redirection_data")?;
 
@@ -523,16 +519,15 @@ where
                                 display_to_timestamp: wait_screen_data.display_to_timestamp,
                             }
                         }))
-                        .or(payment_data
-                            .connector_response
-                            .authentication_data
-                            .map(|_| api_models::payments::NextActionData::RedirectToUrl {
+                        .or(payment_attempt.authentication_data.as_ref().map(|_| {
+                            api_models::payments::NextActionData::RedirectToUrl {
                                 redirect_to_url: helpers::create_startpay_url(
                                     server,
                                     &payment_attempt,
                                     &payment_intent,
                                 ),
-                            }));
+                            }
+                        }));
                 };
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
@@ -692,6 +687,11 @@ where
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
                         .set_merchant_connector_id(payment_attempt.merchant_connector_id)
+                        .set_unified_code(payment_attempt.unified_code)
+                        .set_unified_message(payment_attempt.unified_message)
+                        .set_incremental_authorization_allowed(
+                            payment_intent.incremental_authorization_allowed,
+                        )
                         .to_owned(),
                     headers,
                 ))
@@ -752,6 +752,9 @@ where
                 attempt_count: payment_intent.attempt_count,
                 payment_link: payment_link_data,
                 surcharge_details,
+                unified_code: payment_attempt.unified_code,
+                unified_message: payment_attempt.unified_message,
+                incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 ..Default::default()
             },
             headers,
@@ -1039,6 +1042,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             complete_authorize_url,
             customer_id: None,
             surcharge_details: payment_data.surcharge_details,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            ),
         })
     }
 }
@@ -1056,7 +1065,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 }
                 None => types::ResponseId::NoResponseId,
             },
-            encoded_data: payment_data.connector_response.encoded_data,
+            encoded_data: payment_data.payment_attempt.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             sync_type: match payment_data.multiple_capture_data {
@@ -1277,6 +1286,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             return_url: payment_data.payment_intent.return_url,
             browser_info,
             payment_method_type: attempt.payment_method_type,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+            ),
         })
     }
 }
@@ -1356,7 +1371,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             browser_info,
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
-            connector_transaction_id: payment_data.connector_response.connector_transaction_id,
+            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
@@ -1431,6 +1446,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             complete_authorize_url,
             browser_info,
             surcharge_details: payment_data.surcharge_details,
+            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
         })
     }
 }
