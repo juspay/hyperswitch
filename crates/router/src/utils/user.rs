@@ -105,17 +105,17 @@ pub async fn generate_jwt_auth_token_with_custom_merchant_id(
 }
 
 pub fn get_dashboard_entry_response(
-    user: &UserFromStorage,
-    user_role: &UserRole,
+    user: UserFromStorage,
+    user_role: UserRole,
     token: Secret<String>,
 ) -> user_api::DashboardEntryResponse {
     user_api::DashboardEntryResponse {
-        merchant_id: user_role.merchant_id.clone(),
+        merchant_id: user_role.merchant_id,
         token,
         name: user.get_name(),
         email: user.get_email(),
         user_id: user.get_user_id().to_string(),
         verification_days_left: None,
-        user_role: user_role.role_id.clone(),
+        user_role: user_role.role_id,
     }
 }
