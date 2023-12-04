@@ -6,11 +6,12 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    ChangePasswordRequest, ConnectAccountRequest, ConnectAccountResponse,
-    CreateInternalUserRequest, GetUsersResponse, SwitchMerchantIdRequest, UserMerchantCreate,
+    AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    DashboardEntryResponse, GetUsersResponse, SignUpRequest, SignUpWithMerchantIdRequest,
+    SwitchMerchantIdRequest, UserMerchantCreate,
 };
 
-impl ApiEventMetric for ConnectAccountResponse {
+impl ApiEventMetric for DashboardEntryResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::User {
             merchant_id: self.merchant_id.clone(),
@@ -19,9 +20,9 @@ impl ApiEventMetric for ConnectAccountResponse {
     }
 }
 
-impl ApiEventMetric for ConnectAccountRequest {}
-
 common_utils::impl_misc_api_event_type!(
+    SignUpRequest,
+    SignUpWithMerchantIdRequest,
     ChangePasswordRequest,
     GetMultipleMetaDataPayload,
     GetMetaDataResponse,
@@ -30,7 +31,9 @@ common_utils::impl_misc_api_event_type!(
     SwitchMerchantIdRequest,
     CreateInternalUserRequest,
     UserMerchantCreate,
-    GetUsersResponse
+    GetUsersResponse,
+    AuthorizeResponse,
+    ConnectAccountRequest
 );
 
 #[cfg(feature = "dummy_connector")]

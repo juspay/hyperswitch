@@ -16,7 +16,6 @@ use crate::{
     admin, disputes,
     enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
-    payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
 };
 
@@ -204,8 +203,9 @@ pub struct PaymentsRequest {
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
 
-    /// This is used when payment is to be confirmed and the card is not saved
-    #[schema(value_type = Option<String>)]
+    /// This is used when payment is to be confirmed and the card is not saved.
+    /// This field will be deprecated soon, use the CardToken object instead
+    #[schema(value_type = Option<String>, deprecated)]
     pub card_cvc: Option<Secret<String>>,
 
     /// The shipping address for the payment
@@ -338,17 +338,6 @@ pub struct RequestSurchargeDetails {
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
         self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
-    }
-    pub fn get_surcharge_details_object(&self, original_amount: i64) -> SurchargeDetailsResponse {
-        let surcharge_amount = self.surcharge_amount;
-        let tax_on_surcharge_amount = self.tax_amount.unwrap_or(0);
-        SurchargeDetailsResponse {
-            surcharge: Surcharge::Fixed(self.surcharge_amount),
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
-        }
     }
     pub fn get_total_surcharge_amount(&self) -> i64 {
         self.surcharge_amount + self.tax_amount.unwrap_or(0)
@@ -720,12 +709,16 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>)]
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
