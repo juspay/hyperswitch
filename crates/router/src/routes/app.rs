@@ -839,6 +839,8 @@ impl User {
                 web::resource("/create_merchant")
                     .route(web::post().to(user_merchant_account_create)),
             )
+            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
+            .service(web::resource("/user/list").route(web::get().to(get_user_details)))
             // User Role APIs
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
