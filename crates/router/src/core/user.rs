@@ -257,8 +257,6 @@ pub async fn forgot_password(
     state: AppState,
     request: user_api::ForgotPasswordRequest,
 ) -> UserResponse<()> {
-    use crate::services::email::types as email_types;
-
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
     let user_from_db = state
@@ -293,13 +291,14 @@ pub async fn forgot_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "email")]
 pub async fn reset_password(
     state: AppState,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
     let token = auth::decode_jwt::<EmailToken>(request.token.expose().as_str(), &state)
         .await
-        .map_err(|e| e.change_context(UserErrors::LinkInvalid))?;
+        .change_context(UserErrors::LinkInvalid)?;
 
     let password = domain::UserPassword::new(request.password)?;
 
@@ -310,7 +309,7 @@ pub async fn reset_password(
         .store
         .find_user_by_email(token.get_email())
         .await
-        .map_err(|e| e.change_context(UserErrors::InternalServerError))?
+        .change_context(UserErrors::InternalServerError)?
         .user_id;
 
     state
@@ -324,7 +323,7 @@ pub async fn reset_password(
             },
         )
         .await
-        .map_err(|e| e.change_context(UserErrors::InternalServerError))?;
+        .change_context(UserErrors::InternalServerError)?;
 
     //TODO: Update User role status for invited user
 
@@ -342,7 +341,103 @@ pub async fn invite_user(
         .await
         .map_err(|e| e.change_context(UserErrors::InternalServerError))?;
 
-    todo!()
+    let inviter_user = state
+        .store
+        .find_user_by_id(user_from_token.user_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    if inviter_user.email == request.email {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("User Inviting themself");
+    }
+
+    utils::user_role::validate_role_id(request.role_id.as_str())?;
+    let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+
+    let invitee_user = state
+        .store
+        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
+        .await;
+
+    if let Ok(invitee_user) = invitee_user {
+        let invitee_user_from_db = domain::UserFromStorage::from(invitee_user);
+
+        let now = common_utils::date_time::now();
+
+        state
+            .store
+            .insert_user_role(UserRoleNew {
+                user_id: invitee_user_from_db.get_user_id().to_owned(),
+                merchant_id: user_from_token.merchant_id,
+                role_id: request.role_id,
+                org_id: user_from_token.org_id,
+                status: UserStatus::Active,
+                created_by: user_from_token.user_id.clone(),
+                last_modified_by: user_from_token.user_id,
+                created_at: now,
+                last_modified_at: now,
+            })
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_unique_violation() {
+                    e.change_context(UserErrors::UserExists)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+
+        Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
+            is_email_sent: false,
+        }))
+    } else if invitee_user
+        .as_ref()
+        .map_err(|e| e.current_context().is_db_not_found())
+        .err()
+        .unwrap_or(false)
+    {
+        let new_user = domain::NewUser::try_from((request.clone(), user_from_token))?;
+
+        new_user
+            .insert_user_in_db(state.store.as_ref())
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+        new_user
+            .clone()
+            .insert_user_role_in_db(state.clone(), request.role_id, UserStatus::InvitationSent)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        let is_email_sent = if cfg!(feature="email")
+        {
+            let email_contents = email_types::InviteUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+            };
+
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+
+            logger::info!(?send_email_result);
+
+            send_email_result.is_ok()
+        } else {
+            false
+        };
+
+        Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
+            is_email_sent
+        }))
+    } else {
+        Err(UserErrors::InternalServerError.into())
+    }
 }
 
 pub async fn create_internal_user(

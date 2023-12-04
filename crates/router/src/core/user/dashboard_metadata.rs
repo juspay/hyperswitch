@@ -1,9 +1,9 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
-    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataUpdate},
+    user::dashboard_metadata::{DashboardMetadata},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
