@@ -19,6 +19,7 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
+#[cfg(feature = "email")]
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -76,6 +77,7 @@ pub async fn user_signin(
     .await
 }
 
+#[cfg(feature = "email")]
 pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,

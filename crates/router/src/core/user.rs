@@ -1,7 +1,10 @@
 use api_models::user as user_api;
 use diesel_models::{enums::UserStatus, user as storage_user};
-use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "email")]
+use error_stack::IntoReport;
+use error_stack::ResultExt;
 use masking::ExposeInterface;
+#[cfg(feature = "email")]
 use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
@@ -21,6 +24,7 @@ pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
 
+#[cfg(feature = "email")]
 pub async fn signup_with_merchant_id(
     state: AppState,
     request: user_api::SignUpWithMerchantIdRequest,
@@ -89,9 +93,9 @@ pub async fn signup(
         .await?;
     let token = utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
 
-    return Ok(ApplicationResponse::Json(
+    Ok(ApplicationResponse::Json(
         utils::user::get_dashboard_entry_response(&user_from_db, &user_role, token),
-    ));
+    ))
 }
 
 pub async fn signin(
@@ -116,9 +120,9 @@ pub async fn signin(
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
     let token = utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
 
-    return Ok(ApplicationResponse::Json(
+    Ok(ApplicationResponse::Json(
         utils::user::get_dashboard_entry_response(&user_from_db, &user_role, token),
-    ));
+    ))
 }
 
 #[cfg(feature = "email")]
@@ -379,8 +383,7 @@ pub async fn switch_merchant_id(
         &user_role,
         request.merchant_id.clone(),
     )
-    .await?
-    .into();
+    .await?;
 
     Ok(ApplicationResponse::Json(
         user_api::SwitchMerchantResponse {
