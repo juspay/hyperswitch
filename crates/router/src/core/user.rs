@@ -1,4 +1,5 @@
 use api_models::user as user_api;
+use diesel_models::user_role::UserRoleNew;
 use diesel_models::{enums::UserStatus, user as storage_user};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
@@ -339,12 +340,6 @@ pub async fn invite_user(
         .store
         .find_user_by_id(user_from_token.user_id.as_str())
         .await
-        .map_err(|e| e.change_context(UserErrors::InternalServerError))?;
-
-    let inviter_user = state
-        .store
-        .find_user_by_id(user_from_token.user_id.as_str())
-        .await
         .change_context(UserErrors::InternalServerError)?;
 
     if inviter_user.email == request.email {
@@ -408,8 +403,7 @@ pub async fn invite_user(
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        let is_email_sent = if cfg!(feature="email")
-        {
+        let is_email_sent = if cfg!(feature = "email") {
             let email_contents = email_types::InviteUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
@@ -433,7 +427,7 @@ pub async fn invite_user(
         };
 
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
-            is_email_sent
+            is_email_sent,
         }))
     } else {
         Err(UserErrors::InternalServerError.into())
