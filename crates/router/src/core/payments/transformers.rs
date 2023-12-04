@@ -392,7 +392,7 @@ where
         )
     };
 
-    let authorizations_response = if payment_data.authorizations.is_empty() {
+    let incremental_authorizations_response = if payment_data.authorizations.is_empty() {
         None
     } else {
         Some(
@@ -705,7 +705,7 @@ where
                             payment_intent.incremental_authorization_allowed,
                         )
                         .set_authorization_count(payment_intent.authorization_count)
-                        .set_authorizations(authorizations_response)
+                        .set_incremental_authorizations(incremental_authorizations_response)
                         .to_owned(),
                     headers,
                 ))
@@ -770,7 +770,7 @@ where
                 unified_message: payment_attempt.unified_message,
                 incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 authorization_count: payment_intent.authorization_count,
-                authorizations: authorizations_response,
+                incremental_authorizations: incremental_authorizations_response,
                 ..Default::default()
             },
             headers,

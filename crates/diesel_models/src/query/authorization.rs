@@ -7,7 +7,7 @@ use crate::{
         Authorization, AuthorizationNew, AuthorizationUpdate, AuthorizationUpdateInternal,
     },
     errors,
-    schema::authorization::dsl,
+    schema::incremental_authorization::dsl,
     PgPooledConn, StorageResult,
 };
 

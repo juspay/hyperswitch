@@ -730,8 +730,8 @@ pub enum PaymentsResponseData {
     IncrementalAuthorizationResponse {
         status: common_enums::AuthorizationStatus,
         connector_authorization_id: Option<String>,
-        code: Option<String>,
-        message: Option<String>,
+        error_code: Option<String>,
+        error_message: Option<String>,
     },
 }
 

@@ -2888,38 +2888,6 @@
           "no_three_ds"
         ]
       },
-      "AuthorizationResponse": {
-        "type": "object",
-        "required": [
-          "authorization_id",
-          "amount",
-          "status"
-        ],
-        "properties": {
-          "authorization_id": {
-            "type": "string",
-            "description": "The unique identifier of authorization"
-          },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Amount the authorization has been made for"
-          },
-          "status": {
-            "$ref": "#/components/schemas/AuthorizationStatus"
-          },
-          "code": {
-            "type": "string",
-            "description": "The code sent by the connector for authorization",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "The message sent by the connector for authorization",
-            "nullable": true
-          }
-        }
-      },
       "AuthorizationStatus": {
         "type": "string",
         "enum": [
@@ -6452,6 +6420,44 @@
           "unified_message": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "IncrementalAuthorizationResponse": {
+        "type": "object",
+        "required": [
+          "authorization_id",
+          "amount",
+          "status",
+          "previously_authorized_amount"
+        ],
+        "properties": {
+          "authorization_id": {
+            "type": "string",
+            "description": "The unique identifier of authorization"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount the authorization has been made for"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationStatus"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code sent by the connector for authorization",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message sent by the connector for authorization",
+            "nullable": true
+          },
+          "previously_authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Previously authorized amount for the payment"
           }
         }
       },
@@ -10581,12 +10587,12 @@
             "description": "Total number of authorizations happened in an incremental_authorization payment",
             "nullable": true
           },
-          "authorizations": {
+          "incremental_authorizations": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AuthorizationResponse"
+              "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
             },
-            "description": "List of authorizations happened to the payment",
+            "description": "List of incremental authorizations happened to the payment",
             "nullable": true
           }
         }

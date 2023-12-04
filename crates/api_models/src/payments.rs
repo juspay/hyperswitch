@@ -2220,8 +2220,8 @@ pub struct PaymentsResponse {
     /// Total number of authorizations happened in an incremental_authorization payment
     pub authorization_count: Option<i32>,
 
-    /// List of authorizations happened to the payment
-    pub authorizations: Option<Vec<AuthorizationResponse>>,
+    /// List of incremental authorizations happened to the payment
+    pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2292,7 +2292,7 @@ pub struct PaymentListResponse {
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct AuthorizationResponse {
+pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
     pub authorization_id: String,
     /// Amount the authorization has been made for
@@ -2300,10 +2300,12 @@ pub struct AuthorizationResponse {
     #[schema(value_type= AuthorizationStatus)]
     /// The status of the authorization
     pub status: common_enums::AuthorizationStatus,
-    /// The code sent by the connector for authorization
-    pub code: Option<String>,
-    /// The message sent by the connector for authorization
-    pub message: Option<String>,
+    /// Error code sent by the connector for authorization
+    pub error_code: Option<String>,
+    /// Error message sent by the connector for authorization
+    pub error_message: Option<String>,
+    /// Previously authorized amount for the payment
+    pub previously_authorized_amount: i64,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

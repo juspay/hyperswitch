@@ -775,16 +775,16 @@ impl<F, T>
                 Some(error) => Ok(
                     types::PaymentsResponseData::IncrementalAuthorizationResponse {
                         status: common_enums::AuthorizationStatus::Failure,
-                        code: Some(error.reason),
-                        message: Some(error.message),
+                        error_code: Some(error.reason),
+                        error_message: Some(error.message),
                         connector_authorization_id: None,
                     },
                 ),
                 _ => Ok(
                     types::PaymentsResponseData::IncrementalAuthorizationResponse {
                         status: item.response.status.into(),
-                        code: None,
-                        message: None,
+                        error_code: None,
+                        error_message: None,
                         connector_authorization_id: None,
                     },
                 ),

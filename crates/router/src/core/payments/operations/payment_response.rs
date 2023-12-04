@@ -158,19 +158,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         let authorization_update = match &router_data.response {
             Err(res) => Ok(storage::AuthorizationUpdate::StatusUpdate {
                 status: AuthorizationStatus::Failure,
-                code: Some(res.code.clone()),
-                message: Some(res.message.clone()),
+                error_code: Some(res.code.clone()),
+                error_message: Some(res.message.clone()),
                 connector_authorization_id: None,
             }),
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
                 status,
-                code,
-                message,
+                error_code,
+                error_message,
                 connector_authorization_id,
             }) => Ok(storage::AuthorizationUpdate::StatusUpdate {
                 status: status.clone(),
-                code: code.clone(),
-                message: message.clone(),
+                error_code: error_code.clone(),
+                error_message: error_message.clone(),
                 connector_authorization_id: connector_authorization_id.clone(),
             }),
             Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)

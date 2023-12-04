@@ -185,32 +185,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
-        // If this is first incremental authorization, store the original authorization in authorization table
-        if payment_data.payment_intent.authorization_count.is_none() {
-            let authorization_new = AuthorizationNew {
-                authorization_id: format!(
-                    "{}_1",
-                    common_utils::generate_id_with_default_len("auth")
-                ),
-                merchant_id: payment_data.payment_intent.merchant_id.clone(),
-                payment_id: payment_data.payment_intent.payment_id.clone(),
-                amount: payment_data.payment_intent.amount,
-                status: common_enums::AuthorizationStatus::Success,
-                code: None,
-                message: None,
-                connector_authorization_id: None,
-            };
-            db.store
-                .insert_authorization(authorization_new.clone())
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed while inserting original authorization")?;
-        }
         let new_authorization_count = payment_data
             .payment_intent
             .authorization_count
             .map(|count| count + 1)
-            .unwrap_or(2);
+            .unwrap_or(1);
         // Create new authorization record
         let authorization_new = AuthorizationNew {
             authorization_id: format!(
@@ -230,9 +209,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     ),
                 )?,
             status: common_enums::AuthorizationStatus::Created,
-            code: None,
-            message: None,
+            error_code: None,
+            error_message: None,
             connector_authorization_id: None,
+            previously_authorized_amount: payment_data.payment_intent.amount,
         };
         let authorization = db
             .store

@@ -2,10 +2,10 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::authorization};
+use crate::{enums as storage_enums, schema::incremental_authorization};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Hash)]
-#[diesel(table_name = authorization)]
+#[diesel(table_name = incremental_authorization)]
 #[diesel(primary_key(authorization_id, merchant_id))]
 pub struct Authorization {
     pub authorization_id: String,
@@ -17,40 +17,42 @@ pub struct Authorization {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub status: storage_enums::AuthorizationStatus,
-    pub code: Option<String>,
-    pub message: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
+    pub previously_authorized_amount: i64,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
-#[diesel(table_name = authorization)]
+#[diesel(table_name = incremental_authorization)]
 pub struct AuthorizationNew {
     pub authorization_id: String,
     pub merchant_id: String,
     pub payment_id: String,
     pub amount: i64,
     pub status: storage_enums::AuthorizationStatus,
-    pub code: Option<String>,
-    pub message: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
+    pub previously_authorized_amount: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthorizationUpdate {
     StatusUpdate {
         status: storage_enums::AuthorizationStatus,
-        code: Option<String>,
-        message: Option<String>,
+        error_code: Option<String>,
+        error_message: Option<String>,
         connector_authorization_id: Option<String>,
     },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = authorization)]
+#[diesel(table_name = incremental_authorization)]
 pub struct AuthorizationUpdateInternal {
     pub status: Option<storage_enums::AuthorizationStatus>,
-    pub code: Option<String>,
-    pub message: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_authorization_id: Option<String>,
 }
@@ -61,13 +63,13 @@ impl From<AuthorizationUpdate> for AuthorizationUpdateInternal {
         match authorization_child_update {
             AuthorizationUpdate::StatusUpdate {
                 status,
-                code,
-                message,
+                error_code,
+                error_message,
                 connector_authorization_id,
             } => Self {
                 status: Some(status),
-                code,
-                message,
+                error_code,
+                error_message,
                 connector_authorization_id,
                 modified_at: now,
             },
