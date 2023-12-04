@@ -116,6 +116,13 @@ pub fn separate_metadata_type_based_on_scope(
     (merchant_scoped, user_scoped)
 }
 
+pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
+    match metadata {
+        Ok(_) => false,
+        Err(e) => matches!(e.current_context(), UserErrors::MetadataAlreadySet),
+    }
+}
+
 pub fn is_backfill_required(metadata_key: &DBEnum) -> bool {
     matches!(
         metadata_key,

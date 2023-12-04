@@ -9,7 +9,7 @@ use crate::{
     consts,
     db::user::UserInterface,
     routes::AppState,
-    services::{authentication as auth, ApplicationResponse},
+    services::{authentication as auth, email::types::EmailToken, ApplicationResponse},
     types::domain,
     utils,
 };
@@ -130,8 +130,7 @@ pub async fn change_password(
     user.compare_password(request.old_password)
         .change_context(UserErrors::InvalidOldPassword)?;
 
-    let new_password_hash =
-        crate::utils::user::password::generate_password_hash(request.new_password)?;
+    let new_password_hash = utils::user::password::generate_password_hash(request.new_password)?;
 
     let _ = UserInterface::update_user_by_user_id(
         &*state.store,
@@ -144,6 +143,64 @@ pub async fn change_password(
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+#[cfg(feature = "email")]
+pub async fn forgot_password(
+    state: AppState,
+    request: user_api::ForgotPasswordRequest,
+) -> UserResponse<()> {
+    use crate::services::email::types as email_types;
+
+    let user_email = domain::UserEmail::from_pii_email(request.email)?;
+
+    let user_from_db = state
+        .store
+        .find_user_by_email(user_email.get_secret().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::UserNotFound)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })
+        .map(domain::UserFromStorage::from)?;
+
+    let email_contents = email_types::ResetPassword {
+        recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+        settings: state.conf.clone(),
+        user_name: domain::UserName::new(user_from_db.get_name())?,
+        subject: "Get back to Hyperswitch - Reset Your Password Now",
+    };
+
+    state
+        .email_client
+        .compose_and_send_email(
+            Box::new(email_contents),
+            state.conf.proxy.https_url.as_ref(),
+        )
+        .await
+        .map_err(|e| e.change_context(UserErrors::InternalServerError))?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn reset_password(
+    state: AppState,
+    request: user_api::ResetPasswordRequest,
+) -> UserResponse<()> {
+    let token = auth::decode_jwt::<EmailToken>(request.token.expose().as_str(), &state)
+        .await
+        .map_err(|e| e.change_context(UserErrors::LinkInvalid))?;
+
+    let password = domain::UserPassword::new(request.password)?;
+
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+    
+    
 
     Ok(ApplicationResponse::StatusOk)
 }
