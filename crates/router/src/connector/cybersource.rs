@@ -137,7 +137,7 @@ impl ConnectorCommon for Cybersource {
             message,
             reason: Some(connector_reason),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.id,
         })
     }
 }

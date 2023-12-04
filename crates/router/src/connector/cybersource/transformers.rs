@@ -729,6 +729,7 @@ impl<F, T>
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
+    pub id: Option<String>,
     pub error_information: Option<ErrorInformation>,
     pub status: Option<String>,
     pub message: Option<String>,
