@@ -298,8 +298,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
 
-        logger::debug!(payment_method_data_after_card_bin_call=?payment_method_data_after_card_bin_call);
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
