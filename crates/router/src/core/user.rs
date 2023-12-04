@@ -1,5 +1,5 @@
 use api_models::user as user_api;
-use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
+use diesel_models::{enums::UserStatus, user as storage_user};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
 use error_stack::ResultExt;
@@ -11,12 +11,13 @@ use router_env::logger;
 
 use super::errors::{UserErrors, UserResponse};
 #[cfg(feature = "email")]
-use crate::services::email::types as email_types;
+use crate::services::email::{types as email_types, types::EmailToken};
+
 use crate::{
     consts,
     db::user::UserInterface,
     routes::AppState,
-    services::{authentication as auth, email::types::EmailToken, ApplicationResponse},
+    services::{authentication as auth, ApplicationResponse},
     types::domain,
     utils,
 };
@@ -330,6 +331,7 @@ pub async fn reset_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "email")]
 pub async fn invite_user(
     state: AppState,
     request: user_api::InviteUserRequest,
@@ -358,7 +360,7 @@ pub async fn invite_user(
         let invitee_user_from_db = domain::UserFromStorage::from(invitee_user);
 
         let now = common_utils::date_time::now();
-
+        use diesel_models::user_role::UserRoleNew;
         state
             .store
             .insert_user_role(UserRoleNew {
@@ -402,7 +404,6 @@ pub async fn invite_user(
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        let is_email_sent = if cfg!(feature = "email") {
             let email_contents = email_types::InviteUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(new_user.get_name())?,
@@ -420,13 +421,8 @@ pub async fn invite_user(
 
             logger::info!(?send_email_result);
 
-            send_email_result.is_ok()
-        } else {
-            false
-        };
-
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
-            is_email_sent,
+            is_email_sent: send_email_result.is_ok()
         }))
     } else {
         Err(UserErrors::InternalServerError.into())

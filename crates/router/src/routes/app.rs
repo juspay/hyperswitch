@@ -842,21 +842,24 @@ impl User {
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)));
-
+        
         #[cfg(feature = "dummy_connector")]
         {
             route = route.service(
                 web::resource("/sample_data")
-                    .route(web::post().to(generate_sample_data))
-                    .route(web::delete().to(delete_sample_data)),
+                .route(web::post().to(generate_sample_data))
+                .route(web::delete().to(delete_sample_data)),
             )
         }
         #[cfg(feature = "email")]
         {
             route = route
-                .service(
-                    web::resource("/connect_account").route(web::post().to(user_connect_account)),
-                )
+            .service(
+                web::resource("/connect_account").route(web::post().to(user_connect_account)),
+            )
+            .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
+            .service(web::resource("/reset_password").route(web::post().to(reset_password)))
+            .service(web::resource("user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),

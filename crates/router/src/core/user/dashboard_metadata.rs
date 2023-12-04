@@ -490,7 +490,7 @@ async fn insert_metadata(
             .await
         }
         types::MetaData::IsMultipleConfiguration(data) => {
-            let metadata = utils::insert_merchant_scoped_metadata_to_db(
+            utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,
@@ -498,11 +498,7 @@ async fn insert_metadata(
                 metadata_key,
                 data,
             )
-            .await;
-            if utils::is_update_required(&metadata) {
-                todo!()
-            }
-            metadata
+            .await
         }
     }
 }
