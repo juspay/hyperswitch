@@ -772,14 +772,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             ),
             updated_by: storage_scheme.to_string(),
             // make this false only if initial payment fails, if incremental authorization call fails don't make it false
-            incremental_authorization_allowed: if payment_data
-                .incremental_authorization_details
-                .is_none()
-            {
-                Some(false)
-            } else {
-                None
-            },
+            incremental_authorization_allowed: Some(false),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: api_models::enums::IntentStatus::foreign_from(
