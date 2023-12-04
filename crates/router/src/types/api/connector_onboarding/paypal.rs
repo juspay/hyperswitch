@@ -135,8 +135,7 @@ impl PartnerReferralRequest {
             products: vec![PayPalProducts::Ppcp, PayPalProducts::AdvancedVaulting],
             capabilities: vec![PayPalCapabilities::PaypalWalletVaultingAdvanced],
             partner_config_override: PartnerConfigOverride {
-                partner_logo_url: "https://hyperswitch.io/img/websiteIcon.svg"
-                    .to_string(),
+                partner_logo_url: "https://hyperswitch.io/img/websiteIcon.svg".to_string(),
                 return_url,
             },
             legal_consents: vec![LegalConsent {
