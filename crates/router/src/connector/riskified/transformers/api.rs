@@ -16,6 +16,8 @@ use crate::{
     },
 };
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct RiskifiedPaymentsCheckoutRequest {
     order: CheckoutRequest,
@@ -131,7 +133,7 @@ pub struct RiskifiedMetadata {
 }
 
 impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(payment_data: &frm_types::FrmCheckoutRouterData) -> Result<Self, Self::Error> {
         let metadata: RiskifiedMetadata = payment_data
             .frm_metadata
@@ -270,7 +272,7 @@ impl<F, T>
     TryFrom<ResponseRouterData<F, RiskifiedPaymentsResponse, T, frm_types::FraudCheckResponseData>>
     for types::RouterData<F, T, frm_types::FraudCheckResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: ResponseRouterData<
             F,
@@ -327,7 +329,7 @@ pub struct AuthorizationError {
 }
 
 impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionFailedRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &frm_types::FrmTransactionRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             checkout: FailedTransactionData {
@@ -367,7 +369,7 @@ impl<F, T>
         >,
     > for types::RouterData<F, T, frm_types::FraudCheckResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: ResponseRouterData<
             F,
@@ -427,7 +429,7 @@ pub enum TransactionStatus {
 }
 
 impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &frm_types::FrmTransactionRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             order: SuccessfulTransactionData {
@@ -480,7 +482,7 @@ pub struct FulfilmentData {
 }
 
 impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             order: OrderFullfillment {
@@ -529,7 +531,7 @@ impl
         frm_types::FraudCheckResponseData,
     >
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: ResponseRouterData<
             Fulfillment,
@@ -559,7 +561,7 @@ pub struct ErrorData {
 }
 
 impl TryFrom<&api_models::payments::Address> for OrderAddress {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(address_info: &api_models::payments::Address) -> Result<Self, Self::Error> {
         let address =
             address_info
