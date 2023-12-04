@@ -49,6 +49,11 @@ pub struct InviteUserRequest {
     pub role_id: String,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct InviteUserResponse {
+    pub is_email_sent: bool,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
