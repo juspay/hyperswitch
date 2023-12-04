@@ -137,7 +137,7 @@ impl ConnectorCommon for Cybersource {
             message,
             reason: Some(connector_reason),
             attempt_status: None,
-            connector_transaction_id: response.id,
+            connector_transaction_id: None,
         })
     }
 }
@@ -322,7 +322,45 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: cybersource::ErrorResponse = res
+            .response
+            .parse_struct("Cybersource ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let details = response.details.unwrap_or_default();
+        let connector_reason = details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let error_message = if res.status_code == 401 {
+            consts::CONNECTOR_UNAUTHORIZED_ERROR
+        } else {
+            consts::NO_ERROR_MESSAGE
+        };
+
+        let (code, message) = match response.error_information {
+            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (
+                response
+                    .reason
+                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                        reason.to_string()
+                    }),
+                response
+                    .message
+                    .map_or(error_message.to_string(), |message| message),
+            ),
+        };
+
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code,
+            message,
+            reason: Some(connector_reason),
+            attempt_status: None,
+            connector_transaction_id: response.id,
+        })
     }
 }
 
@@ -425,6 +463,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 http_code: res.status_code,
             },
             true,
+            false,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -611,6 +650,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 http_code: res.status_code,
             },
             is_auto_capture,
+            true,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -619,7 +659,45 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: cybersource::ErrorResponse = res
+            .response
+            .parse_struct("Cybersource ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let details = response.details.unwrap_or_default();
+        let connector_reason = details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let error_message = if res.status_code == 401 {
+            consts::CONNECTOR_UNAUTHORIZED_ERROR
+        } else {
+            consts::NO_ERROR_MESSAGE
+        };
+
+        let (code, message) = match response.error_information {
+            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (
+                response
+                    .reason
+                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                        reason.to_string()
+                    }),
+                response
+                    .message
+                    .map_or(error_message.to_string(), |message| message),
+            ),
+        };
+
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code,
+            message,
+            reason: Some(connector_reason),
+            attempt_status: None,
+            connector_transaction_id: response.id,
+        })
     }
 }
 
@@ -693,6 +771,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 data: data.clone(),
                 http_code: res.status_code,
             },
+            false,
             false,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)

@@ -531,6 +531,7 @@ impl<F, T>
     TryFrom<(
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
         bool,
+        bool,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -543,10 +544,12 @@ impl<F, T>
                 types::PaymentsResponseData,
             >,
             bool,
+            bool,
         ),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         let is_capture = data.1;
+        let is_auth_call = data.2;
         let mandate_reference =
             item.response
                 .token_information
@@ -558,14 +561,22 @@ impl<F, T>
         Ok(Self {
             status,
             response: match item.response.error_information {
-                Some(error) => Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error.message,
-                    reason: Some(error.reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(item.response.id),
-                }),
+                Some(error) => {
+                    let result = Err(types::ErrorResponse {
+                        code: consts::NO_ERROR_CODE.to_string(),
+                        message: error.message,
+                        reason: Some(error.reason),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: if is_auth_call {
+                            Some(item.response.id)
+                        } else {
+                            None
+                        },
+                    });
+
+                    result
+                }
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
@@ -755,6 +766,7 @@ pub enum Reason {
     SystemError,
     ServerTimeout,
     ServiceTimeout,
+    ExceedsAuthAmount,
 }
 
 #[derive(Debug, Deserialize, Clone)]

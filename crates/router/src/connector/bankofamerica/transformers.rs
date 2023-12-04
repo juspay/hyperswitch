@@ -606,7 +606,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -664,7 +664,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -967,6 +967,7 @@ pub enum Reason {
     SystemError,
     ServerTimeout,
     ServiceTimeout,
+    ExceedsAuthAmount,
 }
 
 #[derive(Debug, Deserialize, Clone)]
