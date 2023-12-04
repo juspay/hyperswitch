@@ -4136,7 +4136,8 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Stripe,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
                                             (
                                                 "payment_method_data.bank_redirect.bancontact_card.billing_details.email".to_string(),
                                                 RequiredFieldInfo {
@@ -4156,14 +4157,14 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             )
                                         ]),
-                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
                                     enums::Connector::Adyen,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common:HashMap::from([
                                             (
                                                 "payment_method_data.bank_redirect.bancontact_card.card_number".to_string(),
                                                 RequiredFieldInfo {
@@ -4201,7 +4202,6 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             )
                                         ]),
-                                        common: HashMap::new(),
                                     }
                                 )
                             ]),
