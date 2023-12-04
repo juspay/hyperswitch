@@ -3,8 +3,6 @@ use std::{
     str::FromStr,
 };
 
-#[cfg(not(feature = "connector_choice_mca_id"))]
-use crate::core::utils::get_connector_label;
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
@@ -29,6 +27,8 @@ use masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::surcharge_decision_configs::perform_surcharge_decision_management_for_payment_method_list;
+#[cfg(not(feature = "connector_choice_mca_id"))]
+use crate::core::utils::get_connector_label;
 use crate::{
     configs::settings,
     core::{

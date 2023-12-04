@@ -1,13 +1,14 @@
+use pm_auth::{
+    consts,
+    core::errors::ConnectorError,
+    types::{self as pm_auth_types, api::BoxedConnectorIntegration, PaymentAuthRouterData},
+};
+
 use crate::{
     core::errors::{self},
     logger,
     routes::AppState,
     services::{self},
-};
-use pm_auth::{
-    consts,
-    core::errors::ConnectorError,
-    types::{self as pm_auth_types, api::BoxedConnectorIntegration, PaymentAuthRouterData},
 };
 
 pub async fn execute_connector_processing_step<

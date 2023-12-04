@@ -1,12 +1,11 @@
-use crate::{
-    core::errors::{self, ApiErrorResponse},
-    types::{self, domain},
-};
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use pm_auth::types::{self as pm_auth_types, api::BoxedPaymentAuthConnector};
 
-use crate::types::transformers::ForeignTryFrom;
+use crate::{
+    core::errors::{self, ApiErrorResponse},
+    types::{self, domain, transformers::ForeignTryFrom},
+};
 
 pub trait PaymentAuthConnectorDataExt {
     fn get_connector_by_name(name: &str) -> errors::CustomResult<Self, ApiErrorResponse>

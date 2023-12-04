@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use crate::core::errors::{self, ApiErrorResponse};
 use error_stack::{IntoReport, ResultExt};
 use pm_auth::{
     connector::plaid,
@@ -10,7 +9,10 @@ use pm_auth::{
     },
 };
 
-use crate::core::pm_auth::helpers::PaymentAuthConnectorDataExt;
+use crate::core::{
+    errors::{self, ApiErrorResponse},
+    pm_auth::helpers::PaymentAuthConnectorDataExt,
+};
 
 impl PaymentAuthConnectorDataExt for PaymentAuthConnectorData {
     fn get_connector_by_name(name: &str) -> errors::CustomResult<Self, ApiErrorResponse> {

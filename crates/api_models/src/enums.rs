@@ -1,5 +1,6 @@
-pub use common_enums::*;
 use std::str::FromStr;
+
+pub use common_enums::*;
 use utoipa::ToSchema;
 
 #[derive(

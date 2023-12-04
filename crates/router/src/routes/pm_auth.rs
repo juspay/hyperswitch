@@ -1,9 +1,8 @@
-use crate::{core::api_locking, services::api as oss_api};
 use actix_web::{web, HttpRequest, Responder};
 use api_models as api_types;
 use router_env::{instrument, tracing, types::Flow};
 
-use crate::routes::AppState;
+use crate::{core::api_locking, routes::AppState, services::api as oss_api};
 
 #[instrument(skip_all, fields(flow = ?Flow::PmAuthLinkTokenCreate))]
 pub async fn link_token_create(

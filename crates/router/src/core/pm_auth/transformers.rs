@@ -1,7 +1,6 @@
-use crate::{core::errors, types};
 use pm_auth::types::{self as pm_auth_types};
 
-use crate::types::transformers::ForeignTryFrom;
+use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 
 impl ForeignTryFrom<types::ConnectorAuthType> for pm_auth_types::ConnectorAuthType {
     type Error = errors::ConnectorError;
