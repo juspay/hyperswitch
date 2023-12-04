@@ -186,8 +186,8 @@ impl AppState {
             };
 
             #[cfg(all(feature = "kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
             {
-                #[allow(clippy::expect_used)]
                 conf.connector_onboarding = conf
                     .connector_onboarding
                     .decrypt_inner(kms_client)
