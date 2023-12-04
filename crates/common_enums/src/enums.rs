@@ -1141,6 +1141,7 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Sepa,
+    SepaBankTransfer,
     Sofort,
     Swish,
     TouchNGo,

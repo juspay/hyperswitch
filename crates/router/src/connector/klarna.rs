@@ -373,6 +373,7 @@ impl
                     | api_models::enums::PaymentMethodType::RedPagos
                     | api_models::enums::PaymentMethodType::SamsungPay
                     | api_models::enums::PaymentMethodType::Sepa
+                    | api_models::enums::PaymentMethodType::SepaBankTransfer
                     | api_models::enums::PaymentMethodType::Sofort
                     | api_models::enums::PaymentMethodType::Swish
                     | api_models::enums::PaymentMethodType::TouchNGo

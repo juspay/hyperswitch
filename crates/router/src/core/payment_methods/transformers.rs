@@ -327,6 +327,28 @@ pub async fn mk_add_locker_request_hs<'a>(
     Ok(request)
 }
 
+pub fn mk_add_bank_response_hs(
+    bank: api::BankPayout,
+    bank_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &str,
+) -> api::PaymentMethodResponse {
+    api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id,
+        payment_method_id: bank_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: Some(bank),
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           // [#256]
+        installment_payment_enabled: false, // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
+    }
+}
+
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -352,6 +374,7 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        bank_transfer: None,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
@@ -386,6 +409,7 @@ pub fn mk_add_card_response(
         payment_method_id: response.card_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        bank_transfer: None,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),

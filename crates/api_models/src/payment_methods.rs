@@ -55,6 +55,11 @@ pub struct PaymentMethodCreate {
     /// The card network
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -71,6 +76,11 @@ pub struct PaymentMethodUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<CardNetwork>,example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -147,6 +157,11 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
