@@ -1,3 +1,5 @@
+use diesel_models::errors::DatabaseError;
+
 pub type StorageResult<T> = error_stack::Result<T, StorageError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -6,7 +8,7 @@ pub enum StorageError {
     InitializationError,
     // TODO: deprecate this error type to use a domain error instead
     #[error("DatabaseError: {0:?}")]
-    DatabaseError(String),
+    DatabaseError(error_stack::Report<DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
     #[error("DuplicateValue: {entity} already exists {key:?}")]
