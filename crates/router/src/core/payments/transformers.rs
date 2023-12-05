@@ -4,7 +4,7 @@ use api_models::payments::{FrmMessage, RequestSurchargeDetails};
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentData};
@@ -392,6 +392,18 @@ where
         )
     };
 
+    let incremental_authorizations_response = if payment_data.authorizations.is_empty() {
+        None
+    } else {
+        Some(
+            payment_data
+                .authorizations
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+        )
+    };
+
     let attempts_response = payment_data.attempts.map(|attempts| {
         attempts
             .into_iter()
@@ -692,6 +704,8 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_authorization_count(payment_intent.authorization_count)
+                        .set_incremental_authorizations(incremental_authorizations_response)
                         .to_owned(),
                     headers,
                 ))
@@ -755,6 +769,8 @@ where
                 unified_code: payment_attempt.unified_code,
                 unified_message: payment_attempt.unified_message,
                 incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
+                authorization_count: payment_intent.authorization_count,
+                incremental_authorizations: incremental_authorizations_response,
                 ..Default::default()
             },
             headers,
@@ -1074,6 +1090,50 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
+    for types::PaymentsIncrementalAuthorizationData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+        Ok(Self {
+            total_amount: payment_data
+                .incremental_authorization_details
+                .clone()
+                .map(|details| details.total_amount)
+                .ok_or(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "missing incremental_authorization_details in payment_data",
+                    ),
+                )?,
+            additional_amount: payment_data
+                .incremental_authorization_details
+                .clone()
+                .map(|details| details.additional_amount)
+                .ok_or(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "missing incremental_authorization_details in payment_data",
+                    ),
+                )?,
+            reason: payment_data
+                .incremental_authorization_details
+                .and_then(|details| details.reason),
+            currency: payment_data.currency,
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         })
     }
 }

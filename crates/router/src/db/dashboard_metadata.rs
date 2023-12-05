@@ -14,6 +14,14 @@ pub trait DashboardMetadataInterface {
         &self,
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
 
     async fn find_user_scoped_dashboard_metadata(
         &self,
@@ -42,6 +50,28 @@ impl DashboardMetadataInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()
+    }
+
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::DashboardMetadata::update(
+            &conn,
+            user_id,
+            merchant_id,
+            org_id,
+            data_key,
+            dashboard_metadata_update,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn find_user_scoped_dashboard_metadata(
@@ -119,6 +149,41 @@ impl DashboardMetadataInterface for MockDb {
         };
         dashboard_metadata.push(metadata_new.clone());
         Ok(metadata_new)
+    }
+
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+        let dashboard_metadata_to_update = dashboard_metadata
+            .iter_mut()
+            .find(|metadata| {
+                metadata.user_id == user_id
+                    && metadata.merchant_id == merchant_id
+                    && metadata.org_id == org_id
+                    && metadata.data_key == data_key
+            })
+            .ok_or(errors::StorageError::MockDbError)?;
+
+        match dashboard_metadata_update {
+            storage::DashboardMetadataUpdate::UpdateData {
+                data_key,
+                data_value,
+                last_modified_by,
+            } => {
+                dashboard_metadata_to_update.data_key = data_key;
+                dashboard_metadata_to_update.data_value = data_value;
+                dashboard_metadata_to_update.last_modified_by = last_modified_by;
+                dashboard_metadata_to_update.last_modified_at = common_utils::date_time::now();
+            }
+        }
+        Ok(dashboard_metadata_to_update.clone())
     }
 
     async fn find_user_scoped_dashboard_metadata(
