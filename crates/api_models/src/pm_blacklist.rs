@@ -17,4 +17,3 @@ pub struct BlacklistPmResponse {
 
 impl ApiEventMetric for BlacklistPmRequest {}
 impl ApiEventMetric for BlacklistPmResponse {}
-
