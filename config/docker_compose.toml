@@ -366,3 +366,8 @@ ttl = 900 # 15 * 60 seconds
 
 [frm]
 enabled = true
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""

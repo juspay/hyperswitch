@@ -1,6 +1,8 @@
 pub mod admin;
 pub mod api_keys;
 pub mod configs;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod customers;
 pub mod disputes;
 pub mod enums;

@@ -1,3 +1,5 @@
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
