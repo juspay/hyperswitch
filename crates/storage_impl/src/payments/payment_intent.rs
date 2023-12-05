@@ -494,12 +494,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 .map(PaymentIntent::from_storage_model)
                 .collect::<Vec<PaymentIntent>>()
         })
-        .into_report()
         .map_err(|er| {
-            let new_err = StorageError::DatabaseError(format!("{er:?}"));
-            er.change_context(new_err)
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
         })
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -646,12 +647,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     })
                     .collect()
             })
-            .into_report()
             .map_err(|er| {
-                let new_er = StorageError::DatabaseError(format!("{er:?}"));
-                er.change_context(new_er)
+                StorageError::DatabaseError(
+                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                        .attach_printable("Error filtering payment records"),
+                )
             })
-            .attach_printable("Error filtering payment records")
+            .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -712,12 +714,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .into_report()
         .map_err(|er| {
-            let new_err = StorageError::DatabaseError(format!("{er:?}"));
-            er.change_context(new_err)
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
         })
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .into_report()
     }
 }
 

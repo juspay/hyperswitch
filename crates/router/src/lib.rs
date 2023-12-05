@@ -35,6 +35,7 @@ use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
+pub(crate) use self::macros::*;
 use crate::{configs::settings, core::errors};
 
 #[cfg(feature = "mimalloc")]
