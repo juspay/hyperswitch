@@ -113,9 +113,19 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "frm")]
+    pub frm: Frm,
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     pub events: EventsConfig,
+    #[cfg(feature = "olap")]
+    pub connector_onboarding: ConnectorOnboarding,
+}
+
+#[cfg(feature = "frm")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Frm {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -601,6 +611,7 @@ pub struct Connectors {
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
@@ -883,4 +894,19 @@ impl<'de> Deserialize<'de> for LockSettings {
             lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
         })
     }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorOnboarding {
+    pub paypal: PayPalOnboarding,
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PayPalOnboarding {
+    pub client_id: masking::Secret<String>,
+    pub client_secret: masking::Secret<String>,
+    pub partner_id: masking::Secret<String>,
+    pub enabled: bool,
 }

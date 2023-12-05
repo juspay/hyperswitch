@@ -112,9 +112,11 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                                 payment_attempt,
                             )?;
                             surcharge_metadata.insert_surcharge_details(
-                                &payment_methods_enabled.payment_method,
-                                &payment_method_type_response.payment_method_type,
-                                Some(&card_network_type.card_network),
+                                types::SurchargeKey::PaymentMethodData(
+                                    payment_methods_enabled.payment_method,
+                                    payment_method_type_response.payment_method_type,
+                                    Some(card_network_type.card_network.clone()),
+                                ),
                                 surcharge_details.clone(),
                             );
                             SurchargeDetailsResponse::foreign_try_from((
@@ -138,9 +140,11 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                             payment_attempt,
                         )?;
                         surcharge_metadata.insert_surcharge_details(
-                            &payment_methods_enabled.payment_method,
-                            &payment_method_type_response.payment_method_type,
-                            None,
+                            types::SurchargeKey::PaymentMethodData(
+                                payment_methods_enabled.payment_method,
+                                payment_method_type_response.payment_method_type,
+                                None,
+                            ),
                             surcharge_details.clone(),
                         );
                         SurchargeDetailsResponse::foreign_try_from((
@@ -201,15 +205,82 @@ where
         let surcharge_output =
             execute_dsl_and_get_conditional_config(backend_input.clone(), interpreter)?;
         if let Some(surcharge_details) = surcharge_output.surcharge_details {
-            let surcharge_details_response = get_surcharge_details_from_surcharge_output(
+            let surcharge_details = get_surcharge_details_from_surcharge_output(
                 surcharge_details,
                 &payment_data.payment_attempt,
             )?;
             surcharge_metadata.insert_surcharge_details(
-                &payment_method_type.to_owned().into(),
-                payment_method_type,
-                None,
-                surcharge_details_response,
+                types::SurchargeKey::PaymentMethodData(
+                    payment_method_type.to_owned().into(),
+                    *payment_method_type,
+                    None,
+                ),
+                surcharge_details,
+            );
+        }
+    }
+    Ok(surcharge_metadata)
+}
+pub async fn perform_surcharge_decision_management_for_saved_cards(
+    state: &AppState,
+    algorithm_ref: routing::RoutingAlgorithmRef,
+    payment_attempt: &oss_storage::PaymentAttempt,
+    payment_intent: &oss_storage::PaymentIntent,
+    customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
+    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
+    let algorithm_id = if let Some(id) = algorithm_ref.surcharge_config_algo_id {
+        id
+    } else {
+        return Ok(surcharge_metadata);
+    };
+
+    let key = ensure_algorithm_cached(
+        &*state.store,
+        &payment_attempt.merchant_id,
+        algorithm_ref.timestamp,
+        algorithm_id.as_str(),
+    )
+    .await?;
+    let cached_algo = CONF_CACHE
+        .retrieve(&key)
+        .into_report()
+        .change_context(ConfigError::CacheMiss)
+        .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
+    let mut backend_input = make_dsl_input_for_surcharge(payment_attempt, payment_intent, None)
+        .change_context(ConfigError::InputConstructionError)?;
+    let interpreter = &cached_algo.cached_alogorith;
+
+    for customer_payment_method in customer_payment_method_list.iter_mut() {
+        backend_input.payment_method.payment_method = Some(customer_payment_method.payment_method);
+        backend_input.payment_method.payment_method_type =
+            customer_payment_method.payment_method_type;
+        backend_input.payment_method.card_network = customer_payment_method
+            .card
+            .as_ref()
+            .and_then(|card| card.scheme.as_ref())
+            .map(|scheme| {
+                scheme
+                    .clone()
+                    .parse_enum("CardNetwork")
+                    .change_context(ConfigError::DslExecutionError)
+            })
+            .transpose()?;
+        let surcharge_output =
+            execute_dsl_and_get_conditional_config(backend_input.clone(), interpreter)?;
+        if let Some(surcharge_details_output) = surcharge_output.surcharge_details {
+            let surcharge_details = get_surcharge_details_from_surcharge_output(
+                surcharge_details_output,
+                payment_attempt,
+            )?;
+            surcharge_metadata.insert_surcharge_details(
+                types::SurchargeKey::Token(customer_payment_method.payment_token.clone()),
+                surcharge_details.clone(),
+            );
+            customer_payment_method.surcharge_details = Some(
+                SurchargeDetailsResponse::foreign_try_from((&surcharge_details, payment_attempt))
+                    .into_report()
+                    .change_context(ConfigError::DslParsingError)?,
             );
         }
     }

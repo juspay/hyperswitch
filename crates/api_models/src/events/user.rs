@@ -7,7 +7,8 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    DashboardEntryResponse, GetUsersResponse, SignUpRequest, SignUpWithMerchantIdRequest,
+    DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse, InviteUserRequest,
+    InviteUserResponse, ResetPasswordRequest, SignUpRequest, SignUpWithMerchantIdRequest,
     SwitchMerchantIdRequest, UserMerchantCreate,
 };
 
@@ -33,7 +34,11 @@ common_utils::impl_misc_api_event_type!(
     UserMerchantCreate,
     GetUsersResponse,
     AuthorizeResponse,
-    ConnectAccountRequest
+    ConnectAccountRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    InviteUserRequest,
+    InviteUserResponse
 );
 
 #[cfg(feature = "dummy_connector")]

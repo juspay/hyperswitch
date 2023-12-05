@@ -259,6 +259,15 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     }
 }
 
+type InviteeUserRequestWithInvitedUserToken = (user_api::InviteUserRequest, UserFromToken);
+impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
+    fn from(_value: InviteeUserRequestWithInvitedUserToken) -> Self {
+        let new_organization = api_org::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
 #[derive(Clone)]
 pub struct MerchantId(String);
 
@@ -412,6 +421,19 @@ impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
         let new_organization = NewUserOrganization::from(value);
 
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        })
+    }
+}
+
+impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+    fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
+        let merchant_id = MerchantId::new(value.clone().1.merchant_id)?;
+        let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,
             merchant_id,
@@ -652,6 +674,26 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
             password: UserPassword::new(user.0.password)?,
+            new_merchant,
+        })
+    }
+}
+
+impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+    fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.0.email.clone().try_into()?;
+        let name = UserName::new(value.0.name.clone())?;
+        let password = password::generate_password_hash(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password)?;
+        let new_merchant = NewUserMerchant::try_from(value)?;
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password,
             new_merchant,
         })
     }

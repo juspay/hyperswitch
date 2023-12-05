@@ -174,7 +174,7 @@ pub struct RefundListMetaData {
     pub currency: Vec<enums::Currency>,
     /// The list of available refund status filters
     #[schema(value_type = Vec<RefundStatus>)]
-    pub status: Vec<enums::RefundStatus>,
+    pub refund_status: Vec<enums::RefundStatus>,
 }
 
 /// The status for refunds

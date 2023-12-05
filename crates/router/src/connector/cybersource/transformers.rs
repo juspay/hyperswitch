@@ -77,9 +77,11 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
             Some(CybersourceAuthorizationOptions {
                 initiator: CybersourcePaymentInitiator {
-                    initiator_type: CybersourcePaymentInitiatorTypes::Customer,
-                    credential_stored_on_file: true,
+                    initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                    credential_stored_on_file: Some(true),
+                    stored_credential_used: None,
                 },
+                merchant_intitiated_transaction: None,
             }),
         );
 
@@ -158,14 +160,22 @@ pub enum CybersourceActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceAuthorizationOptions {
     initiator: CybersourcePaymentInitiator,
+    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantInitiatedTransaction {
+    reason: String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentInitiator {
     #[serde(rename = "type")]
-    initiator_type: CybersourcePaymentInitiatorTypes,
-    credential_stored_on_file: bool,
+    initiator_type: Option<CybersourcePaymentInitiatorTypes>,
+    credential_stored_on_file: Option<bool>,
+    stored_credential_used: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -231,6 +241,12 @@ pub struct OrderInformationWithBill {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct OrderInformationIncrementalAuthorization {
+    amount_details: AdditionalAmount,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OrderInformation {
     amount_details: Amount,
 }
@@ -239,6 +255,13 @@ pub struct OrderInformation {
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
     total_amount: String,
+    currency: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdditionalAmount {
+    additional_amount: String,
     currency: String,
 }
 
@@ -305,9 +328,11 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
                     Some(CybersourceAuthorizationOptions {
                         initiator: CybersourcePaymentInitiator {
-                            initiator_type: CybersourcePaymentInitiatorTypes::Customer,
-                            credential_stored_on_file: true,
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                            credential_stored_on_file: Some(true),
+                            stored_credential_used: None,
                         },
+                        merchant_intitiated_transaction: None,
                     }),
                 )
             } else {
@@ -390,6 +415,13 @@ pub struct CybersourcePaymentsCaptureRequest {
     order_information: OrderInformationWithBill,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourcePaymentsIncrementalAuthorizationRequest {
+    processing_information: ProcessingInformation,
+    order_information: OrderInformationIncrementalAuthorization,
+}
+
 impl TryFrom<&CybersourceRouterData<&types::PaymentsCaptureRouterData>>
     for CybersourcePaymentsCaptureRequest
 {
@@ -415,6 +447,41 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCaptureRouterData>>
                     currency: item.router_data.request.currency.to_string(),
                 },
                 bill_to: None,
+            },
+        })
+    }
+}
+
+impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRouterData>>
+    for CybersourcePaymentsIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            processing_information: ProcessingInformation {
+                action_list: None,
+                action_token_types: None,
+                authorization_options: Some(CybersourceAuthorizationOptions {
+                    initiator: CybersourcePaymentInitiator {
+                        initiator_type: None,
+                        credential_stored_on_file: None,
+                        stored_credential_used: Some(true),
+                    },
+                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        reason: "5".to_owned(),
+                    }),
+                }),
+                commerce_indicator: CybersourceCommerceIndicator::Internet,
+                capture: None,
+                capture_options: None,
+            },
+            order_information: OrderInformationIncrementalAuthorization {
+                amount_details: AdditionalAmount {
+                    additional_amount: item.amount.clone(),
+                    currency: item.router_data.request.currency.to_string(),
+                },
             },
         })
     }
@@ -461,6 +528,14 @@ pub enum CybersourcePaymentStatus {
     Processing,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CybersourceIncrementalAuthorizationStatus {
+    Authorized,
+    Declined,
+    AuthorizedPendingReview,
+}
+
 impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
     fn from(item: CybersourcePaymentStatus) -> Self {
         match item {
@@ -473,6 +548,16 @@ impl From<CybersourcePaymentStatus> for enums::AttemptStatus {
             CybersourcePaymentStatus::Failed | CybersourcePaymentStatus::Declined => Self::Failure,
             CybersourcePaymentStatus::Processing => Self::Authorizing,
             CybersourcePaymentStatus::Pending => Self::Pending,
+        }
+    }
+}
+
+impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
+    fn from(item: CybersourceIncrementalAuthorizationStatus) -> Self {
+        match item {
+            CybersourceIncrementalAuthorizationStatus::Authorized
+            | CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
         }
     }
 }
@@ -497,6 +582,13 @@ pub struct CybersourcePaymentsResponse {
     error_information: Option<CybersourceErrorInformation>,
     client_reference_information: Option<ClientReferenceInformation>,
     token_information: Option<CybersourceTokenInformation>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
+    status: CybersourceIncrementalAuthorizationStatus,
+    error_information: Option<CybersourceErrorInformation>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -648,6 +740,54 @@ impl<F, T>
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
                 }),
+            },
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<(
+        types::ResponseRouterData<
+            F,
+            CybersourcePaymentsIncrementalAuthorizationResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+        bool,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        data: (
+            types::ResponseRouterData<
+                F,
+                CybersourcePaymentsIncrementalAuthorizationResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            bool,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let item = data.0;
+        Ok(Self {
+            response: match item.response.error_information {
+                Some(error) => Ok(
+                    types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: common_enums::AuthorizationStatus::Failure,
+                        error_code: Some(error.reason),
+                        error_message: Some(error.message),
+                        connector_authorization_id: None,
+                    },
+                ),
+                _ => Ok(
+                    types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: item.response.status.into(),
+                        error_code: None,
+                        error_message: None,
+                        connector_authorization_id: None,
+                    },
+                ),
             },
             ..item.data
         })
