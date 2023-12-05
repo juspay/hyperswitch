@@ -294,3 +294,60 @@ pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> H
     ))
     .await
 }
+
+#[cfg(feature = "email")]
+pub async fn forgot_password(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ForgotPasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::ForgotPassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, payload| user_core::forgot_password(state, payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn reset_password(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ResetPasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::ResetPassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, payload| user_core::reset_password(state, payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn invite_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::InviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::InviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, user, payload| user_core::invite_user(state, payload, user),
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

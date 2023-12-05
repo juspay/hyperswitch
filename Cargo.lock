@@ -2052,6 +2052,7 @@ dependencies = [
  "async-trait",
  "common_enums",
  "common_utils",
+ "diesel_models",
  "error-stack",
  "masking",
  "serde",
