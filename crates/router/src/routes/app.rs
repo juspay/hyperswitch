@@ -16,12 +16,12 @@ use tokio::sync::oneshot;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::pm_blacklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::pm_blacklist;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
@@ -389,14 +389,10 @@ impl PmBlacklist {
         web::scope("/pm")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/block").route(web::post().to(pm_blacklist::block_payment_method))
+                web::resource("/block").route(web::post().to(pm_blacklist::block_payment_method)),
             )
-            .service(
-                web::resource("/unblock").route(web::post().to(currency::convert_forex))
-            )
-            .service(
-                web::resource("/blacklist").route(web::post().to(currency::convert_forex))
-            )
+            .service(web::resource("/unblock").route(web::post().to(currency::convert_forex)))
+            .service(web::resource("/blacklist").route(web::post().to(currency::convert_forex)))
     }
 }
 

@@ -8,8 +8,6 @@ pub mod configs;
 pub mod connector_onboarding;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub mod pm_blacklist;
 pub mod customers;
 pub mod disputes;
 #[cfg(feature = "dummy_connector")]
@@ -26,6 +24,8 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod pm_blacklist;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -44,10 +44,10 @@ pub mod locker_migration;
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub use self::app::Forex;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub use self::app::PmBlacklist;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub use self::app::PmBlacklist;
 #[cfg(feature = "olap")]
 pub use self::app::Routing;
 #[cfg(all(feature = "olap", feature = "kms"))]

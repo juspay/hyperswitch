@@ -7,7 +7,6 @@ pub mod cards_info;
 pub mod conditional_configs;
 pub mod connector_onboarding;
 pub mod currency;
-pub mod pm_blacklist;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
@@ -24,6 +23,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod pm_blacklist;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_configs;

@@ -9,8 +9,6 @@ pub mod configs;
 pub mod connector_onboarding;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub mod pm_blacklist;
 pub mod customers;
 pub mod disputes;
 pub mod errors;
@@ -24,6 +22,8 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod pm_blacklist;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_config;
