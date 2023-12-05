@@ -147,6 +147,7 @@ pub fn mk_app(
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
+            .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]

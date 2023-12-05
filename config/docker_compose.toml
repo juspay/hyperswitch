@@ -362,3 +362,9 @@ queue_strategy = "Fifo"
 
 [kv_config]
 ttl = 900 # 15 * 60 seconds
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""
+enabled = true
