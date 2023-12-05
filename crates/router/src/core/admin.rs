@@ -1019,39 +1019,36 @@ pub async fn create_payment_connector(
         ],
     );
 
-    match is_unroutable_connector {
-        true => (),
-        false => {
-            if let Some(routable_connector_val) = routable_connector {
-                let choice = routing_types::RoutableConnectorChoice {
-                    #[cfg(feature = "backwards_compatibility")]
-                    choice_kind: routing_types::RoutableChoiceKind::FullStruct,
-                    connector: routable_connector_val,
-                    #[cfg(feature = "connector_choice_mca_id")]
-                    merchant_connector_id: Some(mca.merchant_connector_id.clone()),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    sub_label: req.business_sub_label.clone(),
-                };
+    if !is_unroutable_connector {
+        if let Some(routable_connector_val) = routable_connector {
+            let choice = routing_types::RoutableConnectorChoice {
+                #[cfg(feature = "backwards_compatibility")]
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: routable_connector_val,
+                #[cfg(feature = "connector_choice_mca_id")]
+                merchant_connector_id: Some(mca.merchant_connector_id.clone()),
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                sub_label: req.business_sub_label.clone(),
+            };
 
-                if !default_routing_config.contains(&choice) {
-                    default_routing_config.push(choice.clone());
-                    routing_helpers::update_merchant_default_config(
-                        &*state.clone().store,
-                        merchant_id,
-                        default_routing_config,
-                    )
-                    .await?;
-                }
+            if !default_routing_config.contains(&choice) {
+                default_routing_config.push(choice.clone());
+                routing_helpers::update_merchant_default_config(
+                    &*state.clone().store,
+                    merchant_id,
+                    default_routing_config,
+                )
+                .await?;
+            }
 
-                if !default_routing_config_for_profile.contains(&choice) {
-                    default_routing_config_for_profile.push(choice);
-                    routing_helpers::update_merchant_default_config(
-                        &*state.store,
-                        &profile_id,
-                        default_routing_config_for_profile,
-                    )
-                    .await?;
-                }
+            if !default_routing_config_for_profile.contains(&choice) {
+                default_routing_config_for_profile.push(choice);
+                routing_helpers::update_merchant_default_config(
+                    &*state.store,
+                    &profile_id,
+                    default_routing_config_for_profile,
+                )
+                .await?;
             }
         }
     };
