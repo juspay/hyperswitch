@@ -953,10 +953,6 @@ where
         payment_data,
     )
     .await?;
-    operation
-        .to_domain()?
-        .populate_payment_data(state, payment_data, merchant_account)
-        .await?;
 
     let mut router_data = payment_data
         .construct_router_data(

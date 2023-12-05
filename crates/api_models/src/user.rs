@@ -65,6 +65,29 @@ pub struct ChangePasswordRequest {
     pub old_password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct ForgotPasswordRequest {
+    pub email: pii::Email,
+}
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct ResetPasswordRequest {
+    pub token: Secret<String>,
+    pub password: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct InviteUserRequest {
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct InviteUserResponse {
+    pub is_email_sent: bool,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,

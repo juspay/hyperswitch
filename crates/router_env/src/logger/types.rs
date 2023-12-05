@@ -293,6 +293,12 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get users for merchant account
     GetUserDetails,
+    /// Get reset password link
+    ForgotPassword,
+    /// Reset password using link
+    ResetPassword,
+    /// Invite users
+    InviteUser,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
 }
