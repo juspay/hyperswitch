@@ -74,6 +74,10 @@ impl ConnectorCommon for Coinbase {
         "coinbase"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -187,7 +191,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = coinbase::CoinbasePaymentsRequest::try_from(req)?;
+        let connector_router_data = coinbase::CoinbaseRouterData::try_from({
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        })?;
+        let req_obj = coinbase::CoinbasePaymentsRequest::try_from(&connector_router_data)?;
         let coinbase_payment_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json,
