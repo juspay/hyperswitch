@@ -133,7 +133,7 @@ pub struct PaymentsRequest {
 Since Router is connector agnostic, only minimal data is sent to connector and optional fields may be ignored.
 
 Here processing_channel_id, is specific to checkout and implementations of such functions should be inside the checkout directory.
-Let's define `Source`
+Let's define `PaymentSource`
 
 `PaymentSource` is an enum type. Request types will need to derive `Serialize` and response types will need to derive `Deserialize`. For request types `From<RouterData>` needs to be implemented.
 
