@@ -262,3 +262,9 @@ connection_timeout = 10
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""
+enabled = true
