@@ -54,18 +54,12 @@ pub struct PaymentIntent {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub max_age: PrimitiveDateTime,
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Insertable,
-    router_derive::DebugAsDisplay,
-    Serialize,
-    Deserialize,
+    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
@@ -111,6 +105,8 @@ pub struct PaymentIntentNew {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub max_age: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,6 +159,7 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
+        max_age: Option<PrimitiveDateTime>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -190,7 +187,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<i64>,
@@ -221,6 +218,7 @@ pub struct PaymentIntentUpdateInternal {
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
+    pub max_age: Option<PrimitiveDateTime>,
 }
 
 impl PaymentIntentUpdate {
@@ -252,6 +250,7 @@ impl PaymentIntentUpdate {
             updated_by,
             surcharge_applicable,
             incremental_authorization_allowed,
+            max_age,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -283,6 +282,7 @@ impl PaymentIntentUpdate {
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
 
             incremental_authorization_allowed,
+            max_age: max_age.unwrap_or(source.max_age),
             ..source
         }
     }
@@ -309,6 +309,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                max_age,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -328,6 +329,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                max_age,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

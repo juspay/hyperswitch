@@ -1,8 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PAYMENT_LINK_EXPIRY,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -321,7 +320,7 @@ pub fn get_payment_link_config_based_on_priority(
                         seller_name: Some(seller_name),
                     },
                 },
-                domain_name
+                domain_name,
             ))
         }
         (Some(payment_create), None) => {
@@ -343,7 +342,7 @@ pub fn get_payment_link_config_based_on_priority(
                         seller_name: Some(seller_name),
                     },
                 },
-                default_domain_name
+                default_domain_name,
             ))
         }
         (None, Some(business)) => {
@@ -373,7 +372,7 @@ pub fn get_payment_link_config_based_on_priority(
                         seller_name: Some(seller_name),
                     },
                 },
-                domain_name
+                domain_name,
             ))
         }
         (None, None) => {

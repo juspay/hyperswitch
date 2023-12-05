@@ -23,7 +23,6 @@ use openssl::{
     symm::{decrypt_aead, Cipher},
 };
 use router_env::{instrument, logger, tracing};
-use time::Duration;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -2332,7 +2331,7 @@ pub fn generate_mandate(
 pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
-    merchant_intent_fulfillment_time: Option<i64>,
+    // merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
@@ -2340,16 +2339,10 @@ pub fn authenticate_client_secret(
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
-                let payment_intent_fulfillment_deadline =
-                    payment_intent.created_at.saturating_add(Duration::seconds(
-                        merchant_intent_fulfillment_time
-                            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
-                    ));
                 let current_timestamp = common_utils::date_time::now();
-                fp_utils::when(
-                    current_timestamp > payment_intent_fulfillment_deadline,
-                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                )
+                fp_utils::when(current_timestamp > payment_intent.max_age, || {
+                    Err(errors::ApiErrorResponse::ClientSecretExpired)
+                })
             }
         }
         // If there is no client in payment intent, then it has expired
@@ -2434,14 +2427,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let intent_fulfillment_time = get_merchant_fullfillment_time(
-                payment_intent.payment_link_id.clone(),
-                merchant_account.intent_fulfillment_time,
-                db,
-            )
-            .await?;
-
-            authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
+            authenticate_client_secret(Some(&cs), &payment_intent)?;
             Ok(payment_intent)
         })
         .await
@@ -3676,21 +3662,10 @@ pub fn get_key_params_for_surcharge_details(
 pub fn validate_payment_link_request(
     confirm: Option<bool>,
     order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-    max_age: Option<i64>
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(cnf) = confirm {
         if !cnf {
-            let current_time = common_utils::date_time::now();
-            let max_age_time =
-                common_utils::date_time::now().saturating_add(time::Duration::seconds(
-                        max_age
-                        .unwrap_or(common_utils::consts::DEFAULT_PAYMENT_LINK_EXPIRY),
-                ));
-            if current_time > max_age_time {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "max_age cannot be less than current time".to_string(),
-                });
-            } else if order_details.is_none() {
+            if order_details.is_none() {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "cannot create payment link without order details".to_string(),
                 });
@@ -3760,6 +3735,16 @@ pub fn validate_order_details_amount(
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Total sum of order details doesn't match amount in payment request"
                 .to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+pub fn validate_max_age(max_age: i64) -> Result<(), errors::ApiErrorResponse> {
+    if max_age <= 0 {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "max_age cannot be less than 1".to_string(),
         })
     } else {
         Ok(())

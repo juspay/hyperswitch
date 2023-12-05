@@ -418,7 +418,7 @@ pub async fn update_business_profile_cascade(
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
             payment_link_config: None,
-            max_age: None
+            max_age: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1323,6 +1323,10 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    if let Some(max_age) = &request.max_age {
+        helpers::validate_max_age(max_age.to_owned())?;
+    }
+
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1436,6 +1440,10 @@ pub async fn update_business_profile(
         })?
     }
 
+    if let Some(max_age) = &request.max_age {
+        helpers::validate_max_age(max_age.to_owned())?;
+    }
+
     let webhook_details = request
         .webhook_details
         .as_ref()
@@ -1469,9 +1477,9 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    let max_age = request.max_age.map(|age| {
-            common_utils::date_time::now().saturating_add(time::Duration::seconds(age))
-        });
+    let max_age = request
+        .max_age
+        .map(|age| common_utils::date_time::now().saturating_add(time::Duration::seconds(age)));
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
         profile_name: request.profile_name,
@@ -1489,7 +1497,7 @@ pub async fn update_business_profile(
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
-        max_age
+        max_age,
     };
 
     let updated_business_profile = db

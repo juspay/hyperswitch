@@ -11,6 +11,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
+// use     super::time::PrimitiveDateTime;
 use crate::DataModelExt;
 
 #[async_trait::async_trait]
@@ -108,6 +109,7 @@ impl PaymentIntentInterface for MockDb {
             surcharge_applicable: new.surcharge_applicable,
             request_incremental_authorization: new.request_incremental_authorization,
             incremental_authorization_allowed: new.incremental_authorization_allowed,
+            max_age: new.max_age,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

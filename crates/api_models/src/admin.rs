@@ -1026,7 +1026,7 @@ pub struct BusinessProfileCreate {
     pub merchant_custom_domain: Option<String>,
 
     /// Default payment expiry for all payments
-    pub max_age: Option<i64>
+    pub max_age: Option<i64>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1096,7 +1096,7 @@ pub struct BusinessProfileResponse {
     pub payment_link_config: Option<serde_json::Value>,
 
     /// Default payment expiry for all payments
-    pub max_age: Option<time::PrimitiveDateTime>
+    pub max_age: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1159,7 +1159,7 @@ pub struct BusinessProfileUpdate {
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// Default payment expiry for all payments
-    pub max_age: Option<i64>
+    pub max_age: Option<i64>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

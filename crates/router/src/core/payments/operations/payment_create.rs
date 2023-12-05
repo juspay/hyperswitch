@@ -158,6 +158,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 id: profile_id.to_string(),
             })?;
 
+        let max_age = request.max_age.map_or_else(
+            || {
+                business_profile.max_age.unwrap_or_else(|| {
+                    common_utils::date_time::now()
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME))
+                })
+            },
+            |max_age| {
+                common_utils::date_time::now().saturating_add(time::Duration::seconds(max_age))
+            },
+        );
+
         let payment_link_data = if let Some(payment_link_create) = request.payment_link {
             if payment_link_create {
                 let merchant_name = merchant_account
@@ -176,10 +188,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         default_domain_name,
                     )?;
 
-                let max_age = request.max_age.map_or_else(
-                    || business_profile.max_age.unwrap_or_else(|| common_utils::date_time::now().saturating_add(time::Duration::seconds(common_utils::consts::TOKEN_TTL))),
-                    |max_age| common_utils::date_time::now().saturating_add(time::Duration::seconds(max_age)));
-
                 create_payment_link(
                     request,
                     payment_link_config,
@@ -190,7 +198,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     request.description.clone(),
                     profile_id.clone(),
                     domain_name,
-                    max_age
+                    max_age,
                 )
                 .await?
             } else {
@@ -210,6 +218,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             billing_address.clone().map(|x| x.address_id),
             attempt_id,
             profile_id,
+            max_age,
         )
         .await?;
 
@@ -552,14 +561,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        
+
+        if let Some(max_age) = &request.max_age {
+            helpers::validate_max_age(max_age.to_owned())?;
+        }
+
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-            helpers::validate_payment_link_request(
-                request.confirm,
-                request.order_details.clone(),
-                request.max_age
-            )?;
+                helpers::validate_payment_link_request(
+                    request.confirm,
+                    request.order_details.clone(),
+                )?;
             }
         }
 
@@ -706,6 +718,7 @@ impl PaymentCreate {
         billing_address_id: Option<String>,
         active_attempt_id: String,
         profile_id: String,
+        max_age: time::PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -780,6 +793,7 @@ impl PaymentCreate {
             updated_by: merchant_account.storage_scheme.to_string(),
             request_incremental_authorization,
             incremental_authorization_allowed: None,
+            max_age,
         })
     }
 
@@ -829,7 +843,7 @@ async fn create_payment_link(
     description: Option<String>,
     profile_id: String,
     domain_name: String,
-    max_age: time::PrimitiveDateTime
+    max_age: time::PrimitiveDateTime,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");

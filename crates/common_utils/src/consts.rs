@@ -50,6 +50,3 @@ pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/to
 
 /// Variable which store the card token for Prophetpay
 pub const PROPHETPAY_TOKEN: &str = "cctoken";
-
-/// Default payment link Expiry Time
-pub const DEFAULT_PAYMENT_LINK_EXPIRY: i64 = 86400;
