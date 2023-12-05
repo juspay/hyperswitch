@@ -1,10 +1,12 @@
 pub mod address;
 pub mod api_keys;
+pub mod authorization;
 pub mod business_profile;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod customers;
+pub mod dashboard_metadata;
 pub mod dispute;
 pub mod enums;
 pub mod ephemeral_key;
@@ -42,11 +44,11 @@ pub use data_models::payments::{
 };
 
 pub use self::{
-    address::*, api_keys::*, capture::*, cards_info::*, configs::*, customers::*, dispute::*,
-    ephemeral_key::*, events::*, file::*, gsm::*, locker_mock_up::*, mandate::*,
-    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
-    payment_method::*, payout_attempt::*, payouts::*, process_tracker::*, refund::*,
-    reverse_lookup::*, routing_algorithm::*, user::*, user_role::*,
+    address::*, api_keys::*, authorization::*, capture::*, cards_info::*, configs::*, customers::*,
+    dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*, file::*, gsm::*,
+    locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
+    merchant_key_store::*, payment_link::*, payment_method::*, payout_attempt::*, payouts::*,
+    process_tracker::*, refund::*, reverse_lookup::*, routing_algorithm::*, user::*, user_role::*,
 };
 use crate::types::api::routing;
 

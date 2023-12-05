@@ -610,6 +610,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -680,6 +681,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -977,6 +979,7 @@ impl<F, Req>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        incremental_authorization_allowed: None,
                     }),
                     status: payment_status,
                     ..item.data
