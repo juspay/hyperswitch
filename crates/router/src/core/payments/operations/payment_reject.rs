@@ -158,6 +158,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: frm_response.ok(),
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

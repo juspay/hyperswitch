@@ -32,6 +32,7 @@ use crate::{
     db::{
         address::AddressInterface,
         api_keys::ApiKeyInterface,
+        authorization::AuthorizationInterface,
         business_profile::BusinessProfileInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
@@ -2093,5 +2094,40 @@ impl BatchSampleDataInterface for KafkaStore {
         }
 
         Ok(refunds_list)
+    }
+}
+
+#[async_trait::async_trait]
+impl AuthorizationInterface for KafkaStore {
+    async fn insert_authorization(
+        &self,
+        authorization: storage::AuthorizationNew,
+    ) -> CustomResult<storage::Authorization, errors::StorageError> {
+        self.diesel_store.insert_authorization(authorization).await
+    }
+
+    async fn find_all_authorizations_by_merchant_id_payment_id(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
+        self.diesel_store
+            .find_all_authorizations_by_merchant_id_payment_id(merchant_id, payment_id)
+            .await
+    }
+
+    async fn update_authorization_by_merchant_id_authorization_id(
+        &self,
+        merchant_id: String,
+        authorization_id: String,
+        authorization: storage::AuthorizationUpdate,
+    ) -> CustomResult<storage::Authorization, errors::StorageError> {
+        self.diesel_store
+            .update_authorization_by_merchant_id_authorization_id(
+                merchant_id,
+                authorization_id,
+                authorization,
+            )
+            .await
     }
 }

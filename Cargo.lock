@@ -1708,6 +1708,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.32.0",
+ "utoipa",
 ]
 
 [[package]]
@@ -2051,6 +2052,7 @@ dependencies = [
  "async-trait",
  "common_enums",
  "common_utils",
+ "diesel_models",
  "error-stack",
  "masking",
  "serde",

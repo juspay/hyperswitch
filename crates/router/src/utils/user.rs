@@ -1,11 +1,13 @@
-use diesel_models::enums::UserStatus;
+use api_models::user as user_api;
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
+use masking::Secret;
 
 use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
-    services::authentication::UserFromToken,
-    types::domain::MerchantAccount,
+    services::authentication::{AuthToken, UserFromToken},
+    types::domain::{MerchantAccount, UserFromStorage},
 };
 
 pub mod dashboard_metadata;
@@ -67,4 +69,53 @@ pub async fn get_merchant_ids_for_user(state: AppState, user_id: &str) -> UserRe
             None
         })
         .collect())
+}
+
+pub async fn generate_jwt_auth_token(
+    state: AppState,
+    user: &UserFromStorage,
+    user_role: &UserRole,
+) -> UserResult<Secret<String>> {
+    let token = AuthToken::new_token(
+        user.get_user_id().to_string(),
+        user_role.merchant_id.clone(),
+        user_role.role_id.clone(),
+        &state.conf,
+        user_role.org_id.clone(),
+    )
+    .await?;
+    Ok(Secret::new(token))
+}
+
+pub async fn generate_jwt_auth_token_with_custom_merchant_id(
+    state: AppState,
+    user: &UserFromStorage,
+    user_role: &UserRole,
+    merchant_id: String,
+) -> UserResult<Secret<String>> {
+    let token = AuthToken::new_token(
+        user.get_user_id().to_string(),
+        merchant_id,
+        user_role.role_id.clone(),
+        &state.conf,
+        user_role.org_id.to_owned(),
+    )
+    .await?;
+    Ok(Secret::new(token))
+}
+
+pub fn get_dashboard_entry_response(
+    user: UserFromStorage,
+    user_role: UserRole,
+    token: Secret<String>,
+) -> user_api::DashboardEntryResponse {
+    user_api::DashboardEntryResponse {
+        merchant_id: user_role.merchant_id,
+        token,
+        name: user.get_name(),
+        email: user.get_email(),
+        user_id: user.get_user_id().to_string(),
+        verification_days_left: None,
+        user_role: user_role.role_id,
+    }
 }
