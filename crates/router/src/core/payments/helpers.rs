@@ -1441,9 +1441,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_number: card.card_number,
         card_holder_name: card
             .name_on_card
-            .get_required_value("name_on_card")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("card holder name was not saved in permanent locker")?,
+            .unwrap_or(masking::Secret::from("".to_string())),
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_cvc.unwrap_or_default(),
