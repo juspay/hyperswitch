@@ -12,8 +12,12 @@ pub enum UserErrors {
     InternalServerError,
     #[error("InvalidCredentials")]
     InvalidCredentials,
+    #[error("UserNotFound")]
+    UserNotFound,
     #[error("UserExists")]
     UserExists,
+    #[error("LinkInvalid")]
+    LinkInvalid,
     #[error("InvalidOldPassword")]
     InvalidOldPassword,
     #[error("EmailParsingError")]
@@ -60,12 +64,21 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "Incorrect email or password",
                 None,
             )),
+            Self::UserNotFound => AER::Unauthorized(ApiError::new(
+                sub_code,
+                2,
+                "Email doesn’t exist. Register",
+                None,
+            )),
             Self::UserExists => AER::BadRequest(ApiError::new(
                 sub_code,
                 3,
                 "An account already exists with this email",
                 None,
             )),
+            Self::LinkInvalid => {
+                AER::Unauthorized(ApiError::new(sub_code, 4, "Invalid or expired link", None))
+            }
             Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
                 sub_code,
                 6,

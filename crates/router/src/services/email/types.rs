@@ -66,6 +66,10 @@ impl EmailToken {
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
+
+    pub fn get_email(&self) -> &str {
+        self.email.as_str()
+    }
 }
 
 pub fn get_link_with_token(

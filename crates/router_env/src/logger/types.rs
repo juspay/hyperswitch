@@ -297,6 +297,12 @@ pub enum Flow {
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
     PmAuthExchangeToken,
+    /// Get reset password link
+    ForgotPassword,
+    /// Reset password using link
+    ResetPassword,
+    /// Invite users
+    InviteUser,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
 }
