@@ -16,7 +16,6 @@ use crate::{
     admin, disputes,
     enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
-    payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
 };
 
@@ -339,17 +338,6 @@ pub struct RequestSurchargeDetails {
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
         self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
-    }
-    pub fn get_surcharge_details_object(&self, original_amount: i64) -> SurchargeDetailsResponse {
-        let surcharge_amount = self.surcharge_amount;
-        let tax_on_surcharge_amount = self.tax_amount.unwrap_or(0);
-        SurchargeDetailsResponse {
-            surcharge: Surcharge::Fixed(self.surcharge_amount),
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
-        }
     }
     pub fn get_total_surcharge_amount(&self) -> i64 {
         self.surcharge_amount + self.tax_amount.unwrap_or(0)
@@ -721,6 +709,33 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+impl Card {
+    fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_cvc: self.card_cvc.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
@@ -892,6 +907,21 @@ impl PaymentMethodData {
             | Self::Voucher(_)
             | Self::GiftCard(_)
             | Self::CardToken(_) => None,
+        }
+    }
+    pub fn apply_additional_payment_data(
+        &self,
+        additional_payment_data: AdditionalPaymentData,
+    ) -> Self {
+        if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
+            match self {
+                Self::Card(card) => {
+                    Self::Card(card.apply_additional_card_info(*additional_card_info))
+                }
+                _ => self.to_owned(),
+            }
+        } else {
+            self.to_owned()
         }
     }
 }
@@ -2221,6 +2251,12 @@ pub struct PaymentsResponse {
 
     /// If true incremental authorization can be performed on this payment
     pub incremental_authorization_allowed: Option<bool>,
+
+    /// Total number of authorizations happened in an incremental_authorization payment
+    pub authorization_count: Option<i32>,
+
+    /// List of incremental authorizations happened to the payment
+    pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2289,6 +2325,24 @@ pub struct PaymentListResponse {
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct IncrementalAuthorizationResponse {
+    /// The unique identifier of authorization
+    pub authorization_id: String,
+    /// Amount the authorization has been made for
+    pub amount: i64,
+    #[schema(value_type= AuthorizationStatus)]
+    /// The status of the authorization
+    pub status: common_enums::AuthorizationStatus,
+    /// Error code sent by the connector for authorization
+    pub error_code: Option<String>,
+    /// Error message sent by the connector for authorization
+    pub error_message: Option<String>,
+    /// Previously authorized amount for the payment
+    pub previously_authorized_amount: i64,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListResponseV2 {
     /// The number of payments included in the list for given constraints
@@ -2995,6 +3049,18 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = MerchantConnectorDetailsWrap)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsIncrementalAuthorizationRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// The total amount including previously authorized amount and additional amount
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: i64,
+    /// Reason for incremental authorization
+    pub reason: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

@@ -986,6 +986,67 @@ where
     }
 }
 
+/// Payments - Incremental Authorization
+///
+/// Authorized amount for a payment can be incremented if it is in status: requires_capture
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/incremental_authorization",
+    request_body=PaymentsIncrementalAuthorizationRequest,
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment authorized amount incremented"),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Increment authorized amount for a Payment",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization))]
+pub async fn payments_incremental_authorization(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsIncrementalAuthorizationRequest>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::PaymentsIncrementalAuthorization;
+    let mut payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+    payload.payment_id = payment_id;
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::IncrementalAuthorization,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payments::PaymentIncrementalAuthorization,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                HeaderPayload::default(),
+            )
+        },
+        &auth::ApiKeyAuth,
+        locking_action,
+    ))
+    .await
+}
+
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
@@ -1121,6 +1182,22 @@ impl GetLockingInput for payment_types::PaymentsCancelRequest {
 }
 
 impl GetLockingInput for payment_types::PaymentsCaptureRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsIncrementalAuthorizationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
