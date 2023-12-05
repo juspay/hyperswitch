@@ -442,9 +442,16 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             | BankofamericaPaymentStatus::AuthorizedPendingReview => {
                 if auto_capture {
                     // Because BankOfAmerica will return Payment Status as Authorized even in AutoCapture Payment
-                    Self::Pending
+                    Self::Charged
                 } else {
                     Self::Authorized
+                }
+            }
+            BankofamericaPaymentStatus::Pending => {
+                if auto_capture {
+                    Self::Charged
+                } else {
+                    Self::Pending
                 }
             }
             BankofamericaPaymentStatus::Succeeded | BankofamericaPaymentStatus::Transmitted => {
@@ -456,7 +463,6 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Failed | BankofamericaPaymentStatus::Declined => {
                 Self::Failure
             }
-            BankofamericaPaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -528,6 +534,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -585,6 +592,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -642,6 +650,7 @@ impl<F>
                             .code
                             .unwrap_or(info_response.id),
                     ),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -719,6 +728,7 @@ impl<F>
                         .client_reference_information
                         .map(|cref| cref.code)
                         .unwrap_or(Some(app_response.id)),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -733,6 +743,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(error_response.id),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),

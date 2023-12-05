@@ -545,6 +545,9 @@ pub async fn send_request(
             Method::Put => client
                 .put(url)
                 .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
+            Method::Patch => client
+                .patch(url)
+                .body(request.payload.expose_option().unwrap_or_default()),
             Method::Delete => client.delete(url),
         }
         .add_headers(headers)
@@ -873,6 +876,7 @@ where
     };
 
     let api_event = ApiEvent::new(
+        Some(merchant_id.clone()),
         flow,
         &request_id,
         request_duration,
@@ -884,6 +888,7 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
+        Some(request.method().to_string()),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -1184,6 +1189,7 @@ impl Authenticate for api_models::payments::PaymentsSessionRequest {
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
+impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 
 pub fn build_redirection_form(

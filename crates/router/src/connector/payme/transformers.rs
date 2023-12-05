@@ -262,6 +262,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             ),
             network_txn_id: None,
             connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
         })
     }
 }
@@ -326,6 +327,7 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
         }
     }
 }
@@ -535,6 +537,7 @@ impl<F>
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
                         }),
                         ..item.data
                     }),

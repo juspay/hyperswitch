@@ -4,7 +4,6 @@
 //! of Routing configs.
 use actix_web::{web, HttpRequest, Responder};
 use api_models::routing as routing_types;
-
 use router_env::{
     tracing::{self, instrument},
     Flow,
