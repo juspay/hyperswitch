@@ -305,6 +305,10 @@ pub enum Flow {
     InviteUser,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
 }
 
 ///
