@@ -66,10 +66,6 @@
           "country_code": "+91"
         }
       },
-      "routing": {
-        "type": "single",
-        "data": "stripe"
-      },
       "statement_descriptor_name": "joseph",
       "statement_descriptor_suffix": "JS",
       "metadata": {
