@@ -3626,7 +3626,7 @@ impl ApplePayData {
 }
 
 pub fn get_key_params_for_surcharge_details(
-    payment_method_data: api_models::payments::PaymentMethodData,
+    payment_method_data: &api_models::payments::PaymentMethodData,
 ) -> RouterResult<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
@@ -3636,6 +3636,7 @@ pub fn get_key_params_for_surcharge_details(
         api_models::payments::PaymentMethodData::Card(card) => {
             let card_network = card
                 .card_network
+                .clone()
                 .get_required_value("payment_method_data.card.card_network")?;
             // surcharge generated will always be same for credit as well as debit
             // since surcharge conditions cannot be defined on card_type

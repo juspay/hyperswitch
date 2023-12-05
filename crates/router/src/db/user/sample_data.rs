@@ -193,13 +193,7 @@ fn diesel_error_to_data_error(diesel_error: Report<DatabaseError>) -> Report<Sto
             entity: "entity ",
             key: None,
         },
-        DatabaseError::NoFieldsToUpdate => {
-            StorageError::DatabaseError("No fields to update".to_string())
-        }
-        DatabaseError::QueryGenerationFailed => {
-            StorageError::DatabaseError("Query generation failed".to_string())
-        }
-        DatabaseError::Others => StorageError::DatabaseError("Others".to_string()),
+        err => StorageError::DatabaseError(error_stack::report!(*err)),
     };
     diesel_error.change_context(new_err)
 }
