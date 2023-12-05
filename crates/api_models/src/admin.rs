@@ -1164,8 +1164,6 @@ pub struct BusinessProfileUpdate {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct BusinessPaymentLinkConfig {
-    /// Custom Payment link expiry
-    pub max_age: Option<i64>,
     /// Merchant own domain name
     pub domain_name: Option<String>,
     #[serde(flatten)]

@@ -282,9 +282,8 @@ pub fn get_payment_link_config_based_on_priority(
     business_link_config: Option<serde_json::Value>,
     merchant_name: String,
     default_domain_name: String,
-    max_age: Option<i64>
 ) -> Result<
-    (admin_types::PaymentCreatePaymentLinkConfig, String, i64),
+    (admin_types::PaymentCreatePaymentLinkConfig, String),
     error_stack::Report<errors::ApiErrorResponse>,
 > {
     match (payment_create_link_config, business_link_config) {
@@ -313,7 +312,6 @@ pub fn get_payment_link_config_based_on_priority(
                     .seller_name
                     .unwrap_or(merchant_name)
             });
-            let max_age = max_age.unwrap_or(business_link_config.max_age.unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY));
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
@@ -323,7 +321,7 @@ pub fn get_payment_link_config_based_on_priority(
                         seller_name: Some(seller_name),
                     },
                 },
-                domain_name, max_age
+                domain_name
             ))
         }
         (Some(payment_create), None) => {
@@ -337,8 +335,6 @@ pub fn get_payment_link_config_based_on_priority(
                 .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
             let seller_name = payment_create.config.seller_name.unwrap_or(merchant_name);
 
-            let max_age = max_age.unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
-
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {
@@ -347,7 +343,7 @@ pub fn get_payment_link_config_based_on_priority(
                         seller_name: Some(seller_name),
                     },
                 },
-                default_domain_name, max_age
+                default_domain_name
             ))
         }
         (None, Some(business)) => {
@@ -368,7 +364,7 @@ pub fn get_payment_link_config_based_on_priority(
                 .config
                 .seller_name
                 .unwrap_or(merchant_name);
-            let max_age = max_age.unwrap_or(business_link_config.max_age.unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY));
+
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {
@@ -377,11 +373,10 @@ pub fn get_payment_link_config_based_on_priority(
                         seller_name: Some(seller_name),
                     },
                 },
-                domain_name, max_age
+                domain_name
             ))
         }
         (None, None) => {
-            let max_age = max_age.unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
             let default_payment_config = admin_types::PaymentCreatePaymentLinkConfig {
                 config: admin_types::PaymentLinkConfig {
                     theme: Some(DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -389,7 +384,7 @@ pub fn get_payment_link_config_based_on_priority(
                     seller_name: Some(merchant_name),
                 },
             };
-            Ok((default_payment_config, default_domain_name, max_age))
+            Ok((default_payment_config, default_domain_name))
         }
     }
 }

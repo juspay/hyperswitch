@@ -168,14 +168,18 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
                 let default_domain_name = state.conf.server.base_url.clone();
 
-                let (payment_link_config, domain_name, max_age) =
+                let (payment_link_config, domain_name) =
                     payment_link::get_payment_link_config_based_on_priority(
                         request.payment_link_config.clone(),
                         business_profile.payment_link_config.clone(),
                         merchant_name,
                         default_domain_name,
-                        request.max_age
                     )?;
+
+                let max_age = request.max_age.map_or_else(
+                    || business_profile.max_age.unwrap_or_else(|| common_utils::date_time::now().saturating_add(time::Duration::seconds(common_utils::consts::TOKEN_TTL))),
+                    |max_age| common_utils::date_time::now().saturating_add(time::Duration::seconds(max_age)));
+
                 create_payment_link(
                     request,
                     payment_link_config,
@@ -825,7 +829,7 @@ async fn create_payment_link(
     description: Option<String>,
     profile_id: String,
     domain_name: String,
-    max_age: i64
+    max_age: time::PrimitiveDateTime
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
@@ -835,8 +839,6 @@ async fn create_payment_link(
         merchant_id.clone(),
         payment_id.clone()
     );
-
-    let max_age = common_utils::date_time::now().saturating_add(time::Duration::seconds(max_age));
 
     let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
         api_models::admin::PaymentCreatePaymentLinkConfig,
