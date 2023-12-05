@@ -139,7 +139,7 @@ impl ConnectorCommon for Trustpay {
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: reason.or(response_data.description),
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: response_data.instance_id,
                 })
             }
             Err(error_msg) => {
@@ -374,7 +374,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             message: response.status.to_string(),
             reason: Some(response.payment_description),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.instance_id,
         })
     }
 
