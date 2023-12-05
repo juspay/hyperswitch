@@ -16,6 +16,8 @@ use tokio::sync::oneshot;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::pm_blacklist;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
@@ -374,6 +376,26 @@ impl Forex {
             .service(web::resource("/rates").route(web::get().to(currency::retrieve_forex)))
             .service(
                 web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
+            )
+    }
+}
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub struct PmBlacklist;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl PmBlacklist {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/pm")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("/block").route(web::post().to(pm_blacklist::block_payment_method))
+            )
+            .service(
+                web::resource("/unblock").route(web::post().to(currency::convert_forex))
+            )
+            .service(
+                web::resource("/blacklist").route(web::post().to(currency::convert_forex))
             )
     }
 }

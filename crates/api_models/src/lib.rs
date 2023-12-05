@@ -7,6 +7,7 @@ pub mod cards_info;
 pub mod conditional_configs;
 pub mod connector_onboarding;
 pub mod currency;
+pub mod pm_blacklist;
 pub mod customers;
 pub mod disputes;
 pub mod enums;

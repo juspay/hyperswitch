@@ -9,6 +9,8 @@ pub mod configs;
 pub mod connector_onboarding;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod pm_blacklist;
 pub mod customers;
 pub mod disputes;
 pub mod errors;

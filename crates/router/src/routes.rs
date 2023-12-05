@@ -8,6 +8,8 @@ pub mod configs;
 pub mod connector_onboarding;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod pm_blacklist;
 pub mod customers;
 pub mod disputes;
 #[cfg(feature = "dummy_connector")]
@@ -42,6 +44,8 @@ pub mod locker_migration;
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub use self::app::Forex;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub use self::app::PmBlacklist;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
 #[cfg(feature = "olap")]

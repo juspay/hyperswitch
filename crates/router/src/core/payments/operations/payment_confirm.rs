@@ -478,7 +478,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: request.card_cvc.clone(),
             creds_identifier,
             pm_token: None,
-            connector_customer_id: None,
+            connector_customer_id: Some("hellooo".to_string()),
             recurring_mandate_payment_data,
             ephemeral_key: None,
             multiple_capture_data: None,
