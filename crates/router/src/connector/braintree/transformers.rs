@@ -238,7 +238,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction.id),
+                connector_response_reference_id: Some(id),
                 incremental_authorization_allowed: None,
             }),
             ..item.data
