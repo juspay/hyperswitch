@@ -103,6 +103,7 @@ pub async fn generate_jwt_auth_token_with_custom_merchant_id(
     .await?;
     Ok(Secret::new(token))
 }
+//
 
 pub fn get_dashboard_entry_response(
     user: UserFromStorage,
