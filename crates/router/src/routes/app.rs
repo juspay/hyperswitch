@@ -36,6 +36,8 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(all(feature = "frm", feature = "oltp"))]
+use crate::routes::fraud_check as frm_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
@@ -335,6 +337,14 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
+                )
+                .service(
+                    web::resource("/{payment_id}/approve")
+                        .route(web::post().to(payments_approve)),
+                )
+                .service(
+                    web::resource("/{payment_id}/reject")
+                        .route(web::post().to(payments_reject)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
@@ -654,7 +664,8 @@ impl Webhooks {
     pub fn server(config: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
 
-        web::scope("/webhooks")
+        #[allow(unused_mut)]
+        let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
@@ -665,7 +676,17 @@ impl Webhooks {
                     .route(
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
-            )
+            );
+
+        #[cfg(feature = "frm")]
+        {
+            route = route.service(
+                web::resource("/frm_fulfillment")
+                    .route(web::post().to(frm_routes::frm_fulfillment)),
+            );
+        }
+
+        route
     }
 }
 

@@ -1852,8 +1852,8 @@ pub(crate) fn validate_auth_and_metadata_type(
             Ok(())
         }
         api_enums::Connector::Signifyd => {
-            Err(report!(errors::ConnectorError::InvalidConnectorName)
-                .attach_printable(format!("invalid connector name: {connector_name}")))
+            signifyd::transformers::SignifydAuthType::try_from(val)?;
+            Ok(())
         }
         api_enums::Connector::Plaid => {
             PlaidAuthType::foreign_try_from(val)?;
