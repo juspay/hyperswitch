@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.89.0+hotfix.1 (2023-12-05)
+
+### Bug Fixes
+
+- Remove error propagation if card name not found in locker ([#3059](https://github.com/juspay/hyperswitch/pull/3059)) ([`9e4999b`](https://github.com/juspay/hyperswitch/commit/9e4999bd1af672827229a5f50b27748d0a5ea0da))
+
+**Full Changelog:** [`v1.89.0...v1.89.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.89.0...v1.89.0+hotfix.1)
+
+- - -
+
 ## 1.89.0 (2023-11-24)
 
 ### Features
