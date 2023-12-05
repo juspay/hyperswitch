@@ -1,7 +1,7 @@
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -16,6 +16,7 @@ use crate::{
         api::{self, enums as api_enums},
         storage::enums,
         transformers::ForeignFrom,
+        ApplePayPredecryptData,
     },
 };
 
@@ -111,10 +112,17 @@ pub struct GooglePayPaymentInformation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPaymentInformation {
+    tokenized_card: TokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(CardPaymentInformation),
     GooglePay(GooglePayPaymentInformation),
+    ApplePay(ApplePayPaymentInformation),
 }
 
 #[derive(Debug, Serialize)]
@@ -126,6 +134,16 @@ pub struct Card {
     security_code: Secret<String>,
     #[serde(rename = "type")]
     card_type: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCard {
+    number: Secret<String>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    cryptogram: Secret<String>,
+    transaction_type: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -323,6 +341,63 @@ impl
 impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+        Box<ApplePayPredecryptData>,
+    )> for BankOfAmericaPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, apple_pay_data): (
+            &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
+            Box<ApplePayPredecryptData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item.router_data.request.get_email()?;
+        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+        let order_information = OrderInformationWithBill::from((item, bill_to));
+        let processing_information =
+            ProcessingInformation::from((item, Some(PaymentSolution::ApplePay)));
+        let client_reference_information = ClientReferenceInformation::from(item);
+
+        let expiration_year = Secret::new(format!(
+            "20{}",
+            apple_pay_data
+                .clone()
+                .application_expiration_date
+                .peek()
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        ));
+        let expiration_month = Secret::new(
+            apple_pay_data
+                .clone()
+                .application_expiration_date
+                .peek()
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        );
+        let payment_information = PaymentInformation::ApplePay(ApplePayPaymentInformation {
+            tokenized_card: TokenizedCard {
+                number: apple_pay_data.application_primary_account_number,
+                cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
+                transaction_type: "1".to_string(),
+                expiration_year,
+                expiration_month,
+            },
+        });
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
         payments::GooglePayWalletData,
     )> for BankOfAmericaPaymentsRequest
 {
@@ -368,6 +443,17 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
             payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                payments::WalletData::ApplePay(_) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            Self::try_from((item, decrypt_data))
+                        }
+                        types::PaymentMethodToken::Token(_) => {
+                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        }
+                    }
+                }
                 payments::WalletData::GooglePay(google_pay_data) => {
                     Self::try_from((item, google_pay_data))
                 }
@@ -378,7 +464,6 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                 | payments::WalletData::KakaoPayRedirect(_)
                 | payments::WalletData::GoPayRedirect(_)
                 | payments::WalletData::GcashRedirect(_)
-                | payments::WalletData::ApplePay(_)
                 | payments::WalletData::ApplePayRedirect(_)
                 | payments::WalletData::ApplePayThirdPartySdk(_)
                 | payments::WalletData::DanaRedirect {}
