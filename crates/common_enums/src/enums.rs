@@ -146,6 +146,7 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Shift4,
+    Signifyd,
     Square,
     Stax,
     Stripe,

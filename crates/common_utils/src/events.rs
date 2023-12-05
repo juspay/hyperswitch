@@ -45,6 +45,7 @@ pub enum ApiEventsType {
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
     RustLocker,
+    FraudCheck,
 }
 
 impl ApiEventMetric for serde_json::Value {}
