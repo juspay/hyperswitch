@@ -162,6 +162,11 @@ pub async fn routing_retrieve_config(
 #[utoipa::path(
     get,
     path = "/routing",
+    params(
+        ("limit" = Option<u16>, Query, description = "The number of records to be returned"),
+        ("offset" = Option<u8>, Query, description = "The record offset from which to start gathering of results"),
+        ("profile_id" = Option<String>, Query, description = "The unique identifier for a merchant profile"),
+    ),
     responses(
         (status = 200, description = "Successfully fetched routing dictionary", body = RoutingKind),
         (status = 500, description = "Internal server error"),
@@ -577,6 +582,9 @@ pub async fn retrieve_decision_manager_config(
 #[utoipa::path(
     get,
     path = "/routing/active",
+    params(
+        ("profile_id" = Option<String>, Query, description = "The unique identifier for a merchant profile"),
+    ),
     responses(
         (status = 200, description = "Successfully retrieved active config", body = LinkedRoutingConfigRetrieveResponse),
         (status = 500, description = "Internal server error"),

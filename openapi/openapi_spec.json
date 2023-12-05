@@ -2484,6 +2484,42 @@
           "Routing"
         ],
         "operationId": "Retrieve routing dictionary",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of records to be returned",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The record offset from which to start gathering of results",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "query",
+            "description": "The unique identifier for a merchant profile",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successfully fetched routing dictionary",
@@ -2569,6 +2605,18 @@
           "Routing"
         ],
         "operationId": "Retrieve active config",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "query",
+            "description": "The unique identifier for a merchant profile",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successfully retrieved active config",
