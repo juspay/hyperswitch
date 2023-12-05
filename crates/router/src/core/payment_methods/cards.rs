@@ -25,7 +25,10 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::surcharge_decision_configs::perform_surcharge_decision_management_for_payment_method_list;
+use super::surcharge_decision_configs::{
+    perform_surcharge_decision_management_for_payment_method_list,
+    perform_surcharge_decision_management_for_saved_cards,
+};
 use crate::{
     configs::settings,
     core::{
@@ -38,7 +41,6 @@ use crate::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
         },
-        utils::persist_individual_surcharge_details_in_redis,
     },
     db, logger,
     pii::prelude::*,
@@ -1687,12 +1689,9 @@ pub async fn call_surcharge_decision_management(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
         if !surcharge_results.is_empty_result() {
-            persist_individual_surcharge_details_in_redis(
-                &state,
-                merchant_account,
-                &surcharge_results,
-            )
-            .await?;
+            surcharge_results
+                .persist_individual_surcharge_details_in_redis(&state, merchant_account)
+                .await?;
             let _ = state
                 .store
                 .update_payment_intent(
@@ -1708,6 +1707,56 @@ pub async fn call_surcharge_decision_management(
                 .attach_printable("Failed to update surcharge_applicable in Payment Intent");
         }
         Ok(merchant_sucharge_configs)
+    }
+}
+
+pub async fn call_surcharge_decision_management_for_saved_card(
+    state: &routes::AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: storage::PaymentIntent,
+    customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
+) -> errors::RouterResult<()> {
+    if payment_attempt.surcharge_amount.is_some() {
+        Ok(())
+    } else {
+        let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
+            .routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("routing algorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode the routing algorithm")?
+            .unwrap_or_default();
+        let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
+            state,
+            algorithm_ref,
+            payment_attempt,
+            &payment_intent,
+            &mut customer_payment_method_response.customer_payment_methods,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing surcharge decision operation")?;
+        if !surcharge_results.is_empty_result() {
+            surcharge_results
+                .persist_individual_surcharge_details_in_redis(state, merchant_account)
+                .await?;
+            let _ = state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
+                        surcharge_applicable: true,
+                        updated_by: merchant_account.storage_scheme.to_string(),
+                    },
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Failed to update surcharge_applicable in Payment Intent");
+        }
+        Ok(())
     }
 }
 
@@ -2195,12 +2244,13 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
         .await
     } else {
         let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
-        let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-            db,
-            &merchant_account,
-            cloned_secret,
-        )
-        .await?;
+        let payment_intent: Option<data_models::payments::PaymentIntent> =
+            helpers::verify_payment_intent_time_and_client_secret(
+                db,
+                &merchant_account,
+                cloned_secret,
+            )
+            .await?;
         let customer_id = payment_intent
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
@@ -2326,6 +2376,7 @@ pub async fn list_customer_payment_method(
             created: Some(pm.created_at),
             bank_transfer: pmd,
             bank: bank_details,
+            surcharge_details: None,
             requires_cvv,
         };
         customer_pms.push(pma.to_owned());
@@ -2377,9 +2428,36 @@ pub async fn list_customer_payment_method(
         }
     }
 
-    let response = api::CustomerPaymentMethodsListResponse {
+    let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
     };
+    let payment_attempt = payment_intent
+        .as_ref()
+        .async_map(|payment_intent| async {
+            state
+                .store
+                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    &merchant_account.merchant_id,
+                    &payment_intent.active_attempt.get_id(),
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        })
+        .await
+        .transpose()?;
+
+    if let Some((payment_attempt, payment_intent)) = payment_attempt.zip(payment_intent) {
+        call_surcharge_decision_management_for_saved_card(
+            state,
+            &merchant_account,
+            &payment_attempt,
+            payment_intent,
+            &mut response,
+        )
+        .await?;
+    }
 
     Ok(services::ApplicationResponse::Json(response))
 }

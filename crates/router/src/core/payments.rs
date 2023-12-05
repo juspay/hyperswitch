@@ -39,11 +39,8 @@ use self::{
     helpers::get_key_params_for_surcharge_details,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
-    types::SurchargeDetails,
 };
-use super::{
-    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, utils as core_utils,
-};
+use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs};
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
@@ -408,26 +405,39 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
-        let payment_method_data = payment_data
+        let raw_card_key = payment_data
             .payment_method_data
-            .clone()
-            .get_required_value("payment_method_data")?;
-        let (payment_method, payment_method_type, card_network) =
-            get_key_params_for_surcharge_details(payment_method_data)?;
+            .as_ref()
+            .map(get_key_params_for_surcharge_details)
+            .transpose()?
+            .map(|(payment_method, payment_method_type, card_network)| {
+                types::SurchargeKey::PaymentMethodData(
+                    payment_method,
+                    payment_method_type,
+                    card_network,
+                )
+            });
+        let saved_card_key = payment_data.token.clone().map(types::SurchargeKey::Token);
 
-        let calculated_surcharge_details = match utils::get_individual_surcharge_detail_from_redis(
-            state,
-            &payment_method,
-            &payment_method_type,
-            card_network,
-            &payment_data.payment_attempt.attempt_id,
-        )
-        .await
-        {
-            Ok(surcharge_details) => Some(surcharge_details),
-            Err(err) if err.current_context() == &RedisError::NotFound => None,
-            Err(err) => Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?,
-        };
+        let surcharge_key = raw_card_key
+            .or(saved_card_key)
+            .get_required_value("payment_method_data or payment_token")?;
+        logger::debug!(surcharge_key_confirm =? surcharge_key);
+
+        let calculated_surcharge_details =
+            match types::SurchargeMetadata::get_individual_surcharge_detail_from_redis(
+                state,
+                surcharge_key,
+                &payment_data.payment_attempt.attempt_id,
+            )
+            .await
+            {
+                Ok(surcharge_details) => Some(surcharge_details),
+                Err(err) if err.current_context() == &RedisError::NotFound => None,
+                Err(err) => {
+                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?
+                }
+            };
 
         payment_data.surcharge_details = calculated_surcharge_details;
     } else {
@@ -436,7 +446,10 @@ where
                 .payment_attempt
                 .get_surcharge_details()
                 .map(|surcharge_details| {
-                    SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt))
+                    types::SurchargeDetails::from((
+                        &surcharge_details,
+                        &payment_data.payment_attempt,
+                    ))
                 });
         payment_data.surcharge_details = surcharge_details;
     }
@@ -469,7 +482,7 @@ where
         let final_amount =
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
-            SurchargeDetails {
+            types::SurchargeDetails {
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
@@ -501,12 +514,9 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
 
-        core_utils::persist_individual_surcharge_details_in_redis(
-            state,
-            merchant_account,
-            &surcharge_results,
-        )
-        .await?;
+        surcharge_results
+            .persist_individual_surcharge_details_in_redis(state, merchant_account)
+            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -916,6 +926,11 @@ where
         payment_data.payment_attempt.merchant_connector_id =
             merchant_connector_account.get_mca_id();
     }
+
+    operation
+        .to_domain()?
+        .populate_payment_data(state, payment_data, merchant_account)
+        .await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
@@ -1846,7 +1861,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub surcharge_details: Option<SurchargeDetails>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub frm_message: Option<FraudCheck>,
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
