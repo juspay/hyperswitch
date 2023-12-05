@@ -997,7 +997,7 @@ impl RefundInterface for MockDb {
         let mut refund_meta_data = api_models::refunds::RefundListMetaData {
             connector: vec![],
             currency: vec![],
-            status: vec![],
+            refund_status: vec![],
         };
 
         let mut unique_connectors = HashSet::new();
@@ -1016,7 +1016,7 @@ impl RefundInterface for MockDb {
 
         refund_meta_data.connector = unique_connectors.into_iter().collect();
         refund_meta_data.currency = unique_currencies.into_iter().collect();
-        refund_meta_data.status = unique_statuses.into_iter().collect();
+        refund_meta_data.refund_status = unique_statuses.into_iter().collect();
 
         Ok(refund_meta_data)
     }
