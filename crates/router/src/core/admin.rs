@@ -1089,13 +1089,14 @@ async fn validate_pm_auth(
             .into_iter()
             .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "connector account not found".to_string(),
+                message: "payment method auth connector account not found".to_string(),
             })
             .into_report()?;
 
         if &pm_auth_mca.profile_id != profile_id {
             return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "pm auth profile_id differs from connector profile_id".to_string(),
+                message: "payment method auth profile_id differs from connector profile_id"
+                    .to_string(),
             })
             .into_report();
         }

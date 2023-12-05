@@ -85,7 +85,7 @@ pub async fn create_link_token(
                 && config.payment_method_type == payload.payment_method_type
         })
         .ok_or(ApiErrorResponse::GenericNotFoundError {
-            message: "connector name not found".to_string(),
+            message: "payment method auth connector name not found".to_string(),
         })
         .into_report()?;
 
@@ -288,7 +288,7 @@ async fn store_bank_details_in_payment_methods(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(ApiErrorResponse::PaymentNotFound)?;
 
     let customer_id = payment_intent
         .customer_id
