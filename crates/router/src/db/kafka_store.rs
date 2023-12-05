@@ -32,6 +32,7 @@ use crate::{
     db::{
         address::AddressInterface,
         api_keys::ApiKeyInterface,
+        authorization::AuthorizationInterface,
         business_profile::BusinessProfileInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
@@ -1878,6 +1879,15 @@ impl UserInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store.delete_user_by_user_id(user_id).await
     }
+
+    async fn find_users_and_roles_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<(storage::User, user_storage::UserRole)>, errors::StorageError> {
+        self.diesel_store
+            .find_users_and_roles_by_merchant_id(merchant_id)
+            .await
+    }
 }
 
 impl RedisConnInterface for KafkaStore {
@@ -1928,6 +1938,25 @@ impl DashboardMetadataInterface for KafkaStore {
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         self.diesel_store.insert_metadata(metadata).await
+    }
+
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store
+            .update_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                data_key,
+                dashboard_metadata_update,
+            )
+            .await
     }
 
     async fn find_user_scoped_dashboard_metadata(
@@ -2065,5 +2094,40 @@ impl BatchSampleDataInterface for KafkaStore {
         }
 
         Ok(refunds_list)
+    }
+}
+
+#[async_trait::async_trait]
+impl AuthorizationInterface for KafkaStore {
+    async fn insert_authorization(
+        &self,
+        authorization: storage::AuthorizationNew,
+    ) -> CustomResult<storage::Authorization, errors::StorageError> {
+        self.diesel_store.insert_authorization(authorization).await
+    }
+
+    async fn find_all_authorizations_by_merchant_id_payment_id(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
+        self.diesel_store
+            .find_all_authorizations_by_merchant_id_payment_id(merchant_id, payment_id)
+            .await
+    }
+
+    async fn update_authorization_by_merchant_id_authorization_id(
+        &self,
+        merchant_id: String,
+        authorization_id: String,
+        authorization: storage::AuthorizationUpdate,
+    ) -> CustomResult<storage::Authorization, errors::StorageError> {
+        self.diesel_store
+            .update_authorization_by_merchant_id_authorization_id(
+                merchant_id,
+                authorization_id,
+                authorization,
+            )
+            .await
     }
 }

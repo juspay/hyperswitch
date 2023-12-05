@@ -249,6 +249,12 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// User Sign Up
+    UserSignUp,
+    /// User Sign Up
+    UserSignUpWithMerchantId,
+    /// User Sign In
+    UserSignIn,
     /// User connect account
     UserConnectAccount,
     /// Upsert Decision Manager Config
@@ -283,6 +289,22 @@ pub enum Flow {
     GenerateSampleData,
     /// Delete Sample Data
     DeleteSampleData,
+    /// List merchant accounts for user
+    UserMerchantAccountList,
+    /// Get users for merchant account
+    GetUserDetails,
+    /// Get reset password link
+    ForgotPassword,
+    /// Reset password using link
+    ResetPassword,
+    /// Invite users
+    InviteUser,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
 }
 
 ///

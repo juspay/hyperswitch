@@ -477,3 +477,9 @@ connection_timeout = 10   # Timeout for database connection in seconds
 [kv_config]
 # TTL for KV in seconds
 ttl = 900
+
+[paypal_onboarding]
+client_id = "paypal_client_id" # Client ID for PayPal onboarding
+client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
+partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
+enabled = true # Switch to enable or disable PayPal onboarding

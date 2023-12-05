@@ -5,11 +5,12 @@ pub use api_models::payments::{
     PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
     PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
     PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 
@@ -80,6 +81,9 @@ pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
+
+#[derive(Debug, Clone)]
+pub struct IncrementalAuthorization;
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
@@ -164,6 +168,15 @@ pub trait MandateSetup:
 {
 }
 
+pub trait PaymentIncrementalAuthorization:
+    api::ConnectorIntegration<
+    IncrementalAuthorization,
+    types::PaymentsIncrementalAuthorizationData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait PaymentsCompleteAuthorize:
     api::ConnectorIntegration<
     CompleteAuthorize,
@@ -215,6 +228,7 @@ pub trait Payment:
     + PaymentToken
     + PaymentsPreProcessing
     + ConnectorCustomer
+    + PaymentIncrementalAuthorization
 {
 }
 

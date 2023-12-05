@@ -314,6 +314,20 @@ async fn get_tracker_for_sync<
             )
         })?;
 
+    let authorizations = db
+        .find_all_authorizations_by_merchant_id_payment_id(
+            &merchant_account.merchant_id,
+            &payment_id_str,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while getting authorizations list for, payment_id: {}, merchant_id: {}",
+                &payment_id_str, merchant_account.merchant_id
+            )
+        })?;
+
     let disputes = db
         .find_disputes_by_merchant_id_payment_id(&merchant_account.merchant_id, &payment_id_str)
         .await
@@ -407,6 +421,8 @@ async fn get_tracker_for_sync<
         payment_link_data: None,
         surcharge_details: None,
         frm_message: frm_response.ok(),
+        incremental_authorization_details: None,
+        authorizations,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

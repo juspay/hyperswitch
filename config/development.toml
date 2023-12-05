@@ -505,3 +505,9 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 queue_strategy = "Fifo"
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""
+enabled = true
