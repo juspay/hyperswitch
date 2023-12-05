@@ -8,6 +8,8 @@
 
 pub mod api;
 pub mod domain;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
 pub mod storage;
 pub mod transformers;
 
@@ -22,6 +24,7 @@ use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
+use serde::Serialize;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -741,7 +744,7 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub enum ResponseId {
     ConnectorTransactionId(String),
     EncodedData(String),
