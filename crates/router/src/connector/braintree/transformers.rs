@@ -228,8 +228,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let id =
-            item.response.transaction.id.clone();
+        let id = item.response.transaction.id.clone();
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.transaction.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
