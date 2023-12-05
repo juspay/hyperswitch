@@ -9,13 +9,14 @@ This is a guide to contributing new connector to Router. This guide includes ins
 - Understanding of the Connector APIs which you wish to integrate with Router
 - Setup of Router repository and running it on local
 - Access to API credentials for testing the Connector API (you can quickly sign up for sandbox/uat credentials by visiting the website of the connector you wish to integrate)
--  Ensure that you have Rust installed. We recommend using the nightly version. Install it using `rustup`:
+-  Ensure that you have the nightly toolchain installed because the connector template script includes code formatting.
+
+ Install it using `rustup`:
 
     ```bash
     rustup toolchain install nightly
     ```
 
-Note: This project requires features only available in the nightly version of Rust.
 
 In Router, there are Connectors and Payment Methods, examples of both are shown below from which the difference is apparent.
 
@@ -34,7 +35,7 @@ A connector is an integration to fulfill payments. Related use cases could be an
 Each Connector (say, a Payment Processor) could support multiple payment methods
 
 - **Cards :** Visa, Mastercard, Bancontact , Knet, Mada, Discover, UnionPay
-- **Bank Redirects :** Ideal, EPS , Giropay, Sofort, Bancontact, Bizum, Blik, Interac, Onlnie Banking Czec Republic, Onlnie Banking Finland, Onlnie Banking Poland, Onlnie Banking Slovakia, Online Banking UK, Prezelwy24, Trustly, Online Banking Fpx, Online Banking Thailand
+**Bank Redirects :** Ideal, EPS , Giropay, Sofort, Bancontact, Bizum, Blik, Interac, Online Banking Czech Republic, Online Banking Finland, Online Banking Poland, Online Banking Slovakia, Online Banking UK, Prezelwy24, Trustly, Online Banking Fpx, Online Banking Thailand
 - **Bank Transfers :** Multibanco, Sepa, Bacs, Ach, Permata, Bca, Bni, Bri Va, Danamon Va Bank, Pix, Pse
 - **Bank Direct Debit :** Sepa direct debit, Ach Debit, Becs Bank Debit, Bacs Bank Debit
 - **Wallets :** Apple Pay , Google Pay , Paypal , Ali pay ,Mb pay ,Samsung Pay, Wechat Pay, TouchNGo, Cashapp
@@ -97,6 +98,24 @@ Now let's implement Request type for checkout
 
 ```rust
 #[derive(Debug, Serialize)]
+pub struct CardSource {
+    #[serde(rename = "type")]
+    pub source_type: CheckoutSourceTypes,
+    pub number: cards::CardNumber,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaymentSource {
+    Card(CardSource),
+    Wallets(WalletSource),
+    ApplePayPredecrypt(Box<ApplePayPredecrypt>),
+}
+
+#[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
     pub amount: i64,
@@ -116,26 +135,6 @@ Since Router is connector agnostic, only minimal data is sent to connector and o
 Here processing_channel_id, is specific to checkout and implementations of such functions should be inside the checkout directory.
 Let's define `Source`
 
-```rust
-#[derive(Debug, Serialize)]
-pub struct CardSource {
-    #[serde(rename = "type")]
-    pub source_type: CheckoutSourceTypes,
-    pub number: cards::CardNumber,
-    pub expiry_month: Secret<String>,
-    pub expiry_year: Secret<String>,
-    pub cvv: Secret<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum PaymentSource {
-    Card(CardSource),
-    Wallets(WalletSource),
-    ApplePayPredecrypt(Box<ApplePayPredecrypt>),
-}
-```
-
 `PaymentSource` is an enum type. Request types will need to derive `Serialize` and response types will need to derive `Deserialize`. For request types `From<RouterData>` needs to be implemented.
 
 For request types that involve an amount, the implementation of `TryFrom<&ConnectorRouterData<&T>>` is required:
@@ -148,9 +147,7 @@ else
 impl TryFrom<T> for PaymentsRequest 
 ```
 
-where  T is generic type which can `types::PaymentsAuthorizeRouterData`, `types::PaymentsCaptureRouterData` etc.
-
-Note : As amount conversion is being handled at one place . amount needs to be consumed from `ConnectorRouterData`
+where `T` is a generic type which can be `types::PaymentsAuthorizeRouterData`, `types::PaymentsCaptureRouterData`, etc.
 
 In this impl block we build the request type from RouterData which will almost always contain all the required information you need for payment processing.
 `RouterData` contains all the information required for processing the payment.
@@ -232,16 +229,16 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
 ```
 If you're converting ConnectorPaymentStatus to AttemptStatus without any additional conditions, you can employ the `impl From<ConnectorPaymentStatus> for enums::AttemptStatus`.
 
-Note: `enum::AttemptStatus` is Router status.
+Note: A payment intent can have multiple payment attempts. `enums::AttemptStatus` represents the status of a payment attempt.
 
-Some of the router status are given below
+Some of the attempt status are given below
 
-- **Charged :** The amount has been debited
-- **Pending :** Pending but verified by visa
-- **Failure :** The payment Failed
-- **Authorized :** In the process of authorizing.
+- **Charged :** The payment attempt has succeeded.
+- **Pending :** Payment is in processing state.
+- **Failure :** The payment attempt has failed.
+- **Authorized :** Payment is authorized. Authorized payment can be voided, captured and partial captured.
 - **AuthenticationPending :** Customer action is required.
-- **Voided :** The payment Cancelled
+- **Voided :** The payment was voided and never captured; the funds were returned to the customer.
 
 It is highly recommended that the default status is Pending. Only explicit failure and explicit success from the connector shall be marked as success or failure respectively.
 
@@ -372,14 +369,14 @@ We create a struct with the connector name and have trait implementations for it
 The following trait implementations are mandatory
 
 - **ConnectorCommon :** contains common description of the connector, like the base endpoint, content-type, error message, id, currency unit.
-- **Payment :** Trait Relationship, has impl block.
-- **PaymentAuthorize :** Trait Relationship, has impl block.
-- **PaymentCapture :** Trait Relationship, has impl block.
-- **PaymentSync :** Trait Relationship, has impl block.
 - **ConnectorIntegration :** For every api endpoint contains the url, using request transform and response transform and headers.
-- **Refund :** Trait Relationship, has impl block.
-- **RefundExecute :** Trait Relationship, has impl block.
-- **RefundSync :** Trait Relationship, has impl block.
+- **Payment :** This trait includes several other traits and is meant to represent the functionality related to payments.
+- **PaymentAuthorize :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment authorization. 
+- **PaymentCapture :** This trait extends the `api::ConnectorIntegration `trait with specific types related to manual payment capture. 
+- **PaymentSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to payment retrieve. 
+- **Refund :** This trait includes several other traits and is meant to represent the functionality related to Refunds.
+- **RefundExecute :** This trait extends the `api::ConnectorIntegration `trait with specific types related to refunds create.
+- **RefundSync :** This trait extends the `api::ConnectorIntegration `trait with specific types related to refunds retrieve.
 
 
 And the below derive traits
@@ -395,7 +392,7 @@ Refer to other connector code for trait implementations. Mostly the rust compile
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
 
 ### **Set the currency Unit**
-The `get_currency_unit` function, part of the ConnectorCommon trait, enables connectors to specify their accepted currency unit as either `Base` or `Minor`. For instance, Paypal designates its currency in the Base unit, whereas Hyperswitch processes amounts in the minor unit. If a connector accepts amounts in the base unit, conversion is required, as illustrated.
+The `get_currency_unit` function, part of the ConnectorCommon trait, enables connectors to specify their accepted currency unit as either `Base` or `Minor`. For instance, Paypal designates its currency in the base unit (for example, USD), whereas Hyperswitch processes amounts in the minor unit (for example, cents). If a connector accepts amounts in the base unit, conversion is required, as illustrated.
 
 ``` rust
 impl<T>
@@ -424,7 +421,7 @@ impl<T>
 }
 ```
 
-`Note`: Since the amount is being converted in the aforementioned try_from, it is necessary to retrieve amounts from `ConnectorRouterData` in all other try_from instances.
+**Note:** Since the amount is being converted in the aforementioned `try_from`, it is necessary to retrieve amounts from `ConnectorRouterData` in all other `try_from` instances.
 
 ### **Test the connector**
 
