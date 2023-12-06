@@ -178,6 +178,36 @@ impl From<PayoutConnectors> for RoutableConnectors {
     }
 }
 
+#[cfg(feature = "frm")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectors {
+    /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
+    Signifyd,
+}
+
+#[cfg(feature = "frm")]
+impl From<FrmConnectors> for RoutableConnectors {
+    fn from(value: FrmConnectors) -> Self {
+        match value {
+            FrmConnectors::Signifyd => Self::Signifyd,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

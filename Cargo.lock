@@ -1708,7 +1708,6 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.32.0",
- "utoipa",
 ]
 
 [[package]]
