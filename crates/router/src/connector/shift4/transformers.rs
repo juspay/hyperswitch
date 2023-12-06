@@ -292,12 +292,15 @@ impl<T>
             &api_models::payments::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let card_object = Card {
-            number: card.card_number.clone(),
-            exp_month: card.card_exp_month.clone(),
-            exp_year: card.card_exp_year.clone(),
-            cardholder_name: card.card_holder_name.clone(),
-        };
+        let card_object =
+            Card {
+                number: card.card_number.clone(),
+                exp_month: card.card_exp_month.clone(),
+                exp_year: card.card_exp_year.clone(),
+                cardholder_name: card.card_holder_name.clone().ok_or_else(
+                    utils::missing_field_err("card_holder_name"),
+                )?,
+            };
         if item.is_three_ds() {
             Ok(Self::Cards3DSRequest(Box::new(Cards3DSRequest {
                 card_number: card_object.number,
