@@ -215,6 +215,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
@@ -477,6 +478,9 @@ connection_timeout = 10   # Timeout for database connection in seconds
 [kv_config]
 # TTL for KV in seconds
 ttl = 900
+
+[frm]
+enabled = true
 
 [paypal_onboarding]
 client_id = "paypal_client_id" # Client ID for PayPal onboarding
