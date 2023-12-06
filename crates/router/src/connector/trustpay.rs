@@ -137,7 +137,9 @@ impl ConnectorCommon for Trustpay {
                     message: option_error_code_message
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: reason.or(response_data.description).or(response_data.payment_description),
+                    reason: reason
+                        .or(response_data.description)
+                        .or(response_data.payment_description),
                     attempt_status: None,
                     connector_transaction_id: response_data.instance_id,
                 })
