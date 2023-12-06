@@ -1475,9 +1475,8 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                     if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                         payment_method_token
                     {
-                        let expiry_year_4_digit =
-                            decrypt_data.get_applepay_decrypted_expiration_year_4_digit()?;
-                        let exp_month = decrypt_data.get_applepay_decrypted_expiration_month()?;
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                        let exp_month = decrypt_data.get_expiry_month()?;
 
                         Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
                             Box::new(StripeApplePayPredecrypt {

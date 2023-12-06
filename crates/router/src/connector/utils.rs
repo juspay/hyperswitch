@@ -856,12 +856,12 @@ impl ApplePay for payments::ApplePayWalletData {
 }
 
 pub trait ApplePayDecrypt {
-    fn get_applepay_decrypted_expiration_month(&self) -> Result<Secret<String>, Error>;
-    fn get_applepay_decrypted_expiration_year_4_digit(&self) -> Result<Secret<String>, Error>;
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
-    fn get_applepay_decrypted_expiration_year_4_digit(&self) -> Result<Secret<String>, Error> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(format!(
             "20{}",
             self.application_expiration_date
@@ -871,7 +871,7 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
         )))
     }
 
-    fn get_applepay_decrypted_expiration_month(&self) -> Result<Secret<String>, Error> {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(
             self.application_expiration_date
                 .peek()

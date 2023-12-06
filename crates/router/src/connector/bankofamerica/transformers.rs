@@ -364,8 +364,8 @@ impl
             ProcessingInformation::from((item, Some(PaymentSolution::ApplePay)));
         let client_reference_information = ClientReferenceInformation::from(item);
 
-        let expiration_month = apple_pay_data.get_applepay_decrypted_expiration_month()?;
-        let expiration_year = apple_pay_data.get_applepay_decrypted_expiration_year_4_digit()?;
+        let expiration_month = apple_pay_data.get_expiry_month()?;
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
 
         let payment_information = PaymentInformation::ApplePay(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
