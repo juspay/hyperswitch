@@ -6,7 +6,9 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
+    connector::utils::{
+        self, to_connector_meta, PaymentsCaptureRequestData, RouterData, WalletData,
+    },
     consts,
     core::errors,
     services,
@@ -239,6 +241,17 @@ pub struct PaymentsRequest {
     pub return_url: ReturnUrl,
     pub capture: bool,
     pub reference: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutMeta {
+    pub psync_flow: CheckoutPaymentIntent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum CheckoutPaymentIntent {
+    Capture,
+    Authorize,
 }
 
 #[derive(Debug, Serialize)]
@@ -477,7 +490,7 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
                 if capture_method == Some(enums::CaptureMethod::Automatic)
                     || capture_method.is_none()
                 {
-                    Self::Charged
+                    Self::Pending
                 } else {
                     Self::Authorized
                 }
@@ -490,17 +503,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
     }
 }
 
-impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptStatus {
-    fn foreign_from(item: (CheckoutPaymentStatus, Option<Balances>)) -> Self {
-        let (status, balances) = item;
+impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, CheckoutPaymentIntent)) -> Self {
+        let (status, psync_flow) = item;
 
         match status {
             CheckoutPaymentStatus::Authorized => {
-                if let Some(Balances {
-                    available_to_capture: 0,
-                }) = balances
-                {
-                    Self::Charged
+                if psync_flow == CheckoutPaymentIntent::Capture {
+                    Self::Pending
                 } else {
                     Self::Authorized
                 }
@@ -556,6 +566,16 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_meta = match item.data.request.capture_method {
+            Some(enums::CaptureMethod::Automatic) => serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Capture,
+            }),
+            Some(enums::CaptureMethod::Manual) => serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Authorize,
+            }),
+            _ => serde_json::json!({}),
+        };
+
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
@@ -586,7 +606,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data,
             mandate_reference: None,
-            connector_metadata: None,
+            connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
@@ -611,8 +631,10 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
+        let checkout_meta: CheckoutMeta =
+            to_connector_meta(item.data.request.connector_meta.clone())?;
         let status =
-            enums::AttemptStatus::foreign_from((item.response.status, item.response.balances));
+            enums::AttemptStatus::foreign_from((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == enums::AttemptStatus::Failure {
             Some(types::ErrorResponse {
                 status_code: item.http_code,
@@ -788,6 +810,9 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_meta = serde_json::json!(CheckoutMeta {
+            psync_flow: CheckoutPaymentIntent::Capture,
+        });
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 enums::AttemptStatus::Charged,
@@ -810,7 +835,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
@@ -971,7 +996,7 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     }
 
     fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
-        enums::AttemptStatus::foreign_from((self.status.clone(), self.balances.clone()))
+        enums::AttemptStatus::foreign_from((self.status.clone(), None))
     }
 
     fn get_connector_reference_id(&self) -> Option<String> {
