@@ -12,6 +12,7 @@ pub mod enums;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
+pub mod fraud_check;
 pub mod gsm;
 #[cfg(feature = "kv_store")]
 pub mod kv;
@@ -23,30 +24,29 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_link;
 pub mod payment_method;
-pub mod routing_algorithm;
-use std::collections::HashMap;
-
-pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
-pub use scheduler::db::process_tracker;
-pub mod reverse_lookup;
-
 pub mod payout_attempt;
 pub mod payouts;
 mod query;
 pub mod refund;
+pub mod reverse_lookup;
+pub mod routing_algorithm;
 pub mod user;
 pub mod user_role;
+
+use std::collections::HashMap;
 
 pub use data_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     PaymentIntent,
 };
+pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
+pub use scheduler::db::process_tracker;
 
 pub use self::{
     address::*, api_keys::*, authorization::*, capture::*, cards_info::*, configs::*, customers::*,
-    dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*, file::*, gsm::*,
-    locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
+    dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
+    gsm::*, locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
     merchant_key_store::*, payment_link::*, payment_method::*, payout_attempt::*, payouts::*,
     process_tracker::*, refund::*, reverse_lookup::*, routing_algorithm::*, user::*, user_role::*,
 };

@@ -28,6 +28,7 @@ pub enum ApiIdentifier {
     Gsm,
     User,
     UserRole,
+    ConnectorOnboarding,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -111,7 +112,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
-            Flow::IncomingWebhookReceive => Self::Webhooks,
+            Flow::FrmFulfillment | Flow::IncomingWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -171,6 +172,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
                 Self::UserRole
             }
+
+            Flow::GetActionUrl | Flow::SyncOnboardingStatus => Self::ConnectorOnboarding,
         }
     }
 }
