@@ -38,6 +38,7 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
@@ -117,7 +118,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
@@ -178,7 +179,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
