@@ -1,13 +1,13 @@
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
         self, AddressDetailsData, CardData, CardIssuer, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData,
+        PaymentsSyncRequestData, RouterData, ApplePayDecrypt,
     },
     consts,
     core::errors,
@@ -143,7 +143,7 @@ pub struct TokenizedCard {
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Secret<String>,
-    transaction_type: String,
+    transaction_type: TransactionType,
 }
 
 #[derive(Debug, Serialize)]
@@ -231,6 +231,12 @@ impl From<PaymentSolution> for String {
         };
         payment_solution.to_string()
     }
+}
+
+#[derive(Debug, Serialize)]
+pub enum TransactionType {
+    #[serde(rename = "1")]
+    ApplePay,
 }
 
 impl
@@ -358,29 +364,14 @@ impl
             ProcessingInformation::from((item, Some(PaymentSolution::ApplePay)));
         let client_reference_information = ClientReferenceInformation::from(item);
 
-        let expiration_year = Secret::new(format!(
-            "20{}",
-            apple_pay_data
-                .clone()
-                .application_expiration_date
-                .peek()
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        ));
-        let expiration_month = Secret::new(
-            apple_pay_data
-                .clone()
-                .application_expiration_date
-                .peek()
-                .get(2..4)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_owned(),
-        );
+        let expiration_month = apple_pay_data.get_applepay_decrypted_expiration_month()?;
+        let expiration_year = apple_pay_data.get_applepay_decrypted_expiration_year_4_digit()?;
+
         let payment_information = PaymentInformation::ApplePay(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
                 number: apple_pay_data.application_primary_account_number,
                 cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
-                transaction_type: "1".to_string(),
+                transaction_type: TransactionType::ApplePay,
                 expiration_year,
                 expiration_month,
             },
