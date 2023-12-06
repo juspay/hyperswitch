@@ -54,9 +54,9 @@ pub struct PaymentIntent {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub max_age: PrimitiveDateTime,
-    pub authorization_count: Option<i32>,
 }
 
 #[derive(
@@ -105,9 +105,9 @@ pub struct PaymentIntentNew {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub max_age: PrimitiveDateTime,
-    pub authorization_count: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,8 +225,8 @@ pub struct PaymentIntentUpdateInternal {
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
-    pub max_age: Option<PrimitiveDateTime>,
     pub authorization_count: Option<i32>,
+    pub max_age: Option<PrimitiveDateTime>,
 }
 
 impl PaymentIntentUpdate {
@@ -258,8 +258,8 @@ impl PaymentIntentUpdate {
             updated_by,
             surcharge_applicable,
             incremental_authorization_allowed,
-            max_age,
             authorization_count,
+            max_age,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -291,8 +291,8 @@ impl PaymentIntentUpdate {
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
 
             incremental_authorization_allowed,
-            max_age: max_age.unwrap_or(source.max_age),
             authorization_count,
+            max_age: max_age.unwrap_or(source.max_age),
             ..source
         }
     }

@@ -2565,7 +2565,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -2611,15 +2610,12 @@ mod tests {
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            max_age: common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(900);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_ok()); // Check if the result is an Ok variant
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
+        // Check if the result is an Ok variant
     }
 
     #[test]
@@ -2641,7 +2637,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2665,15 +2661,11 @@ mod tests {
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            max_age: common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
     }
 
     #[test]
@@ -2695,7 +2687,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2719,15 +2711,11 @@ mod tests {
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            max_age: common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
     }
 }
 
