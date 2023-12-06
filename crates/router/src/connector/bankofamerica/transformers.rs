@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, CardIssuer, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData, ApplePayDecrypt,
+        self, AddressDetailsData, ApplePayDecrypt, CardData, CardIssuer,
+        PaymentsAuthorizeRequestData, PaymentsSyncRequestData, RouterData,
     },
     consts,
     core::errors,
