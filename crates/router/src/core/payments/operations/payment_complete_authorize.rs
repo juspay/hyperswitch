@@ -131,7 +131,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        payment_attempt.payment_experience = request.payment_experience.or(payment_attempt.payment_experience);
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .or(payment_attempt.payment_experience);
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
