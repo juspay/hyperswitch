@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.87.1 (2023-12-06)
+
+### Features
+
+- **connector:** [BOA/CYBERSOURCE] Fix Status Mapping for Terminal St… ([#3031](https://github.com/juspay/hyperswitch/pull/3031)) ([`cb08ca1`](https://github.com/juspay/hyperswitch/commit/cb08ca1b21ad3ad6b423a70b00730ec27b1b74ab))
+
+### Bug Fixes
+
+- **connector:** Move authorised status to charged in setup mandate ([#3017](https://github.com/juspay/hyperswitch/pull/3017)) ([`29b2e4c`](https://github.com/juspay/hyperswitch/commit/29b2e4cc8348ac781c53e16e5e1fb737f942a793))
+
+**Full Changelog:** [`v1.87.0...v1.87.1`](https://github.com/juspay/hyperswitch/compare/v1.87.0...v1.87.1)
+
+- - -
+
 ## 1.87.0 (2023-11-22)
 
 ### Features
