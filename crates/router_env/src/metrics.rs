@@ -82,3 +82,22 @@ macro_rules! histogram_metric_u64 {
         > = once_cell::sync::Lazy::new(|| $meter.u64_histogram($description).init());
     };
 }
+
+/// Create a [`Histogram`][Histogram] i64 metric with the specified name and an optional description,
+/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
+///
+/// [Histogram]: opentelemetry::metrics::Histogram
+/// [Meter]: opentelemetry::metrics::Meter
+#[macro_export]
+macro_rules! histogram_metric_i64 {
+    ($name:ident, $meter:ident) => {
+        pub(crate) static $name: once_cell::sync::Lazy<
+            $crate::opentelemetry::metrics::Histogram<i64>,
+        > = once_cell::sync::Lazy::new(|| $meter.i64_histogram(stringify!($name)).init());
+    };
+    ($name:ident, $meter:ident, $description:literal) => {
+        pub(crate) static $name: once_cell::sync::Lazy<
+            $crate::opentelemetry::metrics::Histogram<i64>,
+        > = once_cell::sync::Lazy::new(|| $meter.i64_histogram($description).init());
+    };
+}

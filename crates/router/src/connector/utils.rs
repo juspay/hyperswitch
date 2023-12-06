@@ -17,6 +17,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 
+#[cfg(feature = "frm")]
+use crate::types::{fraud_check, storage::enums as storage_enums};
 use crate::{
     consts,
     core::{
@@ -26,7 +28,7 @@ use crate::{
     pii::PeekInterface,
     types::{
         self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
-        PaymentsCancelData, ResponseId,
+        ApplePayPredecryptData, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -853,6 +855,33 @@ impl ApplePay for payments::ApplePayWalletData {
     }
 }
 
+pub trait ApplePayDecrypt {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date
+                .peek()
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .peek()
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        ))
+    }
+}
+
 pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
@@ -1574,4 +1603,52 @@ pub fn validate_currency(
         })?
     }
     Ok(())
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckSaleRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckSaleRequest for fraud_check::FraudCheckSaleData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckCheckoutRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckCheckoutRequest for fraud_check::FraudCheckCheckoutData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckTransactionRequest {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckTransactionRequest for fraud_check::FraudCheckTransactionData {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckRecordReturnRequest {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
+    fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
 }
