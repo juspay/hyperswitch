@@ -13,7 +13,6 @@ use common_utils::{
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
-use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
 
 use crate::{
