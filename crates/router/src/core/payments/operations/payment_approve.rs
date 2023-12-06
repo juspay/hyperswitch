@@ -179,7 +179,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
-        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
+        payment_intent.return_url = request
+            .return_url
+            .as_ref()
+            .map(|a| a.to_string())
+            .or(payment_intent.return_url);
 
         payment_intent.allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
