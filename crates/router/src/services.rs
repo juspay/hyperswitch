@@ -6,6 +6,7 @@ pub mod encryption;
 pub mod jwt;
 pub mod kafka;
 pub mod logger;
+pub mod pm_auth;
 
 #[cfg(feature = "email")]
 pub mod email;
