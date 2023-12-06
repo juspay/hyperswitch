@@ -10,6 +10,8 @@ pub mod api;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+pub mod pm_auth;
+
 pub mod storage;
 pub mod transformers;
 

@@ -405,6 +405,8 @@ dependencies = [
  "common_utils",
  "error-stack",
  "euclid",
+ "frunk",
+ "frunk_core",
  "masking",
  "mime",
  "reqwest",
@@ -4437,6 +4439,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pm_auth"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "bytes 1.5.0",
+ "common_enums",
+ "common_utils",
+ "error-stack",
+ "http",
+ "masking",
+ "mime",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum 0.24.1",
+ "thiserror",
+]
+
+[[package]]
 name = "png"
 version = "0.16.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5110,6 +5133,7 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "openssl",
+ "pm_auth",
  "qrcode",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
