@@ -295,6 +295,10 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get users for merchant account
     GetUserDetails,
+    /// PaymentMethodAuth Link token create
+    PmAuthLinkTokenCreate,
+    /// PaymentMethodAuth Exchange token create
+    PmAuthExchangeToken,
     /// Get reset password link
     ForgotPassword,
     /// Reset password using link
