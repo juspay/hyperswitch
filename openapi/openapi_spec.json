@@ -2888,6 +2888,15 @@
           "no_three_ds"
         ]
       },
+      "AuthorizationStatus": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure",
+          "processing",
+          "unresolved"
+        ]
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -4332,6 +4341,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "nullable": true
           }
         }
       },
@@ -5114,6 +5128,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
               }
             ],
             "nullable": true
@@ -6427,6 +6449,44 @@
           "unified_message": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "IncrementalAuthorizationResponse": {
+        "type": "object",
+        "required": [
+          "authorization_id",
+          "amount",
+          "status",
+          "previously_authorized_amount"
+        ],
+        "properties": {
+          "authorization_id": {
+            "type": "string",
+            "description": "The unique identifier of authorization"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount the authorization has been made for"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationStatus"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code sent by the connector for authorization",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message sent by the connector for authorization",
+            "nullable": true
+          },
+          "previously_authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Previously authorized amount for the payment"
           }
         }
       },
@@ -9530,7 +9590,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -9904,7 +9965,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -10524,6 +10586,20 @@
           "incremental_authorization_allowed": {
             "type": "boolean",
             "description": "If true incremental authorization can be performed on this payment",
+            "nullable": true
+          },
+          "authorization_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of authorizations happened in an incremental_authorization payment",
+            "nullable": true
+          },
+          "incremental_authorizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
+            },
+            "description": "List of incremental authorizations happened to the payment",
             "nullable": true
           }
         }
@@ -11965,6 +12041,106 @@
           "initiative_context": {
             "type": "string"
           }
+        }
+      },
+      "SurchargeDetailsResponse": {
+        "type": "object",
+        "required": [
+          "surcharge",
+          "display_surcharge_amount",
+          "display_tax_on_surcharge_amount",
+          "display_total_surcharge_amount",
+          "display_final_amount"
+        ],
+        "properties": {
+          "surcharge": {
+            "$ref": "#/components/schemas/SurchargeResponse"
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            ],
+            "nullable": true
+          },
+          "display_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "surcharge amount for this payment"
+          },
+          "display_tax_on_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "tax on surcharge amount for this payment"
+          },
+          "display_total_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "display_final_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of original amount,"
+          }
+        }
+      },
+      "SurchargePercentage": {
+        "type": "object",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "SurchargeResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fixed"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Fixed Surcharge value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "rate"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SwishQrData": {

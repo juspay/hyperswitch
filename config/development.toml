@@ -189,6 +189,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
@@ -476,6 +477,9 @@ delay_between_retries_in_milliseconds = 500
 [kv_config]
 ttl = 900 # 15 * 60 seconds
 
+[frm]
+enabled = true
+
 [events]
 source = "logs"
 
@@ -505,3 +509,9 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 queue_strategy = "Fifo"
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""
+enabled = true

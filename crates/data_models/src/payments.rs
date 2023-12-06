@@ -53,4 +53,5 @@ pub struct PaymentIntent {
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
     pub max_age: PrimitiveDateTime,
+    pub authorization_count: Option<i32>,
 }

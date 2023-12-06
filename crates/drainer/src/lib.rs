@@ -199,6 +199,7 @@ async fn drainer(
             .get("request_id")
             .map_or(String::new(), Clone::clone);
         let global_id = entry.1.get("global_id").map_or(String::new(), Clone::clone);
+        let pushed_at = entry.1.get("pushed_at");
 
         tracing::Span::current().record("request_id", request_id);
         tracing::Span::current().record("global_id", global_id);
@@ -261,6 +262,7 @@ async fn drainer(
                         value: insert_op.into(),
                     }],
                 );
+                utils::push_drainer_delay(pushed_at, insert_op.to_string());
             }
             kv::DBOperation::Update { updatable } => {
                 let (_, execution_time) = common_utils::date_time::time_it(|| async {
@@ -302,6 +304,7 @@ async fn drainer(
                         value: update_op.into(),
                     }],
                 );
+                utils::push_drainer_delay(pushed_at, update_op.to_string());
             }
             kv::DBOperation::Delete => {
                 // [#224]: Implement this

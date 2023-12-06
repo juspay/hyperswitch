@@ -17,6 +17,7 @@ api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 
 # Third party deps
 async-trait = "0.1.68"

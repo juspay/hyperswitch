@@ -110,6 +110,7 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
     pub max_age: PrimitiveDateTime,
+    pub authorization_count: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,6 +189,12 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: bool,
         updated_by: String,
     },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+    },
+    AuthorizationCountUpdate {
+        authorization_count: i32,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -221,6 +228,7 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub max_age: Option<PrimitiveDateTime>,
+    pub authorization_count: Option<i32>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -384,6 +392,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
+                amount: Some(amount),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self {
+                authorization_count: Some(authorization_count),
                 ..Default::default()
             },
         }
