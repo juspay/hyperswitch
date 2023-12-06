@@ -3,6 +3,7 @@ pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
+pub mod incremental_authorization_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -249,8 +250,8 @@ default_imp_for_webhook_source_verification!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
-    connector::Shift4,
     connector::Riskified,
+    connector::Shift4,
     connector::Signifyd,
     connector::Square,
     connector::Stax,
@@ -1698,11 +1699,9 @@ macro_rules! default_imp_for_frm_sale {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckSale for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Sale,
@@ -1782,11 +1781,9 @@ macro_rules! default_imp_for_frm_checkout {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckCheckout for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Checkout,
@@ -1866,11 +1863,9 @@ macro_rules! default_imp_for_frm_transaction {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckTransaction for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Transaction,
@@ -1950,11 +1945,9 @@ macro_rules! default_imp_for_frm_fulfillment {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckFulfillment for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Fulfillment,
@@ -2034,11 +2027,9 @@ macro_rules! default_imp_for_frm_record_return {
     };
 }
 
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckRecordReturn for connector::DummyConnector<T> {}
-#[cfg(feature = "frm")]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::RecordReturn,
@@ -2089,6 +2080,87 @@ default_imp_for_frm_record_return!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_incremental_authorization {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PaymentIncrementalAuthorization for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::IncrementalAuthorization,
+            types::PaymentsIncrementalAuthorizationData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentIncrementalAuthorization for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::IncrementalAuthorization,
+        types::PaymentsIncrementalAuthorizationData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_incremental_authorization!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
     connector::Square,
     connector::Stax,
     connector::Stripe,

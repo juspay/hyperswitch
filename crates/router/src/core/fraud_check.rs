@@ -174,7 +174,7 @@ where
                                     .parse_value("FrmConfigs")
                                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                                         field_name: "frm_configs".to_string(),
-                                        expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                                        expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                                     })
                                 })
                                 .collect::<Result<Vec<_>, _>>()?;
@@ -305,32 +305,24 @@ where
                             // filtered_frm_config...
                             // Panic Safety: we are first checking if the object is present... only if present, we try to fetch index 0
                             let frm_configs_object = FrmConfigsObject {
-                                frm_enabled_gateway: if filtered_frm_config.is_empty() {
-                                    None
-                                } else {
-                                    filtered_frm_config[0].gateway
-                                },
-                                frm_enabled_pm: if filtered_payment_methods.is_empty() {
-                                    None
-                                } else {
-                                    filtered_payment_methods[0].payment_method
-                                },
-                                frm_enabled_pm_type: if filtered_payment_method_types.is_empty() {
-                                    None
-                                } else {
-                                    filtered_payment_method_types[0].payment_method_type
-                                },
-                                frm_action: if filtered_payment_method_types.is_empty() {
-                                    api_enums::FrmAction::ManualReview
-                                } else {
-                                    filtered_payment_method_types[0].clone().action
-                                },
-                                frm_preferred_flow_type: if filtered_payment_method_types.is_empty()
-                                {
-                                    api_enums::FrmPreferredFlowTypes::Pre
-                                } else {
-                                    filtered_payment_method_types[0].clone().flow
-                                },
+                                frm_enabled_gateway: filtered_frm_config
+                                    .get(0)
+                                    .and_then(|c| c.gateway),
+                                frm_enabled_pm: filtered_payment_methods
+                                    .get(0)
+                                    .and_then(|pm| pm.payment_method),
+                                frm_enabled_pm_type: filtered_payment_method_types
+                                    .get(0)
+                                    .and_then(|pmt| pmt.payment_method_type),
+                                frm_action: filtered_payment_method_types
+                                    // .clone()
+                                    .get(0)
+                                    .map(|pmt| pmt.action.clone())
+                                    .unwrap_or(api_enums::FrmAction::ManualReview),
+                                frm_preferred_flow_type: filtered_payment_method_types
+                                    .get(0)
+                                    .map(|pmt| pmt.flow.clone())
+                                    .unwrap_or(api_enums::FrmPreferredFlowTypes::Pre),
                             };
                             logger::debug!(
                                 "frm_routing_configs: {:?} {:?} {:?} {:?}",

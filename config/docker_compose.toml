@@ -366,4 +366,9 @@ queue_strategy = "Fifo"
 ttl = 900 # 15 * 60 seconds
 
 [frm]
-is_frm_enabled = true
+enabled = true
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""

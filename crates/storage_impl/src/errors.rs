@@ -92,15 +92,7 @@ impl Into<DataStorageError> for &StorageError {
                         key: None,
                     }
                 }
-                storage_errors::DatabaseError::NoFieldsToUpdate => {
-                    DataStorageError::DatabaseError("No fields to update".to_string())
-                }
-                storage_errors::DatabaseError::QueryGenerationFailed => {
-                    DataStorageError::DatabaseError("Query generation failed".to_string())
-                }
-                storage_errors::DatabaseError::Others => {
-                    DataStorageError::DatabaseError("Unknown database error".to_string())
-                }
+                err => DataStorageError::DatabaseError(error_stack::report!(*err)),
             },
             StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
             StorageError::DuplicateValue { entity, key } => DataStorageError::DuplicateValue {
@@ -154,6 +146,26 @@ impl StorageError {
                 matches!(err.current_context(), DatabaseError::UniqueViolation,)
             }
             _ => false,
+        }
+    }
+}
+
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError> {
+        match self.current_context() {
+            RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
+                "Data does not exist for key {key}",
+            ))),
+            RedisError::SetNxFailed => self.change_context(DataStorageError::DuplicateValue {
+                entity: "redis",
+                key: Some(key.to_string()),
+            }),
+            _ => self.change_context(DataStorageError::KVError),
         }
     }
 }

@@ -118,12 +118,14 @@ pub struct Settings {
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     pub events: EventsConfig,
+    #[cfg(feature = "olap")]
+    pub connector_onboarding: ConnectorOnboarding,
 }
 
 #[cfg(feature = "frm")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Frm {
-    pub is_frm_enabled: bool,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -608,6 +610,7 @@ pub struct Connectors {
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
+    pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
     pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
@@ -620,7 +623,6 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
-    pub riskified: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -784,6 +786,7 @@ impl Settings {
                     .list_separator(",")
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
+                    .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
@@ -893,4 +896,19 @@ impl<'de> Deserialize<'de> for LockSettings {
             lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
         })
     }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorOnboarding {
+    pub paypal: PayPalOnboarding,
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PayPalOnboarding {
+    pub client_id: masking::Secret<String>,
+    pub client_secret: masking::Secret<String>,
+    pub partner_id: masking::Secret<String>,
+    pub enabled: bool,
 }

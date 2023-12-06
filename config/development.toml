@@ -479,7 +479,7 @@ delay_between_retries_in_milliseconds = 500
 ttl = 900 # 15 * 60 seconds
 
 [frm]
-is_frm_enabled = true
+enabled = true
 
 [events]
 source = "logs"
@@ -510,3 +510,9 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 queue_strategy = "Fifo"
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""
+enabled = true

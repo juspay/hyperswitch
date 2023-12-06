@@ -1,6 +1,8 @@
 pub mod admin;
 pub mod api_keys;
 pub mod configs;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
@@ -21,7 +23,6 @@ pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};
 
-use api_models::payment_methods::{SurchargeDetailsResponse, SurchargeMetadata};
 use error_stack::{report, IntoReport, ResultExt};
 
 #[cfg(feature = "frm")]
@@ -34,7 +35,10 @@ use super::ErrorResponse;
 use crate::{
     configs::settings::Connectors,
     connector, consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::types as payments_types,
+    },
     services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
@@ -228,9 +232,9 @@ pub struct SessionConnectorData {
 /// Session Surcharge type
 pub enum SessionSurchargeDetails {
     /// Surcharge is calculated by hyperswitch
-    Calculated(SurchargeMetadata),
+    Calculated(payments_types::SurchargeMetadata),
     /// Surcharge is sent by merchant
-    PreDetermined(SurchargeDetailsResponse),
+    PreDetermined(payments_types::SurchargeDetails),
 }
 
 impl SessionSurchargeDetails {
@@ -239,10 +243,14 @@ impl SessionSurchargeDetails {
         payment_method: &enums::PaymentMethod,
         payment_method_type: &enums::PaymentMethodType,
         card_network: Option<&enums::CardNetwork>,
-    ) -> Option<SurchargeDetailsResponse> {
+    ) -> Option<payments_types::SurchargeDetails> {
         match self {
             Self::Calculated(surcharge_metadata) => surcharge_metadata
-                .get_surcharge_details(payment_method, payment_method_type, card_network)
+                .get_surcharge_details(payments_types::SurchargeKey::PaymentMethodData(
+                    *payment_method,
+                    *payment_method_type,
+                    card_network.cloned(),
+                ))
                 .cloned(),
             Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
         }

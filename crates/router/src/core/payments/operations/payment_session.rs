@@ -195,6 +195,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
             frm_metadata: None,
         };
 

@@ -570,42 +570,95 @@ impl
             .parse_struct("paypal PaypalPreProcessingResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        // permutation for status to continue payment
-        match (
-            response
-                .payment_source
-                .card
-                .authentication_result
-                .three_d_secure
-                .enrollment_status
-                .as_ref(),
-            response
-                .payment_source
-                .card
-                .authentication_result
-                .three_d_secure
-                .authentication_status
-                .as_ref(),
-            response
-                .payment_source
-                .card
-                .authentication_result
-                .liability_shift
-                .clone(),
-        ) {
-            (
-                Some(paypal::EnrollementStatus::Ready),
-                Some(paypal::AuthenticationStatus::Success),
-                paypal::LiabilityShift::Possible,
-            )
-            | (
-                Some(paypal::EnrollementStatus::Ready),
-                Some(paypal::AuthenticationStatus::Attempted),
-                paypal::LiabilityShift::Possible,
-            )
-            | (Some(paypal::EnrollementStatus::NotReady), None, paypal::LiabilityShift::No)
-            | (Some(paypal::EnrollementStatus::Unavailable), None, paypal::LiabilityShift::No)
-            | (Some(paypal::EnrollementStatus::Bypassed), None, paypal::LiabilityShift::No) => {
+        match response {
+            // if card supports 3DS check for liability
+            paypal::PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
+                // permutation for status to continue payment
+                match (
+                    liability_response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .enrollment_status
+                        .as_ref(),
+                    liability_response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .authentication_status
+                        .as_ref(),
+                    liability_response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .liability_shift
+                        .clone(),
+                ) {
+                    (
+                        Some(paypal::EnrollementStatus::Ready),
+                        Some(paypal::AuthenticationStatus::Success),
+                        paypal::LiabilityShift::Possible,
+                    )
+                    | (
+                        Some(paypal::EnrollementStatus::Ready),
+                        Some(paypal::AuthenticationStatus::Attempted),
+                        paypal::LiabilityShift::Possible,
+                    )
+                    | (Some(paypal::EnrollementStatus::NotReady), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollementStatus::Unavailable), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollementStatus::Bypassed), None, paypal::LiabilityShift::No) => {
+                        Ok(types::PaymentsPreProcessingRouterData {
+                            status: storage_enums::AttemptStatus::AuthenticationSuccessful,
+                            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                                resource_id: types::ResponseId::NoResponseId,
+                                redirection_data: None,
+                                mandate_reference: None,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                            }),
+                            ..data.clone()
+                        })
+                    }
+                    _ => Ok(types::PaymentsPreProcessingRouterData {
+                        response: Err(ErrorResponse {
+                            attempt_status: Some(enums::AttemptStatus::Failure),
+                            code: consts::NO_ERROR_CODE.to_string(),
+                            message: consts::NO_ERROR_MESSAGE.to_string(),
+                            connector_transaction_id: None,
+                            reason: Some(format!("{} Connector Responsded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+                            consts::CANNOT_CONTINUE_AUTH,
+                            liability_response
+                                .payment_source
+                                .card
+                                .authentication_result
+                                .liability_shift,
+                            liability_response
+                                .payment_source
+                                .card
+                                .authentication_result
+                                .three_d_secure
+                                .enrollment_status
+                                .unwrap_or(paypal::EnrollementStatus::Null),
+                            liability_response
+                                .payment_source
+                                .card
+                                .authentication_result
+                                .three_d_secure
+                                .authentication_status
+                                .unwrap_or(paypal::AuthenticationStatus::Null),
+                            )),
+                            status_code: res.status_code,
+                        }),
+                        ..data.clone()
+                    }),
+                }
+            }
+            // if card does not supports 3DS check for liability
+            paypal::PaypalPreProcessingResponse::PaypalNonLiablityResponse(_) => {
                 Ok(types::PaymentsPreProcessingRouterData {
                     status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -620,38 +673,6 @@ impl
                     ..data.clone()
                 })
             }
-            _ => Ok(types::PaymentsPreProcessingRouterData {
-                response: Err(ErrorResponse {
-                    attempt_status: Some(enums::AttemptStatus::Failure),
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    connector_transaction_id: None,
-                    reason: Some(format!("{} Connector Responsded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
-                    consts::CANNOT_CONTINUE_AUTH,
-                    response
-                        .payment_source
-                        .card
-                        .authentication_result
-                        .liability_shift,
-                    response
-                        .payment_source
-                        .card
-                        .authentication_result
-                        .three_d_secure
-                        .enrollment_status
-                        .unwrap_or(paypal::EnrollementStatus::Null),
-                    response
-                        .payment_source
-                        .card
-                        .authentication_result
-                        .three_d_secure
-                        .authentication_status
-                        .unwrap_or(paypal::AuthenticationStatus::Null),
-                    )),
-                    status_code: res.status_code,
-                }),
-                ..data.clone()
-            }),
         }
     }
 

@@ -29,7 +29,7 @@ use crate::{
     pii::PeekInterface,
     types::{
         self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
-        BrowserInformation, PaymentsCancelData, ResponseId,
+        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -870,6 +870,33 @@ impl ApplePay for payments::ApplePayWalletData {
             .change_context(errors::ConnectorError::InvalidWalletToken)?,
         );
         Ok(token)
+    }
+}
+
+pub trait ApplePayDecrypt {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date
+                .peek()
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .peek()
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        ))
     }
 }
 
