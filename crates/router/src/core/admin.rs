@@ -1477,7 +1477,7 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    let max_age = request
+    let expiry = request
         .max_age
         .map(|age| common_utils::date_time::now().saturating_add(time::Duration::seconds(age)));
 
@@ -1497,7 +1497,7 @@ pub async fn update_business_profile(
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
-        max_age,
+        expiry,
     };
 
     let updated_business_profile = db

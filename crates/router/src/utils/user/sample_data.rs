@@ -147,7 +147,7 @@ pub async fn generate_sample_data(
                     }),
                 );
 
-        let max_age =
+        let expiry =
             created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME));
 
         // After some set of payments sample data will have a failed attempt
@@ -199,7 +199,7 @@ pub async fn generate_sample_data(
             surcharge_applicable: Default::default(),
             request_incremental_authorization: Default::default(),
             incremental_authorization_allowed: Default::default(),
-            max_age,
+            expiry,
             authorization_count: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {

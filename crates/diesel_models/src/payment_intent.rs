@@ -56,7 +56,7 @@ pub struct PaymentIntent {
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub max_age: PrimitiveDateTime,
+    pub expiry: PrimitiveDateTime,
 }
 
 #[derive(
@@ -107,7 +107,7 @@ pub struct PaymentIntentNew {
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub max_age: PrimitiveDateTime,
+    pub expiry: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,7 +160,7 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
-        max_age: Option<PrimitiveDateTime>,
+        expiry: Option<PrimitiveDateTime>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -226,7 +226,7 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub max_age: Option<PrimitiveDateTime>,
+    pub expiry: Option<PrimitiveDateTime>,
 }
 
 impl PaymentIntentUpdate {
@@ -259,7 +259,7 @@ impl PaymentIntentUpdate {
             surcharge_applicable,
             incremental_authorization_allowed,
             authorization_count,
-            max_age,
+            expiry,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -292,7 +292,7 @@ impl PaymentIntentUpdate {
 
             incremental_authorization_allowed,
             authorization_count,
-            max_age: max_age.unwrap_or(source.max_age),
+            expiry: expiry.unwrap_or(source.expiry),
             ..source
         }
     }
@@ -319,7 +319,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                max_age,
+                expiry,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -339,7 +339,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                max_age,
+                expiry,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

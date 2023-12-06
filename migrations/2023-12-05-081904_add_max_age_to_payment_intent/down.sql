@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-ALTER TABLE payment_intent DROP COLUMN max_age;
+ALTER TABLE payment_intent DROP COLUMN expiry;

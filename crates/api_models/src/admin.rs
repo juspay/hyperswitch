@@ -1096,7 +1096,7 @@ pub struct BusinessProfileResponse {
     pub payment_link_config: Option<serde_json::Value>,
 
     /// Default payment expiry for all payments
-    pub max_age: Option<time::PrimitiveDateTime>,
+    pub expiry: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

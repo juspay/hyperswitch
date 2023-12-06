@@ -2379,7 +2379,7 @@ pub fn authenticate_client_secret(
             } else {
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
                 let current_timestamp = common_utils::date_time::now();
-                fp_utils::when(current_timestamp > payment_intent.max_age, || {
+                fp_utils::when(current_timestamp > payment_intent.expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
                 })
             }
@@ -2610,7 +2610,7 @@ mod tests {
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            max_age: common_utils::date_time::now()
+            expiry: common_utils::date_time::now()
                 .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
@@ -2661,7 +2661,7 @@ mod tests {
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            max_age: common_utils::date_time::now()
+            expiry: common_utils::date_time::now()
                 .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
@@ -2711,7 +2711,7 @@ mod tests {
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            max_age: common_utils::date_time::now()
+            expiry: common_utils::date_time::now()
                 .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());

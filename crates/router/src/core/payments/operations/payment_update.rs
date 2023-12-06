@@ -592,7 +592,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
-                    max_age: Some(payment_data.payment_intent.max_age),
+                    expiry: Some(payment_data.payment_intent.expiry),
                 },
                 storage_scheme,
             )

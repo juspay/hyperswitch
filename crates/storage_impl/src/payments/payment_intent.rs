@@ -100,7 +100,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     surcharge_applicable: new.surcharge_applicable,
                     request_incremental_authorization: new.request_incremental_authorization,
                     incremental_authorization_allowed: new.incremental_authorization_allowed,
-                    max_age: new.max_age,
+                    expiry: new.expiry,
                     authorization_count: new.authorization_count,
                 };
                 let redis_entry = kv::TypedSql {
@@ -768,7 +768,7 @@ impl DataModelExt for PaymentIntentNew {
             surcharge_applicable: self.surcharge_applicable,
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
-            max_age: self.max_age,
+            expiry: self.expiry,
             authorization_count: self.authorization_count,
         }
     }
@@ -812,7 +812,7 @@ impl DataModelExt for PaymentIntentNew {
             surcharge_applicable: storage_model.surcharge_applicable,
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
-            max_age: storage_model.max_age,
+            expiry: storage_model.expiry,
             authorization_count: storage_model.authorization_count,
         }
     }
@@ -861,7 +861,7 @@ impl DataModelExt for PaymentIntent {
             surcharge_applicable: self.surcharge_applicable,
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
-            max_age: self.max_age,
+            expiry: self.expiry,
             authorization_count: self.authorization_count,
         }
     }
@@ -906,7 +906,7 @@ impl DataModelExt for PaymentIntent {
             surcharge_applicable: storage_model.surcharge_applicable,
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
-            max_age: storage_model.max_age,
+            expiry: storage_model.expiry,
             authorization_count: storage_model.authorization_count,
         }
     }
@@ -990,7 +990,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                max_age,
+                expiry,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -1009,7 +1009,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                max_age,
+                expiry,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,

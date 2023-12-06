@@ -84,7 +84,7 @@ diesel::table! {
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
-        max_age -> Nullable<Timestamp>,
+        expiry -> Nullable<Timestamp>,
     }
 }
 
@@ -707,7 +707,7 @@ diesel::table! {
         request_incremental_authorization -> RequestIncrementalAuthorization,
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
-        max_age -> Timestamp,
+        expiry -> Timestamp,
     }
 }
 
@@ -728,7 +728,7 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        max_age -> Timestamp,
+        expiry -> Timestamp,
         payment_link_config -> Jsonb,
         #[max_length = 255]
         description -> Nullable<Varchar>,

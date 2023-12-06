@@ -158,9 +158,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 id: profile_id.to_string(),
             })?;
 
-        let max_age = request.max_age.map_or_else(
+        let expiry = request.max_age.map_or_else(
             || {
-                business_profile.max_age.unwrap_or_else(|| {
+                business_profile.expiry.unwrap_or_else(|| {
                     common_utils::date_time::now()
                         .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME))
                 })
@@ -198,7 +198,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     request.description.clone(),
                     profile_id.clone(),
                     domain_name,
-                    max_age,
+                    expiry,
                 )
                 .await?
             } else {
@@ -218,7 +218,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             billing_address.clone().map(|x| x.address_id),
             attempt_id,
             profile_id,
-            max_age,
+            expiry,
         )
         .await?;
 
@@ -735,7 +735,7 @@ impl PaymentCreate {
         billing_address_id: Option<String>,
         active_attempt_id: String,
         profile_id: String,
-        max_age: time::PrimitiveDateTime,
+        expiry: time::PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -810,7 +810,7 @@ impl PaymentCreate {
             updated_by: merchant_account.storage_scheme.to_string(),
             request_incremental_authorization,
             incremental_authorization_allowed: None,
-            max_age,
+            expiry,
             authorization_count: None,
         })
     }
@@ -861,7 +861,7 @@ async fn create_payment_link(
     description: Option<String>,
     profile_id: String,
     domain_name: String,
-    max_age: time::PrimitiveDateTime,
+    expiry: time::PrimitiveDateTime,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
@@ -888,7 +888,7 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        max_age,
+        expiry,
         description,
         payment_link_config: payment_link_config_encoded_value,
         profile_id,

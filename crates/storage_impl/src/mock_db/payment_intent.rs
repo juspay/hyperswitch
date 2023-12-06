@@ -109,7 +109,7 @@ impl PaymentIntentInterface for MockDb {
             surcharge_applicable: new.surcharge_applicable,
             request_incremental_authorization: new.request_incremental_authorization,
             incremental_authorization_allowed: new.incremental_authorization_allowed,
-            max_age: new.max_age,
+            expiry: new.expiry,
             authorization_count: new.authorization_count,
         };
         payment_intents.push(payment_intent.clone());

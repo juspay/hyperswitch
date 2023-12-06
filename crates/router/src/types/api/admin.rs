@@ -73,7 +73,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             payout_routing_algorithm: item.payout_routing_algorithm,
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
-            max_age: item.max_age,
+            expiry: item.expiry,
         })
     }
 }
@@ -119,7 +119,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             })
             .transpose()?;
 
-        let max_age = request
+        let expiry = request
             .max_age
             .map(|age| common_utils::date_time::now().saturating_add(time::Duration::seconds(age)));
 
@@ -159,7 +159,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: request.applepay_verified_domains,
             payment_link_config: payment_link_config_value,
-            max_age,
+            expiry,
         })
     }
 }

@@ -1,2 +1,2 @@
 -- Your SQL goes here
-ALTER TABLE payment_intent ADD COLUMN max_age TIMESTAMP NOT NULL;
+ALTER TABLE payment_intent ADD COLUMN expiry TIMESTAMP NOT NULL;
