@@ -137,7 +137,7 @@ impl ConnectorCommon for Trustpay {
                     message: option_error_code_message
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: reason.or(response_data.description),
+                    reason: reason.or(response_data.description).or(response_data.payment_description),
                     attempt_status: None,
                     connector_transaction_id: response_data.instance_id,
                 })
@@ -363,19 +363,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: trustpay::TrustPayTransactionStatusErrorResponse = res
-            .response
-            .parse_struct("trustpay transaction status ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.to_string(),
-            // message vary for the same code, so relying on code alone as it is unique
-            message: response.status.to_string(),
-            reason: Some(response.payment_description),
-            attempt_status: None,
-            connector_transaction_id: response.instance_id,
-        })
+        self.build_error_response(res)
     }
 
     fn handle_response(

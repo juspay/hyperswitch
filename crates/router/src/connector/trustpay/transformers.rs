@@ -1653,13 +1653,7 @@ pub struct TrustpayErrorResponse {
     pub description: Option<String>,
     pub errors: Option<Vec<Errors>>,
     pub instance_id: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct TrustPayTransactionStatusErrorResponse {
-    pub status: i64,
-    pub payment_description: String,
-    pub instance_id: Option<String>,
+    pub payment_description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
