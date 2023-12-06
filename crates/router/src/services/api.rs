@@ -1485,5 +1485,5 @@ pub fn build_payment_link_html(
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
-    format!("<script src=\"{sdk_url}\"></script>")
+    format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
