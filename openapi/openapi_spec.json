@@ -4065,6 +4065,7 @@
             "properties": {
               "domain_name": {
                 "type": "string",
+                "description": "Merchant own domain name",
                 "nullable": true
               }
             }
@@ -8619,12 +8620,6 @@
       "PaymentLinkConfig": {
         "type": "object",
         "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry",
-            "nullable": true
-          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link",
@@ -9774,6 +9769,12 @@
             "type": "boolean",
             "description": "Request for an incremental authorization",
             "nullable": true
+          },
+          "max_age": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Request to increase particular payment duration",
+            "nullable": true
           }
         }
       },
@@ -10148,6 +10149,12 @@
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
+            "nullable": true
+          },
+          "max_age": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Request to increase particular payment duration",
             "nullable": true
           }
         }
