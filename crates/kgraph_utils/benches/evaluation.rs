@@ -5,16 +5,20 @@ use std::str::FromStr;
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
+use constraint_graph::{CycleCheck, Memoization};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     dirval,
-    dssa::graph::{self, Memoization},
+    dssa::graph::{self, CgraphExt},
     frontend::dir,
     types::{NumValue, NumValueRefinement},
 };
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 
-fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::KnowledgeGraph<'a> {
+fn build_test_data<'a>(
+    total_enabled: usize,
+    total_pm_types: usize,
+) -> constraint_graph::ConstraintGraph<'a, dir::DirValue> {
     use api_models::{admin::*, payment_methods::*};
 
     let mut pms_enabled: Vec<PaymentMethodsEnabled> = Vec::new();
@@ -88,6 +92,7 @@ fn evaluation(c: &mut Criterion) {
                     dirval!(PaymentAmount = 100),
                 ]),
                 &mut Memoization::new(),
+                &mut CycleCheck::new(),
             );
         });
     });
@@ -105,6 +110,7 @@ fn evaluation(c: &mut Criterion) {
                     dirval!(PaymentAmount = 100),
                 ]),
                 &mut Memoization::new(),
+                &mut CycleCheck::new(),
             );
         });
     });

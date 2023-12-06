@@ -1745,6 +1745,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 
 [[package]]
+name = "constraint_graph"
+version = "0.1.0"
+dependencies = [
+ "erased-serde",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "thiserror",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2366,6 +2378,7 @@ name = "euclid"
 version = "0.1.0"
 dependencies = [
  "common_enums",
+ "constraint_graph",
  "criterion",
  "erased-serde",
  "euclid_macros",
@@ -2397,6 +2410,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "constraint_graph",
  "currency_conversion",
  "euclid",
  "getrandom 0.2.10",
@@ -3410,6 +3424,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "constraint_graph",
  "criterion",
  "euclid",
  "masking",
@@ -5081,6 +5096,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "config",
+ "constraint_graph",
  "currency_conversion",
  "data_models",
  "derive_deref",

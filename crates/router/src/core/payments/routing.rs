@@ -17,9 +17,9 @@ use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 use euclid::{
     backend::{self, inputs as dsl_inputs, EuclidBackend},
-    dssa::graph::{self as euclid_graph, Memoization},
+    dssa::graph::{self as euclid_graph, CgraphExt},
     enums as euclid_enums,
-    frontend::ast,
+    frontend::{ast, dir as euclid_dir},
 };
 use kgraph_utils::{
     mca as mca_graph,
@@ -79,7 +79,8 @@ pub struct SessionRoutingPmTypeInput<'a> {
     profile_id: Option<String>,
 }
 static ROUTING_CACHE: StaticCache<CachedAlgorithm> = StaticCache::new();
-static KGRAPH_CACHE: StaticCache<euclid_graph::KnowledgeGraph<'_>> = StaticCache::new();
+static KGRAPH_CACHE: StaticCache<constraint_graph::ConstraintGraph<'_, euclid_dir::DirValue>> =
+    StaticCache::new();
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
 
@@ -459,7 +460,7 @@ pub async fn get_merchant_kgraph<'a>(
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
-) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
+) -> RoutingResult<Arc<constraint_graph::ConstraintGraph<'a, euclid_dir::DirValue>>> {
     #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
@@ -587,7 +588,12 @@ async fn perform_kgraph_filtering(
             .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
         let kgraph_eligible = cached_kgraph
-            .check_value_validity(dir_val, &context, &mut Memoization::new())
+            .check_value_validity(
+                dir_val,
+                &context,
+                &mut constraint_graph::Memoization::new(),
+                &mut constraint_graph::CycleCheck::new(),
+            )
             .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
