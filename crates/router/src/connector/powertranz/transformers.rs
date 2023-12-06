@@ -216,15 +216,15 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
 impl TryFrom<&Card> for Source {
     type Error = ConnectorError;
     fn try_from(card: &Card) -> Result<Self, Self::Error> {
-        let card =
-            PowertranzCard {
-                cardholder_name: card.card_holder_name.clone().ok_or_else(
-                    utils::missing_field_err("card_holder_name"),
-                )?,
-                card_pan: card.card_number.clone(),
-                card_expiration: card.get_expiry_date_as_yymm(),
-                card_cvv: card.card_cvc.clone(),
-            };
+        let card = PowertranzCard {
+            cardholder_name: card
+                .card_holder_name
+                .clone()
+                .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+            card_pan: card.card_number.clone(),
+            card_expiration: card.get_expiry_date_as_yymm(),
+            card_cvv: card.card_cvc.clone(),
+        };
         Ok(Self::Card(card))
     }
 }

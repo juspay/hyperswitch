@@ -446,9 +446,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     name: ccard
                         .card_holder_name
                         .clone()
-                        .ok_or_else(utils::missing_field_err(
-                            "card_holder_name",
-                        ))?,
+                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),
                     attributes,
