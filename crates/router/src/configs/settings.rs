@@ -100,6 +100,7 @@ pub struct Settings {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    pub payment_method_auth: PaymentMethodAuth,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -152,6 +153,12 @@ pub struct ForexApi {
     pub api_timeout: u64,
     /// in ms
     pub redis_lock_timeout: u64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodAuth {
+    pub redis_expiry: i64,
+    pub pm_auth_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -785,6 +792,7 @@ impl Settings {
                     .list_separator(",")
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
+                    .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 

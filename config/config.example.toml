@@ -122,7 +122,7 @@ kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) cipher
 # like card details
 [locker]
 host = ""                      # Locker host
-host_rs = ""                   # Rust Locker host 
+host_rs = ""                   # Rust Locker host
 mock_locker = true             # Emulate a locker locally using Postgres
 basilisk_host = ""             # Basilisk host
 locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
@@ -460,6 +460,10 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" #Private key 
 
 [payment_link]
 sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+
+[payment_method_auth]
+redis_expiry = 900
+pm_auth_key = "Some_pm_auth_key"
 
 # Analytics configuration.
 [analytics]

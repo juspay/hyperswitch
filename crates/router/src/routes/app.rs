@@ -20,6 +20,8 @@ use super::currency;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "oltp")]
+use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
@@ -555,6 +557,8 @@ impl PaymentMethods {
                     .route(web::post().to(payment_method_update_api))
                     .route(web::delete().to(payment_method_delete_api)),
             )
+            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
+            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
     }
 }
 

@@ -13,6 +13,7 @@ pub enum ApiIdentifier {
     Ephemeral,
     Mandates,
     PaymentMethods,
+    PaymentMethodAuth,
     Payouts,
     Disputes,
     CardsInfo,
@@ -85,6 +86,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
             | Flow::ValidatePaymentMethod => Self::PaymentMethods,
+
+            Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
