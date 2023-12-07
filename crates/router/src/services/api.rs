@@ -889,7 +889,6 @@ where
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
         Some(request.method().to_string()),
-        Some(request.uri().path().to_string()),
     );
     match api_event.clone().try_into() {
         Ok(event) => {

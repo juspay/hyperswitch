@@ -42,7 +42,6 @@ pub struct ApiEvent {
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
     http_method: Option<String>,
-    api_path: Option<String>,
 }
 
 impl ApiEvent {
@@ -61,7 +60,6 @@ impl ApiEvent {
         event_type: ApiEventsType,
         http_req: &HttpRequest,
         http_method: Option<String>,
-        api_path: Option<String>,
     ) -> Self {
         Self {
             merchant_id,
@@ -86,7 +84,6 @@ impl ApiEvent {
             event_type,
             hs_latency,
             http_method,
-            api_path,
         }
     }
 }
