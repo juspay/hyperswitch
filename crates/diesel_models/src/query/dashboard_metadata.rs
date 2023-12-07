@@ -28,21 +28,36 @@ impl DashboardMetadata {
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: DashboardMetadataUpdate,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_unique_predicate_get_result::<
-            <Self as HasTable>::Table,
-            _,
-            _,
-            _,
-        >(
-            conn,
-            dsl::user_id
-                .eq(user_id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .and(dsl::org_id.eq(org_id.to_owned()))
-                .and(dsl::data_key.eq(data_key.to_owned())),
-            DashboardMetadataUpdateInternal::from(dashboard_metadata_update),
-        )
-        .await
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
+            .and(dsl::org_id.eq(org_id.to_owned()))
+            .and(dsl::data_key.eq(data_key.to_owned()));
+
+        if let Some(uid) = user_id {
+            generics::generic_update_with_unique_predicate_get_result::<
+                <Self as HasTable>::Table,
+                _,
+                _,
+                _,
+            >(
+                conn,
+                predicate.and(dsl::user_id.eq(uid)),
+                DashboardMetadataUpdateInternal::from(dashboard_metadata_update),
+            )
+            .await
+        } else {
+            generics::generic_update_with_unique_predicate_get_result::<
+                <Self as HasTable>::Table,
+                _,
+                _,
+                _,
+            >(
+                conn,
+                predicate.and(dsl::user_id.is_null()),
+                DashboardMetadataUpdateInternal::from(dashboard_metadata_update),
+            )
+            .await
+        }
     }
 
     pub async fn find_user_scoped_dashboard_metadata(
