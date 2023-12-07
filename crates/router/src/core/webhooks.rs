@@ -918,6 +918,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         api_event,
         req,
         Some(req.method().to_string()),
+        Some(req.uri().to_string()),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
