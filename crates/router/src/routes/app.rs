@@ -863,11 +863,6 @@ impl User {
         route = route
             .service(web::resource("/signin").route(web::post().to(user_signin)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
-            .service(
-                web::resource("/data/merchant")
-                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
-            )
-            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
             .service(
@@ -879,7 +874,12 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
-            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)));
+            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(
+                web::resource("/data")
+                    .route(web::get().to(get_multiple_dashboard_metadata))
+                    .route(web::post().to(set_dashboard_metadata)),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -901,7 +901,8 @@ impl User {
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
-                );
+                )
+                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
         }
         #[cfg(not(feature = "email"))]
         {
