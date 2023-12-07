@@ -33,3 +33,40 @@ pub struct DashboardMetadataNew {
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
 }
+
+#[derive(
+    router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay, AsChangeset,
+)]
+#[diesel(table_name = dashboard_metadata)]
+pub struct DashboardMetadataUpdateInternal {
+    pub data_key: enums::DashboardMetadata,
+    pub data_value: serde_json::Value,
+    pub last_modified_by: String,
+    pub last_modified_at: PrimitiveDateTime,
+}
+
+pub enum DashboardMetadataUpdate {
+    UpdateData {
+        data_key: enums::DashboardMetadata,
+        data_value: serde_json::Value,
+        last_modified_by: String,
+    },
+}
+
+impl From<DashboardMetadataUpdate> for DashboardMetadataUpdateInternal {
+    fn from(metadata_update: DashboardMetadataUpdate) -> Self {
+        let last_modified_at = common_utils::date_time::now();
+        match metadata_update {
+            DashboardMetadataUpdate::UpdateData {
+                data_key,
+                data_value,
+                last_modified_by,
+            } => Self {
+                data_key,
+                data_value,
+                last_modified_by,
+                last_modified_at,
+            },
+        }
+    }
+}

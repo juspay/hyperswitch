@@ -2888,6 +2888,15 @@
           "no_three_ds"
         ]
       },
+      "AuthorizationStatus": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure",
+          "processing",
+          "unresolved"
+        ]
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -4332,6 +4341,11 @@
             "type": "string",
             "description": "The card holder's name",
             "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "nullable": true
           }
         }
       },
@@ -5114,6 +5128,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
               }
             ],
             "nullable": true
@@ -6427,6 +6449,44 @@
           "unified_message": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "IncrementalAuthorizationResponse": {
+        "type": "object",
+        "required": [
+          "authorization_id",
+          "amount",
+          "status",
+          "previously_authorized_amount"
+        ],
+        "properties": {
+          "authorization_id": {
+            "type": "string",
+            "description": "The unique identifier of authorization"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount the authorization has been made for"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationStatus"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code sent by the connector for authorization",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message sent by the connector for authorization",
+            "nullable": true
+          },
+          "previously_authorized_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Previously authorized amount for the payment"
           }
         }
       },
@@ -8559,12 +8619,6 @@
       "PaymentLinkConfig": {
         "type": "object",
         "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry",
-            "nullable": true
-          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link",
@@ -9236,7 +9290,7 @@
           "payment_method_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
+              "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
             "description": "Subtype of payment method",
             "example": [
@@ -9530,7 +9584,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -9713,6 +9768,14 @@
             "type": "boolean",
             "description": "Request for an incremental authorization",
             "nullable": true
+          },
+          "intent_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -9904,7 +9967,8 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "deprecated": true,
             "nullable": true
           },
           "shipping": {
@@ -10087,6 +10151,14 @@
             "type": "boolean",
             "description": "Request for an incremental authorization",
             "nullable": true
+          },
+          "intent_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -10524,6 +10596,20 @@
           "incremental_authorization_allowed": {
             "type": "boolean",
             "description": "If true incremental authorization can be performed on this payment",
+            "nullable": true
+          },
+          "authorization_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of authorizations happened in an incremental_authorization payment",
+            "nullable": true
+          },
+          "incremental_authorizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
+            },
+            "description": "List of incremental authorizations happened to the payment",
             "nullable": true
           }
         }
@@ -11500,6 +11586,76 @@
           }
         }
       },
+      "RequestPaymentMethodTypes": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_experience": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "nullable": true
+          },
+          "accepted_currencies": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCurrencies"
+              }
+            ],
+            "nullable": true
+          },
+          "accepted_countries": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCountries"
+              }
+            ],
+            "nullable": true
+          },
+          "minimum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
+            "example": 1,
+            "nullable": true
+          },
+          "maximum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
+            "example": 1313,
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable recurring payments / mandates. Default is true.",
+            "default": true,
+            "example": false
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
+            "default": true,
+            "example": false
+          }
+        }
+      },
       "RequestSurchargeDetails": {
         "type": "object",
         "required": [
@@ -11613,7 +11769,7 @@
           "link_to_pay",
           "amount",
           "created_at",
-          "max_age",
+          "expiry",
           "status"
         ],
         "properties": {
@@ -11634,7 +11790,7 @@
             "type": "string",
             "format": "date-time"
           },
-          "max_age": {
+          "expiry": {
             "type": "string",
             "format": "date-time"
           },
@@ -11965,6 +12121,106 @@
           "initiative_context": {
             "type": "string"
           }
+        }
+      },
+      "SurchargeDetailsResponse": {
+        "type": "object",
+        "required": [
+          "surcharge",
+          "display_surcharge_amount",
+          "display_tax_on_surcharge_amount",
+          "display_total_surcharge_amount",
+          "display_final_amount"
+        ],
+        "properties": {
+          "surcharge": {
+            "$ref": "#/components/schemas/SurchargeResponse"
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            ],
+            "nullable": true
+          },
+          "display_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "surcharge amount for this payment"
+          },
+          "display_tax_on_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "tax on surcharge amount for this payment"
+          },
+          "display_total_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "display_final_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of original amount,"
+          }
+        }
+      },
+      "SurchargePercentage": {
+        "type": "object",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "SurchargeResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fixed"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Fixed Surcharge value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "rate"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SwishQrData": {

@@ -54,6 +54,7 @@ pub struct PaymentIntent {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
     pub expiry: PrimitiveDateTime,
 }
 
@@ -99,11 +100,11 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,
 }
@@ -184,6 +185,12 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: Option<bool>,
         updated_by: String,
     },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+    },
+    AuthorizationCountUpdate {
+        authorization_count: i32,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -217,6 +224,7 @@ pub struct PaymentIntentUpdateInternal {
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
     pub expiry: Option<PrimitiveDateTime>,
 }
 
@@ -249,6 +257,7 @@ impl PaymentIntentUpdate {
             updated_by,
             surcharge_applicable,
             incremental_authorization_allowed,
+            authorization_count,
             expiry,
         } = self.into();
         PaymentIntent {
@@ -281,6 +290,7 @@ impl PaymentIntentUpdate {
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
 
             incremental_authorization_allowed,
+            authorization_count,
             expiry: expiry.unwrap_or(source.expiry),
             ..source
         }
@@ -448,6 +458,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 surcharge_applicable,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
+                amount: Some(amount),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self {
+                authorization_count: Some(authorization_count),
                 ..Default::default()
             },
         }
