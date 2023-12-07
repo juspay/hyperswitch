@@ -3741,10 +3741,12 @@ pub fn validate_order_details_amount(
     }
 }
 
-pub fn validate_max_age(max_age: u32) -> Result<(), errors::ApiErrorResponse> {
-    if max_age < 1 {
+pub fn validate_intent_fulfillment_time(
+    intent_fulfillment_time: u32,
+) -> Result<(), errors::ApiErrorResponse> {
+    if intent_fulfillment_time < 1 {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "max_age cannot be less than 1".to_string(),
+            message: "intent_fulfillment_time cannot be less than 1".to_string(),
         })
     } else {
         Ok(())

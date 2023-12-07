@@ -560,7 +560,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_customer_details_in_request(request)?;
 
         if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-            helpers::validate_max_age(intent_fulfillment_time.to_owned())?;
+            helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
         }
 
         if let Some(payment_link) = &request.payment_link {
