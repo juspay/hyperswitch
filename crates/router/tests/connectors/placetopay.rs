@@ -12,7 +12,7 @@ impl utils::Connector for PlacetopayTest {
         use router::connector::Placetopay;
         types::api::ConnectorData {
             connector: Box::new(&Placetopay),
-            connector_name: types::Connector::Placetopay,
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }
