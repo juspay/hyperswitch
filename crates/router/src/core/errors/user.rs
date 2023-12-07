@@ -50,6 +50,8 @@ pub enum UserErrors {
     InvalidMetadataRequest,
     #[error("MerchantIdParsingError")]
     MerchantIdParsingError,
+    #[error("ChangePasswordError")]
+    ChangePasswordError,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -144,6 +146,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantIdParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 28, "Invalid Merchant Id", None))
             }
+            Self::ChangePasswordError => AER::BadRequest(ApiError::new(
+                sub_code,
+                29,
+                "Old and new password cannot be same",
+                None,
+            )),
         }
     }
 }

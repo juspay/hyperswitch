@@ -375,3 +375,7 @@ enabled = true
 client_id = ""
 client_secret = ""
 partner_id = ""
+enabled = true
+
+[events]
+source = "logs"
