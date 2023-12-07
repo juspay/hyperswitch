@@ -109,6 +109,7 @@ pub enum Connector {
     Payme,
     Paypal,
     Payu,
+    // Placetopay, added as template code for future usage
     Powertranz,
     Prophetpay,
     Rapyd,

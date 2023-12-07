@@ -111,6 +111,7 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+placetopay.base_url = "https://api-co-dev.placetopay.ws/gateway"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -173,6 +174,7 @@ cards = [
     "payme",
     "paypal",
     "payu",
+    "placetopay",
     "powertranz",
     "prophetpay",
     "shift4",
