@@ -7,7 +7,7 @@ pub mod settings;
 mod utils;
 use std::sync::{atomic, Arc};
 
-use common_utils::signals::get_allowed_signals;
+use common_utils::{ext_traits::StringExt, signals::get_allowed_signals};
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -205,10 +205,15 @@ async fn drainer(
         tracing::Span::current().record("global_id", global_id);
         tracing::Span::current().record("session_id", &session_id);
 
-        let result = serde_json::from_str::<kv::DBOperation>(&typed_sql);
+        let result = typed_sql.parse_struct("DBOperation");
+
         let db_op = match result {
             Ok(f) => f,
-            Err(_err) => continue, // TODO: handle error
+            Err(err) => {
+                logger::error!(operation= "deserialization",error = %err);
+                metrics::STREAM_PARSE_FAIL.add(&metrics::CONTEXT, 1, &[]);
+                continue;
+            }
         };
 
         let conn = pg_connection(&store.master_pool).await;
