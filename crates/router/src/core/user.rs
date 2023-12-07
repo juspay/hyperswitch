@@ -645,25 +645,13 @@ pub async fn verify_email(
         .store
         .find_user_by_email(token.get_email())
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::LinkInvalid)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
+        .change_context(UserErrors::InternalServerError)?;
 
     let user = state
         .store
         .update_user_by_user_id(user.user_id.as_str(), storage_user::UserUpdate::VerifyUser)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::LinkInvalid)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
+        .change_context(UserErrors::InternalServerError)?;
 
     let user_from_db: domain::UserFromStorage = user.into();
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
