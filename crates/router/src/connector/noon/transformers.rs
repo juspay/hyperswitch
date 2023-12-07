@@ -798,4 +798,5 @@ pub struct NoonErrorResponse {
     pub result_code: u32,
     pub message: String,
     pub class_description: String,
+    pub request_reference: String,
 }
