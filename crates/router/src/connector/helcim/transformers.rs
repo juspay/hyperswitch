@@ -62,6 +62,7 @@ pub struct HelcimPaymentsRequest {
     currency: enums::Currency,
     ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
+    invoice: HelcimInvoice,
     billing_address: HelcimBillingAddress,
     //The ecommerce field is an optional field in Connector Helcim.
     //Setting the ecommerce field to true activates the Helcim Fraud Defender.
@@ -81,6 +82,22 @@ pub struct HelcimBillingAddress {
     city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimInvoice {
+    invoice_number: String,
+    line_items: Vec<HelcimLineItems>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimLineItems {
+    description: String,
+    quantity: u8,
+    price: f64,
+    total: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -192,11 +209,29 @@ impl
             .request
             .get_browser_info()?
             .get_ip_address()?;
+        let line_items = vec![
+            (HelcimLineItems {
+                description: item
+                    .router_data
+                    .description
+                    .clone()
+                    .unwrap_or("No Description".to_string()),
+                // By default quantity is set to 1 and price and total is set to amount because these three fields are rquired to generate an invoice.
+                quantity: 1,
+                price: item.amount,
+                total: item.amount,
+            }),
+        ];
+        let invoice = HelcimInvoice {
+            invoice_number: item.router_data.connector_request_reference_id.clone(),
+            line_items,
+        };
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: item.amount,
             currency: item.router_data.request.currency,
             ip_address,
             card_data,
+            invoice,
             billing_address,
             ecommerce: None,
         })
@@ -295,6 +330,7 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
 pub struct HelcimPaymentsResponse {
     status: HelcimPaymentStatus,
     transaction_id: u64,
+    invoice_number: Option<String>,
     #[serde(rename = "type")]
     transaction_type: HelcimTransactionType,
 }
@@ -382,7 +418,7 @@ impl<F>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
@@ -441,7 +477,7 @@ impl<F>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
@@ -528,7 +564,7 @@ impl<F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
