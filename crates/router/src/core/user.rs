@@ -232,10 +232,16 @@ pub async fn change_password(
             .change_context(UserErrors::InternalServerError)?
             .into();
 
-    user.compare_password(request.old_password)
+    user.compare_password(request.old_password.to_owned())
         .change_context(UserErrors::InvalidOldPassword)?;
 
-    let new_password_hash = utils::user::password::generate_password_hash(request.new_password)?;
+    if request.old_password == request.new_password {
+        return Err(UserErrors::ChangePasswordError.into());
+    }
+    let new_password = domain::UserPassword::new(request.new_password)?;
+
+    let new_password_hash =
+        utils::user::password::generate_password_hash(new_password.get_secret())?;
 
     let _ = UserInterface::update_user_by_user_id(
         &*state.store,
