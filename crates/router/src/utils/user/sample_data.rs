@@ -34,7 +34,7 @@ pub async fn generate_sample_data(
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(SampleDataError::DatabaseError)?;
+        .change_context(SampleDataError::InternalServerError)?;
 
     let merchant_from_db = state
         .store
