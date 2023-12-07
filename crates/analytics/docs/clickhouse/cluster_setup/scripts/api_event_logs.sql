@@ -18,8 +18,7 @@ CREATE TABLE hyperswitch.api_events_queue on cluster '{cluster}' (
     `created_at` DateTime CODEC(T64, LZ4),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String),
-    `url_path` String
+    `ip_addr` Nullable(String)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'hyper-c1-kafka-brokers.kafka-cluster.svc.cluster.local:9092',
 kafka_topic_list = 'hyperswitch-api-log-events',
 kafka_group_name = 'hyper-c1',
@@ -47,7 +46,6 @@ CREATE TABLE hyperswitch.api_events_clustered on cluster '{cluster}' (
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
     `ip_addr` Nullable(String),
-    `url_path` String,
     INDEX flowIndex flow_type TYPE bloom_filter GRANULARITY 1,
     INDEX apiIndex api_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -83,8 +81,7 @@ CREATE TABLE hyperswitch.api_events_dist on cluster '{cluster}' (
     `created_at` DateTime64(3),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String),
-    `url_path` String
+    `ip_addr` Nullable(String)
 ) ENGINE = Distributed('{cluster}', 'hyperswitch', 'api_events_clustered', rand());
 
 CREATE MATERIALIZED VIEW hyperswitch.api_events_mv on cluster '{cluster}' TO hyperswitch.api_events_dist (
@@ -108,8 +105,7 @@ CREATE MATERIALIZED VIEW hyperswitch.api_events_mv on cluster '{cluster}' TO hyp
     `created_at` DateTime64(3),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String),
-    `url_path` String
+    `ip_addr` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -132,8 +128,7 @@ SELECT
     created_at,
     latency,
     user_agent,
-    ip_addr,
-    url_path
+    ip_addr
 FROM
     hyperswitch.api_events_queue
 WHERE length(_error) = 0;
