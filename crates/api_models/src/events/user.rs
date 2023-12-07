@@ -7,9 +7,9 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse, InviteUserRequest,
-    InviteUserResponse, ResetPasswordRequest, SignUpRequest, SignUpWithMerchantIdRequest,
-    SwitchMerchantIdRequest, UserMerchantCreate,
+    DashboardEntryResponse, EmailVerificationCallbackRequest, ForgotPasswordRequest,
+    GetUsersResponse, InviteUserRequest, InviteUserResponse, ResetPasswordRequest, SignUpRequest,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UserMerchantCreate,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -38,7 +38,8 @@ common_utils::impl_misc_api_event_type!(
     ForgotPasswordRequest,
     ResetPasswordRequest,
     InviteUserRequest,
-    InviteUserResponse
+    InviteUserResponse,
+    EmailVerificationCallbackRequest
 );
 
 #[cfg(feature = "dummy_connector")]
