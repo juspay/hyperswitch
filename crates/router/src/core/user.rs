@@ -236,7 +236,7 @@ pub async fn change_password(
         .change_context(UserErrors::InvalidOldPassword)?;
 
     if request.old_password == request.new_password {
-        return Err(UserErrors::InvalidNewPassword.into());
+        return Err(UserErrors::ChangePasswordError.into());
     }
     let new_password = domain::UserPassword::new(request.new_password)?;
 
