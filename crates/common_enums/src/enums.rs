@@ -142,7 +142,7 @@ pub enum RoutableConnectors {
     Payme,
     Paypal,
     Payu,
-    // Placetopay, Added as template code for future usage 
+    // Placetopay, Added as template code for future usage
     Powertranz,
     Prophetpay,
     Rapyd,
