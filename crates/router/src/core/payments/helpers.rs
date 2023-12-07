@@ -946,6 +946,42 @@ pub fn verify_mandate_details(
     )
 }
 
+// This function validates card_holder_name field to be either null or a non-empty string
+pub fn validate_card_holder_name(
+    payment_method_data: Option<api::PaymentMethodData>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(pmd) = payment_method_data {
+        match pmd {
+            // This validation would occur during payments create
+            api::PaymentMethodData::Card(card) => {
+                if let Some(name) = &card.card_holder_name {
+                    if name.clone().expose().is_empty() {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "card_holder_name cannot be empty".to_string(),
+                        })
+                        .into_report();
+                    }
+                }
+            }
+
+            // This validation would occur during payments confirm
+            api::PaymentMethodData::CardToken(card) => {
+                if let Some(name) = card.card_holder_name {
+                    if name.expose().is_empty() {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "card_holder_name cannot be empty".to_string(),
+                        })
+                        .into_report();
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -1404,16 +1440,22 @@ pub async fn retrieve_payment_method_with_temporary_token(
             let mut updated_card = card.clone();
             let mut is_card_updated = false;
 
-            let name_on_card = if card.card_holder_name.clone().is_none() {
-                card_token_data
-                    .and_then(|token_data| token_data.card_holder_name.clone())
-                    .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-                    .map(|name_on_card| {
+            // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+            // from payment_method.card_token object
+            let name_on_card = if let Some(name) = card.card_holder_name.clone() {
+                if name.expose().is_empty() {
+                    card_token_data.and_then(|token_data| {
                         is_card_updated = true;
-                        name_on_card
+                        token_data.card_holder_name.clone()
                     })
+                } else {
+                    card.card_holder_name.clone()
+                }
             } else {
-                card.card_holder_name.clone()
+                card_token_data.and_then(|token_data| {
+                    is_card_updated = true;
+                    token_data.card_holder_name.clone()
+                })
             };
 
             updated_card.card_holder_name = name_on_card;
@@ -1485,12 +1527,16 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to fetch card information from the permanent locker")?;
 
-    let name_on_card = if card.name_on_card.clone().is_none() {
-        card_token_data
-            .and_then(|token_data| token_data.card_holder_name.clone())
-            .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+    // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+    // from payment_method.card_token object
+    let name_on_card = if let Some(name) = card.name_on_card.clone() {
+        if name.expose().is_empty() {
+            card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+        } else {
+            card.name_on_card
+        }
     } else {
-        card.name_on_card
+        card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
     };
 
     let api_card = api::Card {
