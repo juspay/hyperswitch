@@ -2344,10 +2344,9 @@ pub fn authenticate_client_secret(
                 //             .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
                 //     ));
                 let current_timestamp = common_utils::date_time::now();
-                fp_utils::when(
-                    current_timestamp > payment_intent.expiry,
-                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                )
+                fp_utils::when(current_timestamp > payment_intent.expiry, || {
+                    Err(errors::ApiErrorResponse::ClientSecretExpired)
+                })
             }
         }
         // If there is no client in payment intent, then it has expired
@@ -2569,15 +2568,12 @@ mod tests {
             request_incremental_authorization:
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
+            expiry: common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(900);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_ok()); // Check if the result is an Ok variant
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
+        // Check if the result is an Ok variant
     }
 
     #[test]
@@ -2599,7 +2595,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2622,15 +2618,11 @@ mod tests {
             request_incremental_authorization:
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
+            expiry: common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
     }
 
     #[test]
@@ -2652,7 +2644,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2675,15 +2667,11 @@ mod tests {
             request_incremental_authorization:
                 common_enums::RequestIncrementalAuthorization::default(),
             incremental_authorization_allowed: None,
+            expiry: common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
     }
 }
 
@@ -3753,9 +3741,8 @@ pub fn validate_order_details_amount(
     }
 }
 
-
 pub fn validate_max_age(max_age: u32) -> Result<(), errors::ApiErrorResponse> {
-    if max_age <= 0 {
+    if max_age < 1 {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "max_age cannot be less than 1".to_string(),
         })

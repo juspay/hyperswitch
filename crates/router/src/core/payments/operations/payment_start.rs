@@ -75,7 +75,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::authenticate_client_secret(
             payment_intent.client_secret.as_ref(),
-            &payment_intent
+            &payment_intent,
         )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(

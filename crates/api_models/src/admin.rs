@@ -1020,7 +1020,7 @@ pub struct BusinessProfileCreate {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     /// Default Payment Link config for all payment links
-    pub payment_link_config: Option<BusinessPaymentLinkConfig>
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]

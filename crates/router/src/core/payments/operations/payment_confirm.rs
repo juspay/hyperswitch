@@ -51,7 +51,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
-        let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
         let (currency, amount);
@@ -123,17 +122,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
-        // let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-        //     payment_intent.payment_link_id.clone(),
-        //     merchant_account.intent_fulfillment_time,
-        //     db,
-        // )
-        // .await?;
-
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            &payment_intent
-        )?;
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
@@ -787,7 +776,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        expiry: Some(m_payment_data_payment_intent.expiry)
+                        expiry: Some(m_payment_data_payment_intent.expiry),
                     },
                     storage_scheme,
                 )

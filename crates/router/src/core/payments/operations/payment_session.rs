@@ -73,10 +73,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // )
         // .await?;
 
-        helpers::authenticate_client_secret(
-            Some(&request.client_secret),
-            &payment_intent
-        )?;
+        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(

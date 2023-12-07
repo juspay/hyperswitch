@@ -1101,7 +1101,7 @@ pub async fn persist_individual_surcharge_details_in_redis(
         }
         let intent_fulfillment_time = merchant_account
             .intent_fulfillment_time
-            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME.into());
+            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
         redis_conn
             .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
             .await

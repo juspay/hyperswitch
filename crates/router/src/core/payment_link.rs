@@ -1,8 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
     },
     ext_traits::{OptionExt, ValueExt},
 };

@@ -92,10 +92,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // )
         // .await?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            &payment_intent
-        )?;
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
         let (
             token,
             payment_method,
@@ -585,7 +582,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
-                    expiry: Some(payment_data.payment_intent.expiry)
+                    expiry: Some(payment_data.payment_intent.expiry),
                 },
                 storage_scheme,
             )
