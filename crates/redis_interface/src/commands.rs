@@ -383,6 +383,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         Ok(self
             .pool
+            .next()
             .hscan::<&str, &str>(key, pattern, count)
             .filter_map(|value| async move {
                 match value {
