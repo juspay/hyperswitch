@@ -238,18 +238,18 @@ where
         metadata: Option<M>,
         domain: Vec<DomainIdentifier<'_>>,
     ) -> Result<NodeId, GraphError<V>> {
-        //let key = values
-        //.first()
-        //.ok_or(GraphError::NoInAggregatorValues)?
-        //.get_key();
+        let key = values
+            .first()
+            .ok_or(GraphError::NoInAggregatorValues)?
+            .get_key();
 
-        //for val in &values {
-        //if val.get_key() != key {
-        //Err(GraphError::MalformedGraph {
-        //reason: "Values for 'In' aggregator not of same key".to_string(),
-        //})?;
-        //}
-        //}
+        for val in &values {
+            if val.get_key() != key {
+                Err(GraphError::MalformedGraph {
+                    reason: "Values for 'In' aggregator not of same key".to_string(),
+                })?;
+            }
+        }
 
         let mut domain_ids: Vec<DomainId> = Vec::new();
         for domain_ident in &domain {
