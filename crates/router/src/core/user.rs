@@ -11,7 +11,7 @@ use router_env::logger;
 
 use super::errors::{UserErrors, UserResponse};
 #[cfg(feature = "email")]
-use crate::services::email::{types as email_types, types::EmailToken};
+use crate::services::email::types as email_types;
 use crate::{
     consts,
     db::user::UserInterface,
@@ -296,9 +296,10 @@ pub async fn reset_password(
     state: AppState,
     request: user_api::ResetPasswordRequest,
 ) -> UserResponse<()> {
-    let token = auth::decode_jwt::<EmailToken>(request.token.expose().as_str(), &state)
-        .await
-        .change_context(UserErrors::LinkInvalid)?;
+    let token =
+        auth::decode_jwt::<email_types::EmailToken>(request.token.expose().as_str(), &state)
+            .await
+            .change_context(UserErrors::LinkInvalid)?;
 
     let password = domain::UserPassword::new(request.password)?;
 
@@ -629,4 +630,34 @@ pub async fn get_users_for_merchant_account(
         .collect();
 
     Ok(ApplicationResponse::Json(user_api::GetUsersResponse(users)))
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email(
+    state: AppState,
+    req: user_api::VerifyEmailRequest,
+) -> UserResponse<user_api::VerifyEmailResponse> {
+    let token = auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    let user = state
+        .store
+        .find_user_by_email(token.get_email())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user = state
+        .store
+        .update_user_by_user_id(user.user_id.as_str(), storage_user::UserUpdate::VerifyUser)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_from_db: domain::UserFromStorage = user.into();
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let jwt_token = utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
+
+    Ok(ApplicationResponse::Json(
+        utils::user::get_dashboard_entry_response(user_from_db, user_role, jwt_token),
+    ))
 }
