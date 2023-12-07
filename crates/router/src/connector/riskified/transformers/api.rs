@@ -477,8 +477,8 @@ pub struct FulfilmentData {
     created_at: PrimitiveDateTime,
     status: Option<FulfillmentRequestStatus>,
     tracking_company: String,
-    tracking_numbers: String,
-    tracking_urls: Option<String>,
+    tracking_number: String,
+    tracking_url: Option<String>,
 }
 
 impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequest {
@@ -504,12 +504,12 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequ
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "tracking_company",
                         })?,
-                    tracking_numbers: item.request.fulfillment_req.tracking_number.clone().ok_or(
+                    tracking_number: item.request.fulfillment_req.tracking_number.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "tracking_numbers",
+                            field_name: "tracking_number",
                         },
                     )?,
-                    tracking_urls: item.request.fulfillment_req.tracking_url.clone(),
+                    tracking_url: item.request.fulfillment_req.tracking_url.clone(),
                 },
             },
         })
