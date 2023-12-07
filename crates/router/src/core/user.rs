@@ -91,10 +91,11 @@ pub async fn signup(
             UserStatus::Active,
         )
         .await?;
-    let token = utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
+    let token =
+        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(user_from_db, user_role, token),
+        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -118,10 +119,11 @@ pub async fn signin(
     user_from_db.compare_password(request.password)?;
 
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token = utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
+    let token =
+        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(user_from_db, user_role, token),
+        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -661,9 +663,10 @@ pub async fn verify_email(
 
     let user_from_db: domain::UserFromStorage = user.into();
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let jwt_token = utils::user::generate_jwt_auth_token(state, &user_from_db, &user_role).await?;
+    let token =
+        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(user_from_db, user_role, jwt_token),
+        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
     ))
 }
