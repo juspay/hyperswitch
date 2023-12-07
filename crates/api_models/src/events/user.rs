@@ -7,9 +7,9 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    DashboardEntryResponse, VerifyEmailRequest, ForgotPasswordRequest,
-    GetUsersResponse, InviteUserRequest, InviteUserResponse, ResetPasswordRequest, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UserMerchantCreate,
+    DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse, InviteUserRequest,
+    InviteUserResponse, ResetPasswordRequest, SignUpRequest, SignUpWithMerchantIdRequest,
+    SwitchMerchantIdRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
