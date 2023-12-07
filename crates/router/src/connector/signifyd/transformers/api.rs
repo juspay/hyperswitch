@@ -172,7 +172,7 @@ impl From<SignifydPaymentStatus> for storage_enums::FraudCheckStatus {
             SignifydPaymentStatus::Accept => Self::Legit,
             SignifydPaymentStatus::Reject => Self::Fraud,
             SignifydPaymentStatus::Hold => Self::ManualReview,
-            SignifydPaymentStatus::Credit | SignifydPaymentStatus::Challenge => Self::Pending,
+            SignifydPaymentStatus::Challenge | SignifydPaymentStatus::Credit => Self::Pending,
         }
     }
 }
