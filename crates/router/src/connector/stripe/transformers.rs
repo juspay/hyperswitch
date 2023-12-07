@@ -8,7 +8,7 @@ use common_utils::{
 };
 use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -16,7 +16,9 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{self as connector_util, ApplePay, PaymentsPreProcessingData, RouterData},
+    connector::utils::{
+        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
+    },
     core::errors,
     services,
     types::{
@@ -1473,24 +1475,8 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                     if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                         payment_method_token
                     {
-                        let expiry_year_4_digit = Secret::new(format!(
-                            "20{}",
-                            decrypt_data
-                                .clone()
-                                .application_expiration_date
-                                .peek()
-                                .get(0..2)
-                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                        ));
-                        let exp_month = Secret::new(
-                            decrypt_data
-                                .clone()
-                                .application_expiration_date
-                                .peek()
-                                .get(2..4)
-                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                                .to_owned(),
-                        );
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                        let exp_month = decrypt_data.get_expiry_month()?;
 
                         Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
                             Box::new(StripeApplePayPredecrypt {
@@ -2334,6 +2320,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: item.response.amount_received,
             ..item.data
@@ -2494,6 +2481,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             Err,
         );
@@ -2535,6 +2523,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -3076,6 +3065,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

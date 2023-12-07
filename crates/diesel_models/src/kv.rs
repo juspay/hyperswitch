@@ -31,6 +31,8 @@ impl TypedSql {
         request_id: String,
         global_id: String,
     ) -> crate::StorageResult<Vec<(&str, String)>> {
+        let pushed_at = common_utils::date_time::now_unix_timestamp();
+
         Ok(vec![
             (
                 "typed_sql",
@@ -40,6 +42,7 @@ impl TypedSql {
             ),
             ("global_id", global_id),
             ("request_id", request_id),
+            ("pushed_at", pushed_at.to_string()),
         ])
     }
 }

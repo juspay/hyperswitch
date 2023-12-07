@@ -12,6 +12,7 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
+        DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
     };
 }
 
@@ -145,6 +146,7 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Shift4,
+    Signifyd,
     Square,
     Stax,
     Stripe,
@@ -243,6 +245,32 @@ pub enum CaptureStatus {
     Pending,
     // Capture request failed
     Failed,
+}
+
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthorizationStatus {
+    Success,
+    Failure,
+    // Processing state is before calling connector
+    #[default]
+    Processing,
+    // Requires merchant action
+    Unresolved,
 }
 
 #[derive(
@@ -1385,6 +1413,29 @@ pub enum CountryAlpha2 {
     VE, VN, VG, VI, WF, EH, YE, ZM, ZW,
     #[default]
     US
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RequestIncrementalAuthorization {
+    True,
+    False,
+    #[default]
+    Default,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

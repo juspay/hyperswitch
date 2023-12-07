@@ -4,6 +4,145 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.97.0 (2023-12-06)
+
+### Features
+
+- **Braintree:** Sync with Hyperswitch Reference ([#3037](https://github.com/juspay/hyperswitch/pull/3037)) ([`8a995ce`](https://github.com/juspay/hyperswitch/commit/8a995cefdf6806645383710c6f39d963da232e94))
+- **connector:** [BANKOFAMERICA] Implement Apple Pay ([#3061](https://github.com/juspay/hyperswitch/pull/3061)) ([`47c0383`](https://github.com/juspay/hyperswitch/commit/47c038300adad1c02e4c77d529c7cc2457cf3b91))
+- **metrics:** Add drainer delay metric ([#3034](https://github.com/juspay/hyperswitch/pull/3034)) ([`c6e2ee2`](https://github.com/juspay/hyperswitch/commit/c6e2ee29d9ee4fe54e6fa6f87c2fa065a290d258))
+
+### Bug Fixes
+
+- **config:** Parse kafka brokers from env variable as sequence ([#3066](https://github.com/juspay/hyperswitch/pull/3066)) ([`84decd8`](https://github.com/juspay/hyperswitch/commit/84decd8126d306a5e1cf22b36e1378a73dc963f5))
+- Throw bad request while pushing duplicate data to redis ([#3016](https://github.com/juspay/hyperswitch/pull/3016)) ([`a2405e5`](https://github.com/juspay/hyperswitch/commit/a2405e56fbd84936a1afa6aa9f8f7e815267fbec))
+- Return url none on complete authorize ([#3067](https://github.com/juspay/hyperswitch/pull/3067)) ([`6eec06b`](https://github.com/juspay/hyperswitch/commit/6eec06b1d6ee9a00b374905e0ab9e425d0e41095))
+
+### Miscellaneous Tasks
+
+- **codeowners:** Add codeowners for hyperswitch dashboard ([#3057](https://github.com/juspay/hyperswitch/pull/3057)) ([`cfafd5c`](https://github.com/juspay/hyperswitch/commit/cfafd5cd29857283d57731dda7c5a332a493f531))
+
+**Full Changelog:** [`v1.96.0...v1.97.0`](https://github.com/juspay/hyperswitch/compare/v1.96.0...v1.97.0)
+
+- - -
+
+
+## 1.96.0 (2023-12-05)
+
+### Features
+
+- **connector_onboarding:** Add Connector onboarding APIs ([#3050](https://github.com/juspay/hyperswitch/pull/3050)) ([`7bd6e05`](https://github.com/juspay/hyperswitch/commit/7bd6e05c0c05ebae9b82a6f410e61ca4409d088b))
+- **pm_list:** Add required fields for bancontact_card for Mollie, Adyen and Stripe ([#3035](https://github.com/juspay/hyperswitch/pull/3035)) ([`792e642`](https://github.com/juspay/hyperswitch/commit/792e642ad58f90bae3ddcea5e6cbc70e948d8e28))
+- **user:** Add email apis and new enums for metadata ([#3053](https://github.com/juspay/hyperswitch/pull/3053)) ([`1c3d260`](https://github.com/juspay/hyperswitch/commit/1c3d260dc3e18fbf6cbd5122122a6c73dceb39a3))
+- Implement FRM flows ([#2968](https://github.com/juspay/hyperswitch/pull/2968)) ([`055d838`](https://github.com/juspay/hyperswitch/commit/055d8383671f6b466297c177bcc770618c7da96a))
+
+### Bug Fixes
+
+- Remove redundant call to populate_payment_data function ([#3054](https://github.com/juspay/hyperswitch/pull/3054)) ([`53df543`](https://github.com/juspay/hyperswitch/commit/53df543b7f1407a758232025b7de0fb527be8e86))
+
+### Documentation
+
+- **test_utils:** Update postman docs ([#3055](https://github.com/juspay/hyperswitch/pull/3055)) ([`8b7a7aa`](https://github.com/juspay/hyperswitch/commit/8b7a7aa6494ff669e1f8bcc92a5160e422d6b26e))
+
+**Full Changelog:** [`v1.95.0...v1.96.0`](https://github.com/juspay/hyperswitch/compare/v1.95.0...v1.96.0)
+
+- - -
+
+
+## 1.95.0 (2023-12-05)
+
+### Features
+
+- **connector:** [BOA/CYBERSOURCE] Fix Status Mapping for Terminal St… ([#3031](https://github.com/juspay/hyperswitch/pull/3031)) ([`95876b0`](https://github.com/juspay/hyperswitch/commit/95876b0ce03e024edf77909502c53eb4e63a9855))
+- **pm_list:** Add required field for open_banking_uk for Adyen and Volt Connector  ([#3032](https://github.com/juspay/hyperswitch/pull/3032)) ([`9d93533`](https://github.com/juspay/hyperswitch/commit/9d935332193dcc9f191a0a5a9e7405316794a418))
+- **router:**
+  - Add key_value to locker metrics ([#2995](https://github.com/juspay/hyperswitch/pull/2995)) ([`83fcd1a`](https://github.com/juspay/hyperswitch/commit/83fcd1a9deb106a44c8262923c7f1660b0c46bf2))
+  - Add payments incremental authorization api ([#3038](https://github.com/juspay/hyperswitch/pull/3038)) ([`a0cfdd3`](https://github.com/juspay/hyperswitch/commit/a0cfdd3fb12f04b603f65551eac985c31e08da85))
+- **types:** Add email types for sending emails ([#3020](https://github.com/juspay/hyperswitch/pull/3020)) ([`c4bd47e`](https://github.com/juspay/hyperswitch/commit/c4bd47eca93a158c9daeeeb18afb1e735eea8c94))
+- **user:**
+  - Generate and delete sample data ([#2987](https://github.com/juspay/hyperswitch/pull/2987)) ([`092ec73`](https://github.com/juspay/hyperswitch/commit/092ec73b3c65ce6048d379383b078d643f0f35fc))
+  - Add user_list and switch_list apis ([#3033](https://github.com/juspay/hyperswitch/pull/3033)) ([`ec15ddd`](https://github.com/juspay/hyperswitch/commit/ec15ddd0d0ed942fedec525406df3005d494b8d4))
+- Calculate surcharge for customer saved card list ([#3039](https://github.com/juspay/hyperswitch/pull/3039)) ([`daf0f09`](https://github.com/juspay/hyperswitch/commit/daf0f09f8e3293ee6a3599a25362d9171fc5b2e7))
+
+### Bug Fixes
+
+- **connector:** [Paypal] Parse response for Cards with no 3DS check ([#3021](https://github.com/juspay/hyperswitch/pull/3021)) ([`d883cd1`](https://github.com/juspay/hyperswitch/commit/d883cd18972c5f9e8350e9a3f4e5cd56ec2c0787))
+- **pm_list:** [Trustpay]Update dynamic fields for trustpay blik ([#3042](https://github.com/juspay/hyperswitch/pull/3042)) ([`9274cef`](https://github.com/juspay/hyperswitch/commit/9274cefbdd29d2ac64baeea2fe504dff2472cb47))
+- **wasm:** Fix wasm function to return the categories for keys with their description respectively ([#3023](https://github.com/juspay/hyperswitch/pull/3023)) ([`2ac5b2c`](https://github.com/juspay/hyperswitch/commit/2ac5b2cd764c0aad53ac7c672dfcc9132fa5668f))
+- Use card bin to get additional card details ([#3036](https://github.com/juspay/hyperswitch/pull/3036)) ([`6c7d3a2`](https://github.com/juspay/hyperswitch/commit/6c7d3a2e8a047ff23b52b76792fe8f28d3b952a4))
+- Transform connector name to lowercase in connector integration script ([#3048](https://github.com/juspay/hyperswitch/pull/3048)) ([`298e362`](https://github.com/juspay/hyperswitch/commit/298e3627c379de5acfcafb074036754661801f1e))
+- Add fallback to reverselookup error ([#3025](https://github.com/juspay/hyperswitch/pull/3025)) ([`ba392f5`](https://github.com/juspay/hyperswitch/commit/ba392f58b2956d67e93a08853bcf2270a869be27))
+
+### Refactors
+
+- **payment_methods:** Add support for passing card_cvc in payment_method_data object along with token ([#3024](https://github.com/juspay/hyperswitch/pull/3024)) ([`3ce04ab`](https://github.com/juspay/hyperswitch/commit/3ce04abae4eddfa27025368f5ef28987cccea43d))
+- **users:** Separate signup and signin ([#2921](https://github.com/juspay/hyperswitch/pull/2921)) ([`80efeb7`](https://github.com/juspay/hyperswitch/commit/80efeb76b1801529766978af1c06e2d2c7de66c0))
+- Create separate struct for surcharge details response ([#3027](https://github.com/juspay/hyperswitch/pull/3027)) ([`57591f8`](https://github.com/juspay/hyperswitch/commit/57591f819c7994099e76cff1affc7bcf3e45a031))
+
+### Testing
+
+- **postman:** Update postman collection files ([`6e09bc9`](https://github.com/juspay/hyperswitch/commit/6e09bc9e2c4bbe14dcb70da4a438850b03b3254c))
+
+**Full Changelog:** [`v1.94.0...v1.95.0`](https://github.com/juspay/hyperswitch/compare/v1.94.0...v1.95.0)
+
+- - -
+
+
+## 1.94.0 (2023-12-01)
+
+### Features
+
+- **user_role:** Add APIs for user roles ([#3013](https://github.com/juspay/hyperswitch/pull/3013)) ([`3fa0bdf`](https://github.com/juspay/hyperswitch/commit/3fa0bdf76558ec91df8d3beef3c36658cd138b37))
+
+### Bug Fixes
+
+- **config:** Add kms decryption support for sqlx password ([#3029](https://github.com/juspay/hyperswitch/pull/3029)) ([`b593467`](https://github.com/juspay/hyperswitch/commit/b5934674e518f991a8a575ad01b971dd086eeb40))
+
+### Refactors
+
+- **connector:**
+  - [Multisafe Pay] change error message from not supported to not implemented ([#2851](https://github.com/juspay/hyperswitch/pull/2851)) ([`668b943`](https://github.com/juspay/hyperswitch/commit/668b943403df2b3bb354dd093b8ec073a2618bda))
+  - [Shift4] change error message from NotSupported to NotImplemented ([#2880](https://github.com/juspay/hyperswitch/pull/2880)) ([`bc79d52`](https://github.com/juspay/hyperswitch/commit/bc79d522c30aa036378cf1e01354c422585cc226))
+
+**Full Changelog:** [`v1.93.0...v1.94.0`](https://github.com/juspay/hyperswitch/compare/v1.93.0...v1.94.0)
+
+- - -
+
+
+## 1.93.0 (2023-11-30)
+
+### Features
+
+- **connector:** [BANKOFAMERICA] Add Required Fields for GPAY ([#3014](https://github.com/juspay/hyperswitch/pull/3014)) ([`d30b58a`](https://github.com/juspay/hyperswitch/commit/d30b58abb5e716b70c2dadec9e6f13c9e3403b6f))
+- **core:** Add ability to verify connector credentials before integrating the connector ([#2986](https://github.com/juspay/hyperswitch/pull/2986)) ([`39f255b`](https://github.com/juspay/hyperswitch/commit/39f255b4b209588dec35d780078c2ab7ceb37b10))
+- **router:** Make core changes in payments flow to support incremental authorization ([#3009](https://github.com/juspay/hyperswitch/pull/3009)) ([`1ca2ba4`](https://github.com/juspay/hyperswitch/commit/1ca2ba459495ff9340954c87a6ae3e4dce0e7b71))
+- **user:** Add support for dashboard metadata ([#3000](https://github.com/juspay/hyperswitch/pull/3000)) ([`6a2e4ab`](https://github.com/juspay/hyperswitch/commit/6a2e4ab4169820f35e953a949bd2e82e7f098ed2))
+
+### Bug Fixes
+
+- **connector:**
+  - Move authorised status to charged in setup mandate ([#3017](https://github.com/juspay/hyperswitch/pull/3017)) ([`663754d`](https://github.com/juspay/hyperswitch/commit/663754d629d59a17ba9d4985fe04f9404ceb16b7))
+  - [Trustpay] Add mapping to error code `800.100.165` and `900.100.100` ([#2925](https://github.com/juspay/hyperswitch/pull/2925)) ([`8c37a8d`](https://github.com/juspay/hyperswitch/commit/8c37a8d857c5a58872fa2b2e194b85e755129677))
+- **core:** Error message on Refund update for `Not Implemented` Case ([#3011](https://github.com/juspay/hyperswitch/pull/3011)) ([`6b7ada1`](https://github.com/juspay/hyperswitch/commit/6b7ada1a34450ea3a7fc019375ba462a14ddd6ab))
+- **pm_list:** [Trustpay] Update Cards, Bank_redirect - blik pm type required field info for Trustpay ([#2999](https://github.com/juspay/hyperswitch/pull/2999)) ([`c05432c`](https://github.com/juspay/hyperswitch/commit/c05432c0bd70f222c2f898ce2cbb47a46364a490))
+- **router:**
+  - [Dlocal] connector transaction id fix ([#2872](https://github.com/juspay/hyperswitch/pull/2872)) ([`44b1f49`](https://github.com/juspay/hyperswitch/commit/44b1f4949ea06d59480670ccfa02446fa7713d13))
+  - Use default value for the routing algorithm column during business profile creation ([#2791](https://github.com/juspay/hyperswitch/pull/2791)) ([`b1fe76a`](https://github.com/juspay/hyperswitch/commit/b1fe76a82b4026d6eaa3baf4356378040880a458))
+- **routing:** Fix kgraph to exclude PM auth during construction ([#3019](https://github.com/juspay/hyperswitch/pull/3019)) ([`c6cb527`](https://github.com/juspay/hyperswitch/commit/c6cb527f07e23796c342f3562fbf3b61f1ef6801))
+
+### Refactors
+
+- **connector:**
+  - [Stax] change error message from NotSupported to NotImplemented ([#2879](https://github.com/juspay/hyperswitch/pull/2879)) ([`8a4dabc`](https://github.com/juspay/hyperswitch/commit/8a4dabc61df3e6012e50f785d93808ca3349be65))
+  - [Volt] change error message from NotSupported to NotImplemented ([#2878](https://github.com/juspay/hyperswitch/pull/2878)) ([`de8e31b`](https://github.com/juspay/hyperswitch/commit/de8e31b70d9b3c11e268cd1deffa71918dc4270d))
+  - [Adyen] Change country and issuer type to Optional for OpenBankingUk ([#2993](https://github.com/juspay/hyperswitch/pull/2993)) ([`ab3dac7`](https://github.com/juspay/hyperswitch/commit/ab3dac79b4f138cd1f60a9afc0635dcc137a4a05))
+- **postman:** Fix payme postman collection for handling `order_details` ([#2996](https://github.com/juspay/hyperswitch/pull/2996)) ([`1e60c71`](https://github.com/juspay/hyperswitch/commit/1e60c710985b341a118bb32962bd74b406d78f69))
+
+**Full Changelog:** [`v1.92.0...v1.93.0`](https://github.com/juspay/hyperswitch/compare/v1.92.0...v1.93.0)
+
+- - -
+
+
 ## 1.92.0 (2023-11-29)
 
 ### Features

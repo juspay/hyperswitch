@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
+#[cfg(all(feature = "kms", feature = "olap"))]
+use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(all(feature = "olap", feature = "kms"))]
+use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
@@ -16,20 +20,24 @@ use super::currency;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "oltp")]
+use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
-    user::*,
+    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
+    locker_migration, payment_link::*, user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(all(feature = "frm", feature = "oltp"))]
+use crate::routes::fraud_check as frm_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
@@ -123,7 +131,8 @@ impl AppState {
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        conf: settings::Settings,
+        #[cfg_attr(not(all(feature = "olap", feature = "kms")), allow(unused_mut))]
+        mut conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
@@ -164,6 +173,31 @@ impl AppState {
                         .expect("Failed to create mock store"),
                 ),
             };
+
+            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            match conf.analytics {
+                AnalyticsConfig::Clickhouse { .. } => {}
+                AnalyticsConfig::Sqlx { ref mut sqlx }
+                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
+                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
+                    sqlx.password = kms_client
+                        .decrypt(&sqlx.password.peek())
+                        .await
+                        .expect("Failed to decrypt password")
+                        .into();
+                }
+            };
+
+            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.connector_onboarding = conf
+                    .connector_onboarding
+                    .decrypt_inner(kms_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
 
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
@@ -305,6 +339,14 @@ impl Payments {
                     web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
                 )
                 .service(
+                    web::resource("/{payment_id}/approve")
+                        .route(web::post().to(payments_approve)),
+                )
+                .service(
+                    web::resource("/{payment_id}/reject")
+                        .route(web::post().to(payments_reject)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments_start)),
                 )
@@ -323,6 +365,9 @@ impl Payments {
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::get().to(payments_complete_authorize))
                         .route(web::post().to(payments_complete_authorize)),
+                )
+                .service(
+                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments_incremental_authorization)),
                 );
         }
         route
@@ -512,6 +557,8 @@ impl PaymentMethods {
                     .route(web::post().to(payment_method_update_api))
                     .route(web::delete().to(payment_method_delete_api)),
             )
+            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
+            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
     }
 }
 
@@ -617,7 +664,8 @@ impl Webhooks {
     pub fn server(config: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
 
-        web::scope("/webhooks")
+        #[allow(unused_mut)]
+        let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
@@ -628,7 +676,17 @@ impl Webhooks {
                     .route(
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
-            )
+            );
+
+        #[cfg(feature = "frm")]
+        {
+            route = route.service(
+                web::resource("/frm_fulfillment")
+                    .route(web::post().to(frm_routes::frm_fulfillment)),
+            );
+        }
+
+        route
     }
 }
 
@@ -800,13 +858,57 @@ pub struct User;
 #[cfg(feature = "olap")]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/user")
-            .app_data(web::Data::new(state))
-            .service(web::resource("/signin").route(web::post().to(user_connect_account)))
-            .service(web::resource("/signup").route(web::post().to(user_connect_account)))
-            .service(web::resource("/v2/signin").route(web::post().to(user_connect_account)))
-            .service(web::resource("/v2/signup").route(web::post().to(user_connect_account)))
+        let mut route = web::scope("/user").app_data(web::Data::new(state));
+
+        route = route
+            .service(web::resource("/signin").route(web::post().to(user_signin)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
+            .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
+            .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
+            .service(
+                web::resource("/create_merchant")
+                    .route(web::post().to(user_merchant_account_create)),
+            )
+            .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
+            .service(web::resource("/user/list").route(web::get().to(get_user_details)))
+            .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
+            .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
+            .service(web::resource("/role/list").route(web::get().to(list_roles)))
+            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(
+                web::resource("/data")
+                    .route(web::get().to(get_multiple_dashboard_metadata))
+                    .route(web::post().to(set_dashboard_metadata)),
+            );
+
+        #[cfg(feature = "dummy_connector")]
+        {
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
+            )
+        }
+        #[cfg(feature = "email")]
+        {
+            route = route
+                .service(
+                    web::resource("/connect_account").route(web::post().to(user_connect_account)),
+                )
+                .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
+                .service(web::resource("/reset_password").route(web::post().to(reset_password)))
+                .service(web::resource("user/invite").route(web::post().to(invite_user)))
+                .service(
+                    web::resource("/signup_with_merchant_id")
+                        .route(web::post().to(user_signup_with_merchant_id)),
+                )
+                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            route = route.service(web::resource("/signup").route(web::post().to(user_signup)))
+        }
+        route
     }
 }
 
@@ -820,5 +922,17 @@ impl LockerMigrate {
             .service(
                 web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
             )
+    }
+}
+
+pub struct ConnectorOnboarding;
+
+#[cfg(feature = "olap")]
+impl ConnectorOnboarding {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/connector_onboarding")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/action_url").route(web::post().to(get_action_url)))
+            .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
     }
 }

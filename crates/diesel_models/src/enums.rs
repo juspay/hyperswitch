@@ -15,6 +15,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
+        DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoutingAlgorithmKind as RoutingAlgorithmKind,
     };
 }
@@ -424,4 +425,43 @@ pub enum UserStatus {
     Active,
     #[default]
     InvitationSent,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DashboardMetadata {
+    ProductionAgreement,
+    SetupProcessor,
+    ConfigureEndpoint,
+    SetupComplete,
+    FirstProcessorConnected,
+    SecondProcessorConnected,
+    ConfiguredRouting,
+    TestPayment,
+    IntegrationMethod,
+    ConfigurationType,
+    IntegrationCompleted,
+    StripeConnected,
+    PaypalConnected,
+    SpRoutingConfigured,
+    Feedback,
+    ProdIntent,
+    SpTestPayment,
+    DownloadWoocom,
+    ConfigureWoocom,
+    SetupWoocomWebhook,
+    IsMultipleConfiguration,
 }

@@ -1,3 +1,4 @@
+pub mod connector_onboarding;
 pub mod customer;
 pub mod gsm;
 mod locker_migration;
@@ -7,6 +8,7 @@ pub mod payouts;
 pub mod refund;
 pub mod routing;
 pub mod user;
+pub mod user_role;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},

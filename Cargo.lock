@@ -405,6 +405,8 @@ dependencies = [
  "common_utils",
  "error-stack",
  "euclid",
+ "frunk",
+ "frunk_core",
  "masking",
  "mime",
  "reqwest",
@@ -2051,6 +2053,7 @@ dependencies = [
  "async-trait",
  "common_enums",
  "common_utils",
+ "diesel_models",
  "error-stack",
  "masking",
  "serde",
@@ -3798,6 +3801,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mutually_exclusive_features"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d02c0b00610773bb7fc61d85e13d86c7858cbdf00e1a120bfc41bc055dbaa0e"
+
+[[package]]
 name = "nanoid"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4427,6 +4436,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38f6d39893cca0701371e3c27294f09797214b86f1fb951b89ade8ec04e2abab"
 dependencies = [
  "plotters-backend",
+]
+
+[[package]]
+name = "pm_auth"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "bytes 1.5.0",
+ "common_enums",
+ "common_utils",
+ "error-stack",
+ "http",
+ "masking",
+ "mime",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum 0.24.1",
+ "thiserror",
 ]
 
 [[package]]
@@ -5103,6 +5133,7 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "openssl",
+ "pm_auth",
  "qrcode",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -6832,11 +6863,12 @@ dependencies = [
 
 [[package]]
 name = "tracing-actix-web"
-version = "0.7.8"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a512ec11fae6c666707625e84f83e5d58f941e9ab15723289c0d380edfe48f09"
+checksum = "1fe0d5feac3f4ca21ba33496bcb1ccab58cca6412b1405ae80f0581541e0ca78"
 dependencies = [
  "actix-web",
+ "mutually_exclusive_features",
  "opentelemetry",
  "pin-project",
  "tracing",

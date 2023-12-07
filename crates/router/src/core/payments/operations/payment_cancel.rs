@@ -171,6 +171,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -212,6 +214,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
+                    incremental_authorization_allowed: None,
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {
