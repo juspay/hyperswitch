@@ -4,6 +4,51 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.97.0 (2023-12-06)
+
+### Features
+
+- **Braintree:** Sync with Hyperswitch Reference ([#3037](https://github.com/juspay/hyperswitch/pull/3037)) ([`8a995ce`](https://github.com/juspay/hyperswitch/commit/8a995cefdf6806645383710c6f39d963da232e94))
+- **connector:** [BANKOFAMERICA] Implement Apple Pay ([#3061](https://github.com/juspay/hyperswitch/pull/3061)) ([`47c0383`](https://github.com/juspay/hyperswitch/commit/47c038300adad1c02e4c77d529c7cc2457cf3b91))
+- **metrics:** Add drainer delay metric ([#3034](https://github.com/juspay/hyperswitch/pull/3034)) ([`c6e2ee2`](https://github.com/juspay/hyperswitch/commit/c6e2ee29d9ee4fe54e6fa6f87c2fa065a290d258))
+
+### Bug Fixes
+
+- **config:** Parse kafka brokers from env variable as sequence ([#3066](https://github.com/juspay/hyperswitch/pull/3066)) ([`84decd8`](https://github.com/juspay/hyperswitch/commit/84decd8126d306a5e1cf22b36e1378a73dc963f5))
+- Throw bad request while pushing duplicate data to redis ([#3016](https://github.com/juspay/hyperswitch/pull/3016)) ([`a2405e5`](https://github.com/juspay/hyperswitch/commit/a2405e56fbd84936a1afa6aa9f8f7e815267fbec))
+- Return url none on complete authorize ([#3067](https://github.com/juspay/hyperswitch/pull/3067)) ([`6eec06b`](https://github.com/juspay/hyperswitch/commit/6eec06b1d6ee9a00b374905e0ab9e425d0e41095))
+
+### Miscellaneous Tasks
+
+- **codeowners:** Add codeowners for hyperswitch dashboard ([#3057](https://github.com/juspay/hyperswitch/pull/3057)) ([`cfafd5c`](https://github.com/juspay/hyperswitch/commit/cfafd5cd29857283d57731dda7c5a332a493f531))
+
+**Full Changelog:** [`v1.96.0...v1.97.0`](https://github.com/juspay/hyperswitch/compare/v1.96.0...v1.97.0)
+
+- - -
+
+
+## 1.96.0 (2023-12-05)
+
+### Features
+
+- **connector_onboarding:** Add Connector onboarding APIs ([#3050](https://github.com/juspay/hyperswitch/pull/3050)) ([`7bd6e05`](https://github.com/juspay/hyperswitch/commit/7bd6e05c0c05ebae9b82a6f410e61ca4409d088b))
+- **pm_list:** Add required fields for bancontact_card for Mollie, Adyen and Stripe ([#3035](https://github.com/juspay/hyperswitch/pull/3035)) ([`792e642`](https://github.com/juspay/hyperswitch/commit/792e642ad58f90bae3ddcea5e6cbc70e948d8e28))
+- **user:** Add email apis and new enums for metadata ([#3053](https://github.com/juspay/hyperswitch/pull/3053)) ([`1c3d260`](https://github.com/juspay/hyperswitch/commit/1c3d260dc3e18fbf6cbd5122122a6c73dceb39a3))
+- Implement FRM flows ([#2968](https://github.com/juspay/hyperswitch/pull/2968)) ([`055d838`](https://github.com/juspay/hyperswitch/commit/055d8383671f6b466297c177bcc770618c7da96a))
+
+### Bug Fixes
+
+- Remove redundant call to populate_payment_data function ([#3054](https://github.com/juspay/hyperswitch/pull/3054)) ([`53df543`](https://github.com/juspay/hyperswitch/commit/53df543b7f1407a758232025b7de0fb527be8e86))
+
+### Documentation
+
+- **test_utils:** Update postman docs ([#3055](https://github.com/juspay/hyperswitch/pull/3055)) ([`8b7a7aa`](https://github.com/juspay/hyperswitch/commit/8b7a7aa6494ff669e1f8bcc92a5160e422d6b26e))
+
+**Full Changelog:** [`v1.95.0...v1.96.0`](https://github.com/juspay/hyperswitch/compare/v1.95.0...v1.96.0)
+
+- - -
+
+
 ## 1.95.0 (2023-12-05)
 
 ### Features

@@ -20,20 +20,24 @@ use super::currency;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "oltp")]
+use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, disputes::*, files::*, gsm::*, locker_migration, payment_link::*,
-    user::*, user_role::*,
+    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
+    locker_migration, payment_link::*, user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(all(feature = "frm", feature = "oltp"))]
+use crate::routes::fraud_check as frm_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
@@ -185,6 +189,16 @@ impl AppState {
                 }
             };
 
+            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.connector_onboarding = conf
+                    .connector_onboarding
+                    .decrypt_inner(kms_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
+
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
 
@@ -323,6 +337,14 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
+                )
+                .service(
+                    web::resource("/{payment_id}/approve")
+                        .route(web::post().to(payments_approve)),
+                )
+                .service(
+                    web::resource("/{payment_id}/reject")
+                        .route(web::post().to(payments_reject)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
@@ -535,6 +557,8 @@ impl PaymentMethods {
                     .route(web::post().to(payment_method_update_api))
                     .route(web::delete().to(payment_method_delete_api)),
             )
+            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
+            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
     }
 }
 
@@ -640,7 +664,8 @@ impl Webhooks {
     pub fn server(config: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
 
-        web::scope("/webhooks")
+        #[allow(unused_mut)]
+        let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
@@ -651,7 +676,17 @@ impl Webhooks {
                     .route(
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
-            )
+            );
+
+        #[cfg(feature = "frm")]
+        {
+            route = route.service(
+                web::resource("/frm_fulfillment")
+                    .route(web::post().to(frm_routes::frm_fulfillment)),
+            );
+        }
+
+        route
     }
 }
 
@@ -886,5 +921,17 @@ impl LockerMigrate {
             .service(
                 web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
             )
+    }
+}
+
+pub struct ConnectorOnboarding;
+
+#[cfg(feature = "olap")]
+impl ConnectorOnboarding {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/connector_onboarding")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/action_url").route(web::post().to(get_action_url)))
+            .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
     }
 }

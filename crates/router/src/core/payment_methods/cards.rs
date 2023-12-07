@@ -13,6 +13,7 @@ use api_models::{
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
+    pm_auth::PaymentMethodAuthConfig,
     surcharge_decision_configs as api_surcharge_decision_configs,
 };
 use common_utils::{
@@ -29,6 +30,8 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
 };
+#[cfg(not(feature = "connector_choice_mca_id"))]
+use crate::core::utils::get_connector_label;
 use crate::{
     configs::settings,
     core::{
@@ -1081,9 +1084,9 @@ pub async fn list_payment_methods(
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
-    for mca in filtered_mcas {
-        let payment_methods = match mca.payment_methods_enabled {
-            Some(pm) => pm,
+    for mca in &filtered_mcas {
+        let payment_methods = match &mca.payment_methods_enabled {
+            Some(pm) => pm.clone(),
             None => continue,
         };
 
@@ -1094,12 +1097,14 @@ pub async fn list_payment_methods(
             payment_intent.as_ref(),
             payment_attempt.as_ref(),
             billing_address.as_ref(),
-            mca.connector_name,
+            mca.connector_name.clone(),
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
         )
         .await?;
     }
+
+    let mut pmt_to_auth_connector = HashMap::new();
 
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
@@ -1203,6 +1208,84 @@ pub async fn list_payment_methods(
 
             pre_routing_results.insert(pm_type, routable_choice);
         }
+
+        let redis_conn = db
+            .get_redis_conn()
+            .map_err(|redis_error| logger::error!(?redis_error))
+            .ok();
+
+        let mut val = Vec::new();
+
+        for (payment_method_type, routable_connector_choice) in &pre_routing_results {
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            let connector_label = get_connector_label(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                routable_connector_choice.sub_label.as_ref(),
+                #[cfg(feature = "connector_choice_mca_id")]
+                None,
+                routable_connector_choice.connector.to_string().as_str(),
+            );
+            #[cfg(not(feature = "connector_choice_mca_id"))]
+            let matched_mca = filtered_mcas
+                .iter()
+                .find(|m| connector_label == m.connector_label);
+
+            #[cfg(feature = "connector_choice_mca_id")]
+            let matched_mca = filtered_mcas.iter().find(|m| {
+                routable_connector_choice.merchant_connector_id.as_ref()
+                    == Some(&m.merchant_connector_id)
+            });
+
+            if let Some(m) = matched_mca {
+                let pm_auth_config = m
+                    .pm_auth_config
+                    .as_ref()
+                    .map(|config| {
+                        serde_json::from_value::<PaymentMethodAuthConfig>(config.clone())
+                            .into_report()
+                            .change_context(errors::StorageError::DeserializationFailed)
+                            .attach_printable("Failed to deserialize Payment Method Auth config")
+                    })
+                    .transpose()
+                    .unwrap_or_else(|err| {
+                        logger::error!(error=?err);
+                        None
+                    });
+
+                let matched_config = match pm_auth_config {
+                    Some(config) => {
+                        let internal_config = config
+                            .enabled_payment_methods
+                            .iter()
+                            .find(|config| config.payment_method_type == *payment_method_type)
+                            .cloned();
+
+                        internal_config
+                    }
+                    None => None,
+                };
+
+                if let Some(config) = matched_config {
+                    pmt_to_auth_connector
+                        .insert(*payment_method_type, config.connector_name.clone());
+                    val.push(config);
+                }
+            }
+        }
+
+        let pm_auth_key = format!("pm_auth_{}", payment_intent.payment_id);
+        let redis_expiry = state.conf.payment_method_auth.redis_expiry;
+
+        if let Some(rc) = redis_conn {
+            rc.serialize_and_set_key_with_expiry(pm_auth_key.as_str(), val, redis_expiry)
+                .await
+                .attach_printable("Failed to store pm auth data in redis")
+                .unwrap_or_else(|err| {
+                    logger::error!(error=?err);
+                })
+        };
 
         routing_info.pre_routing_results = Some(pre_routing_results);
 
@@ -1461,7 +1544,9 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: None,
+                pm_auth_connector: pmt_to_auth_connector
+                    .get(payment_method_types_hm.0)
+                    .cloned(),
             })
         }
 
@@ -1496,7 +1581,9 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: None,
+                pm_auth_connector: pmt_to_auth_connector
+                    .get(payment_method_types_hm.0)
+                    .cloned(),
             })
         }
 
@@ -1526,7 +1613,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: None,
+                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
             }
         })
     }
@@ -1559,7 +1646,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: None,
+                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
             }
         })
     }
@@ -1592,7 +1679,7 @@ pub async fn list_payment_methods(
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: None,
+                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
             }
         })
     }

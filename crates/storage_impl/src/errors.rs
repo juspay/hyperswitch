@@ -150,6 +150,26 @@ impl StorageError {
     }
 }
 
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError> {
+        match self.current_context() {
+            RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
+                "Data does not exist for key {key}",
+            ))),
+            RedisError::SetNxFailed => self.change_context(DataStorageError::DuplicateValue {
+                entity: "redis",
+                key: Some(key.to_string()),
+            }),
+            _ => self.change_context(DataStorageError::KVError),
+        }
+    }
+}
+
 impl_error_type!(EncryptionError, "Encryption error");
 
 #[derive(Debug, thiserror::Error)]

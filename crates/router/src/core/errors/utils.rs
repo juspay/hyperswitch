@@ -480,3 +480,25 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
         }
     }
 }
+
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<errors::RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
+        match self.current_context() {
+            errors::RedisError::NotFound => self.change_context(
+                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
+            ),
+            errors::RedisError::SetNxFailed => {
+                self.change_context(errors::StorageError::DuplicateValue {
+                    entity: "redis",
+                    key: Some(key.to_string()),
+                })
+            }
+            _ => self.change_context(errors::StorageError::KVError),
+        }
+    }
+}

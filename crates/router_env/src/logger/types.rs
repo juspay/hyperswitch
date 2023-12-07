@@ -263,6 +263,8 @@ pub enum Flow {
     DecisionManagerDeleteConfig,
     /// Retrieve Decision Manager Config
     DecisionManagerRetrieveConfig,
+    /// Manual payment fulfillment acknowledgement
+    FrmFulfillment,
     /// Change password flow
     ChangePassword,
     /// Set Dashboard Metadata flow
@@ -293,6 +295,10 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get users for merchant account
     GetUserDetails,
+    /// PaymentMethodAuth Link token create
+    PmAuthLinkTokenCreate,
+    /// PaymentMethodAuth Exchange token create
+    PmAuthExchangeToken,
     /// Get reset password link
     ForgotPassword,
     /// Reset password using link
@@ -301,6 +307,10 @@ pub enum Flow {
     InviteUser,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
 }
 
 ///
