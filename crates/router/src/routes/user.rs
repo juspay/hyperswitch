@@ -356,7 +356,7 @@ pub async fn invite_user(
 pub async fn verify_email(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    json_payload: web::Json<user_api::EmailVerificationCallbackRequest>,
+    json_payload: web::Json<user_api::VerifyEmailRequest>,
 ) -> HttpResponse {
     let flow = Flow::VerifyEmail;
     Box::pin(api::server_wrap(

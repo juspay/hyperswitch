@@ -635,8 +635,8 @@ pub async fn get_users_for_merchant_account(
 #[cfg(feature = "email")]
 pub async fn verify_email(
     state: AppState,
-    req: user_api::EmailVerificationCallbackRequest,
-) -> UserResponse<user_api::EmailVerificationCallbackResponse> {
+    req: user_api::VerifyEmailRequest,
+) -> UserResponse<user_api::VerifyEmailResponse> {
     let token = auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
         .await
         .change_context(UserErrors::LinkInvalid)?;

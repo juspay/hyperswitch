@@ -123,8 +123,8 @@ pub struct UserDetails {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct EmailVerificationCallbackRequest {
+pub struct VerifyEmailRequest {
     pub token: Secret<String>,
 }
 
-pub type EmailVerificationCallbackResponse = DashboardEntryResponse;
+pub type VerifyEmailResponse = DashboardEntryResponse;
