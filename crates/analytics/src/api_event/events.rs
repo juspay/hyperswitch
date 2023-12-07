@@ -103,5 +103,5 @@ pub struct ApiLogsResult {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub http_method: Option<String>,
-    pub api_path: Option<String>,
+    pub url_path: Option<String>,
 }
