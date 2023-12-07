@@ -680,6 +680,7 @@ diesel::table! {
         surcharge_applicable -> Nullable<Bool>,
         request_incremental_authorization -> RequestIncrementalAuthorization,
         incremental_authorization_allowed -> Nullable<Bool>,
+        expiry -> Timestamp,
     }
 }
 
@@ -700,7 +701,7 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        max_age -> Timestamp,
+        expiry -> Timestamp,
         payment_link_config -> Jsonb,
         #[max_length = 255]
         description -> Nullable<Varchar>,

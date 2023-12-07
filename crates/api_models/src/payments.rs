@@ -319,6 +319,11 @@ pub struct PaymentsRequest {
 
     ///Request for an incremental authorization
     pub request_incremental_authorization: Option<bool>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 impl PaymentsRequest {
@@ -3231,7 +3236,7 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub max_age: PrimitiveDateTime,
+    pub expiry: PrimitiveDateTime,
     pub description: Option<String>,
     pub status: String,
     #[schema(value_type = Option<Currency>)]

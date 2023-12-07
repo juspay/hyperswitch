@@ -123,17 +123,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
+        // let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+        //     payment_intent.payment_link_id.clone(),
+        //     merchant_account.intent_fulfillment_time,
+        //     db,
+        // )
+        // .await?;
 
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
-            &payment_intent,
-            intent_fulfillment_time,
+            &payment_intent
         )?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
@@ -769,7 +768,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
-                    m_payment_data_payment_intent,
+                    m_payment_data_payment_intent.clone(),
                     storage::PaymentIntentUpdate::Update {
                         amount: payment_data.amount.into(),
                         currency: payment_data.currency,
@@ -788,6 +787,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
+                        expiry: Some(m_payment_data_payment_intent.expiry)
                     },
                     storage_scheme,
                 )

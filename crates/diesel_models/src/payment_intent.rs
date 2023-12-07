@@ -4,7 +4,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_intent};
+use crate::{enums as storage_enums, schema::{payment_intent}};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent)]
@@ -54,12 +54,12 @@ pub struct PaymentIntent {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    pub expiry: PrimitiveDateTime
 }
 
 #[derive(
     Clone,
     Debug,
-    Default,
     Eq,
     PartialEq,
     Insertable,
@@ -111,6 +111,8 @@ pub struct PaymentIntentNew {
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,6 +165,7 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
+        expiry: Option<PrimitiveDateTime>
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -221,6 +224,7 @@ pub struct PaymentIntentUpdateInternal {
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
+    pub expiry: Option<PrimitiveDateTime>
 }
 
 impl PaymentIntentUpdate {
@@ -252,6 +256,7 @@ impl PaymentIntentUpdate {
             updated_by,
             surcharge_applicable,
             incremental_authorization_allowed,
+            expiry
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -283,6 +288,7 @@ impl PaymentIntentUpdate {
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
 
             incremental_authorization_allowed,
+            expiry: expiry.unwrap_or(source.expiry),
             ..source
         }
     }
@@ -309,6 +315,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                expiry
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -328,6 +335,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                expiry,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

@@ -9,6 +9,7 @@ use error_stack::{self, ResultExt};
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -158,6 +159,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 id: profile_id.to_string(),
             })?;
 
+        let intent_fulfillment_time = request.intent_fulfillment_time.map(i64::from).unwrap_or(business_profile.intent_fulfillment_time.unwrap_or(consts::DEFAULT_FULFILLMENT_TIME));
+
+        let expiry = common_utils::date_time::now()
+                        .saturating_add(time::Duration::seconds(intent_fulfillment_time.into()));
+
         let payment_link_data = if let Some(payment_link_create) = request.payment_link {
             if payment_link_create {
                 let merchant_name = merchant_account
@@ -185,6 +191,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     request.description.clone(),
                     profile_id.clone(),
                     domain_name,
+                    expiry
                 )
                 .await?
             } else {
@@ -204,6 +211,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             billing_address.clone().map(|x| x.address_id),
             attempt_id,
             profile_id,
+            expiry
         )
         .await?;
 
@@ -411,7 +419,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         _state: &'a AppState,
         _payment_attempt: &PaymentAttempt,
         _requeue: bool,
-        _schedule_time: Option<time::PrimitiveDateTime>,
+        _schedule_time: Option<PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -547,12 +555,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     )> {
         helpers::validate_customer_details_in_request(request)?;
 
-        if let Some(payment_link_config) = &request.payment_link_config {
-            helpers::validate_payment_link_request(
-                payment_link_config,
-                request.confirm,
-                request.order_details.clone(),
-            )?;
+        if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+            helpers::validate_max_age(intent_fulfillment_time.to_owned())?;
+        }
+
+        if let Some(payment_link) = &request.payment_link {
+            if *payment_link {
+                helpers::validate_payment_link_request(
+                    request.confirm,
+                    request.order_details.clone(),
+                )?;
+            }
         }
 
         let payment_id = request.payment_id.clone().ok_or(error_stack::report!(
@@ -698,6 +711,7 @@ impl PaymentCreate {
         billing_address_id: Option<String>,
         active_attempt_id: String,
         profile_id: String,
+        expiry: PrimitiveDateTime
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -772,6 +786,7 @@ impl PaymentCreate {
             updated_by: merchant_account.storage_scheme.to_string(),
             request_incremental_authorization,
             incremental_authorization_allowed: None,
+            expiry
         })
     }
 
@@ -821,6 +836,7 @@ async fn create_payment_link(
     description: Option<String>,
     profile_id: String,
     domain_name: String,
+    expiry: PrimitiveDateTime
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
@@ -830,13 +846,6 @@ async fn create_payment_link(
         merchant_id.clone(),
         payment_id.clone()
     );
-
-    let max_age = common_utils::date_time::now().saturating_add(time::Duration::seconds(
-        payment_link_config
-            .config
-            .max_age
-            .unwrap_or(common_utils::consts::DEFAULT_PAYMENT_LINK_EXPIRY),
-    ));
 
     let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
         api_models::admin::PaymentCreatePaymentLinkConfig,
@@ -854,7 +863,7 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        max_age,
+        expiry,
         description,
         payment_link_config: payment_link_config_encoded_value,
         profile_id,

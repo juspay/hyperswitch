@@ -1322,6 +1322,9 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+        helpers::validate_max_age(intent_fulfillment_time.to_owned())?;
+    }
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1433,6 +1436,10 @@ pub async fn update_business_profile(
         Err(errors::ApiErrorResponse::AccessForbidden {
             resource: profile_id.to_string(),
         })?
+    }
+
+    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+        helpers::validate_max_age(intent_fulfillment_time.to_owned())?;
     }
 
     let webhook_details = request

@@ -1,7 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PAYMENT_LINK_EXPIRY,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO,
         DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
     },
     ext_traits::{OptionExt, ValueExt},
@@ -33,7 +33,7 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_config.max_age);
+    let status = check_payment_link_status(payment_link_config.expiry);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
         payment_link_config,
@@ -114,7 +114,7 @@ pub async fn intiate_payment_link_flow(
         ),
         order_details,
         return_url,
-        expiry: payment_link.max_age,
+        expiry: payment_link.expiry,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config
@@ -313,17 +313,16 @@ pub fn get_payment_link_config_based_on_priority(
                     .unwrap_or(merchant_name)
             });
 
-            let max_age = payment_create.config.max_age.unwrap_or(
-                business_link_config
-                    .config
-                    .max_age
-                    .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
-            );
+            // let max_age = payment_create.config.max_age.unwrap_or(
+            //     business_link_config
+            //         .config
+            //         .max_age
+            //         .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY),
+            // );
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {
-                        max_age: Some(max_age),
                         theme: Some(theme),
                         logo: Some(logo),
                         seller_name: Some(seller_name),
@@ -342,15 +341,14 @@ pub fn get_payment_link_config_based_on_priority(
                 .logo
                 .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
             let seller_name = payment_create.config.seller_name.unwrap_or(merchant_name);
-            let max_age = payment_create
-                .config
-                .max_age
-                .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
+            // let max_age = payment_create
+            //     .config
+            //     .max_age
+            //     .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
 
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {
-                        max_age: Some(max_age),
                         theme: Some(theme),
                         logo: Some(logo),
                         seller_name: Some(seller_name),
@@ -377,14 +375,13 @@ pub fn get_payment_link_config_based_on_priority(
                 .config
                 .seller_name
                 .unwrap_or(merchant_name);
-            let max_age = business_link_config
-                .config
-                .max_age
-                .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
+            // let max_age = business_link_config
+            //     .config
+            //     .max_age
+            //     .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
             Ok((
                 admin_types::PaymentCreatePaymentLinkConfig {
                     config: admin_types::PaymentLinkConfig {
-                        max_age: Some(max_age),
                         theme: Some(theme),
                         logo: Some(logo),
                         seller_name: Some(seller_name),
@@ -396,7 +393,6 @@ pub fn get_payment_link_config_based_on_priority(
         (None, None) => {
             let default_payment_config = admin_types::PaymentCreatePaymentLinkConfig {
                 config: admin_types::PaymentLinkConfig {
-                    max_age: Some(DEFAULT_PAYMENT_LINK_EXPIRY),
                     theme: Some(DEFAULT_BACKGROUND_COLOR.to_string()),
                     logo: Some(DEFAULT_MERCHANT_LOGO.to_string()),
                     seller_name: Some(merchant_name),
