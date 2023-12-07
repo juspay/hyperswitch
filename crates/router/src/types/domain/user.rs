@@ -736,6 +736,29 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)
     }
+
+    #[cfg(feature = "email")]
+    pub fn get_verification_days_left(&self, state: AppState) -> UserResult<Option<i64>> {
+        if self.0.is_verified {
+            return Ok(None);
+        }
+
+        let allowed_unverified_duration =
+            time::Duration::days(state.conf.email.allowed_unverified_days);
+
+        let user_created = self.0.created_at.date();
+        let last_date_for_verification = user_created
+            .checked_add(allowed_unverified_duration)
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let today = common_utils::date_time::now().date();
+        if today >= last_date_for_verification {
+            return Err(UserErrors::UnverifiedUser.into());
+        }
+
+        let days_left_for_verification = last_date_for_verification - today;
+        Ok(Some(days_left_for_verification.whole_days()))
+    }
 }
 
 impl TryFrom<info::ModuleInfo> for user_role_api::ModuleInfo {

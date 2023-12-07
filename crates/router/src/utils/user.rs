@@ -104,18 +104,25 @@ pub async fn generate_jwt_auth_token_with_custom_merchant_id(
     Ok(Secret::new(token))
 }
 
+#[allow(unused_variables)]
 pub fn get_dashboard_entry_response(
+    state: AppState,
     user: UserFromStorage,
     user_role: UserRole,
     token: Secret<String>,
-) -> user_api::DashboardEntryResponse {
-    user_api::DashboardEntryResponse {
+) -> UserResult<user_api::DashboardEntryResponse> {
+    #[cfg(feature = "email")]
+    let verification_days_left = user.get_verification_days_left(state)?;
+    #[cfg(not(feature = "email"))]
+    let verification_days_left = None;
+
+    Ok(user_api::DashboardEntryResponse {
         merchant_id: user_role.merchant_id,
         token,
         name: user.get_name(),
         email: user.get_email(),
         user_id: user.get_user_id().to_string(),
-        verification_days_left: None,
+        verification_days_left,
         user_role: user_role.role_id,
-    }
+    })
 }
