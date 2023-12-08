@@ -672,6 +672,7 @@ pub async fn verify_email(
     ))
 }
 
+#[cfg(feature = "email")]
 pub async fn send_verification_mail(
     state: AppState,
     req: user_api::SendVerifyEmailRequest,
