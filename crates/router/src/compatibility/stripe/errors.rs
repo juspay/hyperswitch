@@ -129,10 +129,10 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_label}' already exists in our records")]
     DuplicateMerchantConnectorAccount {
         profile_id: String,
-        connector_name: String,
+        connector_label: String,
     },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
@@ -194,7 +194,9 @@ pub enum StripeErrorCode {
         states: String,
     },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
-    PaymentIntentMandateInvalid { message: String },
+    PaymentIntentMandateInvalid {
+        message: std::borrow::Cow<'static, str>,
+    },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
     DuplicatePayment { payment_id: String },
@@ -512,10 +514,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label: connector_name,
             } => Self::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label: connector_name,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {

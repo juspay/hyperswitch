@@ -71,7 +71,7 @@ pub struct MerchantAccountCreate {
     /// If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
-    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled.
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
@@ -79,7 +79,8 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
-    /// API key that will be used for server side API access
+    /// API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.
+    /// A `client_secret` can be obtained by creating a payment with `confirm` set to false
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
@@ -207,7 +208,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
     pub merchant_name: OptionalEncryptableName,
 
-    /// The URL to redirect after the completion of the operation
+    /// The URL to redirect after completion of the payment
     #[schema(max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
@@ -537,7 +538,9 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+
+    /// A label for a connector, this will be used to uniquely identify the connector within a given `business_profile`.
+    /// If not provided, a default value ( `connector_name`_`profile_name` ) will be used
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -666,7 +669,8 @@ pub struct MerchantConnectorResponse {
     #[schema(example = "stripe")]
     pub connector_name: String,
 
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// A label for a connector, this will be used to uniquely identify the connector within a given `business_profile`.
+    /// If not provided, a default value ( `connector_name`_`profile_name` ) will be used
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -762,7 +766,8 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// A label for a connector, this will be used to uniquely identify the connector within a given `business_profile`.
+    /// If not provided, a default value ( `connector_name`_`profile_name` ) will be used
     pub connector_label: Option<String>,
 
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
