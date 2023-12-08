@@ -15,6 +15,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
+        DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoutingAlgorithmKind as RoutingAlgorithmKind,
     };
 }
@@ -451,10 +452,13 @@ pub enum DashboardMetadata {
     ConfiguredRouting,
     TestPayment,
     IntegrationMethod,
+    ConfigurationType,
     IntegrationCompleted,
     StripeConnected,
     PaypalConnected,
     SpRoutingConfigured,
+    Feedback,
+    ProdIntent,
     SpTestPayment,
     DownloadWoocom,
     ConfigureWoocom,

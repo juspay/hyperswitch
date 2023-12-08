@@ -542,6 +542,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -908,6 +909,7 @@ impl Default for PaymentAuthorizeType {
             webhook_url: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: false,
         };
         Self(data)
     }
@@ -1028,6 +1030,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Err(_) => None,
     }
 }
@@ -1043,6 +1046,7 @@ pub fn get_connector_metadata(
             connector_metadata,
             network_txn_id: _,
             connector_response_reference_id: _,
+            incremental_authorization_allowed: _,
         }) => connector_metadata,
         _ => None,
     }

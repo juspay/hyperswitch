@@ -1,3 +1,4 @@
+use common_enums::RequestIncrementalAuthorization;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
@@ -51,6 +52,9 @@ pub struct PaymentIntent {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub request_incremental_authorization: RequestIncrementalAuthorization,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
 }
 
 #[derive(
@@ -103,9 +107,11 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub request_incremental_authorization: RequestIncrementalAuthorization,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +121,7 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<i64>,
         return_url: Option<String>,
         updated_by: String,
+        incremental_authorization_allowed: Option<bool>,
     },
     MetadataUpdate {
         metadata: pii::SecretSerdeValue,
@@ -137,6 +144,7 @@ pub enum PaymentIntentUpdate {
     PGStatusUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
+        incremental_authorization_allowed: Option<bool>,
     },
     Update {
         amount: i64,
@@ -181,6 +189,12 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: Option<bool>,
         updated_by: String,
     },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+    },
+    AuthorizationCountUpdate {
+        authorization_count: i32,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -213,6 +227,8 @@ pub struct PaymentIntentUpdateInternal {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
 }
 
 impl PaymentIntentUpdate {
@@ -243,6 +259,8 @@ impl PaymentIntentUpdate {
             payment_confirm_source,
             updated_by,
             surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -272,6 +290,9 @@ impl PaymentIntentUpdate {
             payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
             updated_by,
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
+
+            incremental_authorization_allowed,
+            authorization_count,
             ..source
         }
     }
@@ -345,10 +366,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::PGStatusUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                incremental_authorization_allowed,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -372,6 +398,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -381,6 +408,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                incremental_authorization_allowed,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -429,6 +457,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 surcharge_applicable,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
+                amount: Some(amount),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self {
+                authorization_count: Some(authorization_count),
                 ..Default::default()
             },
         }

@@ -444,6 +444,9 @@ where
     ) -> RouterResult<(UserFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
 
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
         Ok((
             UserFromToken {
                 user_id: payload.user_id.clone(),
@@ -633,6 +636,18 @@ impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
 }
 
 impl ClientSecretFetch for api_models::payments::RetrievePaymentLinkRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::pm_auth::LinkTokenCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

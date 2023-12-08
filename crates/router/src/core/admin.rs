@@ -10,9 +10,10 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use error_stack::{report, FutureExt, ResultExt};
+use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
+use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
 
 use crate::{
@@ -762,7 +763,7 @@ pub async fn create_payment_connector(
     )
     .await?;
 
-    let routable_connector =
+    let mut routable_connector =
         api_enums::RoutableConnectors::from_str(&req.connector_name.to_string()).ok();
 
     let business_profile = state
@@ -772,6 +773,30 @@ pub async fn create_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_owned(),
         })?;
+
+    let pm_auth_connector =
+        api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
+
+    let is_unroutable_connector = if pm_auth_connector.is_some() {
+        if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector type given".to_string(),
+            })
+            .into_report();
+        }
+        true
+    } else {
+        let routable_connector_option = req
+            .connector_name
+            .to_string()
+            .parse()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector name given".to_string(),
+            })?;
+        routable_connector = Some(routable_connector_option);
+        false
+    };
 
     // If connector label is not passed in the request, generate one
     let connector_label = req
@@ -877,6 +902,20 @@ pub async fn create_payment_connector(
         api_enums::ConnectorStatus::Active,
     )?;
 
+    if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+        if let Some(val) = req.pm_auth_config.clone() {
+            validate_pm_auth(
+                val,
+                &*state.clone().store,
+                merchant_id.clone().as_str(),
+                &key_store,
+                merchant_account,
+                &Some(profile_id.clone()),
+            )
+            .await?;
+        }
+    }
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -948,7 +987,7 @@ pub async fn create_payment_connector(
             #[cfg(feature = "connector_choice_mca_id")]
             merchant_connector_id: Some(mca.merchant_connector_id.clone()),
             #[cfg(not(feature = "connector_choice_mca_id"))]
-            sub_label: req.business_sub_label,
+            sub_label: req.business_sub_label.clone(),
         };
 
         if !default_routing_config.contains(&choice) {
@@ -956,7 +995,7 @@ pub async fn create_payment_connector(
             routing_helpers::update_merchant_default_config(
                 &*state.store,
                 merchant_id,
-                default_routing_config,
+                default_routing_config.clone(),
             )
             .await?;
         }
@@ -965,7 +1004,7 @@ pub async fn create_payment_connector(
             routing_helpers::update_merchant_default_config(
                 &*state.store,
                 &profile_id.clone(),
-                default_routing_config_for_profile,
+                default_routing_config_for_profile.clone(),
             )
             .await?;
         }
@@ -980,8 +1019,90 @@ pub async fn create_payment_connector(
         ],
     );
 
+    if !is_unroutable_connector {
+        if let Some(routable_connector_val) = routable_connector {
+            let choice = routing_types::RoutableConnectorChoice {
+                #[cfg(feature = "backwards_compatibility")]
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: routable_connector_val,
+                #[cfg(feature = "connector_choice_mca_id")]
+                merchant_connector_id: Some(mca.merchant_connector_id.clone()),
+                #[cfg(not(feature = "connector_choice_mca_id"))]
+                sub_label: req.business_sub_label.clone(),
+            };
+
+            if !default_routing_config.contains(&choice) {
+                default_routing_config.push(choice.clone());
+                routing_helpers::update_merchant_default_config(
+                    &*state.clone().store,
+                    merchant_id,
+                    default_routing_config,
+                )
+                .await?;
+            }
+
+            if !default_routing_config_for_profile.contains(&choice) {
+                default_routing_config_for_profile.push(choice);
+                routing_helpers::update_merchant_default_config(
+                    &*state.store,
+                    &profile_id,
+                    default_routing_config_for_profile,
+                )
+                .await?;
+            }
+        }
+    };
+
     let mca_response = mca.try_into()?;
     Ok(service_api::ApplicationResponse::Json(mca_response))
+}
+
+async fn validate_pm_auth(
+    val: serde_json::Value,
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    key_store: &domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+    profile_id: &Option<String>,
+) -> RouterResponse<()> {
+    let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "invalid data received for payment method auth config".to_string(),
+        })
+        .attach_printable("Failed to deserialize Payment Method Auth config")?;
+
+    let all_mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_account.merchant_id.clone(),
+        })?;
+
+    for conn_choice in config.enabled_payment_methods {
+        let pm_auth_mca = all_mcas
+            .clone()
+            .into_iter()
+            .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "payment method auth connector account not found".to_string(),
+            })
+            .into_report()?;
+
+        if &pm_auth_mca.profile_id != profile_id {
+            return Err(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "payment method auth profile_id differs from connector profile_id"
+                    .to_string(),
+            })
+            .into_report();
+        }
+    }
+
+    Ok(services::ApplicationResponse::StatusOk)
 }
 
 pub async fn retrieve_payment_connector(
@@ -1066,7 +1187,7 @@ pub async fn update_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let _merchant_account = db
+    let merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -1105,6 +1226,20 @@ pub async fn update_payment_connector(
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
+
+    if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+        if let Some(val) = req.pm_auth_config.clone() {
+            validate_pm_auth(
+                val,
+                db,
+                merchant_id,
+                &key_store,
+                merchant_account,
+                &mca.profile_id,
+            )
+            .await?;
+        }
+    }
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
@@ -1716,9 +1851,13 @@ pub(crate) fn validate_auth_and_metadata_type(
             zen::transformers::ZenAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Signifyd | api_enums::Connector::Plaid => {
-            Err(report!(errors::ConnectorError::InvalidConnectorName)
-                .attach_printable(format!("invalid connector name: {connector_name}")))
+        api_enums::Connector::Signifyd => {
+            signifyd::transformers::SignifydAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Plaid => {
+            PlaidAuthType::foreign_try_from(val)?;
+            Ok(())
         }
     }
 }

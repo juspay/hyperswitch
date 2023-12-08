@@ -269,6 +269,10 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         updated_by: String,
     },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+        amount_capturable: i64,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -677,6 +681,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 connector,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            } => Self {
+                amount: Some(amount),
+                amount_capturable: Some(amount_capturable),
                 ..Default::default()
             },
         }

@@ -328,6 +328,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),
+                incremental_authorization_allowed: None,
             }),
             Err,
         );

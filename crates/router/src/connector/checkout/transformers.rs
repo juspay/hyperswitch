@@ -1,12 +1,12 @@
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
+    connector::utils::{self, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services,
@@ -304,24 +304,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiry_year_4_digit = Secret::new(format!(
-                                "20{}",
-                                decrypt_data
-                                    .clone()
-                                    .application_expiration_date
-                                    .peek()
-                                    .get(0..2)
-                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                            ));
-                            let exp_month = Secret::new(
-                                decrypt_data
-                                    .clone()
-                                    .application_expiration_date
-                                    .peek()
-                                    .get(2..4)
-                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                                    .to_owned(),
-                            );
+                            let exp_month = decrypt_data.get_expiry_month()?;
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                                 ApplePayPredecrypt {
                                     token: decrypt_data.application_primary_account_number,
@@ -591,6 +575,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -640,6 +625,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -714,6 +700,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: response.into(),
             ..item.data
@@ -810,6 +797,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
+                incremental_authorization_allowed: None,
             }),
             status,
             amount_captured,
