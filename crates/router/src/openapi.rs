@@ -123,7 +123,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::routing::routing_create_config,
         crate::routes::routing::routing_link_config,
         crate::routes::routing::routing_retrieve_config,
-        crate::routes::routing::routing_retrieve_dictionary,
+        crate::routes::routing::list_routing_configs,
         crate::routes::routing::routing_unlink_config,
         crate::routes::routing::routing_update_default_config,
         crate::routes::routing::routing_retrieve_default_config,

@@ -2483,7 +2483,7 @@
         "tags": [
           "Routing"
         ],
-        "operationId": "Retrieve routing dictionary",
+        "operationId": "List routing configs",
         "parameters": [
           {
             "name": "limit",
@@ -2522,7 +2522,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successfully fetched routing dictionary",
+            "description": "Successfully fetched routing configs",
             "content": {
               "application/json": {
                 "schema": {
@@ -2703,7 +2703,7 @@
         "tags": [
           "Routing"
         ],
-        "operationId": "Retrieve default config",
+        "operationId": "Retrieve default fallback config",
         "responses": {
           "200": {
             "description": "Successfully retrieved default config",
@@ -2735,7 +2735,7 @@
         "tags": [
           "Routing"
         ],
-        "operationId": "Update default config",
+        "operationId": "Update default fallback config",
         "requestBody": {
           "content": {
             "application/json": {

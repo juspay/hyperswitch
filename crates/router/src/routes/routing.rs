@@ -168,17 +168,17 @@ pub async fn routing_retrieve_config(
         ("profile_id" = Option<String>, Query, description = "The unique identifier for a merchant profile"),
     ),
     responses(
-        (status = 200, description = "Successfully fetched routing dictionary", body = RoutingKind),
+        (status = 200, description = "Successfully fetched routing configs", body = RoutingKind),
         (status = 500, description = "Internal server error"),
         (status = 404, description = "Resource missing")
     ),
    tag = "Routing",
-   operation_id = "Retrieve routing dictionary",
+   operation_id = "List routing configs",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
-pub async fn routing_retrieve_dictionary(
+pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
     #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveQuery>,
@@ -320,7 +320,7 @@ pub async fn routing_unlink_config(
         (status = 422, description = "Unprocessable request")
     ),
    tag = "Routing",
-   operation_id = "Update default config",
+   operation_id = "Update default fallback config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 #[cfg(feature = "olap")]
@@ -359,7 +359,7 @@ pub async fn routing_update_default_config(
         (status = 500, description = "Internal server error")
     ),
    tag = "Routing",
-   operation_id = "Retrieve default config",
+   operation_id = "Retrieve default fallback config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 #[cfg(feature = "olap")]
