@@ -191,4 +191,5 @@ key1 = "Merchant id"
 api_secret = "Secret key"
 
 [placetopay]
-api_key="API Key"
+api_key= "Login"
+key1= "Trankey"

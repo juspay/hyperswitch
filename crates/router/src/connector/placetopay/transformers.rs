@@ -7,7 +7,6 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct PlacetopayRouterData<T> {
     pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -30,7 +29,6 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
             amount,
             router_data: item,
@@ -38,7 +36,6 @@ impl<T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PlacetopayPaymentsRequest {
     amount: i64,
@@ -82,7 +79,6 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct PlacetopayAuthType {
     pub(super) api_key: Secret<String>,
@@ -100,7 +96,6 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum PlacetopayPaymentStatus {
@@ -120,7 +115,6 @@ impl From<PlacetopayPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlacetopayPaymentsResponse {
     status: PlacetopayPaymentStatus,
@@ -156,8 +150,6 @@ impl<F, T>
         })
     }
 }
-
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -193,12 +185,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -239,7 +229,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PlacetopayErrorResponse {
     pub status_code: u16,

@@ -117,14 +117,11 @@ impl ConnectorCommon for Placetopay {
     }
 }
 
-impl ConnectorValidation for Placetopay {
-    //TODO: implement functions when support enabled
-}
+impl ConnectorValidation for Placetopay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Placetopay
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
