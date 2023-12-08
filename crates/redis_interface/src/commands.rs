@@ -563,7 +563,7 @@ impl super::RedisConnectionPool {
             .await
             .into_report()
             .map_err(|err| match err.current_context().kind() {
-                RedisErrorKind::NotFound => {
+                RedisErrorKind::NotFound | RedisErrorKind::Parse => {
                     err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                 }
                 _ => err.change_context(errors::RedisError::StreamReadFailed),
