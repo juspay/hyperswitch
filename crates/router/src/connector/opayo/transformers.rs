@@ -29,7 +29,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card = OpayoCard {
-                    name: req_card.card_holder_name,
+                    name: req_card
+                        .card_holder_name
+                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
