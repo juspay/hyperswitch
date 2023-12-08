@@ -463,6 +463,9 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not decode the conditional config")?;
+
+    logger::debug!(ConditionalConfigs=?output, "Conditional Config after dsl execute");
+
     payment_data.payment_attempt.authentication_type = payment_data
         .payment_attempt
         .authentication_type

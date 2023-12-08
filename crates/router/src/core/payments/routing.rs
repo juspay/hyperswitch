@@ -686,6 +686,12 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     )
     .await?;
 
+    let selected_connectors = final_selection
+        .iter()
+        .map(|item| item.connector)
+        .collect::<Vec<_>>();
+    logger::debug!(final_selected_connectors_before_fallback=?selected_connectors, "List of final selected connectors before fallback");
+
     let fallback_selection = perform_fallback_routing(
         state,
         key_store,
@@ -712,7 +718,8 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         .iter()
         .map(|item| item.connector)
         .collect::<Vec<_>>();
-    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing");
+
+    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing after fallback");
 
     Ok(final_selection)
 }
@@ -942,6 +949,12 @@ async fn perform_session_routing_for_pm_type(
     )
     .await?;
 
+    let selected_connectors = final_selection
+        .iter()
+        .map(|item| item.connector)
+        .collect::<Vec<_>>();
+    logger::debug!(final_selected_connectors_before_fallback=?selected_connectors, "List of final selected connectors for session after filtering");
+
     if final_selection.is_empty() {
         let fallback = routing_helpers::get_merchant_default_config(
             &*session_pm_input.state.clone().store,
@@ -971,6 +984,8 @@ async fn perform_session_routing_for_pm_type(
         )
         .await?;
     }
+
+    logger::debug!(selected_connectors_for_routing=?final_selection, "List of selected connectors for session after fallback");
 
     let mut final_choice: Option<(api::ConnectorData, Option<String>)> = None;
 
