@@ -263,6 +263,7 @@ pub struct DummyConnector {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+    pub setup_mandate_support: SupportedPaymentMethodsForSetupMandate,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -277,6 +278,22 @@ pub struct SupportedPaymentMethodTypesForMandate(
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedConnectorsForMandate {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodsForSetupMandate(
+    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForSetupMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodTypesForSetupMandate(
+    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForSetupMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedConnectorsForSetupMandate {
     #[serde(deserialize_with = "connector_deser")]
     pub connector_list: HashSet<api_models::enums::Connector>,
 }

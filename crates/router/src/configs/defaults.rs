@@ -115,7 +115,7 @@ impl Default for super::settings::KvConfig {
 
 use super::settings::{
     Mandates, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate,
+    SupportedPaymentMethodsForMandate, SupportedPaymentMethodsForSetupMandate,
 };
 
 impl Default for Mandates {
@@ -194,6 +194,7 @@ impl Default for Mandates {
                     ])),
                 ),
             ])),
+            setup_mandate_support: SupportedPaymentMethodsForSetupMandate(HashMap::default()),
         }
     }
 }
