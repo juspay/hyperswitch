@@ -131,7 +131,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        payment_attempt.payment_experience = request.payment_experience;
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .or(payment_attempt.payment_experience);
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
@@ -173,7 +175,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
-        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
+        payment_intent.return_url = request
+            .return_url
+            .as_ref()
+            .map(|a| a.to_string())
+            .or(payment_intent.return_url);
 
         payment_intent.allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -245,6 +251,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
         };
 
         let customer_details = Some(CustomerDetails {

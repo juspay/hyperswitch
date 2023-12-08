@@ -17,6 +17,7 @@ pub enum Method {
     Post,
     Put,
     Delete,
+    Patch,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

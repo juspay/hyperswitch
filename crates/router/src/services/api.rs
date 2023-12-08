@@ -587,6 +587,21 @@ pub async fn send_request(
                     None => client,
                 }
             }
+            Method::Patch => {
+                let client = client.patch(url);
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload)
+                            .into_report()
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body).header("Content-Type", "application/xml")
+                    }
+                    None => client,
+                }
+            }
             Method::Delete => client.delete(url),
         }
         .add_headers(headers)
@@ -1228,7 +1243,10 @@ impl Authenticate for api_models::payments::PaymentsSessionRequest {
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
+impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
+// impl Authenticate for api_models::payments::PaymentsApproveRequest {}
+impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,

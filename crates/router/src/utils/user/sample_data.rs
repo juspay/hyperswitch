@@ -34,7 +34,7 @@ pub async fn generate_sample_data(
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(SampleDataError::DatabaseError)?;
+        .change_context(SampleDataError::InternalServerError)?;
 
     let merchant_from_db = state
         .store
@@ -196,6 +196,7 @@ pub async fn generate_sample_data(
             surcharge_applicable: Default::default(),
             request_incremental_authorization: Default::default(),
             incremental_authorization_allowed: Default::default(),
+            authorization_count: Default::default(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
