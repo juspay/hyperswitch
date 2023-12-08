@@ -2237,7 +2237,7 @@ fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Optio
     //     (Some(amt), Some(max_amt)) => amt <= max_amt,
     //     (_, _) => true,
     // };
-    min_check && max_check
+    (min_check && max_check) || amount == Some(0)
 }
 
 fn filter_pm_based_on_allowed_types(
