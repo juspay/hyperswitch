@@ -6873,7 +6873,7 @@
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled.",
             "default": false,
             "example": true,
             "nullable": true
@@ -6885,7 +6885,7 @@
           },
           "publishable_key": {
             "type": "string",
-            "description": "API key that will be used for server side API access",
+            "description": "API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.\nA `client_secret` can be obtained by creating a payment with `confirm` set to false",
             "example": "AH3423bkjbkjdsfbkj",
             "nullable": true
           },
@@ -6977,7 +6977,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
+            "description": "The URL to redirect after completion of the payment",
             "example": "https://www.example.com/success",
             "nullable": true,
             "maxLength": 255
@@ -7259,7 +7259,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "description": "A label for a connector, this will be used to uniquely identify the connector within a given `business_profile`.\nIf not provided, a default value ( `connector_name`_`profile_name` ) will be used",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -7481,7 +7481,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "description": "A label for a connector, this will be used to uniquely identify the connector within a given `business_profile`.\nIf not provided, a default value ( `connector_name`_`profile_name` ) will be used",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -7630,7 +7630,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "description": "A label for a connector, this will be used to uniquely identify the connector within a given `business_profile`.\nIf not provided, a default value ( `connector_name`_`profile_name` ) will be used",
             "nullable": true
           },
           "connector_account_details": {
