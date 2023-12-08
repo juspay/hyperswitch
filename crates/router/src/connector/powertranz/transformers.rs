@@ -16,8 +16,6 @@ use crate::{
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
 
-type ConnectorError = error_stack::Report<errors::ConnectorError>;
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
@@ -214,7 +212,7 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
 }*/
 
 impl TryFrom<&Card> for Source {
-    type Error = ConnectorError;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(card: &Card) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
             cardholder_name: card
@@ -228,21 +226,6 @@ impl TryFrom<&Card> for Source {
         Ok(Self::Card(card))
     }
 }
-
-// impl From<&Card> for Source {
-//     fn from(card: &Card) -> Self {
-//         let card =
-//             PowertranzCard {
-//                 cardholder_name: card.card_holder_name.clone().ok_or_else(
-//                     utils::missing_field_err("payment_method_data.card.card_holder_name"),
-//                 )?,
-//                 card_pan: card.card_number.clone(),
-//                 card_expiration: card.get_expiry_date_as_yymm(),
-//                 card_cvv: card.card_cvc.clone(),
-//             };
-//         Self::Card(card)
-//     }
-// }
 
 // Auth Struct
 pub struct PowertranzAuthType {

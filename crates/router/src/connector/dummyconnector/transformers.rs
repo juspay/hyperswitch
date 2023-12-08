@@ -10,8 +10,6 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-type Error = error_stack::Report<errors::ConnectorError>;
-
 #[derive(Debug, Serialize, strum::Display, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -87,7 +85,7 @@ pub struct DummyConnectorCard {
 }
 
 impl TryFrom<api_models::payments::Card> for DummyConnectorCard {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: api_models::payments::Card) -> Result<Self, Self::Error> {
         Ok(Self {
             name: value
