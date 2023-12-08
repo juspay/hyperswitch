@@ -28,6 +28,8 @@ pub enum UserErrors {
     NameParsingError,
     #[error("PasswordParsingError")]
     PasswordParsingError,
+    #[error("UserAlreadyVerified")]
+    UserAlreadyVerified,
     #[error("CompanyNameParsingError")]
     CompanyNameParsingError,
     #[error("MerchantAccountCreationError: {0}")]
@@ -103,6 +105,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::PasswordParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 9, "Invalid Password", None))
+            }
+            Self::UserAlreadyVerified => {
+                AER::Unauthorized(ApiError::new(sub_code, 11, "User already verified", None))
             }
             Self::CompanyNameParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 14, "Invalid Company Name", None))

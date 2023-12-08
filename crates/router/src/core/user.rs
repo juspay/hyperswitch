@@ -14,7 +14,6 @@ use super::errors::{UserErrors, UserResponse};
 use crate::services::email::types as email_types;
 use crate::{
     consts,
-    db::user::UserInterface,
     routes::AppState,
     services::{authentication as auth, ApplicationResponse},
     types::domain,
@@ -228,11 +227,12 @@ pub async fn change_password(
     request: user_api::ChangePasswordRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<()> {
-    let user: domain::UserFromStorage =
-        UserInterface::find_user_by_id(&*state.store, &user_from_token.user_id)
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into();
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_from_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
 
     user.compare_password(request.old_password.to_owned())
         .change_context(UserErrors::InvalidOldPassword)?;
@@ -245,17 +245,18 @@ pub async fn change_password(
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
 
-    let _ = UserInterface::update_user_by_user_id(
-        &*state.store,
-        user.get_user_id(),
-        diesel_models::user::UserUpdate::AccountUpdate {
-            name: None,
-            password: Some(new_password_hash),
-            is_verified: None,
-        },
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?;
+    let _ = state
+        .store
+        .update_user_by_user_id(
+            user.get_user_id(),
+            diesel_models::user::UserUpdate::AccountUpdate {
+                name: None,
+                password: Some(new_password_hash),
+                is_verified: None,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -669,4 +670,44 @@ pub async fn verify_email(
     Ok(ApplicationResponse::Json(
         utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
     ))
+}
+
+#[cfg(feature = "email")]
+pub async fn send_verification_mail(
+    state: AppState,
+    req: user_api::SendVerifyEmailRequest,
+) -> UserResponse<()> {
+    let user_email = domain::UserEmail::try_from(req.email)?;
+    let user = state
+        .store
+        .find_user_by_email(user_email.clone().get_secret().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::UserNotFound)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?;
+
+    if user.is_verified {
+        return Err(UserErrors::UserAlreadyVerified.into());
+    }
+
+    let email_contents = email_types::VerifyEmail {
+        recipient_email: domain::UserEmail::from_pii_email(user.email)?,
+        settings: state.conf.clone(),
+        subject: "Welcome to the Hyperswitch community!",
+    };
+
+    state
+        .email_client
+        .compose_and_send_email(
+            Box::new(email_contents),
+            state.conf.proxy.https_url.as_ref(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }
