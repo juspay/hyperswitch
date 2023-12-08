@@ -322,6 +322,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::SurchargeDetailsResponse,
         api_models::payment_methods::SurchargeResponse,
         api_models::payment_methods::SurchargePercentage,
+        api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,

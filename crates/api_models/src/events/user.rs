@@ -9,7 +9,7 @@ use crate::user::{
     AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
     DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse, InviteUserRequest,
     InviteUserResponse, ResetPasswordRequest, SendVerifyEmailRequest, SignUpRequest,
-    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UserMerchantCreate,
+    SignUpWithMerchantIdRequest, SwitchMerchantIdRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -39,6 +39,7 @@ common_utils::impl_misc_api_event_type!(
     ResetPasswordRequest,
     InviteUserRequest,
     InviteUserResponse,
+    VerifyEmailRequest,
     SendVerifyEmailRequest
 );
 

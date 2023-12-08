@@ -9312,7 +9312,7 @@
           "payment_method_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
+              "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
             "description": "Subtype of payment method",
             "example": [
@@ -11581,6 +11581,76 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
+          }
+        }
+      },
+      "RequestPaymentMethodTypes": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_experience": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "nullable": true
+          },
+          "accepted_currencies": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCurrencies"
+              }
+            ],
+            "nullable": true
+          },
+          "accepted_countries": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCountries"
+              }
+            ],
+            "nullable": true
+          },
+          "minimum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
+            "example": 1,
+            "nullable": true
+          },
+          "maximum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
+            "example": 1313,
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable recurring payments / mandates. Default is true.",
+            "default": true,
+            "example": false
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
+            "default": true,
+            "example": false
           }
         }
       },

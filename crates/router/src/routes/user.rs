@@ -115,7 +115,7 @@ pub async fn change_password(
     .await
 }
 
-pub async fn set_merchant_scoped_dashboard_metadata(
+pub async fn set_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<user_api::dashboard_metadata::SetMetaDataRequest>,
@@ -347,6 +347,25 @@ pub async fn invite_user(
         payload.into_inner(),
         |state, user, payload| user_core::invite_user(state, payload, user),
         &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::VerifyEmail;
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req_payload| user_core::verify_email(state, req_payload),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
