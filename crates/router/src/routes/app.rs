@@ -897,6 +897,10 @@ impl User {
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
+                )
+                .service(
+                    web::resource("/verify_email_request")
+                        .route(web::post().to(verify_email_request)),
                 );
         }
         #[cfg(not(feature = "email"))]

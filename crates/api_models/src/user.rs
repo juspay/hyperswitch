@@ -121,3 +121,8 @@ pub struct UserDetails {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: time::PrimitiveDateTime,
 }
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct SendVerifyEmailRequest {
+    pub email: pii::Email,
+}
