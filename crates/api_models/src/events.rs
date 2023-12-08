@@ -1,3 +1,4 @@
+pub mod connector_onboarding;
 pub mod customer;
 pub mod gsm;
 mod locker_migration;

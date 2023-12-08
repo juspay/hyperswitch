@@ -1,12 +1,24 @@
-use diesel::{associations::HasTable, ExpressionMethods};
-use error_stack::report;
-use router_env::tracing::{self, instrument};
+use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel::{
+    associations::HasTable, debug_query, result::Error as DieselError, ExpressionMethods,
+    JoinOnDsl, QueryDsl,
+};
+use error_stack::{report, IntoReport};
+use router_env::{
+    logger,
+    tracing::{self, instrument},
+};
+pub mod sample_data;
 
 use crate::{
     errors::{self},
     query::generics,
-    schema::users::dsl,
+    schema::{
+        user_roles::{self, dsl as user_roles_dsl},
+        users::dsl as users_dsl,
+    },
     user::*,
+    user_role::UserRole,
     PgPooledConn, StorageResult,
 };
 
@@ -21,7 +33,7 @@ impl User {
     pub async fn find_by_user_email(conn: &PgPooledConn, user_email: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::email.eq(user_email.to_owned()),
+            users_dsl::email.eq(user_email.to_owned()),
         )
         .await
     }
@@ -29,7 +41,7 @@ impl User {
     pub async fn find_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::user_id.eq(user_id.to_owned()),
+            users_dsl::user_id.eq(user_id.to_owned()),
         )
         .await
     }
@@ -41,7 +53,7 @@ impl User {
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::user_id.eq(user_id.to_owned()),
+            users_dsl::user_id.eq(user_id.to_owned()),
             UserUpdateInternal::from(user),
         )
         .await?
@@ -55,8 +67,28 @@ impl User {
     pub async fn delete_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::user_id.eq(user_id.to_owned()),
+            users_dsl::user_id.eq(user_id.to_owned()),
         )
         .await
+    }
+
+    pub async fn find_joined_users_and_roles_by_merchant_id(
+        conn: &PgPooledConn,
+        mid: &str,
+    ) -> StorageResult<Vec<(Self, UserRole)>> {
+        let query = Self::table()
+            .inner_join(user_roles::table.on(user_roles_dsl::user_id.eq(users_dsl::user_id)))
+            .filter(user_roles_dsl::merchant_id.eq(mid.to_owned()));
+
+        logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        query
+            .get_results_async::<(Self, UserRole)>(conn)
+            .await
+            .into_report()
+            .map_err(|err| match err.current_context() {
+                DieselError::NotFound => err.change_context(errors::DatabaseError::NotFound),
+                _ => err.change_context(errors::DatabaseError::Others),
+            })
     }
 }

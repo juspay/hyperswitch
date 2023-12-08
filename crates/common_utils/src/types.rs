@@ -2,7 +2,10 @@
 use error_stack::{IntoReport, ResultExt};
 use serde::{de::Visitor, Deserialize, Deserializer};
 
-use crate::errors::{CustomResult, PercentageError};
+use crate::{
+    consts,
+    errors::{CustomResult, PercentageError},
+};
 
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
@@ -135,4 +138,14 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
     {
         data.deserialize_map(PercentageVisitor::<PRECISION> {})
     }
+}
+
+/// represents surcharge type and value
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum Surcharge {
+    /// Fixed Surcharge value
+    Fixed(i64),
+    /// Surcharge percentage
+    Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
 }
