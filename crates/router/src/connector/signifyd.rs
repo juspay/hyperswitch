@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+#[cfg(feature = "frm")]
 use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
