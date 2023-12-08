@@ -2296,8 +2296,9 @@ fn filter_payment_amount_based(
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
     let amount = payment_intent.amount;
-    pm.maximum_amount.map_or(true, |amt| amount < amt.into())
-        && pm.minimum_amount.map_or(true, |amt| amount > amt.into())
+    (pm.maximum_amount.map_or(true, |amt| amount < amt.into())
+        && pm.minimum_amount.map_or(true, |amt| amount > amt.into()))
+        || payment_intent.amount == 0
 }
 
 async fn filter_payment_mandate_based(
