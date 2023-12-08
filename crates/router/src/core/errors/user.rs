@@ -18,6 +18,8 @@ pub enum UserErrors {
     UserExists,
     #[error("LinkInvalid")]
     LinkInvalid,
+    #[error("UnverifiedUser")]
+    UnverifiedUser,
     #[error("InvalidOldPassword")]
     InvalidOldPassword,
     #[error("EmailParsingError")]
@@ -81,6 +83,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::LinkInvalid => {
                 AER::Unauthorized(ApiError::new(sub_code, 4, "Invalid or expired link", None))
             }
+            Self::UnverifiedUser => AER::Unauthorized(ApiError::new(
+                sub_code,
+                5,
+                "Kindly verify your account",
+                None,
+            )),
             Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
                 sub_code,
                 6,
