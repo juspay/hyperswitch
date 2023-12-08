@@ -66,7 +66,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "update",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+        let intent_fulfillment_time = helpers::get_fullfillment_time(
             payment_intent.payment_link_id.clone(),
             merchant_account.intent_fulfillment_time,
             db,

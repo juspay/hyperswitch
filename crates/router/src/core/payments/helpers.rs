@@ -2397,7 +2397,7 @@ pub fn authenticate_client_secret(
     }
 }
 
-pub async fn get_merchant_fullfillment_time(
+pub async fn get_fullfillment_time(
     payment_link_id: Option<String>,
     intent_fulfillment_time: Option<i64>,
     db: &dyn StorageInterface,
@@ -2487,7 +2487,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let intent_fulfillment_time = get_merchant_fullfillment_time(
+            let intent_fulfillment_time = get_fullfillment_time(
                 payment_intent.payment_link_id.clone(),
                 merchant_account.intent_fulfillment_time,
                 db,

@@ -831,7 +831,7 @@ pub fn payments_create_request_validation(
 #[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
-    payment_link_config: api_models::admin::PaymentCreatePaymentLinkConfig,
+    payment_link_config: api_models::admin::FixedPaymentLinkConfig,
     merchant_id: String,
     payment_id: String,
     db: &dyn StorageInterface,
@@ -849,15 +849,11 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let max_age = common_utils::date_time::now().saturating_add(time::Duration::seconds(
-        payment_link_config
-            .config
-            .max_age
-            .unwrap_or(common_utils::consts::DEFAULT_PAYMENT_LINK_EXPIRY),
-    ));
+    let max_age = common_utils::date_time::now()
+        .saturating_add(time::Duration::seconds(payment_link_config.max_age));
 
     let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
-        api_models::admin::PaymentCreatePaymentLinkConfig,
+        api_models::admin::FixedPaymentLinkConfig,
     >::encode_to_value(&payment_link_config)
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "payment_link_config",

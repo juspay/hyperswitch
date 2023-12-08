@@ -1021,9 +1021,6 @@ pub struct BusinessProfileCreate {
 
     /// Default Payment Link config for all payment links
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
-
-    /// merchant own domain name as display to customer which routes to hyperswitch
-    pub merchant_custom_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1157,16 +1154,16 @@ pub struct BusinessProfileUpdate {
 pub struct BusinessPaymentLinkConfig {
     pub domain_name: Option<String>,
     #[serde(flatten)]
-    pub config: PaymentLinkConfig,
+    pub config: CustomizablePaymentLinkConfig,
 }
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
-    pub config: PaymentLinkConfig,
+    pub config: CustomizablePaymentLinkConfig,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentLinkConfig {
+pub struct CustomizablePaymentLinkConfig {
     /// Custom Payment link expiry
     pub max_age: Option<i64>,
     /// custom theme for the payment link
@@ -1175,4 +1172,16 @@ pub struct PaymentLinkConfig {
     pub logo: Option<String>,
     /// Custom merchant name for payment link
     pub seller_name: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct FixedPaymentLinkConfig {
+    /// Custom Payment link expiry
+    pub max_age: i64,
+    /// custom theme for the payment link
+    pub theme: String,
+    /// merchant display logo
+    pub logo: String,
+    /// Custom merchant name for payment link
+    pub seller_name: String,
 }

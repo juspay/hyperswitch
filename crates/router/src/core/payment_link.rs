@@ -283,7 +283,7 @@ pub fn get_payment_link_config_based_on_priority(
     merchant_name: String,
     default_domain_name: String,
 ) -> Result<
-    (admin_types::PaymentCreatePaymentLinkConfig, String),
+    (admin_types::FixedPaymentLinkConfig, String),
     error_stack::Report<errors::ApiErrorResponse>,
 > {
     match (payment_create_link_config, business_link_config) {
@@ -321,13 +321,11 @@ pub fn get_payment_link_config_based_on_priority(
             );
 
             Ok((
-                admin_types::PaymentCreatePaymentLinkConfig {
-                    config: admin_types::PaymentLinkConfig {
-                        max_age: Some(max_age),
-                        theme: Some(theme),
-                        logo: Some(logo),
-                        seller_name: Some(seller_name),
-                    },
+                admin_types::FixedPaymentLinkConfig {
+                    max_age,
+                    theme,
+                    logo,
+                    seller_name,
                 },
                 domain_name,
             ))
@@ -348,13 +346,11 @@ pub fn get_payment_link_config_based_on_priority(
                 .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
 
             Ok((
-                admin_types::PaymentCreatePaymentLinkConfig {
-                    config: admin_types::PaymentLinkConfig {
-                        max_age: Some(max_age),
-                        theme: Some(theme),
-                        logo: Some(logo),
-                        seller_name: Some(seller_name),
-                    },
+                admin_types::FixedPaymentLinkConfig {
+                    max_age,
+                    theme,
+                    logo,
+                    seller_name,
                 },
                 default_domain_name,
             ))
@@ -382,25 +378,21 @@ pub fn get_payment_link_config_based_on_priority(
                 .max_age
                 .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
             Ok((
-                admin_types::PaymentCreatePaymentLinkConfig {
-                    config: admin_types::PaymentLinkConfig {
-                        max_age: Some(max_age),
-                        theme: Some(theme),
-                        logo: Some(logo),
-                        seller_name: Some(seller_name),
-                    },
+                admin_types::FixedPaymentLinkConfig {
+                    max_age,
+                    theme,
+                    logo,
+                    seller_name,
                 },
                 domain_name,
             ))
         }
         (None, None) => {
-            let default_payment_config = admin_types::PaymentCreatePaymentLinkConfig {
-                config: admin_types::PaymentLinkConfig {
-                    max_age: Some(DEFAULT_PAYMENT_LINK_EXPIRY),
-                    theme: Some(DEFAULT_BACKGROUND_COLOR.to_string()),
-                    logo: Some(DEFAULT_MERCHANT_LOGO.to_string()),
-                    seller_name: Some(merchant_name),
-                },
+            let default_payment_config = admin_types::FixedPaymentLinkConfig {
+                max_age: DEFAULT_PAYMENT_LINK_EXPIRY,
+                theme: DEFAULT_BACKGROUND_COLOR.to_string(),
+                logo: DEFAULT_MERCHANT_LOGO.to_string(),
+                seller_name: merchant_name,
             };
             Ok((default_payment_config, default_domain_name))
         }
