@@ -722,13 +722,13 @@ fn handle_cards_response(
             reason: msg,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.instance_id.clone()),
         })
     } else {
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
+        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,
@@ -825,14 +825,24 @@ fn handle_bank_redirects_sync_response(
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(
+                response
+                    .payment_information
+                    .references
+                    .payment_request_id
+                    .clone(),
+            ),
         })
     } else {
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(
-            response.payment_information.references.payment_request_id,
+            response
+                .payment_information
+                .references
+                .payment_request_id
+                .clone(),
         ),
         redirection_data: None,
         mandate_reference: None,
@@ -1637,16 +1647,13 @@ pub struct Errors {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TrustpayErrorResponse {
     pub status: i64,
     pub description: Option<String>,
     pub errors: Option<Vec<Errors>>,
-}
-
-#[derive(Deserialize)]
-pub struct TrustPayTransactionStatusErrorResponse {
-    pub status: i64,
-    pub payment_description: String,
+    pub instance_id: Option<String>,
+    pub payment_description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
