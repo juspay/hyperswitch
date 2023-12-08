@@ -51,10 +51,7 @@ pub fn check_currency(
         Ok(currency)
     } else {
         Err(errors::ConnectorError::NotSupported {
-            message: format!(
-                "currency {} is not supported for this merchant account",
-                currency
-            ),
+            message: format!("currency {currency} is not supported for this merchant account"),
             connector: "Helcim",
         })?
     }
