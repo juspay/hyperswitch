@@ -134,7 +134,7 @@ rand = "0.8.5"
 serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
-wiremock = "0.5"
+wiremock = "0.5.18"
 
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }
