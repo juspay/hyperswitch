@@ -29,9 +29,9 @@ fn main() -> anyhow::Result<()> {
         .flat_map(|(key, value)| process_toml_value(&args.prefix, key, value))
         .collect::<EnvironmentVariableMap>();
 
-    let writer: Box<BufWriter<dyn Write>> = match args.output_file {
+    let writer: BufWriter<Box<dyn Write>> = match args.output_file {
         // Write to file if output file is specified
-        Some(file) => Box::new(BufWriter::new(
+        Some(file) => BufWriter::new(Box::new(
             std::fs::OpenOptions::new()
                 .create(true)
                 .write(true)
@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
                 .context("Failed to open output file")?,
         )),
         // Write to stdout otherwise
-        None => Box::new(BufWriter::new(std::io::stdout().lock())),
+        None => BufWriter::new(Box::new(std::io::stdout().lock())),
     };
 
     // Write environment variables in specified format
