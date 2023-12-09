@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
-      - name: Check modified crates and run `cargo hack`
+      - name: Check modified crates
         shell: bash
         run: |
           # Obtain a list of workspace members
@@ -163,6 +163,14 @@ jobs:
           done <<< "${workspace_members}"
 
           printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
+          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
+
+      - name: Run `cargo hack` on modified crates
+        shell: bash
+        run: |
+          # Store packages to check in an array by splitting `PACKAGES_CHECKED` by space
+          IFS=' ' read -ra PACKAGES_CHECKED <<< "${PACKAGES_CHECKED}"
 
           for package in "${PACKAGES_CHECKED[@]}"; do
             printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
@@ -279,7 +287,7 @@ jobs:
             git push
           fi
 
-      - name: Check modified crates and run `cargo hack`
+      - name: Check modified crates
         shell: bash
         run: |
           # Obtain a list of workspace members
@@ -312,6 +320,14 @@ jobs:
           done <<< "${workspace_members}"
 
           printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
+          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
+
+      - name: Run `cargo hack` on modified crates
+        shell: bash
+        run: |
+          # Store packages to check in an array by splitting `PACKAGES_CHECKED` by space
+          IFS=' ' read -ra PACKAGES_CHECKED <<< "${PACKAGES_CHECKED}"
 
           for package in "${PACKAGES_CHECKED[@]}"; do
             printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
