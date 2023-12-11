@@ -460,6 +460,7 @@ pub enum Currency {
     PYG,
     QAR,
     RON,
+    RSD,
     RUB,
     RWF,
     SAR,
@@ -641,6 +642,7 @@ impl Currency {
             Self::QAR => "634",
             Self::RON => "946",
             Self::CNY => "156",
+            Self::RSD => "941",
             Self::RUB => "643",
             Self::RWF => "646",
             Self::SAR => "682",
@@ -785,6 +787,7 @@ impl Currency {
             | Self::PLN
             | Self::QAR
             | Self::RON
+            | Self::RSD
             | Self::RUB
             | Self::SAR
             | Self::SCR
@@ -908,6 +911,7 @@ impl Currency {
             | Self::PYG
             | Self::QAR
             | Self::RON
+            | Self::RSD
             | Self::RUB
             | Self::RWF
             | Self::SAR
