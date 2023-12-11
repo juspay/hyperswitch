@@ -395,6 +395,7 @@ pub enum Currency {
     EUR,
     FJD,
     GBP,
+    GEL,
     GHS,
     GIP,
     GMD,
@@ -567,6 +568,7 @@ impl Currency {
             Self::EUR => "978",
             Self::FJD => "242",
             Self::GBP => "826",
+            Self::GEL => "981",
             Self::GHS => "936",
             Self::GIP => "292",
             Self::GMD => "270",
@@ -706,6 +708,7 @@ impl Currency {
             | Self::EUR
             | Self::FJD
             | Self::GBP
+            | Self::GEL
             | Self::GHS
             | Self::GIP
             | Self::GMD
@@ -818,6 +821,7 @@ impl Currency {
             | Self::EUR
             | Self::FJD
             | Self::GBP
+            | Self::GEL
             | Self::GHS
             | Self::GIP
             | Self::GMD
