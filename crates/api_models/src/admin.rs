@@ -43,7 +43,8 @@ pub struct MerchantAccountCreate {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    #[serde(skip)]
+    #[schema(deprecated)]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// The routing algorithm to be  used for routing payouts to desired connectors
@@ -135,7 +136,8 @@ pub struct MerchantAccountUpdate {
     pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    #[serde(skip)]
+    #[schema(deprecated)]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// The routing algorithm to be used for routing payouts to desired connectors
@@ -232,7 +234,8 @@ pub struct MerchantAccountResponse {
     pub webhook_details: Option<serde_json::Value>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
+    #[serde(skip)]
+    #[schema(deprecated)]
     pub routing_algorithm: Option<serde_json::Value>,
 
     /// The routing algorithm to be used for routing payouts to desired connectors

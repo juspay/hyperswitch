@@ -392,7 +392,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
