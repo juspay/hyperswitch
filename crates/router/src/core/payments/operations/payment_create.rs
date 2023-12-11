@@ -869,6 +869,7 @@ async fn create_payment_link(
         created_at,
         last_modified_at,
         max_age,
+        seller_name: Some(payment_link_config.seller_name),
         description,
         payment_link_config: payment_link_config_encoded_value,
         profile_id,
