@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
+use diesel_models::configs;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -44,6 +45,13 @@ pub fn create_merchant_publishable_key() -> String {
         "pk_{}_{}",
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
+    )
+}
+#[inline]
+pub fn create_merchant_fingerprint() -> String {
+    format!(
+        "{}",
+        utils::generate_id(consts::ID_LENGTH, "secret"),
     )
 }
 
@@ -150,6 +158,16 @@ pub async fn create_merchant_account(
                 })
         })
         .transpose()?;
+    let fingerprint = Some(create_merchant_fingerprint());
+    if let Some(fingerprint) = fingerprint {
+        db.insert_config(
+            configs::ConfigNew {
+                key: format!("secret_{}",req.merchant_id),
+                config: fingerprint,
+            }
+        ).await.change_context(
+                errors::ApiErrorResponse::InternalServerError).attach_printable("Mot able to generate Merchant fingerprint")?;
+    };
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)

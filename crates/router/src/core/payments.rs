@@ -593,6 +593,10 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }
 
+fn is_pay_confirm<Op: Debug>(operation: &Op) -> bool {
+    format!("{operation:?}").eq("PaymentConfirm")
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentsRedirectResponseData {
     pub connector: Option<String>,
@@ -1862,6 +1866,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
+    // pub pm_fingerprint: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
