@@ -9,11 +9,12 @@ license.workspace = true
 
 [dependencies]
 error-stack = "0.3.1"
-fred = { version = "6.3.0", features = ["metrics", "partial-tracing", "subscriber-client"] }
+fred = { version = "7.0.0", features = ["metrics", "partial-tracing", "subscriber-client"] }
 futures = "0.3"
 serde = { version = "1.0.193", features = ["derive"] }
 thiserror = "1.0.40"
 tokio = "1.28.2"
+tokio-stream = {version = "0.1.14", features = ["sync"]}
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }

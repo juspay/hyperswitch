@@ -890,6 +890,7 @@ mod merchant_connector_account_cache_tests {
                 "{}_{}",
                 merchant_id, connector_label
             ),)
+            .await
             .is_none())
     }
 }
