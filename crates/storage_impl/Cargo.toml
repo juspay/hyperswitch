@@ -38,7 +38,7 @@ error-stack = "0.3.1"
 futures = "0.3.28"
 http = "0.2.9"
 mime = "0.3.17"
-moka = { version = "0.11.3", features = ["future"] }
+moka = { version = "0.12", features = ["future"] }
 once_cell = "1.18.0"
 ring = "0.16.20"
 serde = { version = "1.0.193", features = ["derive"] }
