@@ -780,13 +780,6 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     let outgoing_webhooks_signature = transformed_outgoing_webhook
         .get_outgoing_webhooks_signature(business_profile.payment_response_hash_key.clone())?;
 
-    // let transformed_outgoing_webhook_string = router_types::RequestBody::log_and_get_request_body(
-    //     &transformed_outgoing_webhook,
-    //     Encode::<serde_json::Value>::encode_to_string_of_json,
-    // )
-    // .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-    // .attach_printable("There was an issue when encoding the outgoing webhook body")?;
-
     let mut header = vec![(
         reqwest::header::CONTENT_TYPE.to_string(),
         "application/json".into(),
