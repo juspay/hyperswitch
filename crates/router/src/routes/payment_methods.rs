@@ -108,7 +108,6 @@ pub async fn list_payment_method_api(
     get,
     path = "/customers/{customer_id}/payment_methods",
     params (
-        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
         ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
         ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
@@ -162,7 +161,6 @@ pub async fn list_customer_payment_method_api(
     path = "/customers/payment_methods",
     params (
         ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
-        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
         ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
         ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
