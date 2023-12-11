@@ -363,6 +363,7 @@ pub enum Currency {
     ALL,
     AMD,
     ANG,
+    AOA,
     ARS,
     AUD,
     AWG,
@@ -537,6 +538,7 @@ impl Currency {
             Self::ALL => "008",
             Self::AMD => "051",
             Self::ANG => "532",
+            Self::AOA => "973",
             Self::ARS => "032",
             Self::AUD => "036",
             Self::AWG => "533",
@@ -679,6 +681,7 @@ impl Currency {
             | Self::ALL
             | Self::AMD
             | Self::ANG
+            | Self::AOA
             | Self::ARS
             | Self::AUD
             | Self::AWG
@@ -789,6 +792,7 @@ impl Currency {
             Self::AED
             | Self::ALL
             | Self::AMD
+            | Self::AOA
             | Self::ANG
             | Self::ARS
             | Self::AUD
