@@ -134,10 +134,6 @@ pub async fn list_customer_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
     let customer_id = customer_id.into_inner().0;
     Box::pin(api::server_wrap(
         flow,
@@ -153,7 +149,7 @@ pub async fn list_customer_payment_method_api(
                 Some(&customer_id),
             )
         },
-        &*auth,
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
