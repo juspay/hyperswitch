@@ -386,14 +386,14 @@ where
 
                     let connector_event = ConnectorEvent::new(
                         req.connector.clone(),
-                        std::any::type_name::<T>().to_string(),
+                        std::any::type_name::<T>(),
                         masked_request_body,
                         None,
                         request_url,
                         request_method,
                         req.payment_id.clone(),
                         req.merchant_id.clone(),
-                        &state.request_id,
+                        state.request_id.as_ref(),
                         external_latency,
                     );
 

@@ -24,19 +24,23 @@ impl ConnectorEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         connector_name: String,
-        flow: String,
+        flow: &str,
         request: serde_json::Value,
         response: Option<String>,
         url: String,
         method: Method,
         payment_id: String,
         merchant_id: String,
-        request_id: &Option<RequestId>,
+        request_id: Option<&RequestId>,
         latency: u128,
     ) -> Self {
         Self {
             connector_name,
-            flow,
+            flow: flow
+                .rsplit_once("::")
+                .map(|(_, s)| s)
+                .unwrap_or(flow)
+                .to_string(),
             request: request.to_string(),
             response,
             url,

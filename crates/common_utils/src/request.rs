@@ -195,9 +195,11 @@ impl RequestBody {
 
     pub fn get_inner_value(request_body: RequestContent) -> Secret<String> {
         match request_body {
-            RequestContent::Json(i)
-            | RequestContent::FormUrlEncoded(i)
-            | RequestContent::Xml(i) => serde_json::to_string(&i).unwrap_or_default().into(),
+            RequestContent::Json(i) => serde_json::to_string(&i).unwrap_or_default().into(),
+            RequestContent::FormUrlEncoded(i) => {
+                serde_urlencoded::to_string(&i).unwrap_or_default().into()
+            }
+            RequestContent::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
             RequestContent::FormData(_) => String::new().into(),
         }
     }
