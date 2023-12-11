@@ -413,8 +413,11 @@ impl ResponsePaymentMethodIntermediate {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
+    #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentExperience>)]
     pub payment_experience: Option<api_enums::PaymentExperience>,
+    #[schema(value_type = Option<Vec<CardNetwork>>)]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
@@ -422,7 +425,7 @@ pub struct RequestPaymentMethodTypes {
             "type": "specific_accepted",
             "list": ["USD", "INR"]
         }
-    ))]
+    ), value_type = Option<AcceptedCurrencies>)]
     pub accepted_currencies: Option<admin::AcceptedCurrencies>,
 
     ///  List of Countries accepted or has the processing capabilities of the processor
@@ -431,7 +434,7 @@ pub struct RequestPaymentMethodTypes {
             "type": "specific_accepted",
             "list": ["UK", "AU"]
         }
-    ))]
+    ), value_type = Option<AcceptedCountries>)]
     pub accepted_countries: Option<admin::AcceptedCountries>,
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)

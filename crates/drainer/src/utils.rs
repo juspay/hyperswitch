@@ -128,6 +128,25 @@ pub fn parse_stream_entries<'a>(
         .into_report()
 }
 
+pub fn push_drainer_delay(pushed_at: Option<&String>, operation: String) {
+    if let Some(pushed_at) = pushed_at {
+        if let Ok(time) = pushed_at.parse::<i64>() {
+            let drained_at = common_utils::date_time::now_unix_timestamp();
+            let delay = drained_at - time;
+
+            logger::debug!(operation = operation, delay = delay);
+            metrics::DRAINER_DELAY_SECONDS.record(
+                &metrics::CONTEXT,
+                delay,
+                &[metrics::KeyValue {
+                    key: "operation".into(),
+                    value: operation.into(),
+                }],
+            );
+        }
+    }
+}
+
 // Here the output is in the format (stream_index, jobs_picked),
 // similar to the first argument of the function
 pub async fn increment_stream_index(

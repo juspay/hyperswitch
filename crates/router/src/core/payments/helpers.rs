@@ -946,6 +946,42 @@ pub fn verify_mandate_details(
     )
 }
 
+// This function validates card_holder_name field to be either null or a non-empty string
+pub fn validate_card_holder_name(
+    payment_method_data: Option<api::PaymentMethodData>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(pmd) = payment_method_data {
+        match pmd {
+            // This validation would occur during payments create
+            api::PaymentMethodData::Card(card) => {
+                if let Some(name) = &card.card_holder_name {
+                    if name.clone().expose().is_empty() {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "card_holder_name cannot be empty".to_string(),
+                        })
+                        .into_report();
+                    }
+                }
+            }
+
+            // This validation would occur during payments confirm
+            api::PaymentMethodData::CardToken(card) => {
+                if let Some(name) = card.card_holder_name {
+                    if name.expose().is_empty() {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "card_holder_name cannot be empty".to_string(),
+                        })
+                        .into_report();
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -1033,7 +1069,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: Some(card.card_holder_name.clone()),
+                        card_holder_name: card.card_holder_name.clone(),
                         nick_name: card.nick_name.clone(),
                     };
                     let customer_id = customer.customer_id.clone();
@@ -1404,21 +1440,25 @@ pub async fn retrieve_payment_method_with_temporary_token(
             let mut updated_card = card.clone();
             let mut is_card_updated = false;
 
-            let name_on_card = if card.card_holder_name.clone().expose().is_empty() {
-                card_token_data
-                    .and_then(|token_data| token_data.card_holder_name.clone())
-                    .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
-                    .map(|name_on_card| {
+            // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+            // from payment_method.card_token object
+            let name_on_card = if let Some(name) = card.card_holder_name.clone() {
+                if name.expose().is_empty() {
+                    card_token_data.and_then(|token_data| {
                         is_card_updated = true;
-                        name_on_card
+                        token_data.card_holder_name.clone()
                     })
+                } else {
+                    card.card_holder_name.clone()
+                }
             } else {
-                Some(card.card_holder_name.clone())
+                card_token_data.and_then(|token_data| {
+                    is_card_updated = true;
+                    token_data.card_holder_name.clone()
+                })
             };
 
-            if let Some(name_on_card) = name_on_card {
-                updated_card.card_holder_name = name_on_card;
-            }
+            updated_card.card_holder_name = name_on_card;
 
             if let Some(token_data) = card_token_data {
                 if let Some(cvc) = token_data.card_cvc.clone() {
@@ -1487,23 +1527,21 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to fetch card information from the permanent locker")?;
 
-    let name_on_card = if let Some(name_on_card) = card.name_on_card.clone() {
-        if card.name_on_card.unwrap_or_default().expose().is_empty() {
-            card_token_data
-                .and_then(|token_data| token_data.card_holder_name.clone())
-                .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+    // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+    // from payment_method.card_token object
+    let name_on_card = if let Some(name) = card.name_on_card.clone() {
+        if name.expose().is_empty() {
+            card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
         } else {
-            Some(name_on_card)
+            card.name_on_card
         }
     } else {
-        card_token_data
-            .and_then(|token_data| token_data.card_holder_name.clone())
-            .filter(|name_on_card| !name_on_card.clone().expose().is_empty())
+        card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
     };
 
     let api_card = api::Card {
         card_number: card.card_number,
-        card_holder_name: name_on_card.unwrap_or(masking::Secret::from("".to_string())),
+        card_holder_name: name_on_card,
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_token_data
@@ -3324,7 +3362,7 @@ pub async fn get_additional_payment_data(
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: Some(card_data.card_holder_name.clone()),
+                        card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                     },
@@ -3352,7 +3390,7 @@ pub async fn get_additional_payment_data(
                                 card_isin: card_isin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: Some(card_data.card_holder_name.clone()),
+                                card_holder_name: card_data.card_holder_name.clone(),
                             },
                         ))
                     });
@@ -3367,7 +3405,7 @@ pub async fn get_additional_payment_data(
                         card_isin,
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: Some(card_data.card_holder_name.clone()),
+                        card_holder_name: card_data.card_holder_name.clone(),
                     },
                 )))
             }

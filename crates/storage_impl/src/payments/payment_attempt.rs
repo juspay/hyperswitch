@@ -29,6 +29,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
@@ -423,7 +424,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(errors::StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
