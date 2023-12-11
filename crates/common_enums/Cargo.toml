@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 dummy_connector = []
+openapi = []
 
 [dependencies]
 diesel = { version = "2.1.0", features = ["postgres"] }
