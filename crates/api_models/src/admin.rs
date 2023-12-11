@@ -1154,16 +1154,16 @@ pub struct BusinessProfileUpdate {
 pub struct BusinessPaymentLinkConfig {
     pub domain_name: Option<String>,
     #[serde(flatten)]
-    pub config: CustomizablePaymentLinkConfig,
+    pub config: PaymentLinkConfigRequest,
 }
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
-    pub config: CustomizablePaymentLinkConfig,
+    pub config: PaymentLinkConfigRequest,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct CustomizablePaymentLinkConfig {
+pub struct PaymentLinkConfigRequest {
     /// Custom Payment link expiry
     pub max_age: Option<i64>,
     /// custom theme for the payment link
@@ -1175,7 +1175,7 @@ pub struct CustomizablePaymentLinkConfig {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct FixedPaymentLinkConfig {
+pub struct PaymentLinkConfig {
     /// Custom Payment link expiry
     pub max_age: i64,
     /// custom theme for the payment link

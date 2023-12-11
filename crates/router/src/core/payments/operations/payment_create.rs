@@ -74,9 +74,34 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             merchant_account,
         )?;
 
+        // If profile id is not passed, get it from the business_country and business_label
+        let profile_id = core_utils::get_profile_id_from_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+            request.profile_id.as_ref(),
+            &*state.store,
+            true,
+        )
+        .await?;
+
         // Validate whether profile_id passed in request is valid and is linked to the merchant
-        core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
-            .await?;
+        let business_profile = if let Some(business_profile) =
+            core_utils::validate_and_get_business_profile(
+                db,
+                request.profile_id.as_ref(),
+                merchant_id,
+            )
+            .await?
+        {
+            business_profile
+        } else {
+            db.find_business_profile_by_profile_id(&profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    id: profile_id.to_string(),
+                })?
+        };
 
         let (
             token,
@@ -139,24 +164,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         } else {
             utils::get_payment_attempt_id(payment_id.clone(), 1)
         };
-
-        // If profile id is not passed, get it from the business_country and business_label
-        let profile_id = core_utils::get_profile_id_from_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-            request.profile_id.as_ref(),
-            &*state.store,
-            true,
-        )
-        .await?;
-
-        let business_profile = db
-            .find_business_profile_by_profile_id(&profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
-            })?;
 
         let payment_link_data = if let Some(payment_link_create) = request.payment_link {
             if payment_link_create {
@@ -831,7 +838,7 @@ pub fn payments_create_request_validation(
 #[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
-    payment_link_config: api_models::admin::FixedPaymentLinkConfig,
+    payment_link_config: api_models::admin::PaymentLinkConfig,
     merchant_id: String,
     payment_id: String,
     db: &dyn StorageInterface,
@@ -853,7 +860,7 @@ async fn create_payment_link(
         .saturating_add(time::Duration::seconds(payment_link_config.max_age));
 
     let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
-        api_models::admin::FixedPaymentLinkConfig,
+        api_models::admin::PaymentLinkConfig,
     >::encode_to_value(&payment_link_config)
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "payment_link_config",

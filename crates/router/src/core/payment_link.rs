@@ -282,10 +282,8 @@ pub fn get_payment_link_config_based_on_priority(
     business_link_config: Option<serde_json::Value>,
     merchant_name: String,
     default_domain_name: String,
-) -> Result<
-    (admin_types::FixedPaymentLinkConfig, String),
-    error_stack::Report<errors::ApiErrorResponse>,
-> {
+) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
+{
     match (payment_create_link_config, business_link_config) {
         (Some(payment_create), Some(business)) => {
             let business_link_config = extract_business_payment_link_config(business)?;
@@ -321,7 +319,7 @@ pub fn get_payment_link_config_based_on_priority(
             );
 
             Ok((
-                admin_types::FixedPaymentLinkConfig {
+                admin_types::PaymentLinkConfig {
                     max_age,
                     theme,
                     logo,
@@ -346,7 +344,7 @@ pub fn get_payment_link_config_based_on_priority(
                 .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
 
             Ok((
-                admin_types::FixedPaymentLinkConfig {
+                admin_types::PaymentLinkConfig {
                     max_age,
                     theme,
                     logo,
@@ -378,7 +376,7 @@ pub fn get_payment_link_config_based_on_priority(
                 .max_age
                 .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
             Ok((
-                admin_types::FixedPaymentLinkConfig {
+                admin_types::PaymentLinkConfig {
                     max_age,
                     theme,
                     logo,
@@ -388,7 +386,7 @@ pub fn get_payment_link_config_based_on_priority(
             ))
         }
         (None, None) => {
-            let default_payment_config = admin_types::FixedPaymentLinkConfig {
+            let default_payment_config = admin_types::PaymentLinkConfig {
                 max_age: DEFAULT_PAYMENT_LINK_EXPIRY,
                 theme: DEFAULT_BACKGROUND_COLOR.to_string(),
                 logo: DEFAULT_MERCHANT_LOGO.to_string(),
