@@ -19,6 +19,7 @@ use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, Intermed
 /// Client for AWS SES operation
 #[derive(Debug, Clone)]
 pub struct AwsSes {
+    #[allow(unused)]
     ses_client: OnceCell<Client>,
     sender: String,
     settings: EmailSettings,
