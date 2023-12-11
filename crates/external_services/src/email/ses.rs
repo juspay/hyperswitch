@@ -19,8 +19,6 @@ use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, Intermed
 /// Client for AWS SES operation
 #[derive(Debug, Clone)]
 pub struct AwsSes {
-    #[allow(unused)]
-    ses_client: OnceCell<Client>,
     sender: String,
     settings: EmailSettings,
 }
@@ -71,13 +69,13 @@ pub enum AwsSesError {
 impl AwsSes {
     /// Constructs a new AwsSes client
     pub async fn create(conf: &EmailSettings, proxy_url: Option<impl AsRef<str>>) -> Self {
+        // Build the client initially which will help us know if the email configuration is correct
+        Self::create_client(conf, proxy_url)
+            .await
+            .map_err(|error| logger::error!(?error, "Failed to initialize SES Client"))
+            .ok();
+
         Self {
-            ses_client: OnceCell::new_with(
-                Self::create_client(conf, proxy_url)
-                    .await
-                    .map_err(|error| logger::error!(?error, "Failed to initialize SES Client"))
-                    .ok(),
-            ),
             sender: conf.sender_email.clone(),
             settings: conf.clone(),
         }
