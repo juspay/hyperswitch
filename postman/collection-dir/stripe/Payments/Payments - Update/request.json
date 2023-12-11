@@ -78,8 +78,13 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id",
-    "host": ["{{baseUrl}}"],
-    "path": ["payments", ":id"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id"
+    ],
     "variable": [
       {
         "key": "id",

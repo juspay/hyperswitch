@@ -211,12 +211,10 @@
               "maximum_amount": 68607706,
               "recurring_enabled": true,
               "installment_payment_enabled": true,
-              "card_networks": ["AmericanExpress",
-              "Discover",
-              "Interac",
-              "JCB",
-              "Mastercard",
-              "Visa", "DinersClub","UnionPay","RuPay"]
+              "card_networks": [
+                "Visa",
+                "Mastercard"
+              ]
             }
           ]
         },
@@ -229,12 +227,10 @@
               "maximum_amount": 68607706,
               "recurring_enabled": true,
               "installment_payment_enabled": true,
-              "card_networks": ["AmericanExpress",
-              "Discover",
-              "Interac",
-              "JCB",
-              "Mastercard",
-              "Visa", "DinersClub","UnionPay","RuPay"]
+              "card_networks": [
+                "Visa",
+                "Mastercard"
+              ]
             }
           ]
         },
@@ -279,7 +275,10 @@
             {
               "type": "CARD",
               "parameters": {
-                "allowed_auth_methods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+                "allowed_auth_methods": [
+                  "PAN_ONLY",
+                  "CRYPTOGRAM_3DS"
+                ],
                 "allowed_card_networks": [
                   "AMEX",
                   "DISCOVER",
@@ -313,8 +312,15 @@
           },
           "payment_request_data": {
             "label": "applepay pvt.ltd",
-            "supported_networks": ["visa", "masterCard", "amex", "discover"],
-            "merchant_capabilities": ["supports3DS"]
+            "supported_networks": [
+              "visa",
+              "masterCard",
+              "amex",
+              "discover"
+            ],
+            "merchant_capabilities": [
+              "supports3DS"
+            ]
           }
         }
       }
@@ -322,8 +328,14 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": ["{{baseUrl}}"],
-    "path": ["account", ":account_id", "connectors"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "connectors"
+    ],
     "variable": [
       {
         "key": "account_id",
