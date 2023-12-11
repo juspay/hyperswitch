@@ -8609,6 +8609,7 @@
         "type": "object",
         "required": [
           "id",
+          "profile_id",
           "name",
           "description",
           "algorithm",
@@ -8617,6 +8618,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -10307,7 +10311,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -10677,7 +10681,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -12763,17 +12767,13 @@
       "RoutableConnectorChoice": {
         "type": "object",
         "required": [
-          "choice_kind",
           "connector"
         ],
         "properties": {
-          "choice_kind": {
-            "$ref": "#/components/schemas/RoutableChoiceKind"
-          },
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
-          "sub_label": {
+          "merchant_connector_id": {
             "type": "string",
             "nullable": true
           }
@@ -12985,6 +12985,7 @@
         "type": "object",
         "required": [
           "id",
+          "profile_id",
           "name",
           "kind",
           "description",
@@ -12993,6 +12994,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {

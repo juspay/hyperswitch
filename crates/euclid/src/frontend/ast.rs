@@ -163,6 +163,7 @@ pub struct Program<O> {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
+    #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     // pub connector: RoutableConnectors,
     #[cfg(feature = "connector_choice_mca_id")]
