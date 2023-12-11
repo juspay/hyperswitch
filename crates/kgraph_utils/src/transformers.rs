@@ -338,6 +338,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::COP => Ok(dirval!(PaymentCurrency = COP)),
             Self::CRC => Ok(dirval!(PaymentCurrency = CRC)),
             Self::CUP => Ok(dirval!(PaymentCurrency = CUP)),
+            Self::CVE => Ok(dirval!(PaymentCurrency = CVE)),
             Self::CZK => Ok(dirval!(PaymentCurrency = CZK)),
             Self::DJF => Ok(dirval!(PaymentCurrency = DJF)),
             Self::DKK => Ok(dirval!(PaymentCurrency = DKK)),

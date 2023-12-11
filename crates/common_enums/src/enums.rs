@@ -389,6 +389,7 @@ pub enum Currency {
     COP,
     CRC,
     CUP,
+    CVE,
     CZK,
     DJF,
     DKK,
@@ -567,6 +568,7 @@ impl Currency {
             Self::COP => "170",
             Self::CRC => "188",
             Self::CUP => "192",
+            Self::CVE => "132",
             Self::CZK => "203",
             Self::DJF => "262",
             Self::DKK => "208",
@@ -718,6 +720,7 @@ impl Currency {
             | Self::COP
             | Self::CRC
             | Self::CUP
+            | Self::CVE
             | Self::CZK
             | Self::DKK
             | Self::DOP
@@ -834,6 +837,7 @@ impl Currency {
             | Self::COP
             | Self::CRC
             | Self::CUP
+            | Self::CVE
             | Self::CZK
             | Self::DJF
             | Self::DKK

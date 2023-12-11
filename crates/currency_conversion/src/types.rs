@@ -107,6 +107,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::COP => iso::COP,
         Currency::CRC => iso::CRC,
         Currency::CUP => iso::CUP,
+        Currency::CVE => iso::CVE,
         Currency::CZK => iso::CZK,
         Currency::DJF => iso::DJF,
         Currency::DKK => iso::DKK,
