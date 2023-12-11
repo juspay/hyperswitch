@@ -152,6 +152,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::LKR => iso::LKR,
         Currency::LRD => iso::LRD,
         Currency::LSL => iso::LSL,
+        Currency::LYD => iso::LYD,
         Currency::MAD => iso::MAD,
         Currency::MDL => iso::MDL,
         Currency::MGA => iso::MGA,

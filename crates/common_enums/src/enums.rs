@@ -434,6 +434,7 @@ pub enum Currency {
     LKR,
     LRD,
     LSL,
+    LYD,
     MAD,
     MDL,
     MGA,
@@ -616,6 +617,7 @@ impl Currency {
             Self::LKR => "144",
             Self::LRD => "430",
             Self::LSL => "426",
+            Self::LYD => "434",
             Self::MAD => "504",
             Self::MDL => "498",
             Self::MGA => "969",
@@ -765,6 +767,7 @@ impl Currency {
             | Self::LKR
             | Self::LRD
             | Self::LSL
+            | Self::LYD
             | Self::MAD
             | Self::MDL
             | Self::MKD
@@ -816,7 +819,7 @@ impl Currency {
 
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
-            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::OMR => true,
+            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::LYD | Self::OMR => true,
             Self::AED
             | Self::ALL
             | Self::AMD
