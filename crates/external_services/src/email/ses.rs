@@ -222,13 +222,13 @@ impl EmailClient for AwsSes {
         body: Self::RichText,
         proxy_url: Option<&String>,
     ) -> EmailResult<()> {
-        self.ses_client
-            .get_or_try_init(|| async {
-                Self::create_client(&self.settings, proxy_url)
-                    .await
-                    .change_context(EmailError::ClientBuildingFailure)
-            })
-            .await?
+        // Not using the same email client which was created at startup as the role session would expire
+        // Create a client every time when the email is being sent
+        let email_client = Self::create_client(&self.settings, proxy_url)
+            .await
+            .change_context(EmailError::ClientBuildingFailure)?;
+
+        email_client
             .send_email()
             .from_email_address(self.sender.to_owned())
             .destination(
