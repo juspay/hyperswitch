@@ -12,7 +12,6 @@ use error_stack::{report, IntoReport, ResultExt};
 use hyper::Uri;
 use masking::PeekInterface;
 use router_env::logger;
-use tokio::sync::OnceCell;
 
 use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
