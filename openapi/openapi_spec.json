@@ -7643,11 +7643,6 @@
             ],
             "nullable": true
           },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
           "payout_routing_algorithm": {
             "allOf": [
               {
@@ -7828,14 +7823,6 @@
             ],
             "nullable": true
           },
-          "routing_algorithm": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
-              }
-            ],
-            "nullable": true
-          },
           "payout_routing_algorithm": {
             "allOf": [
               {
@@ -7957,11 +7944,6 @@
                 "$ref": "#/components/schemas/WebhookDetails"
               }
             ],
-            "nullable": true
-          },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
             "nullable": true
           },
           "payout_routing_algorithm": {
@@ -13333,6 +13315,73 @@
           "initiative_context": {
             "type": "string"
           }
+        }
+      },
+      "StraightThroughAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SurchargeDetailsResponse": {
