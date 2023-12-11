@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::{ext_traits::{AsyncExt, Encode}, crypto::{self, SignMessage}};
+use common_utils::{
+    crypto::{self, SignMessage},
+    ext_traits::{AsyncExt, Encode},
+};
 use error_stack::{report, IntoReport, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
@@ -478,7 +481,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             card_cvc: request.card_cvc.clone(),
             creds_identifier,
             pm_token: None,
-            connector_customer_id: None, 
+            connector_customer_id: None,
             recurring_mandate_payment_data,
             ephemeral_key: None,
             multiple_capture_data: None,
@@ -718,22 +721,31 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_error_message = error_message.clone();
         let m_db = state.clone().store;
         let merchant_id = payment_data.payment_attempt.merchant_id;
-        let merchant_secret = db.find_config_by_key(format!("secret_{}",merchant_id).as_str()).await
-        .change_context(errors::ApiErrorResponse::InternalServerError).
-        attach_printable("Merchant Secret not found")?.config;
-        
-        let fingerprint = payment_data.payment_method_data.as_ref().and_then(|pm_data| match pm_data {
-            api_models::payments::PaymentMethodData::Card(card) => {
-                crypto::HmacSha512::sign_message(
-                    &crypto::HmacSha512,
-                    merchant_secret.as_bytes(),
-                    &card.card_number.clone().get_card_no().as_bytes(),
-                ).change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("error in pm fingerprint creation").ok()
-            },
-                // can be used in future to generate the fingerprints of other payment_methods
-            _ => todo!(),
-        });
+        let merchant_secret = db
+            .find_config_by_key(format!("secret_{}", merchant_id).as_str())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant Secret not found")?
+            .config;
+
+        let fingerprint =
+            payment_data
+                .payment_method_data
+                .as_ref()
+                .and_then(|pm_data| match pm_data {
+                    api_models::payments::PaymentMethodData::Card(card) => {
+                        crypto::HmacSha512::sign_message(
+                            &crypto::HmacSha512,
+                            merchant_secret.as_bytes(),
+                            &card.card_number.clone().get_card_no().as_bytes(),
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("error in pm fingerprint creation")
+                        .ok()
+                    }
+                    // can be used in future to generate the fingerprints of other payment_methods
+                    _ => todo!(),
+                });
 
         let surcharge_amount = payment_data
             .surcharge_details

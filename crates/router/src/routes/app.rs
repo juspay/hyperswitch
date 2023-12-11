@@ -20,10 +20,10 @@ use super::currency;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::pm_blacklist;
 #[cfg(feature = "oltp")]
 use super::pm_auth;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::pm_blacklist;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]

@@ -50,10 +50,7 @@ pub fn create_merchant_publishable_key() -> String {
 }
 #[inline]
 pub fn create_merchant_fingerprint() -> String {
-    format!(
-        "{}",
-        utils::generate_id(consts::ID_LENGTH, "secret"),
-    )
+    format!("{}", utils::generate_id(consts::ID_LENGTH, "secret"),)
 }
 
 pub async fn create_merchant_account(
@@ -161,13 +158,13 @@ pub async fn create_merchant_account(
         .transpose()?;
     let fingerprint = Some(create_merchant_fingerprint());
     if let Some(fingerprint) = fingerprint {
-        db.insert_config(
-            configs::ConfigNew {
-                key: format!("secret_{}",req.merchant_id),
-                config: fingerprint,
-            }
-        ).await.change_context(
-                errors::ApiErrorResponse::InternalServerError).attach_printable("Mot able to generate Merchant fingerprint")?;
+        db.insert_config(configs::ConfigNew {
+            key: format!("secret_{}", req.merchant_id),
+            config: fingerprint,
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Mot able to generate Merchant fingerprint")?;
     };
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {

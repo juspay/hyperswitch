@@ -543,8 +543,8 @@ where
                 };
                 // Fingerprint for Blocking Payment Method in future
                 // if payments::is_pay_confirm(&operation) {
-                //     let card_no = payment_data.payment_method_data. 
-                // } 
+                //     let card_no = payment_data.payment_method_data.
+                // }
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
                 if third_party_sdk_session_next_action(&payment_attempt, operation) {
