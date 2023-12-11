@@ -448,6 +448,7 @@ pub enum Currency {
     MWK,
     MXN,
     MYR,
+    MZN,
     NAD,
     NGN,
     NIO,
@@ -632,6 +633,7 @@ impl Currency {
             Self::MWK => "454",
             Self::MXN => "484",
             Self::MYR => "458",
+            Self::MZN => "943",
             Self::NAD => "516",
             Self::NGN => "566",
             Self::NIO => "558",
@@ -782,6 +784,7 @@ impl Currency {
             | Self::MWK
             | Self::MXN
             | Self::MYR
+            | Self::MZN
             | Self::NAD
             | Self::NGN
             | Self::NIO
@@ -907,6 +910,7 @@ impl Currency {
             | Self::MWK
             | Self::MXN
             | Self::MYR
+            | Self::MZN
             | Self::NAD
             | Self::NGN
             | Self::NIO
