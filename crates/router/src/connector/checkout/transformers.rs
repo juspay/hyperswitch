@@ -523,6 +523,29 @@ impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::Atte
     }
 }
 
+impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<Balances>)) -> Self {
+        let (status, balances) = item;
+
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if let Some(Balances {
+                    available_to_capture: 0,
+                }) = balances
+                {
+                    Self::Charged
+                } else {
+                    Self::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Href {
     #[serde(rename = "href")]
@@ -570,9 +593,11 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             Some(enums::CaptureMethod::Automatic) => serde_json::json!(CheckoutMeta {
                 psync_flow: CheckoutPaymentIntent::Capture,
             }),
-            Some(enums::CaptureMethod::Manual) => serde_json::json!(CheckoutMeta {
-                psync_flow: CheckoutPaymentIntent::Authorize,
-            }),
+            Some(enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
+                serde_json::json!(CheckoutMeta {
+                    psync_flow: CheckoutPaymentIntent::Authorize,
+                })
+            }
             _ => serde_json::json!({}),
         };
 
@@ -996,7 +1021,7 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     }
 
     fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
-        enums::AttemptStatus::foreign_from((self.status.clone(), None))
+        enums::AttemptStatus::foreign_from((self.status.clone(), self.balances.clone()))
     }
 
     fn get_connector_reference_id(&self) -> Option<String> {
