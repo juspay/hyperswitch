@@ -727,6 +727,8 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         max_age -> Timestamp,
+        #[max_length = 64]
+        seller_name -> Nullable<Varchar>,
         payment_link_config -> Jsonb,
         #[max_length = 255]
         description -> Nullable<Varchar>,
