@@ -380,6 +380,7 @@ pub enum Currency {
     BRL,
     BSD,
     BWP,
+    BYN,
     BZD,
     CAD,
     CHF,
@@ -557,6 +558,7 @@ impl Currency {
             Self::BRL => "986",
             Self::BSD => "044",
             Self::BWP => "072",
+            Self::BYN => "933",
             Self::BZD => "084",
             Self::CAD => "124",
             Self::CHF => "756",
@@ -701,6 +703,7 @@ impl Currency {
             | Self::BRL
             | Self::BSD
             | Self::BWP
+            | Self::BYN
             | Self::BZD
             | Self::CAD
             | Self::CHF
@@ -815,6 +818,7 @@ impl Currency {
             | Self::BRL
             | Self::BSD
             | Self::BWP
+            | Self::BYN
             | Self::BZD
             | Self::CAD
             | Self::CHF

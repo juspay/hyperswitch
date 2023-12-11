@@ -98,6 +98,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::BRL => iso::BRL,
         Currency::BSD => iso::BSD,
         Currency::BWP => iso::BWP,
+        Currency::BYN => iso::BYN,
         Currency::BZD => iso::BZD,
         Currency::CAD => iso::CAD,
         Currency::CHF => iso::CHF,
