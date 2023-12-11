@@ -38,7 +38,7 @@ use crate::{
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
+    types::transformers::ForeignFrom,
     utils::OptionExt,
 };
 

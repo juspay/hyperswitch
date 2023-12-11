@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::RequestSurchargeDetails};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, IntoReport, ResultExt};
@@ -281,11 +281,25 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })
             .await
             .transpose()?;
-        let next_operation: BoxedOperation<'a, F, api::PaymentsRequest, Ctx> =
+        let (next_operation, amount): (BoxedOperation<'a, F, api::PaymentsRequest, Ctx>, _) =
             if request.confirm.unwrap_or(false) {
-                Box::new(operations::PaymentConfirm)
+                let amount = {
+                    let amount = request
+                        .amount
+                        .map(Into::into)
+                        .unwrap_or(payment_attempt.amount);
+                    payment_attempt.amount = amount;
+                    payment_intent.amount = amount;
+                    let surcharge_amount = request
+                        .surcharge_details
+                        .as_ref()
+                        .map(RequestSurchargeDetails::get_total_surcharge_amount)
+                        .or(payment_attempt.get_total_surcharge_amount());
+                    (amount + surcharge_amount.unwrap_or(0)).into()
+                };
+                (Box::new(operations::PaymentConfirm), amount)
             } else {
-                Box::new(self)
+                (Box::new(self), amount)
             };
 
         payment_intent.status = match request.payment_method_data.as_ref() {

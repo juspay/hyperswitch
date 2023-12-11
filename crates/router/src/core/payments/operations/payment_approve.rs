@@ -139,7 +139,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_method_type.or(payment_attempt.payment_method_type);
         payment_attempt.payment_experience = request.payment_experience;
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
