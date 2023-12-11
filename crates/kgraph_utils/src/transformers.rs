@@ -405,6 +405,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::NPR => Ok(dirval!(PaymentCurrency = NPR)),
             Self::NZD => Ok(dirval!(PaymentCurrency = NZD)),
             Self::OMR => Ok(dirval!(PaymentCurrency = OMR)),
+            Self::PAB => Ok(dirval!(PaymentCurrency = PAB)),
             Self::PEN => Ok(dirval!(PaymentCurrency = PEN)),
             Self::PGK => Ok(dirval!(PaymentCurrency = PGK)),
             Self::PHP => Ok(dirval!(PaymentCurrency = PHP)),

@@ -456,6 +456,7 @@ pub enum Currency {
     NPR,
     NZD,
     OMR,
+    PAB,
     PEN,
     PGK,
     PHP,
@@ -641,6 +642,7 @@ impl Currency {
             Self::NPR => "524",
             Self::NZD => "554",
             Self::OMR => "512",
+            Self::PAB => "590",
             Self::PEN => "604",
             Self::PGK => "598",
             Self::PHP => "608",
@@ -792,6 +794,7 @@ impl Currency {
             | Self::NPR
             | Self::NZD
             | Self::OMR
+            | Self::PAB
             | Self::PEN
             | Self::PGK
             | Self::PHP
@@ -917,6 +920,7 @@ impl Currency {
             | Self::NOK
             | Self::NPR
             | Self::NZD
+            | Self::PAB
             | Self::PEN
             | Self::PGK
             | Self::PHP

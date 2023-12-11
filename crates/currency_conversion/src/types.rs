@@ -174,6 +174,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::NPR => iso::NPR,
         Currency::NZD => iso::NZD,
         Currency::OMR => iso::OMR,
+        Currency::PAB => iso::PAB,
         Currency::PEN => iso::PEN,
         Currency::PGK => iso::PGK,
         Currency::PHP => iso::PHP,
