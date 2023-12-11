@@ -371,6 +371,7 @@ pub enum Currency {
     BAM,
     BBD,
     BDT,
+    BGN,
     BHD,
     BIF,
     BMD,
@@ -547,6 +548,7 @@ impl Currency {
             Self::BAM => "977",
             Self::BBD => "052",
             Self::BDT => "050",
+            Self::BGN => "975",
             Self::BHD => "048",
             Self::BIF => "108",
             Self::BMD => "060",
@@ -691,6 +693,7 @@ impl Currency {
             | Self::BAM
             | Self::BBD
             | Self::BDT
+            | Self::BGN
             | Self::BHD
             | Self::BMD
             | Self::BND
@@ -804,6 +807,7 @@ impl Currency {
             | Self::BAM
             | Self::BBD
             | Self::BDT
+            | Self::BGN
             | Self::BIF
             | Self::BMD
             | Self::BND
