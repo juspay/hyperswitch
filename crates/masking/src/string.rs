@@ -8,13 +8,8 @@ use alloc::{
     string::{String, ToString},
 };
 
-#[cfg(feature = "serde")]
-use super::SerializableSecret;
 use super::{Secret, Strategy};
 use crate::StrongSecret;
-
-#[cfg(feature = "serde")]
-impl SerializableSecret for String {}
 
 impl<I> FromStr for Secret<String, I>
 where
