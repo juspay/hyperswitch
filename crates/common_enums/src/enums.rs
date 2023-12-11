@@ -442,6 +442,7 @@ pub enum Currency {
     MMK,
     MNT,
     MOP,
+    MRU,
     MUR,
     MVR,
     MWK,
@@ -625,6 +626,7 @@ impl Currency {
             Self::MMK => "104",
             Self::MNT => "496",
             Self::MOP => "446",
+            Self::MRU => "929",
             Self::MUR => "480",
             Self::MVR => "462",
             Self::MWK => "454",
@@ -774,6 +776,7 @@ impl Currency {
             | Self::MMK
             | Self::MNT
             | Self::MOP
+            | Self::MRU
             | Self::MUR
             | Self::MVR
             | Self::MWK
@@ -898,6 +901,7 @@ impl Currency {
             | Self::MMK
             | Self::MNT
             | Self::MOP
+            | Self::MRU
             | Self::MUR
             | Self::MVR
             | Self::MWK

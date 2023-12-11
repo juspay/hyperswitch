@@ -160,6 +160,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::MMK => iso::MMK,
         Currency::MNT => iso::MNT,
         Currency::MOP => iso::MOP,
+        Currency::MRU => iso::MRU,
         Currency::MUR => iso::MUR,
         Currency::MVR => iso::MVR,
         Currency::MWK => iso::MWK,

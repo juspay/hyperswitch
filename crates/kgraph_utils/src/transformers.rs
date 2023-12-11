@@ -391,6 +391,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::MMK => Ok(dirval!(PaymentCurrency = MMK)),
             Self::MNT => Ok(dirval!(PaymentCurrency = MNT)),
             Self::MOP => Ok(dirval!(PaymentCurrency = MOP)),
+            Self::MRU => Ok(dirval!(PaymentCurrency = MRU)),
             Self::MUR => Ok(dirval!(PaymentCurrency = MUR)),
             Self::MVR => Ok(dirval!(PaymentCurrency = MVR)),
             Self::MWK => Ok(dirval!(PaymentCurrency = MWK)),
