@@ -44,7 +44,6 @@ pub struct PlacetopayPaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PlacetopayCard {
-    name: Secret<String>,
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -62,7 +61,6 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card = PlacetopayCard {
-                    name: req_card.card_holder_name,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
