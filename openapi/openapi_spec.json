@@ -4058,7 +4058,7 @@
       "BusinessPaymentLinkConfig": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/CustomizablePaymentLinkConfig"
+            "$ref": "#/components/schemas/PaymentLinkConfigRequest"
           },
           {
             "type": "object",
@@ -5291,32 +5291,6 @@
           }
         }
       },
-      "CustomizablePaymentLinkConfig": {
-        "type": "object",
-        "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry",
-            "nullable": true
-          },
-          "theme": {
-            "type": "string",
-            "description": "custom theme for the payment link",
-            "nullable": true
-          },
-          "logo": {
-            "type": "string",
-            "description": "merchant display logo",
-            "nullable": true
-          },
-          "seller_name": {
-            "type": "string",
-            "description": "Custom merchant name for payment link",
-            "nullable": true
-          }
-        }
-      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -5793,34 +5767,6 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
-      },
-      "FixedPaymentLinkConfig": {
-        "type": "object",
-        "required": [
-          "max_age",
-          "theme",
-          "logo",
-          "seller_name"
-        ],
-        "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry"
-          },
-          "theme": {
-            "type": "string",
-            "description": "custom theme for the payment link"
-          },
-          "logo": {
-            "type": "string",
-            "description": "merchant display logo"
-          },
-          "seller_name": {
-            "type": "string",
-            "description": "Custom merchant name for payment link"
-          }
-        }
       },
       "FrmAction": {
         "type": "string",
@@ -8599,7 +8545,7 @@
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/CustomizablePaymentLinkConfig"
+            "$ref": "#/components/schemas/PaymentLinkConfigRequest"
           },
           {
             "type": "object"
@@ -8669,6 +8615,60 @@
             }
           }
         ]
+      },
+      "PaymentLinkConfig": {
+        "type": "object",
+        "required": [
+          "max_age",
+          "theme",
+          "logo",
+          "seller_name"
+        ],
+        "properties": {
+          "max_age": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Custom Payment link expiry"
+          },
+          "theme": {
+            "type": "string",
+            "description": "custom theme for the payment link"
+          },
+          "logo": {
+            "type": "string",
+            "description": "merchant display logo"
+          },
+          "seller_name": {
+            "type": "string",
+            "description": "Custom merchant name for payment link"
+          }
+        }
+      },
+      "PaymentLinkConfigRequest": {
+        "type": "object",
+        "properties": {
+          "max_age": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Custom Payment link expiry",
+            "nullable": true
+          },
+          "theme": {
+            "type": "string",
+            "description": "custom theme for the payment link",
+            "nullable": true
+          },
+          "logo": {
+            "type": "string",
+            "description": "merchant display logo",
+            "nullable": true
+          },
+          "seller_name": {
+            "type": "string",
+            "description": "Custom merchant name for payment link",
+            "nullable": true
+          }
+        }
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
