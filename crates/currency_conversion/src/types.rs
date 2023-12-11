@@ -132,6 +132,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::IDR => iso::IDR,
         Currency::ILS => iso::ILS,
         Currency::INR => iso::INR,
+        Currency::ISK => iso::ISK,
         Currency::JMD => iso::JMD,
         Currency::JOD => iso::JOD,
         Currency::JPY => iso::JPY,
