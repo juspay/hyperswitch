@@ -313,6 +313,8 @@ pub enum Flow {
     SyncOnboardingStatus,
     /// Verify email Token
     VerifyEmail,
+    /// Send verify email
+    VerifyEmailRequest,
 }
 
 ///
