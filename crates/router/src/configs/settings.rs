@@ -778,32 +778,56 @@ fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error
 where
     D: serde::Deserializer<'a>,
     T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
+    use serde::de::Error;
+
+    <String>::deserialize(deserializer)?
         .trim()
         .split(',')
-        .flat_map(|s| T::from_str(s.trim()))
-        .collect())
+        .map(|s| {
+            T::from_str(s.trim()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `{}`: {error}",
+                    s.trim(),
+                    std::any::type_name::<T>()
+                )
+            })
+        })
+        .collect::<Result<HashSet<_>, _>>()
+        .map_err(D::Error::custom)
 }
 
 fn deserialize_optional_hashset<'a, D, T>(deserializer: D) -> Result<Option<HashSet<T>>, D::Error>
 where
     D: serde::Deserializer<'a>,
     T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(|s| T::from_str(s.trim()))
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
+    use serde::de::Error;
+
+    <Option<String>>::deserialize(deserializer).map(|value| {
+        value.map_or(Ok(None), |inner| {
+            let list = inner
+                .trim()
+                .split(',')
+                .map(|s| {
+                    T::from_str(s.trim()).map_err(|error| {
+                        format!(
+                            "Unable to deserialize `{}` as `{}`: {error}",
+                            s.trim(),
+                            std::any::type_name::<T>()
+                        )
+                    })
+                })
+                .collect::<Result<HashSet<_>, _>>()
+                .map_err(D::Error::custom)?;
+            match list.len() {
+                0 => Ok(None),
+                _ => Ok(Some(list)),
+            }
+        })
+    })?
 }
 
 #[cfg(test)]
