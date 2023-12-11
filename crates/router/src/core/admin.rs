@@ -1795,10 +1795,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             payu::transformers::PayuAuthType::try_from(val)?;
             Ok(())
         }
-        // api_enums::Connector::Placetopay => {
-        //     placetopay::transformers::PlacetopayAuthType::try_from(val)?;
-        //     Ok(())
-        // } Added as template code for future usage
+        api_enums::Connector::Placetopay => {
+            placetopay::transformers::PlacetopayAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Powertranz => {
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
             Ok(())
