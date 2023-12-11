@@ -416,6 +416,7 @@ pub enum Currency {
     IDR,
     ILS,
     INR,
+    IQD,
     ISK,
     JMD,
     JOD,
@@ -597,6 +598,7 @@ impl Currency {
             Self::IDR => "360",
             Self::ILS => "376",
             Self::INR => "356",
+            Self::IQD => "368",
             Self::ISK => "352",
             Self::JMD => "388",
             Self::JOD => "400",
@@ -749,6 +751,7 @@ impl Currency {
             | Self::IDR
             | Self::ILS
             | Self::INR
+            | Self::IQD
             | Self::JMD
             | Self::JOD
             | Self::KES
@@ -813,7 +816,7 @@ impl Currency {
 
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
-            Self::BHD | Self::JOD | Self::KWD | Self::OMR => true,
+            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::OMR => true,
             Self::AED
             | Self::ALL
             | Self::AMD
