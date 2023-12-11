@@ -774,15 +774,13 @@ pub struct PayPalOnboarding {
     pub enabled: bool,
 }
 
-fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
+fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
-    D: serde::Deserializer<'a>,
     T: Eq + std::str::FromStr + std::hash::Hash,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    use serde::de::Error;
-
-    <String>::deserialize(deserializer)?
+    value
+        .as_ref()
         .trim()
         .split(',')
         .map(|s| {
@@ -794,8 +792,18 @@ where
                 )
             })
         })
-        .collect::<Result<HashSet<_>, _>>()
-        .map_err(D::Error::custom)
+        .collect()
+}
+
+fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+
+    deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
 }
 
 fn deserialize_optional_hashset<'a, D, T>(deserializer: D) -> Result<Option<HashSet<T>>, D::Error>
@@ -807,21 +815,8 @@ where
     use serde::de::Error;
 
     <Option<String>>::deserialize(deserializer).map(|value| {
-        value.map_or(Ok(None), |inner| {
-            let list = inner
-                .trim()
-                .split(',')
-                .map(|s| {
-                    T::from_str(s.trim()).map_err(|error| {
-                        format!(
-                            "Unable to deserialize `{}` as `{}`: {error}",
-                            s.trim(),
-                            std::any::type_name::<T>()
-                        )
-                    })
-                })
-                .collect::<Result<HashSet<_>, _>>()
-                .map_err(D::Error::custom)?;
+        value.map_or(Ok(None), |inner: String| {
+            let list = deserialize_hashset_inner(inner).map_err(D::Error::custom)?;
             match list.len() {
                 0 => Ok(None),
                 _ => Ok(Some(list)),
