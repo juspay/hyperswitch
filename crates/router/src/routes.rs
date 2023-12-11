@@ -14,6 +14,8 @@ pub mod disputes;
 pub mod dummy_connector;
 pub mod ephemeral_key;
 pub mod files;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
 pub mod gsm;
 pub mod health;
 pub mod lock_utils;
@@ -40,6 +42,8 @@ pub mod verify_connector;
 pub mod webhooks;
 
 pub mod locker_migration;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod pm_auth;
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]

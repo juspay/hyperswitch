@@ -50,7 +50,7 @@ pub mod html {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct EmailToken {
     email: String,
-    expiration: u64,
+    exp: u64,
 }
 
 impl EmailToken {
@@ -59,10 +59,10 @@ impl EmailToken {
         settings: &configs::settings::Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
-        let expiration = jwt::generate_exp(expiration_duration)?.as_secs();
+        let exp = jwt::generate_exp(expiration_duration)?.as_secs();
         let token_payload = Self {
             email: email.get_secret().expose(),
-            expiration,
+            exp,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -95,7 +95,7 @@ impl EmailData for VerifyEmail {
             .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link =
-            get_link_with_token(&self.settings.server.base_url, token, "verify_email");
+            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
@@ -124,7 +124,7 @@ impl EmailData for ResetPassword {
             .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link =
-            get_link_with_token(&self.settings.server.base_url, token, "set_password");
+            get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
@@ -153,7 +153,7 @@ impl EmailData for MagicLink {
             .await
             .change_context(EmailError::TokenGenerationFailure)?;
 
-        let magic_link_login = get_link_with_token(&self.settings.server.base_url, token, "login");
+        let magic_link_login = get_link_with_token(&self.settings.email.base_url, token, "login");
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
@@ -183,7 +183,7 @@ impl EmailData for InviteUser {
             .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link =
-            get_link_with_token(&self.settings.server.base_url, token, "set_password");
+            get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: invite_user_link,

@@ -1191,6 +1191,8 @@ impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
+// impl Authenticate for api_models::payments::PaymentsApproveRequest {}
+impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,

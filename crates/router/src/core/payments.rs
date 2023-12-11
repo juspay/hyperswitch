@@ -41,6 +41,8 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs};
+#[cfg(feature = "frm")]
+use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
@@ -170,154 +172,231 @@ where
     let mut connector_http_status_code = None;
     let mut external_latency = None;
     if let Some(connector_details) = connector {
-        payment_data = match connector_details {
-            api::ConnectorCallType::PreDetermined(connector) => {
-                let schedule_time = if should_add_task_to_process_tracker {
-                    payment_sync::get_sync_process_schedule_time(
-                        &*state.store,
-                        connector.connector.id(),
-                        &merchant_account.merchant_id,
-                        0,
-                    )
-                    .await
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while getting process schedule time")?
-                } else {
-                    None
-                };
-                let router_data = call_connector_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connector,
-                    &operation,
-                    &mut payment_data,
-                    &customer,
-                    call_connector_action,
-                    &validate_result,
-                    schedule_time,
-                    header_payload,
-                )
+        // Fetch and check FRM configs
+        #[cfg(feature = "frm")]
+        let mut frm_info = None;
+        #[cfg(feature = "frm")]
+        let db = &*state.store;
+        #[allow(unused_variables, unused_mut)]
+        let mut should_continue_transaction: bool = true;
+        #[cfg(feature = "frm")]
+        let frm_configs = if state.conf.frm.enabled {
+            frm_core::call_frm_before_connector_call(
+                db,
+                &operation,
+                &merchant_account,
+                &mut payment_data,
+                state,
+                &mut frm_info,
+                &customer,
+                &mut should_continue_transaction,
+                key_store.clone(),
+            )
+            .await?
+        } else {
+            None
+        };
+        #[cfg(feature = "frm")]
+        logger::debug!(
+            "should_cancel_transaction: {:?} {:?} ",
+            frm_configs,
+            should_continue_transaction
+        );
+
+        if should_continue_transaction {
+            operation
+                .to_domain()?
+                .populate_payment_data(state, &mut payment_data, &merchant_account)
                 .await?;
-                let operation = Box::new(PaymentResponse);
-
-                connector_http_status_code = router_data.connector_http_status_code;
-                external_latency = router_data.external_latency;
-                //add connector http status code metrics
-                add_connector_http_status_code_metrics(connector_http_status_code);
-                operation
-                    .to_post_update_tracker()?
-                    .update_tracker(
-                        state,
-                        &validate_result.payment_id,
-                        payment_data,
-                        router_data,
-                        merchant_account.storage_scheme,
-                    )
-                    .await?
-            }
-
-            api::ConnectorCallType::Retryable(connectors) => {
-                let mut connectors = connectors.into_iter();
-
-                let connector_data = get_connector_data(&mut connectors)?;
-
-                let schedule_time = if should_add_task_to_process_tracker {
-                    payment_sync::get_sync_process_schedule_time(
-                        &*state.store,
-                        connector_data.connector.id(),
-                        &merchant_account.merchant_id,
-                        0,
-                    )
-                    .await
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while getting process schedule time")?
-                } else {
-                    None
-                };
-                let router_data = call_connector_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connector_data.clone(),
-                    &operation,
-                    &mut payment_data,
-                    &customer,
-                    call_connector_action,
-                    &validate_result,
-                    schedule_time,
-                    header_payload,
-                )
-                .await?;
-
-                #[cfg(feature = "retry")]
-                let mut router_data = router_data;
-                #[cfg(feature = "retry")]
-                {
-                    use crate::core::payments::retry::{self, GsmValidation};
-                    let config_bool =
-                        retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id)
-                            .await;
-
-                    if config_bool && router_data.should_call_gsm() {
-                        router_data = retry::do_gsm_actions(
-                            state,
-                            &mut payment_data,
-                            connectors,
-                            connector_data,
-                            router_data,
-                            &merchant_account,
-                            &key_store,
-                            &operation,
-                            &customer,
-                            &validate_result,
-                            schedule_time,
+            payment_data = match connector_details {
+                api::ConnectorCallType::PreDetermined(connector) => {
+                    let schedule_time = if should_add_task_to_process_tracker {
+                        payment_sync::get_sync_process_schedule_time(
+                            &*state.store,
+                            connector.connector.id(),
+                            &merchant_account.merchant_id,
+                            0,
                         )
-                        .await?;
+                        .await
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while getting process schedule time")?
+                    } else {
+                        None
                     };
-                }
-
-                let operation = Box::new(PaymentResponse);
-                connector_http_status_code = router_data.connector_http_status_code;
-                external_latency = router_data.external_latency;
-                //add connector http status code metrics
-                add_connector_http_status_code_metrics(connector_http_status_code);
-                operation
-                    .to_post_update_tracker()?
-                    .update_tracker(
-                        state,
-                        &validate_result.payment_id,
-                        payment_data,
-                        router_data,
-                        merchant_account.storage_scheme,
-                    )
-                    .await?
-            }
-
-            api::ConnectorCallType::SessionMultiple(connectors) => {
-                let session_surcharge_details =
-                    call_surcharge_decision_management_for_session_flow(
+                    let router_data = call_connector_service(
                         state,
                         &merchant_account,
+                        &key_store,
+                        connector,
+                        &operation,
                         &mut payment_data,
-                        &connectors,
+                        &customer,
+                        call_connector_action,
+                        &validate_result,
+                        schedule_time,
+                        header_payload,
                     )
                     .await?;
-                call_multiple_connectors_service(
+                    let operation = Box::new(PaymentResponse);
+
+                    connector_http_status_code = router_data.connector_http_status_code;
+                    external_latency = router_data.external_latency;
+                    //add connector http status code metrics
+                    add_connector_http_status_code_metrics(connector_http_status_code);
+                    operation
+                        .to_post_update_tracker()?
+                        .update_tracker(
+                            state,
+                            &validate_result.payment_id,
+                            payment_data,
+                            router_data,
+                            merchant_account.storage_scheme,
+                        )
+                        .await?
+                }
+
+                api::ConnectorCallType::Retryable(connectors) => {
+                    let mut connectors = connectors.into_iter();
+
+                    let connector_data = get_connector_data(&mut connectors)?;
+
+                    let schedule_time = if should_add_task_to_process_tracker {
+                        payment_sync::get_sync_process_schedule_time(
+                            &*state.store,
+                            connector_data.connector.id(),
+                            &merchant_account.merchant_id,
+                            0,
+                        )
+                        .await
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while getting process schedule time")?
+                    } else {
+                        None
+                    };
+                    let router_data = call_connector_service(
+                        state,
+                        &merchant_account,
+                        &key_store,
+                        connector_data.clone(),
+                        &operation,
+                        &mut payment_data,
+                        &customer,
+                        call_connector_action,
+                        &validate_result,
+                        schedule_time,
+                        header_payload,
+                    )
+                    .await?;
+
+                    #[cfg(feature = "retry")]
+                    let mut router_data = router_data;
+                    #[cfg(feature = "retry")]
+                    {
+                        use crate::core::payments::retry::{self, GsmValidation};
+                        let config_bool = retry::config_should_call_gsm(
+                            &*state.store,
+                            &merchant_account.merchant_id,
+                        )
+                        .await;
+
+                        if config_bool && router_data.should_call_gsm() {
+                            router_data = retry::do_gsm_actions(
+                                state,
+                                &mut payment_data,
+                                connectors,
+                                connector_data,
+                                router_data,
+                                &merchant_account,
+                                &key_store,
+                                &operation,
+                                &customer,
+                                &validate_result,
+                                schedule_time,
+                            )
+                            .await?;
+                        };
+                    }
+
+                    let operation = Box::new(PaymentResponse);
+                    connector_http_status_code = router_data.connector_http_status_code;
+                    external_latency = router_data.external_latency;
+                    //add connector http status code metrics
+                    add_connector_http_status_code_metrics(connector_http_status_code);
+                    operation
+                        .to_post_update_tracker()?
+                        .update_tracker(
+                            state,
+                            &validate_result.payment_id,
+                            payment_data,
+                            router_data,
+                            merchant_account.storage_scheme,
+                        )
+                        .await?
+                }
+
+                api::ConnectorCallType::SessionMultiple(connectors) => {
+                    let session_surcharge_details =
+                        call_surcharge_decision_management_for_session_flow(
+                            state,
+                            &merchant_account,
+                            &mut payment_data,
+                            &connectors,
+                        )
+                        .await?;
+                    call_multiple_connectors_service(
+                        state,
+                        &merchant_account,
+                        &key_store,
+                        connectors,
+                        &operation,
+                        payment_data,
+                        &customer,
+                        session_surcharge_details,
+                    )
+                    .await?
+                }
+            };
+
+            #[cfg(feature = "frm")]
+            if let Some(fraud_info) = &mut frm_info {
+                Box::pin(frm_core::post_payment_frm_core(
                     state,
                     &merchant_account,
-                    &key_store,
-                    connectors,
-                    &operation,
-                    payment_data,
+                    &mut payment_data,
+                    fraud_info,
+                    frm_configs
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "frm_configs",
+                        })
+                        .into_report()
+                        .attach_printable("Frm configs label not found")?,
                     &customer,
-                    session_surcharge_details,
-                )
-                .await?
+                    key_store,
+                ))
+                .await?;
             }
-        };
+        } else {
+            (_, payment_data) = operation
+                .to_update_tracker()?
+                .update_trackers(
+                    state,
+                    payment_data.clone(),
+                    customer.clone(),
+                    validate_result.storage_scheme,
+                    None,
+                    &key_store,
+                    #[cfg(feature = "frm")]
+                    frm_info.and_then(|info| info.suggested_action),
+                    #[cfg(not(feature = "frm"))]
+                    None,
+                    header_payload,
+                )
+                .await?;
+        }
+
         payment_data
             .payment_attempt
             .payment_token
