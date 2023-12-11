@@ -399,6 +399,7 @@ pub enum Currency {
     ETB,
     EUR,
     FJD,
+    FKP,
     GBP,
     GEL,
     GHS,
@@ -578,6 +579,7 @@ impl Currency {
             Self::ETB => "230",
             Self::EUR => "978",
             Self::FJD => "242",
+            Self::FKP => "238",
             Self::GBP => "826",
             Self::GEL => "981",
             Self::GHS => "936",
@@ -729,6 +731,7 @@ impl Currency {
             | Self::ETB
             | Self::EUR
             | Self::FJD
+            | Self::FKP
             | Self::GBP
             | Self::GEL
             | Self::GHS
@@ -847,6 +850,7 @@ impl Currency {
             | Self::ETB
             | Self::EUR
             | Self::FJD
+            | Self::FKP
             | Self::GBP
             | Self::GEL
             | Self::GHS

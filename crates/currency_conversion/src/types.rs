@@ -117,6 +117,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::ETB => iso::ETB,
         Currency::EUR => iso::EUR,
         Currency::FJD => iso::FJD,
+        Currency::FKP => iso::FKP,
         Currency::GBP => iso::GBP,
         Currency::GEL => iso::GEL,
         Currency::GHS => iso::GHS,
