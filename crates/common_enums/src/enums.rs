@@ -368,6 +368,7 @@ pub enum Currency {
     AUD,
     AWG,
     AZN,
+    BAM,
     BBD,
     BDT,
     BHD,
@@ -543,6 +544,7 @@ impl Currency {
             Self::AUD => "036",
             Self::AWG => "533",
             Self::AZN => "944",
+            Self::BAM => "977",
             Self::BBD => "052",
             Self::BDT => "050",
             Self::BHD => "048",
@@ -686,6 +688,7 @@ impl Currency {
             | Self::AUD
             | Self::AWG
             | Self::AZN
+            | Self::BAM
             | Self::BBD
             | Self::BDT
             | Self::BHD
@@ -798,6 +801,7 @@ impl Currency {
             | Self::AUD
             | Self::AWG
             | Self::AZN
+            | Self::BAM
             | Self::BBD
             | Self::BDT
             | Self::BIF

@@ -86,6 +86,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::AUD => iso::AUD,
         Currency::AWG => iso::AWG,
         Currency::AZN => iso::AZN,
+        Currency::BAM => iso::BAM,
         Currency::BBD => iso::BBD,
         Currency::BDT => iso::BDT,
         Currency::BHD => iso::BHD,
