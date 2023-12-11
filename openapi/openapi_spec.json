@@ -8609,7 +8609,6 @@
         "type": "object",
         "required": [
           "id",
-          "profile_id",
           "name",
           "description",
           "algorithm",
@@ -8618,9 +8617,6 @@
         ],
         "properties": {
           "id": {
-            "type": "string"
-          },
-          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -12773,7 +12769,7 @@
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
-          "merchant_connector_id": {
+          "sub_label": {
             "type": "string",
             "nullable": true
           }
@@ -12985,7 +12981,6 @@
         "type": "object",
         "required": [
           "id",
-          "profile_id",
           "name",
           "kind",
           "description",
@@ -12994,9 +12989,6 @@
         ],
         "properties": {
           "id": {
-            "type": "string"
-          },
-          "profile_id": {
             "type": "string"
           },
           "name": {
