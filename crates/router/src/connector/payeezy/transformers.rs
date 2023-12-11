@@ -241,7 +241,10 @@ fn get_payment_method_data(
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
-                cardholder_name: card.card_holder_name.clone(),
+                cardholder_name: card
+                    .card_holder_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                 card_number: card.card_number.clone(),
                 exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
                 cvv: card.card_cvc.clone(),

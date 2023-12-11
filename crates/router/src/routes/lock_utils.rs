@@ -171,7 +171,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ResetPassword
             | Flow::InviteUser
             | Flow::UserSignUpWithMerchantId
-            | Flow::VerifyEmail => Self::User,
+            | Flow::VerifyEmail
+            | Flow::VerifyEmailRequest => Self::User,
 
             Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
                 Self::UserRole
