@@ -15,11 +15,6 @@ async fn main() -> DrainerResult<()> {
     let store = services::Store::new(&conf, false).await;
     let store = std::sync::Arc::new(store);
 
-    let number_of_streams = store.config.drainer_num_partitions;
-    let max_read_count = conf.drainer.max_read_count;
-    let shutdown_intervals = conf.drainer.shutdown_interval;
-    let loop_interval = conf.drainer.loop_interval;
-
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),
@@ -29,14 +24,7 @@ async fn main() -> DrainerResult<()> {
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 
-    start_drainer(
-        store.clone(),
-        number_of_streams,
-        max_read_count,
-        shutdown_intervals,
-        loop_interval,
-    )
-    .await?;
+    start_drainer(store.clone(), conf.drainer).await?;
 
     Ok(())
 }
