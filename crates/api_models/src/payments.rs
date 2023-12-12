@@ -82,7 +82,7 @@ pub struct CustomerDetails {
     ToSchema,
     router_derive::PolymorphicSchema,
 )]
-#[generate_schemas(PaymentsCreateRequest)]
+#[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
@@ -233,6 +233,7 @@ pub struct PaymentsRequest {
 
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    #[remove_in(PaymentsUpdateRequest)]
     pub client_secret: Option<String>,
 
     /// Provide mandate information for creating a mandate
