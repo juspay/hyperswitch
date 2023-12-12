@@ -109,7 +109,7 @@ impl KmsClient {
             .inner_client
             .encrypt()
             .key_id(&self.key_id)
-            .plaintext(ciphertext_blob)
+            .plaintext(plaintext_blob)
             .send()
             .await
             .map_err(|error| {
