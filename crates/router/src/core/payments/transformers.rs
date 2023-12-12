@@ -1300,9 +1300,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             country: payment_data.address.billing.and_then(|billing_address| {
                 billing_address.address.and_then(|address| address.country)
