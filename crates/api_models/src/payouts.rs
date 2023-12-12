@@ -181,7 +181,7 @@ pub struct Card {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -195,16 +195,16 @@ pub enum Bank {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AchBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
@@ -218,16 +218,16 @@ pub struct AchBankTransfer {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct BacsBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
@@ -242,16 +242,16 @@ pub struct BacsBankTransfer {
 // The SEPA (Single Euro Payments Area) is a pan-European network that allows you to send and receive payments in euros between two cross-border bank accounts in the eurozone.
 pub struct SepaBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]

@@ -2487,7 +2487,17 @@ pub async fn list_customer_payment_method(
                 let token_data = PaymentTokenData::temporary_generic(token.clone());
                 (
                     None,
-                    Some(get_lookup_key_for_payout_method(state, &key_store, &token, &pm).await?),
+                    Some(
+                        get_bank_from_hs_locker(
+                            state,
+                            &key_store,
+                            &token,
+                            &pm.customer_id,
+                            &pm.customer_id,
+                            &pm.payment_method_id,
+                        )
+                        .await?,
+                    ),
                     token_data,
                 )
             }
@@ -2773,18 +2783,20 @@ async fn get_bank_account_connector_details(
 }
 
 #[cfg(feature = "payouts")]
-pub async fn get_lookup_key_for_payout_method(
+pub async fn get_bank_from_hs_locker(
     state: &routes::AppState,
     key_store: &domain::MerchantKeyStore,
-    payout_token: &str,
-    pm: &storage::PaymentMethod,
+    temp_token: &str,
+    customer_id: &str,
+    merchant_id: &str,
+    token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
     let payment_method = get_payment_method_from_hs_locker(
         state,
         key_store,
-        &pm.customer_id,
-        &pm.merchant_id,
-        &pm.payment_method_id,
+        customer_id,
+        merchant_id,
+        token_ref,
         None,
     )
     .await
@@ -2799,9 +2811,9 @@ pub async fn get_lookup_key_for_payout_method(
         api::PayoutMethodData::Bank(bank) => {
             vault::Vault::store_payout_method_data_in_locker(
                 state,
-                Some(payout_token.to_string()),
+                Some(temp_token.to_string()),
                 &pm_parsed,
-                Some(pm.customer_id.to_owned()),
+                Some(customer_id.to_owned()),
                 key_store,
             )
             .await

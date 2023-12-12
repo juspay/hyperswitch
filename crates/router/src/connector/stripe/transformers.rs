@@ -680,6 +680,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::MiniStop
             | enums::PaymentMethodType::FamilyMart
             | enums::PaymentMethodType::Seicomart
+            | enums::PaymentMethodType::AchBankTransfer
+            | enums::PaymentMethodType::BacsBankTransfer
             | enums::PaymentMethodType::SepaBankTransfer
             | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotSupported {

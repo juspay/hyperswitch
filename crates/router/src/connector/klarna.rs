@@ -306,6 +306,7 @@ impl
                     | storage_enums::PaymentExperience::OneClick
                     | storage_enums::PaymentExperience::RedirectToUrl,
                     api_models::enums::PaymentMethodType::Ach
+                    | api_models::enums::PaymentMethodType::AchBankTransfer
                     | api_models::enums::PaymentMethodType::Affirm
                     | api_models::enums::PaymentMethodType::AfterpayClearpay
                     | api_models::enums::PaymentMethodType::Alfamart
@@ -315,6 +316,7 @@ impl
                     | api_models::enums::PaymentMethodType::ApplePay
                     | api_models::enums::PaymentMethodType::Atome
                     | api_models::enums::PaymentMethodType::Bacs
+                    | api_models::enums::PaymentMethodType::BacsBankTransfer
                     | api_models::enums::PaymentMethodType::BancontactCard
                     | api_models::enums::PaymentMethodType::Becs
                     | api_models::enums::PaymentMethodType::Benefit

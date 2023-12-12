@@ -1791,6 +1791,7 @@ impl From<PaymentMethodType> for PaymentMethod {
     fn from(value: PaymentMethodType) -> Self {
         match value {
             PaymentMethodType::Ach => Self::BankDebit,
+            PaymentMethodType::AchBankTransfer => Self::BankTransfer,
             PaymentMethodType::Affirm => Self::PayLater,
             PaymentMethodType::AfterpayClearpay => Self::PayLater,
             PaymentMethodType::AliPay => Self::Wallet,
@@ -1798,6 +1799,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Alma => Self::PayLater,
             PaymentMethodType::ApplePay => Self::Wallet,
             PaymentMethodType::Bacs => Self::BankDebit,
+            PaymentMethodType::BacsBankTransfer => Self::BankTransfer,
             PaymentMethodType::BancontactCard => Self::BankRedirect,
             PaymentMethodType::BcaBankTransfer => Self::BankTransfer,
             PaymentMethodType::Becs => Self::BankDebit,
