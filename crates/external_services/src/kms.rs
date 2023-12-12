@@ -232,7 +232,7 @@ mod tests {
         };
 
         // Should decrypt to hello
-        let data = "AQICAHiuqtZ58B2e18+eXrzv9uMgsae/YmcY/pDPVTg9KN90ZAEFezDupjmYWybKUWwFvaguAAAAYzBhBgkqhkiG9w0BBwagVDBSAgEAME0GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMgHM+XuOaq/vFsv5IAgEQgCB8laTDA/1xiTA/DLCJ6jvQo8UDhq0JjHT4fz6m6ZKWBg==".to_string();
+        let data = "KMS ENCRYPTED CIPHER".to_string();
         let binding = data.as_bytes();
         let kms_encrypted_fingerprint = KmsClient::new(&config)
             .await
