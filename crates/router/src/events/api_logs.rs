@@ -41,7 +41,7 @@ pub struct ApiEvent {
     #[serde(flatten)]
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
-    http_method: Option<String>,
+    http_method: String,
 }
 
 impl ApiEvent {
@@ -59,7 +59,7 @@ impl ApiEvent {
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
-        http_method: Option<String>,
+        http_method: &http::Method,
     ) -> Self {
         Self {
             merchant_id,
@@ -83,7 +83,7 @@ impl ApiEvent {
             url_path: http_req.path().to_string(),
             event_type,
             hs_latency,
-            http_method,
+            http_method: http_method.to_string(),
         }
     }
 }
