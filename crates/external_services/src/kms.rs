@@ -96,11 +96,48 @@ impl KmsClient {
 
         Ok(output)
     }
+    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
+        let start = Instant::now();
+        let ciphertext_blob = Blob::new(data.as_ref());
+
+        let encrypted_output = self
+            .inner_client
+            .encrypt()
+            .key_id(&self.key_id)
+            .plaintext(ciphertext_blob)
+            .send()
+            .await
+            .map_err(|error| {
+                logger::error!(kms_sdk_error=?error, "Failed to KMS encrypt data");
+                eprintln!("{error:?}");
+                metrics::AWS_KMS_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+            .into_report()
+            .change_context(KmsError::EncryptionFailed)?;
+
+        let output = encrypted_output
+            .ciphertext_blob
+            .ok_or(KmsError::MissingCipherEncryptionOutput)
+            .into_report()
+            .map(|blob| {
+                consts::BASE64_ENGINE
+                            .encode(blob.into_inner())
+            })?;
+        let time_taken = start.elapsed();
+        metrics::AWS_KMS_DECRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
+
+        Ok(output)
+    }
 }
 
 /// Errors that could occur during KMS operations.
 #[derive(Debug, thiserror::Error)]
 pub enum KmsError {
+    /// An error occurred when base64 encoding input data.
+    #[error("Failed to base64 encode input data")]
+    Base64EncodingFailed,
+    
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
@@ -109,9 +146,17 @@ pub enum KmsError {
     #[error("Failed to KMS decrypt input data")]
     DecryptionFailed,
 
+    /// An error occurred when KMS encrypting input data.
+    #[error("Failed to KMS encrypt input data")]
+    EncryptionFailed,
+
     /// The KMS decrypted output does not include a plaintext output.
     #[error("Missing plaintext KMS decryption output")]
     MissingPlaintextDecryptionOutput,
+
+    /// The KMS encrypted output does not include a cipher output.
+    #[error("Missing plaintext KMS encryption output")]
+    MissingCipherEncryptionOutput,
 
     /// An error occurred UTF-8 decoding KMS decrypted output.
     #[error("Failed to UTF-8 decode decryption output")]
@@ -147,3 +192,51 @@ impl common_utils::ext_traits::ConfigExt for KmsValue {
         self.0.peek().is_empty_after_trim()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+    #[tokio::test]
+    async fn check_kms_encryption() {
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
+        std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
+        use super::*;
+        let config = KmsConfig {
+            key_id: "YOUR KMS KEY ID".to_string(),
+            region: "AWS REGION".to_string(),
+        };
+
+        let data = "hello".to_string();
+        let binding = data.as_bytes();
+        let kms_encrypted_fingerprint = KmsClient::new(&config)
+            .await
+            .encrypt(binding)
+            .await
+            .unwrap();
+
+        println!("{}", kms_encrypted_fingerprint);
+    }
+
+    #[tokio::test]
+    async fn check_kms_decrypt() {
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
+        std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
+        use super::*;
+        let config = KmsConfig {
+            key_id: "YOUR KMS KEY ID".to_string(),
+            region: "AWS REGION".to_string(),
+        };
+
+        // Should decrypt to hello
+        let data = "AQICAHiuqtZ58B2e18+eXrzv9uMgsae/YmcY/pDPVTg9KN90ZAEFezDupjmYWybKUWwFvaguAAAAYzBhBgkqhkiG9w0BBwagVDBSAgEAME0GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMgHM+XuOaq/vFsv5IAgEQgCB8laTDA/1xiTA/DLCJ6jvQo8UDhq0JjHT4fz6m6ZKWBg==".to_string();
+        let binding = data.as_bytes();
+        let kms_encrypted_fingerprint = KmsClient::new(&config)
+            .await
+            .decrypt(binding)
+            .await
+            .unwrap();
+
+        println!("{}", kms_encrypted_fingerprint);
+    }
+}
+
