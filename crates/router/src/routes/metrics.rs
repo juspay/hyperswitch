@@ -8,7 +8,7 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 #[cfg(feature = "kms")]
 counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
 #[cfg(feature = "kms")]
-counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decription failures
+counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
