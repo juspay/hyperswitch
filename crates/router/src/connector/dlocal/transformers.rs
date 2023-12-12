@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -125,7 +125,10 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
-                        holder_name: ccard.card_holder_name.clone(),
+                        holder_name: ccard
+                            .card_holder_name
+                            .clone()
+                            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                         number: ccard.card_number.clone(),
                         cvv: ccard.card_cvc.clone(),
                         expiration_month: ccard.card_exp_month.clone(),

@@ -1066,8 +1066,8 @@ pub fn get_flow_name<F>() -> RouterResult<String> {
 pub fn get_request_incremental_authorization_value(
     request_incremental_authorization: Option<bool>,
     capture_method: Option<common_enums::CaptureMethod>,
-) -> RouterResult<RequestIncrementalAuthorization> {
-    request_incremental_authorization
+) -> RouterResult<Option<RequestIncrementalAuthorization>> {
+    Some(request_incremental_authorization
         .map(|request_incremental_authorization| {
             if request_incremental_authorization {
                 if capture_method == Some(common_enums::CaptureMethod::Automatic) {
@@ -1078,14 +1078,16 @@ pub fn get_request_incremental_authorization_value(
                 Ok(RequestIncrementalAuthorization::False)
             }
         })
-        .unwrap_or(Ok(RequestIncrementalAuthorization::default()))
+        .unwrap_or(Ok(RequestIncrementalAuthorization::default()))).transpose()
 }
 
 pub fn get_incremental_authorization_allowed_value(
     incremental_authorization_allowed: Option<bool>,
-    request_incremental_authorization: RequestIncrementalAuthorization,
+    request_incremental_authorization: Option<RequestIncrementalAuthorization>,
 ) -> Option<bool> {
-    if request_incremental_authorization == common_enums::RequestIncrementalAuthorization::False {
+    if request_incremental_authorization
+        == Some(common_enums::RequestIncrementalAuthorization::False)
+    {
         Some(false)
     } else {
         incremental_authorization_allowed
