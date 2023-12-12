@@ -79,13 +79,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/accounts/:id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "accounts",
-      ":id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["accounts", ":id"],
     "variable": [
       {
         "key": "id",
