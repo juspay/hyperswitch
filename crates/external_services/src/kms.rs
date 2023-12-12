@@ -242,4 +242,3 @@ mod tests {
         println!("{}", kms_encrypted_fingerprint);
     }
 }
-
