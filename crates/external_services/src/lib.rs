@@ -26,10 +26,10 @@ pub mod metrics {
     global_meter!(GLOBAL_METER, "EXTERNAL_SERVICES");
 
     #[cfg(feature = "kms")]
+    counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
     counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
-    counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decription failures
 
     #[cfg(feature = "kms")]
     histogram_metric!(AWS_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for KMS decryption time (in sec)
-    histogram_metric!(AWS_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for KMS decryption time (in sec)
+    histogram_metric!(AWS_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for KMS encryption time (in sec)
 }
