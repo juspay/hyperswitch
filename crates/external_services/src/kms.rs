@@ -126,10 +126,7 @@ impl KmsClient {
             .ciphertext_blob
             .ok_or(KmsError::MissingCipherEncryptionOutput)
             .into_report()
-            .map(|blob| {
-                consts::BASE64_ENGINE
-                            .encode(blob.into_inner())
-            })?;
+            .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
         metrics::AWS_KMS_DECRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
 
@@ -143,7 +140,7 @@ pub enum KmsError {
     /// An error occurred when base64 encoding input data.
     #[error("Failed to base64 encode input data")]
     Base64EncodingFailed,
-    
+
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
@@ -245,4 +242,3 @@ mod tests {
         println!("{}", kms_encrypted_fingerprint);
     }
 }
-
