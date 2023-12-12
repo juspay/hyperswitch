@@ -302,8 +302,8 @@ pub struct PaymentsRequest {
     pub payment_link: Option<bool>,
 
     /// custom payment link config for the particular payment
-    #[schema(value_type = PaymentCreatePaymentLinkConfig)]
-    pub payment_link_config: Option<admin::PaymentCreatePaymentLinkConfig>,
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
+    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
@@ -3384,4 +3384,10 @@ pub struct PaymentLinkListResponse {
     pub size: usize,
     // The list of payment link response objects
     pub data: Vec<PaymentLinkResponse>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentCreatePaymentLinkConfig {
+    #[serde(flatten)]
+    pub config: admin::PaymentLinkConfigRequest,
 }

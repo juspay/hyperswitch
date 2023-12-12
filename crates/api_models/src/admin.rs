@@ -1086,7 +1086,7 @@ pub struct BusinessProfileResponse {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Default Payment Link config for all payment links
+    /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
 }
 
@@ -1146,7 +1146,7 @@ pub struct BusinessProfileUpdate {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Default Payment Link config for all payment links
+    /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
 
@@ -1156,25 +1156,24 @@ pub struct BusinessPaymentLinkConfig {
     #[serde(flatten)]
     pub config: PaymentLinkConfigRequest,
 }
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentCreatePaymentLinkConfig {
-    #[serde(flatten)]
-    pub config: PaymentLinkConfigRequest,
-}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfigRequest {
     /// Custom Payment link expiry
+    #[schema(example = 900)]
     pub max_age: Option<i64>,
     /// custom theme for the payment link
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
     pub theme: Option<String>,
     /// merchant display logo
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
     pub logo: Option<String>,
     /// Custom merchant name for payment link
+    #[schema(value_type = Option<String>, max_length = 255, example = "hyperswitch")]
     pub seller_name: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
     /// Custom Payment link expiry
     pub max_age: i64,

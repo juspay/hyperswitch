@@ -3757,7 +3757,7 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    payment_link_config: &api_models::admin::PaymentCreatePaymentLinkConfig,
+    payment_link_config: &api_models::payments::PaymentCreatePaymentLinkConfig,
     confirm: Option<bool>,
     order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 ) -> Result<(), errors::ApiErrorResponse> {
