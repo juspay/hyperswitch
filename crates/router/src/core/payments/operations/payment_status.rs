@@ -423,6 +423,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        frm_metadata: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {
