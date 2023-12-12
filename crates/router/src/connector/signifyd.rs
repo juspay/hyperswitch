@@ -464,7 +464,7 @@ impl
         &self,
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj.clone())))
     }

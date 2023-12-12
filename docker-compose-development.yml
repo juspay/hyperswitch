@@ -28,8 +28,6 @@ services:
 
   redis-standalone:
     image: redis:7
-    labels:
-      - redis
     networks:
       - router_net
     ports:
