@@ -4380,6 +4380,7 @@
           "payme",
           "paypal",
           "payu",
+          "placetopay",
           "powertranz",
           "prophetpay",
           "rapyd",
@@ -4395,7 +4396,8 @@
           "worldpay",
           "zen",
           "signifyd",
-          "plaid"
+          "plaid",
+          "riskified"
         ]
       },
       "ConnectorMetadata": {
@@ -5112,6 +5114,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
               }
             ],
             "nullable": true
@@ -8107,9 +8117,36 @@
             "example": 1,
             "minimum": 0
           },
+          "requires_shipping": {
+            "type": "boolean",
+            "nullable": true
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8140,9 +8177,36 @@
             "format": "int64",
             "description": "the amount per quantity of product"
           },
+          "requires_shipping": {
+            "type": "boolean",
+            "nullable": true
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -9304,7 +9368,7 @@
           "payment_method_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
+              "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
             "description": "Subtype of payment method",
             "example": [
@@ -9779,6 +9843,10 @@
             "type": "boolean",
             "description": "Request for an incremental authorization",
             "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
+            "nullable": true
           }
         }
       },
@@ -10148,6 +10216,10 @@
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
@@ -11259,6 +11331,17 @@
           }
         }
       },
+      "ProductType": {
+        "type": "string",
+        "enum": [
+          "physical",
+          "digital",
+          "travel",
+          "ride",
+          "event",
+          "accommodation"
+        ]
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
@@ -11573,6 +11656,76 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
+          }
+        }
+      },
+      "RequestPaymentMethodTypes": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "recurring_enabled",
+          "installment_payment_enabled"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_experience": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "nullable": true
+          },
+          "accepted_currencies": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCurrencies"
+              }
+            ],
+            "nullable": true
+          },
+          "accepted_countries": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCountries"
+              }
+            ],
+            "nullable": true
+          },
+          "minimum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
+            "example": 1,
+            "nullable": true
+          },
+          "maximum_amount": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
+            "example": 1313,
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable recurring payments / mandates. Default is true.",
+            "default": true,
+            "example": false
+          },
+          "installment_payment_enabled": {
+            "type": "boolean",
+            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
+            "default": true,
+            "example": false
           }
         }
       },
@@ -12041,6 +12194,106 @@
           "initiative_context": {
             "type": "string"
           }
+        }
+      },
+      "SurchargeDetailsResponse": {
+        "type": "object",
+        "required": [
+          "surcharge",
+          "display_surcharge_amount",
+          "display_tax_on_surcharge_amount",
+          "display_total_surcharge_amount",
+          "display_final_amount"
+        ],
+        "properties": {
+          "surcharge": {
+            "$ref": "#/components/schemas/SurchargeResponse"
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            ],
+            "nullable": true
+          },
+          "display_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "surcharge amount for this payment"
+          },
+          "display_tax_on_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "tax on surcharge amount for this payment"
+          },
+          "display_total_surcharge_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "display_final_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "sum of original amount,"
+          }
+        }
+      },
+      "SurchargePercentage": {
+        "type": "object",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "SurchargeResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fixed"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Fixed Surcharge value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "rate"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/SurchargePercentage"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SwishQrData": {

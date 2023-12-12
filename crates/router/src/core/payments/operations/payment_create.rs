@@ -287,7 +287,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let setup_mandate = setup_mandate.map(MandateData::from);
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
-            payments::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
+            payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
         let payment_method_data_after_card_bin_call = request
@@ -333,6 +333,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data,
             incremental_authorization_details: None,
             authorizations: vec![],
+            frm_metadata: request.frm_metadata.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -559,6 +560,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
         helpers::validate_card_data(request.payment_method_data.clone())?;
+
+        helpers::validate_card_holder_name(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
 

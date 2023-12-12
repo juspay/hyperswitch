@@ -212,6 +212,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
+            api_models::enums::Connector::Placetopay => Self::Placetopay,
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
@@ -225,6 +226,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Riskified => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "riskified is not a routable connector".to_string(),
                 })
                 .into_report()?
             }
@@ -760,7 +767,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                             field_name: "frm_configs".to_string(),
-                            expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;

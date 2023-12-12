@@ -259,6 +259,15 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     }
 }
 
+type InviteeUserRequestWithInvitedUserToken = (user_api::InviteUserRequest, UserFromToken);
+impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
+    fn from(_value: InviteeUserRequestWithInvitedUserToken) -> Self {
+        let new_organization = api_org::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
 #[derive(Clone)]
 pub struct MerchantId(String);
 
@@ -412,6 +421,19 @@ impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
         let new_organization = NewUserOrganization::from(value);
 
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        })
+    }
+}
+
+impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+    fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
+        let merchant_id = MerchantId::new(value.clone().1.merchant_id)?;
+        let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,
             merchant_id,
@@ -657,6 +679,26 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     }
 }
 
+impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+    fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.0.email.clone().try_into()?;
+        let name = UserName::new(value.0.name.clone())?;
+        let password = password::generate_password_hash(uuid::Uuid::new_v4().to_string().into())?;
+        let password = UserPassword::new(password)?;
+        let new_merchant = NewUserMerchant::try_from(value)?;
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password,
+            new_merchant,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct UserFromStorage(pub storage_user::User);
 
@@ -693,6 +735,29 @@ impl UserFromStorage {
             .find_user_role_by_user_id(self.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
+    }
+
+    #[cfg(feature = "email")]
+    pub fn get_verification_days_left(&self, state: AppState) -> UserResult<Option<i64>> {
+        if self.0.is_verified {
+            return Ok(None);
+        }
+
+        let allowed_unverified_duration =
+            time::Duration::days(state.conf.email.allowed_unverified_days);
+
+        let user_created = self.0.created_at.date();
+        let last_date_for_verification = user_created
+            .checked_add(allowed_unverified_duration)
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let today = common_utils::date_time::now().date();
+        if today >= last_date_for_verification {
+            return Err(UserErrors::UnverifiedUser.into());
+        }
+
+        let days_left_for_verification = last_date_for_verification - today;
+        Ok(Some(days_left_for_verification.whole_days()))
     }
 }
 

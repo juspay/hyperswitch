@@ -1,11 +1,15 @@
 pub mod admin;
 pub mod api_keys;
 pub mod configs;
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod files;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
 pub mod mandates;
 pub mod payment_link;
 pub mod payment_methods;
@@ -21,6 +25,8 @@ use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
 
+#[cfg(feature = "frm")]
+pub use self::fraud_check::*;
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
     payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
@@ -152,6 +158,7 @@ pub trait Connector:
     + ConnectorTransactionId
     + Payouts
     + ConnectorVerifyWebhookSource
+    + FraudCheck
 {
 }
 
@@ -171,7 +178,8 @@ impl<
             + FileUpload
             + ConnectorTransactionId
             + Payouts
-            + ConnectorVerifyWebhookSource,
+            + ConnectorVerifyWebhookSource
+            + FraudCheck,
     > Connector for T
 {
 }
@@ -238,7 +246,11 @@ impl SessionSurchargeDetails {
     ) -> Option<payments_types::SurchargeDetails> {
         match self {
             Self::Calculated(surcharge_metadata) => surcharge_metadata
-                .get_surcharge_details(payment_method, payment_method_type, card_network)
+                .get_surcharge_details(payments_types::SurchargeKey::PaymentMethodData(
+                    *payment_method,
+                    *payment_method_type,
+                    card_network.cloned(),
+                ))
                 .cloned(),
             Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),
         }
@@ -376,6 +388,7 @@ impl ConnectorData {
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
+                enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
@@ -393,7 +406,9 @@ impl ConnectorData {
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd | enums::Connector::Plaid => {
+                enums::Connector::Signifyd
+                | enums::Connector::Plaid
+                | enums::Connector::Riskified => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -405,6 +420,20 @@ impl ConnectorData {
         }
     }
 }
+
+#[cfg(feature = "frm")]
+pub trait FraudCheck:
+    ConnectorCommon
+    + FraudCheckSale
+    + FraudCheckTransaction
+    + FraudCheckCheckout
+    + FraudCheckFulfillment
+    + FraudCheckRecordReturn
+{
+}
+
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheck {}
 
 #[cfg(test)]
 mod test {

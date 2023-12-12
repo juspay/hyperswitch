@@ -6,7 +6,7 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen airwallex applepay authorizedotnet bambora bankofamerica bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector fiserv forte globalpay globepay gocardless helcim iatapay klarna mollie multisafepay nexinets noon nuvei opayo opennode payeezy payme paypal payu powertranz prophetpay rapyd shift4 square stax stripe trustpay tsys volt wise worldline worldpay "$1")
+    connectors=(aci adyen airwallex applepay authorizedotnet bambora bankofamerica bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector fiserv forte globalpay globepay gocardless helcim iatapay klarna mollie multisafepay nexinets noon nuvei opayo opennode payeezy payme paypal payu placetopay powertranz prophetpay rapyd shift4 square stax stripe trustpay tsys volt wise worldline worldpay "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
@@ -25,7 +25,7 @@ function find_prev_connector() {
     eval "$2='aci'"
 }
 
-payment_gateway=$1;
+payment_gateway=$(echo $1 | tr '[:upper:]' '[:lower:]')
 base_url=$2;
 payment_gateway_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${payment_gateway:0:1})${payment_gateway:1}"
 src="crates/router/src"
@@ -49,7 +49,7 @@ git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/developm
 
 # Add enum for this connector in required places
 previous_connector=''
-find_prev_connector $1 previous_connector
+find_prev_connector $payment_gateway previous_connector
 previous_connector_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${previous_connector:0:1})${previous_connector:1}"
 sed -i'' -e "s|pub mod $previous_connector;|pub mod $previous_connector;\npub mod ${payment_gateway};|" $conn.rs
 sed -i'' -e "s/};/${payment_gateway}::${payment_gateway_camelcase},\n};/" $conn.rs

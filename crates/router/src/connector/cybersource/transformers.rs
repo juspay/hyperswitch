@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
-        PhoneDetailsData, RouterData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -60,10 +60,8 @@ pub struct CybersourceZeroMandateRequest {
 impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let phone = item.get_billing_phone()?;
-        let number_with_code = phone.get_number_with_country_code()?;
         let email = item.request.get_email()?;
-        let bill_to = build_bill_to(item.get_billing()?, email, number_with_code)?;
+        let bill_to = build_bill_to(item.get_billing()?, email)?;
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
@@ -276,14 +274,12 @@ pub struct BillTo {
     postal_code: Secret<String>,
     country: api_enums::CountryAlpha2,
     email: pii::Email,
-    phone_number: Secret<String>,
 }
 
 // for cybersource each item in Billing is mandatory
 fn build_bill_to(
     address_details: &payments::Address,
     email: pii::Email,
-    phone_number: Secret<String>,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let address = address_details
         .address
@@ -298,7 +294,6 @@ fn build_bill_to(
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
         email,
-        phone_number,
     })
 }
 
@@ -309,10 +304,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let phone = item.router_data.get_billing_phone()?;
-        let number_with_code = phone.get_number_with_country_code()?;
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
+        let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
