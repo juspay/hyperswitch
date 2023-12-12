@@ -562,6 +562,7 @@ where
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
+                original_amount: payment_data.payment_attempt.amount,
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
