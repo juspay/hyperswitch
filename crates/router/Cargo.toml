@@ -79,12 +79,12 @@ ring = "0.16.20"
 roxmltree = "0.18.0"
 rust_decimal = { version = "1.30.0", features = ["serde-with-float", "serde-with-str"] }
 rustc-hash = "1.1.0"
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-serde_path_to_error = "0.1.11"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+serde_path_to_error = "0.1.14"
 serde_qs = { version = "0.12.0", optional = true }
 serde_urlencoded = "0.7.1"
-serde_with = "3.0.0"
+serde_with = "3.4.0"
 sha-1 = { version = "0.9" }
 sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
 strum = { version = "0.25", features = ["derive"] }
@@ -134,7 +134,7 @@ rand = "0.8.5"
 serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
-wiremock = "0.5"
+wiremock = "0.5.18"
 
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }

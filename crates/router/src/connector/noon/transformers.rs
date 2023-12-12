@@ -200,7 +200,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name.clone(),
+                        name_on_card: req_card
+                            .card_holder_name
+                            .clone()
+                            .ok_or_else(conn_utils::missing_field_err("card_holder_name"))?,
                         number_plain: req_card.card_number.clone(),
                         expiry_month: req_card.card_exp_month.clone(),
                         expiry_year: req_card.get_expiry_year_4_digit(),

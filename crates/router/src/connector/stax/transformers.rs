@@ -226,7 +226,9 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 let stax_card_data = StaxTokenizeData {
                     card_exp: card_data
                         .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
-                    person_name: card_data.card_holder_name,
+                    person_name: card_data
+                        .card_holder_name
+                        .ok_or_else(missing_field_err("card_holder_name"))?,
                     card_number: card_data.card_number,
                     card_cvv: card_data.card_cvc,
                     customer_id: Secret::new(customer_id),

@@ -121,3 +121,15 @@ pub struct UserDetails {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: time::PrimitiveDateTime,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyEmailRequest {
+    pub token: Secret<String>,
+}
+
+pub type VerifyEmailResponse = DashboardEntryResponse;
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct SendVerifyEmailRequest {
+    pub email: pii::Email,
+}
