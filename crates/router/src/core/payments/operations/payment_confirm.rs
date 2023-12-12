@@ -7,12 +7,12 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode},
 };
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
-#[cfg(feature = "kms")]
-use external_services::kms;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
