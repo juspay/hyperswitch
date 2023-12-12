@@ -75,7 +75,7 @@ impl KmsClient {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(kms_sdk_error=?error, "Failed to KMS decrypt data");
-                metrics::AWS_KMS_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::AWS_KMS_DECRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
             .into_report()
@@ -100,11 +100,10 @@ impl KmsClient {
     /// Encrypts the provided String data using the AWS KMS SDK. We assume that
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
-    /// a machine that is able to assume an IAM role. Moreover the cipher is BASE64 encoded before
-    /// sending the resultant cipher.
+    /// a machine that is able to assume an IAM role.
     pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
         let start = Instant::now();
-        let ciphertext_blob = Blob::new(data.as_ref());
+        let plaintext_blob = Blob::new(data.as_ref());
 
         let encrypted_output = self
             .inner_client
@@ -117,7 +116,7 @@ impl KmsClient {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(kms_sdk_error=?error, "Failed to KMS encrypt data");
-                metrics::AWS_KMS_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::AWS_KMS_ENCRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
             .into_report()
@@ -125,11 +124,11 @@ impl KmsClient {
 
         let output = encrypted_output
             .ciphertext_blob
-            .ok_or(KmsError::MissingCipherEncryptionOutput)
+            .ok_or(KmsError::MissingCiphertextEncryptionOutput)
             .into_report()
             .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
-        metrics::AWS_KMS_DECRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
+        metrics::AWS_KMS_ENCRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
 
         Ok(output)
     }
@@ -158,9 +157,9 @@ pub enum KmsError {
     #[error("Missing plaintext KMS decryption output")]
     MissingPlaintextDecryptionOutput,
 
-    /// The KMS encrypted output does not include a cipher output.
-    #[error("Missing plaintext KMS encryption output")]
-    MissingCipherEncryptionOutput,
+    /// The KMS encrypted output does not include a ciphertext output.
+    #[error("Missing ciphertext KMS encryption output")]
+    MissingCiphertextEncryptionOutput,
 
     /// An error occurred UTF-8 decoding KMS decrypted output.
     #[error("Failed to UTF-8 decode decryption output")]
@@ -243,3 +242,4 @@ mod tests {
         println!("{}", kms_encrypted_fingerprint);
     }
 }
+
