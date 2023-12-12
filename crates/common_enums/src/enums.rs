@@ -469,6 +469,7 @@ pub enum Currency {
     RUB,
     RWF,
     SAR,
+    SBD,
     SCR,
     SEK,
     SGD,
@@ -656,6 +657,7 @@ impl Currency {
             Self::RUB => "643",
             Self::RWF => "646",
             Self::SAR => "682",
+            Self::SBD => "090",
             Self::SCR => "690",
             Self::SEK => "752",
             Self::SGD => "702",
@@ -805,6 +807,7 @@ impl Currency {
             | Self::RSD
             | Self::RUB
             | Self::SAR
+            | Self::SBD
             | Self::SCR
             | Self::SEK
             | Self::SGD
@@ -933,6 +936,7 @@ impl Currency {
             | Self::RUB
             | Self::RWF
             | Self::SAR
+            | Self::SBD
             | Self::SCR
             | Self::SEK
             | Self::SGD
