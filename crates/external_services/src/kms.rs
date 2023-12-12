@@ -114,8 +114,9 @@ impl KmsClient {
             .send()
             .await
             .map_err(|error| {
+                // Logging using `Debug` representation of the error as the `Display`
+                // representation does not hold sufficient information.
                 logger::error!(kms_sdk_error=?error, "Failed to KMS encrypt data");
-                eprintln!("{error:?}");
                 metrics::AWS_KMS_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
