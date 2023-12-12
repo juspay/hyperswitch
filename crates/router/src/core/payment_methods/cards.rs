@@ -105,7 +105,7 @@ pub fn store_default_payment_method(
     req: &api::PaymentMethodCreate,
     customer_id: &str,
     merchant_id: &String,
-) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::ApiErrorResponse> {
+) -> (api::PaymentMethodResponse, bool) {
     let pm_id = generate_id(consts::ID_LENGTH, "pm");
     let payment_method_response = api::PaymentMethodResponse {
         merchant_id: merchant_id.to_string(),
@@ -121,7 +121,7 @@ pub fn store_default_payment_method(
         installment_payment_enabled: false, //[#219]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
     };
-    Ok((payment_method_response, false))
+    (payment_method_response, false)
 }
 
 #[instrument(skip_all)]
@@ -148,7 +148,11 @@ pub async fn add_payment_method(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add PaymentMethod Failed"),
-            _ => store_default_payment_method(&req, &customer_id, merchant_id),
+            _ => Ok(store_default_payment_method(
+                &req,
+                &customer_id,
+                merchant_id,
+            )),
         },
         api_enums::PaymentMethod::Card => match req.card.clone() {
             Some(card) => {
@@ -157,9 +161,17 @@ pub async fn add_payment_method(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Add Card Failed")
             }
-            _ => store_default_payment_method(&req, &customer_id, merchant_id),
+            _ => Ok(store_default_payment_method(
+                &req,
+                &customer_id,
+                merchant_id,
+            )),
         },
-        _ => store_default_payment_method(&req, &customer_id, merchant_id),
+        _ => Ok(store_default_payment_method(
+            &req,
+            &customer_id,
+            merchant_id,
+        )),
     };
 
     let (resp, is_duplicate) = response?;

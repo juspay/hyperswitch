@@ -2448,9 +2448,6 @@
       "AchBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "bank_account_number",
           "bank_routing_number"
         ],
@@ -2458,15 +2455,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "bank_account_number": {
             "type": "string",
@@ -2900,9 +2904,6 @@
       "BacsBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "bank_account_number",
           "bank_sort_code"
         ],
@@ -2910,15 +2911,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "bank_account_number": {
             "type": "string",
@@ -8846,6 +8854,14 @@
             "description": "The card network",
             "example": "Visa",
             "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9182,6 +9198,14 @@
             "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
             "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9189,6 +9213,7 @@
         "type": "string",
         "enum": [
           "ach",
+          "ach_bank_transfer",
           "affirm",
           "afterpay_clearpay",
           "alfamart",
@@ -9198,6 +9223,7 @@
           "apple_pay",
           "atome",
           "bacs",
+          "bacs_bank_transfer",
           "bancontact_card",
           "becs",
           "benefit",
@@ -9256,6 +9282,7 @@
           "red_pagos",
           "samsung_pay",
           "sepa",
+          "sepa_bank_transfer",
           "sofort",
           "swish",
           "touch_n_go",
@@ -9288,6 +9315,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
               }
             ],
             "nullable": true
@@ -11927,9 +11962,6 @@
       "SepaBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "iban",
           "bic"
         ],
@@ -11937,15 +11969,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "iban": {
             "type": "string",
