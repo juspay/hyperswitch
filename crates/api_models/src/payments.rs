@@ -682,7 +682,7 @@ pub struct Card {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]

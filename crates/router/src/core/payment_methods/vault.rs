@@ -51,7 +51,10 @@ impl Vaultable for api::Card {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            name_on_card: Some(self.card_holder_name.peek().clone()),
+            name_on_card: self
+                .card_holder_name
+                .clone()
+                .map(|name| name.peek().clone()),
             nickname: None,
             card_last_four: None,
             card_token: None,
@@ -99,7 +102,7 @@ impl Vaultable for api::Card {
                 .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
+            card_holder_name: value1.name_on_card.map(masking::Secret::new),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
