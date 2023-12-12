@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.87.3 (2023-12-12)
+
+### Bug Fixes
+
+- **euclid_wasm:** Add release feature flag to make enabled features consistent with router/release ([`c7396d8`](https://github.com/juspay/hyperswitch/commit/c7396d839e71432bb2b56f8bbfbfb065d4fed2a9))
+
+**Full Changelog:** [`v1.87.2...v1.87.3`](https://github.com/juspay/hyperswitch/compare/v1.87.2...v1.87.3)
+
+- - -
+
 ## 1.87.2 (2023-12-12)
 
 ### Bug Fixes
