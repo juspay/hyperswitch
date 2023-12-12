@@ -10,10 +10,6 @@ pub enum SampleDataError {
     InternalServerError,
     #[error("Data Does Not Exist")]
     DataDoesNotExist,
-    #[error("Server Error")]
-    DatabaseError,
-    #[error("Merchant Id Not Found")]
-    MerchantIdNotFound,
     #[error("Invalid Parameters")]
     InvalidParameters,
     #[error["Invalid Records"]]
@@ -29,33 +25,21 @@ impl ErrorSwitch<ApiErrorResponse> for SampleDataError {
                 "Something went wrong",
                 None,
             )),
-            Self::DatabaseError => ApiErrorResponse::InternalServerError(ApiError::new(
-                "SD",
-                1,
-                "Server Error(DB is down)",
-                None,
-            )),
             Self::DataDoesNotExist => ApiErrorResponse::NotFound(ApiError::new(
                 "SD",
-                2,
+                1,
                 "Sample Data not present for given request",
-                None,
-            )),
-            Self::MerchantIdNotFound => ApiErrorResponse::BadRequest(ApiError::new(
-                "SD",
-                3,
-                "Merchant ID not provided",
                 None,
             )),
             Self::InvalidParameters => ApiErrorResponse::BadRequest(ApiError::new(
                 "SD",
-                4,
+                2,
                 "Invalid parameters to generate Sample Data",
                 None,
             )),
             Self::InvalidRange => ApiErrorResponse::BadRequest(ApiError::new(
                 "SD",
-                5,
+                3,
                 "Records to be generated should be between range 10 and 100",
                 None,
             )),
@@ -67,7 +51,7 @@ impl ErrorSwitchFrom<StorageError> for SampleDataError {
     fn switch_from(error: &StorageError) -> Self {
         match matches!(error, StorageError::ValueNotFound(_)) {
             true => Self::DataDoesNotExist,
-            false => Self::DatabaseError,
+            false => Self::InternalServerError,
         }
     }
 }

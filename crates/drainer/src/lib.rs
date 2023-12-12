@@ -7,7 +7,7 @@ pub mod settings;
 mod utils;
 use std::sync::{atomic, Arc};
 
-use common_utils::signals::get_allowed_signals;
+use common_utils::{ext_traits::StringExt, signals::get_allowed_signals};
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -199,15 +199,21 @@ async fn drainer(
             .get("request_id")
             .map_or(String::new(), Clone::clone);
         let global_id = entry.1.get("global_id").map_or(String::new(), Clone::clone);
+        let pushed_at = entry.1.get("pushed_at");
 
         tracing::Span::current().record("request_id", request_id);
         tracing::Span::current().record("global_id", global_id);
         tracing::Span::current().record("session_id", &session_id);
 
-        let result = serde_json::from_str::<kv::DBOperation>(&typed_sql);
+        let result = typed_sql.parse_struct("DBOperation");
+
         let db_op = match result {
             Ok(f) => f,
-            Err(_err) => continue, // TODO: handle error
+            Err(err) => {
+                logger::error!(operation= "deserialization",error = %err);
+                metrics::STREAM_PARSE_FAIL.add(&metrics::CONTEXT, 1, &[]);
+                continue;
+            }
         };
 
         let conn = pg_connection(&store.master_pool).await;
@@ -261,6 +267,7 @@ async fn drainer(
                         value: insert_op.into(),
                     }],
                 );
+                utils::push_drainer_delay(pushed_at, insert_op.to_string());
             }
             kv::DBOperation::Update { updatable } => {
                 let (_, execution_time) = common_utils::date_time::time_it(|| async {
@@ -302,6 +309,7 @@ async fn drainer(
                         value: update_op.into(),
                     }],
                 );
+                utils::push_drainer_delay(pushed_at, update_op.to_string());
             }
             kv::DBOperation::Delete => {
                 // [#224]: Implement this
