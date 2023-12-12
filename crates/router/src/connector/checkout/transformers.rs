@@ -7,7 +7,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, ApplePayDecrypt, to_connector_meta, PaymentsCaptureRequestData, RouterData, WalletData,
+        self, to_connector_meta, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData,
+        WalletData,
     },
     consts,
     core::errors,
