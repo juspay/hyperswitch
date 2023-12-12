@@ -473,6 +473,7 @@ pub enum Currency {
     SCR,
     SEK,
     SGD,
+    SHP,
     SLL,
     SOS,
     SSP,
@@ -661,6 +662,7 @@ impl Currency {
             Self::SCR => "690",
             Self::SEK => "752",
             Self::SGD => "702",
+            Self::SHP => "654",
             Self::SLL => "694",
             Self::SOS => "706",
             Self::SSP => "728",
@@ -811,6 +813,7 @@ impl Currency {
             | Self::SCR
             | Self::SEK
             | Self::SGD
+            | Self::SHP
             | Self::SLL
             | Self::SOS
             | Self::SSP
@@ -940,6 +943,7 @@ impl Currency {
             | Self::SCR
             | Self::SEK
             | Self::SGD
+            | Self::SHP
             | Self::SLL
             | Self::SOS
             | Self::SSP
