@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
-use syn::{self, parse_quote, punctuated::Punctuated, Token};
+use syn::{self, parse::Parse, parse_quote, punctuated::Punctuated, Token};
 
 use crate::macros::helpers;
 
@@ -39,7 +39,6 @@ fn get_field_type(field_type: syn::Type) -> syn::Result<syn::Ident> {
     }
 }
 
-#[allow(dead_code)]
 /// Get the inner type of option
 fn get_inner_option_type(field: &syn::Type) -> syn::Result<syn::Ident> {
     if let syn::Type::Path(ref path) = &field {
@@ -58,6 +57,35 @@ fn get_inner_option_type(field: &syn::Type) -> syn::Result<syn::Ident> {
     ))
 }
 
+mod schema_keyword {
+    use syn::custom_keyword;
+
+    custom_keyword!(schema);
+}
+
+#[derive(Debug, Clone)]
+pub struct SchemaMeta {
+    struct_name: syn::Ident,
+    type_ident: syn::Ident,
+}
+
+/// parse #[mandatory_in(PaymentsCreateRequest = u64)]
+impl Parse for SchemaMeta {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let struct_name = input.parse::<syn::Ident>()?;
+        input.parse::<syn::Token![=]>()?;
+        let type_ident = input.parse::<syn::Ident>()?;
+        Ok(Self {
+            struct_name,
+            type_ident,
+        })
+    }
+}
+
+impl quote::ToTokens for SchemaMeta {
+    fn to_tokens(&self, _: &mut proc_macro2::TokenStream) {}
+}
+
 pub fn polymorphic_macro_derive_inner(
     input: syn::DeriveInput,
 ) -> syn::Result<proc_macro2::TokenStream> {
@@ -69,9 +97,12 @@ pub fn polymorphic_macro_derive_inner(
 
     // Go through all the fields and create a mapping of required fields for a schema
     // PaymentsCreate -> ["amount","currency"]
-    // This will be stored in a hashset
+    // This will be stored in the hashmap with key as
     // required_fields -> ((amount, PaymentsCreate), (currency, PaymentsCreate))
-    let mut required_fields = HashSet::<(syn::Ident, syn::Ident)>::new();
+    // and values as the type
+    //
+    // (amount, PaymentsCreate) -> Amount
+    let mut required_fields = HashMap::<(syn::Ident, syn::Ident), syn::Ident>::new();
 
     // These fields will be removed in the schema
     // PaymentsUpdate -> ["client_secret"]
@@ -80,7 +111,7 @@ pub fn polymorphic_macro_derive_inner(
     let mut hide_fields = HashSet::<(syn::Ident, syn::Ident)>::new();
     let mut all_fields = IndexMap::<syn::Field, Vec<syn::Attribute>>::new();
 
-    fields.iter().for_each(|field| {
+    for field in fields {
         // Partition the attributes of a field into two vectors
         // One with #[mandatory_in] attributes present
         // Rest of the attributes ( include only the schema attribute, serde is not required)
@@ -119,19 +150,17 @@ pub fn polymorphic_macro_derive_inner(
         // ("currency", PaymentsConfirmRequest)
         //
         // For these attributes, we need to later add #[schema(required = true)] attribute
-        _ = mandatory_attribute
-            .iter()
-            // Filter only #[mandatory_in] attributes
-            .map(|&attribute| get_inner_path_ident(attribute))
-            .try_for_each(|schemas| {
-                let res = schemas
-                    .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?
-                    .iter()
-                    .filter_map(|schema| field.ident.to_owned().zip(Some(schema.to_owned())))
-                    .collect::<HashSet<_>>();
-
-                required_fields.extend(res);
-                Ok::<_, syn::Error>(())
+        let field_ident = field.ident.ok_or(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "Cannot use `mandatory_in` on unnamed fields",
+        ))?;
+        helpers::get_metadata_inner::<SchemaMeta>("mandatory_in", mandatory_attribute)?
+            .first()
+            .cloned()
+            .map(|mandatory_in_attribute| {
+                let key = (field_ident.clone(), mandatory_in_attribute.struct_name);
+                let value = mandatory_in_attribute.type_ident;
+                required_fields.insert(key, value);
             });
 
         // Hidden fields are to be inserted in the Hashset
@@ -147,51 +176,59 @@ pub fn polymorphic_macro_derive_inner(
                 let res = schemas
                     .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?
                     .iter()
-                    .filter_map(|schema| field.ident.to_owned().zip(Some(schema.to_owned())))
+                    .map(|schema| (field_ident.clone(), schema.to_owned()))
                     .collect::<HashSet<_>>();
 
                 hide_fields.extend(res);
                 Ok::<_, syn::Error>(())
             });
-    });
+    }
 
+    // iterate over the schemas and build them with their fields
     let schemas = schemas_to_create
         .iter()
         .map(|schema| {
             let fields = all_fields
                 .iter()
-                .flat_map(|(field, value)| {
-                    let mut attributes = value
-                        .iter()
-                        .map(|attribute| quote::quote!(#attribute))
-                        .collect::<Vec<_>>();
+                .filter_map(|(field, attributes)| {
+                    let mut final_attributes = attributes.clone();
 
-                    // If the field is required for this schema, then add
-                    // #[schema(required = true)] for this field
-                    let required_attribute: syn::Attribute =
-                        parse_quote!(#[schema(required = true)]);
-
-                    // Can be none, because tuple fields have no ident
-                    field.ident.to_owned().and_then(|field_ident| {
+                    if let Some(field_ident) = field.ident.to_owned() {
+                        // If the field is required for this schema, then add
+                        // #[schema(value_type = type)] for this field
                         required_fields
-                            .contains(&(field_ident, schema.to_owned()))
-                            .then(|| attributes.push(quote::quote!(#required_attribute)))
-                    });
+                            .get(&(field_ident.clone(), schema.to_owned()))
+                            .map(|hola| {
+                                // This is a required field in the Schema
+                                // Add the value type and remove original value type ( if present )
+                                let attribute_without_schema_type = attributes
+                                    .into_iter()
+                                    .filter(|attribute| !attribute.path().is_ident("schema"))
+                                    .map(Clone::clone)
+                                    .collect::<Vec<_>>();
 
-                    // let inner_type = check_inner_option_type(&field.ty).unwrap();
+                                final_attributes = attribute_without_schema_type;
+
+                                let value_type_attribute: syn::Attribute =
+                                    parse_quote!(#[schema(value_type = #hola)]);
+                                final_attributes.push(value_type_attribute);
+                            });
+                    }
+
+                    // If the field is to be not shown then
                     let is_hidden_field = field
                         .ident
                         .clone()
                         .map(|field_ident| hide_fields.contains(&(field_ident, schema.to_owned())))
                         .unwrap_or(false);
 
-                    if !is_hidden_field {
-                        quote::quote! {
-                            #(#attributes)*
-                            #field,
-                        }
+                    if is_hidden_field {
+                        None
                     } else {
-                        quote::quote!()
+                        Some(quote::quote! {
+                            #(#final_attributes)*
+                            #field,
+                        })
                     }
                 })
                 .collect::<Vec<_>>();

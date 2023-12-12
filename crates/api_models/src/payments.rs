@@ -102,9 +102,10 @@ pub struct PaymentsRequest {
     pub merchant_id: Option<String>,
 
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(value_type = Option<u64>, example = 6540)]
+    #[schema(value_type = Option<u64>)]
+    #[schema(example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
-    #[mandatory_in(PaymentsCreateRequest)]
+    #[mandatory_in(PaymentsCreateRequest = u64)]
     // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
@@ -119,8 +120,9 @@ pub struct PaymentsRequest {
     pub connector: Option<Vec<api_enums::Connector>>,
 
     /// The currency of the payment request can be specified here
-    #[schema(value_type = Option<Currency>, example = "USD")]
-    #[mandatory_in(PaymentsCreateRequest)]
+    #[schema(example = "USD")]
+    #[schema(value_type = Option<Currency>)]
+    #[mandatory_in(PaymentsCreateRequest = Currency)]
     pub currency: Option<api_enums::Currency>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
@@ -233,7 +235,7 @@ pub struct PaymentsRequest {
 
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    #[remove_in(PaymentsUpdateRequest)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
     pub client_secret: Option<String>,
 
     /// Provide mandate information for creating a mandate
