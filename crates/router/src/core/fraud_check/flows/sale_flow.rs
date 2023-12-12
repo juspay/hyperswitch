@@ -92,6 +92,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             external_latency: None,
             connector_api_version: None,
             apple_pay_flow: None,
+            frm_metadata: None,
         };
 
         Ok(router_data)
