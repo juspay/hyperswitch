@@ -195,17 +195,22 @@ pub struct CashtocodePaymentsSyncResponse {
     pub amount: i64,
 }
 
-impl<F, T>
+impl<F>
     TryFrom<
-        types::ResponseRouterData<F, CashtocodePaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            F,
+            CashtocodePaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             CashtocodePaymentsResponse,
-            T,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -222,9 +227,14 @@ impl<F, T>
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
+                let method = match item.data.request.payment_method_type {
+                    Some(enums::PaymentMethodType::ClassicReward) => services::Method::Post,
+                    Some(enums::PaymentMethodType::Evoucher) => services::Method::Get,
+                    _ => services::Method::Get,
+                };
                 let redirection_data = services::RedirectForm::Form {
                     endpoint: response_data.pay_url,
-                    method: services::Method::Post,
+                    method,
                     form_fields: Default::default(),
                 };
                 (
@@ -272,10 +282,10 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Charged,
+            status: enums::AttemptStatus::Charged, // Cherged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.attempt_id.clone(),
+                    item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
                 ),
                 redirection_data: None,
                 mandate_reference: None,
