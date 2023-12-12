@@ -39,7 +39,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &super::PaymentAuthRouterData<T, Req, Resp>,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        Ok(RequestContent::Json(Box::new(serde_json::json!(r#""#))))
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
     }
 
     fn build_request(

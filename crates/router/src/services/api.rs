@@ -138,7 +138,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!(r#""#))))
+        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
     }
 
     fn get_request_form_data(
@@ -287,7 +287,8 @@ where
         Some(RequestContent::Json(payload))
         | Some(RequestContent::FormUrlEncoded(payload))
         | Some(RequestContent::Xml(payload)) => payload.masked_serialize().unwrap_or_default(),
-        _ => serde_json::Value::Null,
+        Some(RequestContent::FormData(_)) => json!({"request_type": "FORM_DATA"}),
+        None => serde_json::Value::Null,
     });
     logger::debug!(connector_request_body=?masked_conn_req);
     logger::debug!(payment_id=?req.payment_id);
@@ -374,7 +375,7 @@ where
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
                         },
-                        None => json!({"error": "EMPTY_REQUEST_BODY"}),
+                        None => serde_json::Value::Null,
                     };
                     let request_url = request.url.clone();
                     let request_method = request.method;
