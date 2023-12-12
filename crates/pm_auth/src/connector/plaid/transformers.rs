@@ -246,12 +246,67 @@ impl<F, T>
                     (None, None)
                 };
 
+            let account_details =
+                types::PaymentMethodTypeDetails::ACH(types::BankAccountDetailsACH {
+                    account_number: Secret::new(ach.account),
+                    routing_number: Secret::new(ach.routing),
+                });
+
             let bank_details_new = types::BankAccountDetails {
                 account_name: acc_name,
-                account_number: ach.account,
-                routing_number: ach.routing,
+                account_details,
                 payment_method_type: PaymentMethodType::Ach,
                 account_id: ach.account_id,
+                account_type: acc_type,
+            };
+
+            bank_account_vec.push(bank_details_new);
+        });
+
+        account_numbers.bacs.into_iter().for_each(|bacs| {
+            let (acc_type, acc_name) =
+                if let Some((_type, name)) = id_to_suptype.get(&bacs.account_id) {
+                    (_type.to_owned(), Some(name.clone()))
+                } else {
+                    (None, None)
+                };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::BACS(types::BankAccountDetailsBACS {
+                    account_number: Secret::new(bacs.account),
+                    sort_code: Secret::new(bacs.sort_code),
+                });
+
+            let bank_details_new = types::BankAccountDetails {
+                account_name: acc_name,
+                account_details,
+                payment_method_type: PaymentMethodType::Bacs,
+                account_id: bacs.account_id,
+                account_type: acc_type,
+            };
+
+            bank_account_vec.push(bank_details_new);
+        });
+
+        account_numbers.international.into_iter().for_each(|sepa| {
+            let (acc_type, acc_name) =
+                if let Some((_type, name)) = id_to_suptype.get(&sepa.account_id) {
+                    (_type.to_owned(), Some(name.clone()))
+                } else {
+                    (None, None)
+                };
+
+            let account_details =
+                types::PaymentMethodTypeDetails::SEPA(types::BankAccountDetailsSEPA {
+                    iban: Secret::new(sepa.iban),
+                    bic: Secret::new(sepa.bic),
+                });
+
+            let bank_details_new = types::BankAccountDetails {
+                account_name: acc_name,
+                account_details,
+                payment_method_type: PaymentMethodType::Sepa,
+                account_id: sepa.account_id,
                 account_type: acc_type,
             };
 

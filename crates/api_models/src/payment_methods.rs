@@ -176,6 +176,12 @@ pub struct PaymentMethodDataBankCreds {
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankAccountTokenData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector_details: BankAccountConnectorDetails,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountConnectorDetails {
     pub connector: String,

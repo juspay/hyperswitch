@@ -72,11 +72,34 @@ pub struct BankAccountCredentialsResponse {
 #[derive(Debug, Clone)]
 pub struct BankAccountDetails {
     pub account_name: Option<String>,
-    pub account_number: String,
-    pub routing_number: String,
+    pub account_details: PaymentMethodTypeDetails,
     pub payment_method_type: PaymentMethodType,
     pub account_id: String,
     pub account_type: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PaymentMethodTypeDetails {
+    ACH(BankAccountDetailsACH),
+    BACS(BankAccountDetailsBACS),
+    SEPA(BankAccountDetailsSEPA),
+}
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsACH {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsBACS {
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BankAccountDetailsSEPA {
+    pub iban: Secret<String>,
+    pub bic: Secret<String>,
 }
 
 pub type BankDetailsRouterData = PaymentAuthRouterData<

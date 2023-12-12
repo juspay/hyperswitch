@@ -30,7 +30,7 @@ pub enum PaymentTokenData {
     TemporaryGeneric(GenericTokenData),
     Permanent(CardTokenData),
     PermanentCard(CardTokenData),
-    AuthBankDebit(payment_methods::BankAccountConnectorDetails),
+    AuthBankDebit(payment_methods::BankAccountTokenData),
 }
 
 impl PaymentTokenData {
