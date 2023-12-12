@@ -317,8 +317,8 @@ impl From<enums::CaptureMethod> for AuthorizationType {
         match item {
             enums::CaptureMethod::Manual => Self::Pre,
             euclid::enums::CaptureMethod::Automatic
-            | euclid::enums::CaptureMethod::ManualMultiple
-            | euclid::enums::CaptureMethod::Scheduled => Self::Final,
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::Scheduled => Self::Final,
         }
     }
 }
