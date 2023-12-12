@@ -7,6 +7,7 @@ use transformers as placetopay;
 
 use crate::{
     configs::settings,
+    connector::utils::PaymentsAuthorizeRequestData,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -151,10 +152,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/process", self.base_url(connectors)))
+        if req.request.is_auto_capture()? {
+            Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Auto Capture".to_owned(),
+                connector: "placetopay".to_owned(),
+            }
+            .into())
+        } else {
+            Ok(format!("{}/process", self.base_url(connectors)))
+        }
     }
 
     fn get_request_body(
@@ -605,7 +614,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: placetopay::PlacetopayRefundResponse = res
             .response
-            .parse_struct("placetopay PlacetopayRsyncResponse")
+            .parse_struct("placetopay PlacetopayRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
