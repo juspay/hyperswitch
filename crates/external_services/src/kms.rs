@@ -96,6 +96,12 @@ impl KmsClient {
 
         Ok(output)
     }
+
+    /// Encrypts the provided String data using the AWS KMS SDK. We assume that
+    /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
+    /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
+    /// a machine that is able to assume an IAM role. Moreover the cipher is BASE64 encoded before
+    /// sending the resultant cipher.
     pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
         let start = Instant::now();
         let ciphertext_blob = Blob::new(data.as_ref());
@@ -212,7 +218,7 @@ mod tests {
             .await
             .encrypt(binding)
             .await
-            .unwrap();
+            .expect("kms encryption failed");
 
         println!("{}", kms_encrypted_fingerprint);
     }
@@ -234,7 +240,7 @@ mod tests {
             .await
             .decrypt(binding)
             .await
-            .unwrap();
+            .expect("kms decryption failed");
 
         println!("{}", kms_encrypted_fingerprint);
     }
