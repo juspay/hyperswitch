@@ -122,6 +122,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     connector_details: payment_data.connector_details,
                     order_details: payment_data.order_details,
                     refund: None,
+                    frm_metadata: payment_data.frm_metadata,
                 };
                 Ok(Some(frm_data))
             }
@@ -152,7 +153,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _>(
             state,
             payment_data,
-            frm_data.to_owned(),
+            &mut frm_data.to_owned(),
             merchant_account,
             &key_store,
             customer,
@@ -219,7 +220,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             let _router_data = frm_core::call_frm_service::<F, frm_api::RecordReturn, _>(
                 state,
                 payment_data,
-                frm_data.to_owned(),
+                &mut frm_data.to_owned(),
                 merchant_account,
                 &key_store,
                 customer,
@@ -243,7 +244,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _>(
             state,
             payment_data,
-            frm_data.to_owned(),
+            &mut frm_data.to_owned(),
             merchant_account,
             &key_store,
             customer,
