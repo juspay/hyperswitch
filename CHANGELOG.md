@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.87.2 (2023-12-12)
+
+### Bug Fixes
+
+- **router:** Add missing feature flag to the router crate release list ([`7e36061`](https://github.com/juspay/hyperswitch/commit/7e360614ea6312449bafb6f7713d06847dc5d38e))
+
+**Full Changelog:** [`v1.87.1...v1.87.2`](https://github.com/juspay/hyperswitch/compare/v1.87.1...v1.87.2)
+
+- - -
+
 ## 1.87.1 (2023-12-06)
 
 ### Features
