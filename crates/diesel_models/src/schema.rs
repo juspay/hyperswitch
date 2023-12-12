@@ -706,6 +706,8 @@ diesel::table! {
         request_incremental_authorization -> RequestIncrementalAuthorization,
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
     }
 }
 
@@ -845,6 +847,28 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    pm_blocklist (merchant_id) {
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        pm_hash -> Text,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    pm_fingerprint (fingerprint_id) {
+        #[max_length = 64]
+        fingerprint_id -> Varchar,
+        kms_hash -> Text,
     }
 }
 
@@ -1036,6 +1060,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     payment_methods,
     payout_attempt,
     payouts,
+    pm_blocklist,
+    pm_fingerprint,
     process_tracker,
     refund,
     reverse_lookup,

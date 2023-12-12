@@ -11,6 +11,8 @@ use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
+#[cfg(feature = "kms")]
+use external_services::kms;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -728,6 +730,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .attach_printable("Merchant Secret not found")?
             .config;
 
+        // Fingerprint to check whether or not this payment_method is blocked or not.
         let fingerprint =
             payment_data
                 .payment_method_data
@@ -746,6 +749,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     // can be used in future to generate the fingerprints of other payment_methods
                     _ => todo!(),
                 });
+
+        //validating the payment method.
+        // #[cfg(feature = "kms")]
+        // let kms_encrypted_fingerprint = kms::get_kms_client(kms_config)
+        //     .await
+        //     .decrypt(state.conf.forex_api.fallback_api_key.peek())
+        //     .await
+        //     .change_context(ForexCacheError::KmsDecryptionFailed)?;
 
         let surcharge_amount = payment_data
             .surcharge_details
