@@ -1067,7 +1067,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 payment_data
                     .payment_intent
                     .request_incremental_authorization,
-                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+                Some(RequestIncrementalAuthorization::True)
+                    | Some(RequestIncrementalAuthorization::Default)
             ),
         })
     }
@@ -1355,7 +1356,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 payment_data
                     .payment_intent
                     .request_incremental_authorization,
-                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+                Some(RequestIncrementalAuthorization::True)
+                    | Some(RequestIncrementalAuthorization::Default)
             ),
         })
     }

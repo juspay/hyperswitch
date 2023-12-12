@@ -2661,8 +2661,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization:
+            request_incremental_authorization: Some(
                 common_enums::RequestIncrementalAuthorization::default(),
+            ),
             incremental_authorization_allowed: None,
             authorization_count: None,
         };
@@ -2715,8 +2716,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization:
+            request_incremental_authorization: Some(
                 common_enums::RequestIncrementalAuthorization::default(),
+            ),
             incremental_authorization_allowed: None,
             authorization_count: None,
         };
@@ -2769,8 +2771,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization:
+            request_incremental_authorization: Some(
                 common_enums::RequestIncrementalAuthorization::default(),
+            ),
             incremental_authorization_allowed: None,
             authorization_count: None,
         };
