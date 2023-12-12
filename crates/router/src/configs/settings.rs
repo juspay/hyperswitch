@@ -614,6 +614,7 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
+    pub placetopay: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,

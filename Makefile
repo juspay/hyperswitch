@@ -93,4 +93,4 @@ precommit : fmt clippy test
 
 
 hack:
-	cargo hack check --workspace --each-feature --no-dev-deps
+	cargo hack check --workspace --each-feature --all-targets
