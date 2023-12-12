@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 pub use common_enums::*;
 use utoipa::ToSchema;
 
@@ -107,6 +109,7 @@ pub enum Connector {
     Payme,
     Paypal,
     Payu,
+    Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
@@ -124,6 +127,7 @@ pub enum Connector {
     Zen,
     Signifyd,
     Plaid,
+    Riskified,
 }
 
 impl Connector {
@@ -174,6 +178,38 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Wise => Self::Wise,
+        }
+    }
+}
+
+#[cfg(feature = "frm")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectors {
+    /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
+    Signifyd,
+    Riskified,
+}
+
+#[cfg(feature = "frm")]
+impl From<FrmConnectors> for RoutableConnectors {
+    fn from(value: FrmConnectors) -> Self {
+        match value {
+            FrmConnectors::Signifyd => Self::Signifyd,
+            FrmConnectors::Riskified => Self::Riskified,
         }
     }
 }
@@ -469,4 +505,27 @@ pub enum RetryAction {
 pub enum LockerChoice {
     Basilisk,
     Tartarus,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PmAuthConnectors {
+    Plaid,
+}
+
+pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
+    PmAuthConnectors::from_str(connector_name).ok()
 }

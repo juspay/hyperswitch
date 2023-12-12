@@ -19,6 +19,65 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
+#[cfg(feature = "email")]
+pub async fn user_signup_with_merchant_id(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignUpWithMerchantIdRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignUpWithMerchantId;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signup_with_merchant_id(state, req_body),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn user_signup(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignUpRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignUp;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signup(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn user_signin(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignInRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignIn;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signin(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
 pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -56,7 +115,7 @@ pub async fn change_password(
     .await
 }
 
-pub async fn set_merchant_scoped_dashboard_metadata(
+pub async fn set_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<user_api::dashboard_metadata::SetMetaDataRequest>,
@@ -231,6 +290,101 @@ pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> H
         (),
         |state, user, _| user_core::get_users_for_merchant_account(state, user),
         &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn forgot_password(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ForgotPasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::ForgotPassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, payload| user_core::forgot_password(state, payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn reset_password(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ResetPasswordRequest>,
+) -> HttpResponse {
+    let flow = Flow::ResetPassword;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, payload| user_core::reset_password(state, payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn invite_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::InviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::InviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, user, payload| user_core::invite_user(state, payload, user),
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::VerifyEmail;
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req_payload| user_core::verify_email(state, req_payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email_request(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SendVerifyEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::VerifyEmailRequest;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req_body| user_core::send_verification_mail(state, req_body),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

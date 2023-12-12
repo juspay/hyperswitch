@@ -8,6 +8,10 @@
 
 pub mod api;
 pub mod domain;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
+pub mod pm_auth;
+
 pub mod storage;
 pub mod transformers;
 
@@ -22,6 +26,7 @@ use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
+use serde::Serialize;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -30,7 +35,7 @@ use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLO
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{PaymentData, RecurringMandatePaymentData},
+        payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
     types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
@@ -52,6 +57,11 @@ pub type PaymentsBalanceRouterData =
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
+    api::IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData =
     RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -140,6 +150,11 @@ pub type PaymentsVoidType =
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
     PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
+pub type IncrementalAuthorizationType = dyn services::ConnectorIntegration<
+    api::IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
 
@@ -293,6 +308,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
+
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -379,7 +396,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
 }
@@ -393,6 +410,15 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PaymentsIncrementalAuthorizationData {
+    pub total_amount: i64,
+    pub additional_amount: i64,
+    pub currency: storage_enums::Currency,
+    pub reason: Option<String>,
+    pub connector_transaction_id: String,
 }
 
 #[allow(dead_code)]
@@ -441,7 +467,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
 }
@@ -517,7 +543,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
@@ -599,6 +625,7 @@ impl Capturable for PaymentsCancelData {
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
+impl Capturable for PaymentsIncrementalAuthorizationData {}
 impl Capturable for PaymentsSyncData {
     fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -707,6 +734,12 @@ pub enum PaymentsResponseData {
         session_token: Option<api::SessionToken>,
         connector_response_reference_id: Option<String>,
     },
+    IncrementalAuthorizationResponse {
+        status: common_enums::AuthorizationStatus,
+        connector_authorization_id: Option<String>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -715,7 +748,7 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub enum ResponseId {
     ConnectorTransactionId(String),
     EncodedData(String),
@@ -1251,6 +1284,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
+            frm_metadata: data.frm_metadata.clone(),
         }
     }
 }
@@ -1306,6 +1340,7 @@ impl<F1, F2>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }

@@ -351,7 +351,10 @@ fn make_card_request(
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
-        cardholder_name: ccard.card_holder_name.clone(),
+        cardholder_name: ccard
+            .card_holder_name
+            .clone()
+            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };

@@ -523,6 +523,7 @@ pub trait ConnectorActions: Connector {
             connector_http_status_code: None,
             apple_pay_flow: None,
             external_latency: None,
+            frm_metadata: None,
         }
     }
 
@@ -542,6 +543,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -868,7 +870,7 @@ impl Default for CCardType {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,
@@ -1029,6 +1031,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Err(_) => None,
     }
 }
