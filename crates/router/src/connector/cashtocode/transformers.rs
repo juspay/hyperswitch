@@ -4,6 +4,7 @@ use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+pub use common_utils::request::Method;
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
@@ -185,7 +186,7 @@ pub enum CashtocodePaymentsResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponseData {
-    pub pay_url: String,
+    pub pay_url: url::Url,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -232,11 +233,7 @@ impl<F>
                     Some(enums::PaymentMethodType::Evoucher) => services::Method::Get,
                     _ => services::Method::Get,
                 };
-                let redirection_data = services::RedirectForm::Form {
-                    endpoint: response_data.pay_url,
-                    method,
-                    form_fields: Default::default(),
-                };
+                let redirection_data = services::RedirectForm::from((response_data.pay_url, method));
                 (
                     enums::AttemptStatus::AuthenticationPending,
                     Ok(types::PaymentsResponseData::TransactionResponse {
