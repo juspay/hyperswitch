@@ -100,6 +100,7 @@ impl VerifyConnectorData {
             connector_http_status_code: None,
             external_latency: None,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }
