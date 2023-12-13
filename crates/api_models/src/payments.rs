@@ -3389,5 +3389,6 @@ pub struct PaymentLinkListResponse {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub config: admin::PaymentLinkConfigRequest,
 }

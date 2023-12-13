@@ -8545,7 +8545,12 @@
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/admin.PaymentLinkConfigRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object"
