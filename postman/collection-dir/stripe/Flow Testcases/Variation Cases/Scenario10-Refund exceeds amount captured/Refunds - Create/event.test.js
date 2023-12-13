@@ -37,7 +37,7 @@ pm.test(
   },
 );
 
-// Response body should have value "connector error" for "error type"
+// Response body should have value "invalid_request" for "error type"
 if (jsonData?.error?.type) {
   pm.test(
     "[POST]::/payments/:id/confirm - Content check if value for 'error.type' matches 'invalid_request'",
@@ -47,14 +47,12 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.message) {
+// Response body should have value "The refund amount exceeds the amount captured" for "error message"
+if (jsonData?.error?.type) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.message' matches 'The refund amount exceeds the amount captured'",
+    "[POST]::/payments/:id/confirm - Content check if value for 'error.message' matches 'The refund amount exceeds the amount captured'",
     function () {
-      pm.expect(jsonData.error.message).to.eql(
-        "The refund amount exceeds the amount captured",
-      );
+      pm.expect(jsonData.error.message).to.eql("The refund amount exceeds the amount captured");
     },
   );
 }
