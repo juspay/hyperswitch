@@ -97,9 +97,19 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_connector_account::payment_connector_update,
         routes::merchant_connector_account::payment_connector_delete,
 
+        //Routes for gsm
+        routes::gsm::create_gsm_rule,
+        routes::gsm::get_gsm_rule,
+        routes::gsm::update_gsm_rule,
+        routes::gsm::delete_gsm_rule,
+
         // Routes for mandates
         routes::mandates::get_mandate,
         routes::mandates::revoke_mandate,
+
+        // Routes for disputes
+        routes::disputes::retrieve_dispute,
+        routes::disputes::retrieve_disputes_list,
 
     ),
     components(schemas(
@@ -125,6 +135,7 @@ Never share your secret api keys. Keep them guarded and secure.
        api_models::payment_methods::PaymentMethodUpdate,
        api_models::payment_methods::CardDetailFromLocker,
        api_models::payment_methods::CardDetail,
+       api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,

@@ -159,7 +159,6 @@ pub async fn payments_start(
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
-#[router_derive::openapi_routes]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -291,7 +290,6 @@ pub async fn payments_retrieve_with_gateway_creds(
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
-#[router_derive::openapi_routes]
 pub async fn payments_update(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
