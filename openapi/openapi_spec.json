@@ -498,13 +498,50 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Create",
-        "description": "Merchant Connector - Create\n\nCreate a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MerchantConnectorCreate"
+              },
+              "examples": {
+                "Create a merchant account with custom connector label": {
+                  "value": {
+                    "connector_account_details": {
+                      "api_key": "{{adyen-api-key}}",
+                      "auth_type": "BodyKey",
+                      "key1": "{{adyen_merchant_account}}"
+                    },
+                    "connector_label": "EU_adyen",
+                    "connector_name": "adyen",
+                    "connector_type": "fiz_operations"
+                  }
+                },
+                "Create a merchant connector account under a specific business profile": {
+                  "value": {
+                    "connector_account_details": {
+                      "api_key": "{{adyen-api-key}}",
+                      "auth_type": "BodyKey",
+                      "key1": "{{adyen_merchant_account}}"
+                    },
+                    "connector_name": "adyen",
+                    "connector_type": "fiz_operations",
+                    "profile_id": "{{profile_id}}"
+                  }
+                },
+                "Create a merchant connector account with minimal fields": {
+                  "value": {
+                    "connector_account_details": {
+                      "api_key": "{{adyen-api-key}}",
+                      "auth_type": "BodyKey",
+                      "key1": "{{adyen_merchant_account}}"
+                    },
+                    "connector_name": "adyen",
+                    "connector_type": "fiz_operations"
+                  }
+                }
               }
             }
           },
@@ -538,7 +575,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Retrieve",
-        "description": "Merchant Connector - Retrieve\n\nRetrieve Merchant Connector Details",
+        "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -590,7 +627,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Update",
-        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -618,6 +655,25 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MerchantConnectorUpdate"
+              },
+              "examples": {
+                "Enable card payment method": {
+                  "value": {
+                    "connector_type": "fiz_operations",
+                    "payment_methods_enabled": [
+                      {
+                        "payment_method": "card"
+                      }
+                    ]
+                  }
+                },
+                "Update webhook secret": {
+                  "value": {
+                    "connector_webhook_details": {
+                      "merchant_secret": "{{webhook_secret}}"
+                    }
+                  }
+                }
               }
             }
           },
@@ -700,19 +756,369 @@
         ]
       }
     },
+    "/disputes/list": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - List Disputes",
+        "description": "Disputes - List Disputes\nLists all the Disputes for a merchant",
+        "operationId": "List Disputes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of Dispute Objects to include in the response",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "dispute_status",
+            "in": "query",
+            "description": "The status of dispute",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/DisputeStatus"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "dispute_stage",
+            "in": "query",
+            "description": "The stage of dispute",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/DisputeStage"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "description": "The reason for dispute",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "connector",
+            "in": "query",
+            "description": "The connector linked to dispute",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time",
+            "in": "query",
+            "description": "The time at which dispute is received",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.lt",
+            "in": "query",
+            "description": "Time less than the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.gt",
+            "in": "query",
+            "description": "Time greater than the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.lte",
+            "in": "query",
+            "description": "Time less than or equals to the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.gte",
+            "in": "query",
+            "description": "Time greater than or equals to the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dispute list was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DisputeResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/{dispute_id}": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Retrieve Dispute",
+        "description": "Disputes - Retrieve Dispute\nRetrieves a dispute",
+        "operationId": "Retrieve a Dispute",
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "description": "The identifier for dispute",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dispute was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dispute does not exist in our records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Create",
+        "description": "Gsm - Create\n\nCreates a GSM (Global Status Mapping) Rule. A GSM rule is used to map a connector's error message/error code combination during a particular payments flow/sub-flow to Hyperswitch's unified status/error code/error message combination. It is also used to decide the next action in the flow - retry/requeue/do_default",
+        "operationId": "Create Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/delete": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Delete",
+        "description": "Gsm - Delete\n\nDeletes a Gsm Rule",
+        "operationId": "Delete Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmDeleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/get": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Get",
+        "description": "Gsm - Get\n\nRetrieves a Gsm Rule",
+        "operationId": "Retrieve Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmRetrieveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/gsm/update": {
+      "post": {
+        "tags": [
+          "Gsm"
+        ],
+        "summary": "Gsm - Update",
+        "description": "Gsm - Update\n\nUpdates a Gsm Rule",
+        "operationId": "Update Gsm Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GsmUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gsm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GsmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/mandates/revoke/{mandate_id}": {
       "post": {
         "tags": [
           "Mandates"
         ],
         "summary": "Mandates - Revoke Mandate",
-        "description": "Mandates - Revoke Mandate\n\nRevoke a mandate",
+        "description": "Mandates - Revoke Mandate\n\nRevokes a mandate created using the Payments/Create API",
         "operationId": "Revoke a Mandate",
         "parameters": [
           {
             "name": "mandate_id",
             "in": "path",
-            "description": "The identifier for mandate",
+            "description": "The identifier for a mandate",
             "required": true,
             "schema": {
               "type": "string"
@@ -747,7 +1153,7 @@
           "Mandates"
         ],
         "summary": "Mandates - Retrieve Mandate",
-        "description": "Mandates - Retrieve Mandate\n\nRetrieve a mandate",
+        "description": "Mandates - Retrieve Mandate\n\nRetrieves a mandate created using the Payments/Create API",
         "operationId": "Retrieve a Mandate",
         "parameters": [
           {
@@ -788,7 +1194,7 @@
           "Payments"
         ],
         "summary": "Payments - Create",
-        "description": "Payments - Create\n\nTo process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture",
+        "description": "Payments - Create\n\n**Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.\n\nTo completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.\n\nDepending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:\n\n1. Payments - Create\n\n2. Payments - Update\n\n3. Payments - Confirm\n\n4. Payments - Capture.\n\nUse the client secret returned in this API along with your publishable key to make subsequent API calls from your client",
         "operationId": "Create a Payment",
         "requestBody": {
           "content": {
@@ -1263,13 +1669,36 @@
           "Refunds"
         ],
         "summary": "Refunds - Create",
-        "description": "Refunds - Create\n\nTo create a refund against an already processed payment",
+        "description": "Refunds - Create\n\nCreates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amounth has been refunded",
         "operationId": "Create a Refund",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RefundRequest"
+              },
+              "examples": {
+                "Create an instant refund to refund partial amount": {
+                  "value": {
+                    "amount": 654,
+                    "payment_id": "{{payment_id}}",
+                    "refund_type": "instant"
+                  }
+                },
+                "Create an instant refund to refund the whole amount": {
+                  "value": {
+                    "payment_id": "{{payment_id}}",
+                    "refund_type": "instant"
+                  }
+                },
+                "Create an instant refund with reason": {
+                  "value": {
+                    "amount": 6540,
+                    "payment_id": "{{payment_id}}",
+                    "reason": "Customer returned product",
+                    "refund_type": "instant"
+                  }
+                }
               }
             }
           },
@@ -1303,7 +1732,7 @@
           "Refunds"
         ],
         "summary": "Refunds - List",
-        "description": "Refunds - List\n\nTo list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
+        "description": "Refunds - List\n\nLists all the refunds associated with the merchant or a payment_id if payment_id is not provided",
         "operationId": "List all Refunds",
         "requestBody": {
           "content": {
@@ -1339,8 +1768,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "Refunds - Retrieve (GET)",
-        "description": "Refunds - Retrieve (GET)\n\nTo retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "summary": "Refunds - Retrieve",
+        "description": "Refunds - Retrieve\n\nRetrieves a Refund. This may be used to get the status of a previously initiated refund",
         "operationId": "Retrieve a Refund",
         "parameters": [
           {
@@ -1379,7 +1808,7 @@
           "Refunds"
         ],
         "summary": "Refunds - Update",
-        "description": "Refunds - Update\n\nTo update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields",
+        "description": "Refunds - Update\n\nUpdates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields",
         "operationId": "Update a Refund",
         "parameters": [
           {
@@ -1397,6 +1826,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RefundUpdateRequest"
+              },
+              "examples": {
+                "Update refund reason": {
+                  "value": {
+                    "reason": "Paid by mistake"
+                  }
+                }
               }
             }
           },
@@ -3671,6 +4107,7 @@
           "payme",
           "paypal",
           "payu",
+          "placetopay",
           "powertranz",
           "prophetpay",
           "rapyd",
@@ -3686,7 +4123,8 @@
           "worldpay",
           "zen",
           "signifyd",
-          "plaid"
+          "plaid",
+          "riskified"
         ]
       },
       "ConnectorMetadata": {
@@ -5498,36 +5936,45 @@
             "$ref": "#/components/schemas/Connector"
           },
           "flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The flow in which the code and message occurred for a connector"
           },
           "sub_flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The sub_flow in which the code and message occurred  for a connector"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "code received from the connector"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "message received from the connector"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "status provided by the router"
           },
           "router_error": {
             "type": "string",
+            "description": "optional error provided by the router",
             "nullable": true
           },
           "decision": {
             "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
           },
           "unified_code": {
             "type": "string",
+            "description": "error code unified across the connectors",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
+            "description": "error message unified across the connectors",
             "nullable": true
           }
         }
@@ -5551,19 +5998,24 @@
         ],
         "properties": {
           "connector": {
-            "type": "string"
+            "type": "string",
+            "description": "The connector through which payment has gone through"
           },
           "flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The flow in which the code and message occurred for a connector"
           },
           "sub_flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The sub_flow in which the code and message occurred  for a connector"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "code received from the connector"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "message received from the connector"
           }
         }
       },
@@ -5581,16 +6033,20 @@
             "type": "boolean"
           },
           "connector": {
-            "type": "string"
+            "type": "string",
+            "description": "The connector through which payment has gone through"
           },
           "flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The flow in which the code and message occurred for a connector"
           },
           "sub_flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The sub_flow in which the code and message occurred  for a connector"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "code received from the connector"
           }
         }
       },
@@ -5608,39 +6064,50 @@
         ],
         "properties": {
           "connector": {
-            "type": "string"
+            "type": "string",
+            "description": "The connector through which payment has gone through"
           },
           "flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The flow in which the code and message occurred for a connector"
           },
           "sub_flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The sub_flow in which the code and message occurred  for a connector"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "code received from the connector"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "message received from the connector"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "status provided by the router"
           },
           "router_error": {
             "type": "string",
+            "description": "optional error provided by the router",
             "nullable": true
           },
           "decision": {
-            "type": "string"
+            "type": "string",
+            "description": "decision to be taken for auto retries flow"
           },
           "step_up_possible": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
           },
           "unified_code": {
             "type": "string",
+            "description": "error code unified across the connectors",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
+            "description": "error message unified across the connectors",
             "nullable": true
           }
         }
@@ -5659,16 +6126,20 @@
             "$ref": "#/components/schemas/Connector"
           },
           "flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The flow in which the code and message occurred for a connector"
           },
           "sub_flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The sub_flow in which the code and message occurred  for a connector"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "code received from the connector"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "message received from the connector"
           }
         }
       },
@@ -5683,26 +6154,33 @@
         ],
         "properties": {
           "connector": {
-            "type": "string"
+            "type": "string",
+            "description": "The connector through which payment has gone through"
           },
           "flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The flow in which the code and message occurred for a connector"
           },
           "sub_flow": {
-            "type": "string"
+            "type": "string",
+            "description": "The sub_flow in which the code and message occurred  for a connector"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "code received from the connector"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "message received from the connector"
           },
           "status": {
             "type": "string",
+            "description": "status provided by the router",
             "nullable": true
           },
           "router_error": {
             "type": "string",
+            "description": "optional error provided by the router",
             "nullable": true
           },
           "decision": {
@@ -5715,14 +6193,17 @@
           },
           "step_up_possible": {
             "type": "boolean",
+            "description": "indicates if step_up retry is possible",
             "nullable": true
           },
           "unified_code": {
             "type": "string",
+            "description": "error code unified across the connectors",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
+            "description": "error message unified across the connectors",
             "nullable": true
           }
         }
@@ -6538,8 +7019,7 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name",
-          "status"
+          "connector_name"
         ],
         "properties": {
           "connector_type": {
@@ -6550,33 +7030,21 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
-          "merchant_connector_id": {
+          "profile_id": {
             "type": "string",
-            "description": "Unique ID of the connector",
-            "example": "mca_5apGeP94tMts6rg3U3kR",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
             "nullable": true
           },
           "connector_account_details": {
-            "type": "object",
-            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
-          "test_mode": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
-            "default": false,
-            "example": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_methods_enabled": {
@@ -6584,7 +7052,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
                 "accepted_countries": {
@@ -6623,9 +7091,31 @@
             ],
             "nullable": true
           },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "test_mode": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
+            "default": false,
+            "example": false,
             "nullable": true
           },
           "frm_configs": {
@@ -6633,7 +7123,7 @@
             "items": {
               "$ref": "#/components/schemas/FrmConfigs"
             },
-            "description": "contains the frm configs for the merchant connector",
+            "description": "Contains the frm configs for the merchant connector",
             "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
@@ -6647,32 +7137,31 @@
           },
           "business_label": {
             "type": "string",
+            "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
-            "description": "Business Sub label of the merchant",
+            "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
             "example": "chase",
             "nullable": true
           },
-          "connector_webhook_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "profile_id": {
+          "merchant_connector_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "description": "Unique ID of the connector",
+            "example": "mca_5apGeP94tMts6rg3U3kR",
             "nullable": true
           },
           "pm_auth_config": {
             "nullable": true
           },
           "status": {
-            "$ref": "#/components/schemas/ConnectorStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6766,38 +7255,31 @@
             "$ref": "#/components/schemas/ConnectorType"
           },
           "connector_name": {
-            "type": "string",
-            "description": "Name of the Connector",
-            "example": "stripe"
+            "$ref": "#/components/schemas/Connector"
           },
           "connector_label": {
             "type": "string",
-            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "description": "A unique label to identify the connector account created under a business profile",
             "example": "stripe_US_travel",
             "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
-            "description": "Unique ID of the connector",
+            "description": "Unique ID of the merchant connector account",
             "example": "mca_5apGeP94tMts6rg3U3kR"
           },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "nullable": true,
+            "maxLength": 64
+          },
           "connector_account_details": {
-            "type": "object",
-            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
-          "test_mode": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
-            "default": false,
-            "example": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_methods_enabled": {
@@ -6805,7 +7287,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
                 "accepted_countries": {
@@ -6844,9 +7326,40 @@
             ],
             "nullable": true
           },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "test_mode": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "frm_configs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmConfigs"
+            },
+            "description": "Contains the frm configs for the merchant connector",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "business_country": {
@@ -6859,38 +7372,15 @@
           },
           "business_label": {
             "type": "string",
-            "description": "Business Type of the merchant",
+            "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
-            "description": "Business Sub label of the merchant",
+            "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
             "example": "chase",
             "nullable": true
-          },
-          "frm_configs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FrmConfigs"
-            },
-            "description": "contains the frm configs for the merchant connector",
-            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
-            "nullable": true
-          },
-          "connector_webhook_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "The business profile this connector must be created in\ndefault value from merchant account is taken if not passed",
-            "nullable": true,
-            "maxLength": 64
           },
           "applepay_verified_domains": {
             "type": "array",
@@ -6921,26 +7411,16 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "example": "stripe_US_travel",
             "nullable": true
           },
           "connector_account_details": {
-            "type": "object",
-            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
-          "test_mode": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
-            "default": false,
-            "example": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_methods_enabled": {
@@ -6948,7 +7428,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
                 "accepted_countries": {
@@ -6987,9 +7467,31 @@
             ],
             "nullable": true
           },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "test_mode": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
+            "default": false,
+            "example": false,
             "nullable": true
           },
           "frm_configs": {
@@ -6997,16 +7499,8 @@
             "items": {
               "$ref": "#/components/schemas/FrmConfigs"
             },
-            "description": "contains the frm configs for the merchant connector",
+            "description": "Contains the frm configs for the merchant connector",
             "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
-            "nullable": true
-          },
-          "connector_webhook_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
-              }
-            ],
             "nullable": true
           },
           "pm_auth_config": {
@@ -7406,9 +7900,36 @@
             "example": 1,
             "minimum": 0
           },
+          "requires_shipping": {
+            "type": "boolean",
+            "nullable": true
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -7439,9 +7960,36 @@
             "format": "int64",
             "description": "the amount per quantity of product"
           },
+          "requires_shipping": {
+            "type": "boolean",
+            "nullable": true
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8714,6 +9262,22 @@
           "currency"
         ],
         "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
+            "nullable": true
+          },
           "payment_id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
@@ -8729,14 +9293,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 0
-          },
           "routing": {
             "allOf": [
               {
@@ -8750,18 +9306,10 @@
             "items": {
               "$ref": "#/components/schemas/Connector"
             },
-            "description": "This allows the merchant to manually select a connector with which the payment can go through",
+            "description": "This allows to manually select a connector with which the payment can go through",
             "example": [
               "stripe",
               "adyen"
-            ],
-            "nullable": true
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
             ],
             "nullable": true
           },
@@ -8773,11 +9321,21 @@
             ],
             "nullable": true
           },
-          "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,\nIf not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "default": "three_ds",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
           },
           "capture_on": {
@@ -8804,7 +9362,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "description": "Passing this object creates a new customer or attaches an existing customer to the payment",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
@@ -8818,7 +9376,7 @@
           },
           "name": {
             "type": "string",
-            "description": "description: The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "description": "The customer's name\nThis field will be deprecated soon, use the customer object instead",
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -8839,13 +9397,13 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
             "example": true,
             "nullable": true
           },
           "description": {
             "type": "string",
-            "description": "A description of the payment",
+            "description": "A description for the payment",
             "example": "It's my first payment request",
             "nullable": true
           },
@@ -8861,15 +9419,6 @@
                 "$ref": "#/components/schemas/FutureUsage"
               }
             ],
-            "nullable": true
-          },
-          "authentication_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationType"
-              }
-            ],
-            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8896,19 +9445,11 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "description": "This is used along with the payment_token field while collecting during saved card payments. This field will be deprecated soon, use the payment_method_data.card_token object instead",
             "deprecated": true,
             "nullable": true
           },
           "shipping": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "billing": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
@@ -8935,14 +9476,8 @@
             "items": {
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
-            "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
-            "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
+            "description": "Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount",
+            "example": "[{\n        \"product_name\": \"Apple iPhone 16\",\n        \"quantity\": 1,\n        \"amount\" : 69000\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "mandate_data": {
@@ -8955,14 +9490,17 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
           },
           "browser_info": {
-            "type": "object",
-            "description": "Additional details required by 3DS 2.0",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           },
           "payment_experience": {
@@ -8991,7 +9529,7 @@
           },
           "business_label": {
             "type": "string",
-            "description": "Business label of the merchant for this payment",
+            "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
             "example": "food",
             "nullable": true
           },
@@ -9008,7 +9546,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodType"
             },
-            "description": "Allowed Payment Method Types for a given PaymentIntent",
+            "description": "Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent",
             "nullable": true
           },
           "business_sub_label": {
@@ -9077,6 +9615,10 @@
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
@@ -9084,6 +9626,29 @@
       "PaymentsRequest": {
         "type": "object",
         "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
+            "nullable": true
+          },
           "payment_id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
@@ -9099,14 +9664,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 0
-          },
           "routing": {
             "allOf": [
               {
@@ -9120,18 +9677,10 @@
             "items": {
               "$ref": "#/components/schemas/Connector"
             },
-            "description": "This allows the merchant to manually select a connector with which the payment can go through",
+            "description": "This allows to manually select a connector with which the payment can go through",
             "example": [
               "stripe",
               "adyen"
-            ],
-            "nullable": true
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
             ],
             "nullable": true
           },
@@ -9143,11 +9692,21 @@
             ],
             "nullable": true
           },
-          "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,\nIf not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "default": "three_ds",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
           },
           "capture_on": {
@@ -9174,7 +9733,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "description": "Passing this object creates a new customer or attaches an existing customer to the payment",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
@@ -9188,7 +9747,7 @@
           },
           "name": {
             "type": "string",
-            "description": "description: The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "description": "The customer's name\nThis field will be deprecated soon, use the customer object instead",
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -9209,13 +9768,13 @@
           },
           "off_session": {
             "type": "boolean",
-            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.",
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory",
             "example": true,
             "nullable": true
           },
           "description": {
             "type": "string",
-            "description": "A description of the payment",
+            "description": "A description for the payment",
             "example": "It's my first payment request",
             "nullable": true
           },
@@ -9231,15 +9790,6 @@
                 "$ref": "#/components/schemas/FutureUsage"
               }
             ],
-            "nullable": true
-          },
-          "authentication_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationType"
-              }
-            ],
-            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -9266,19 +9816,11 @@
           },
           "card_cvc": {
             "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved.\nThis field will be deprecated soon, use the CardToken object instead",
+            "description": "This is used along with the payment_token field while collecting during saved card payments. This field will be deprecated soon, use the payment_method_data.card_token object instead",
             "deprecated": true,
             "nullable": true
           },
           "shipping": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "billing": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
@@ -9305,8 +9847,8 @@
             "items": {
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
-            "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
+            "description": "Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount",
+            "example": "[{\n        \"product_name\": \"Apple iPhone 16\",\n        \"quantity\": 1,\n        \"amount\" : 69000\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -9325,14 +9867,17 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
           },
           "browser_info": {
-            "type": "object",
-            "description": "Additional details required by 3DS 2.0",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           },
           "payment_experience": {
@@ -9361,7 +9906,7 @@
           },
           "business_label": {
             "type": "string",
-            "description": "Business label of the merchant for this payment",
+            "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
             "example": "food",
             "nullable": true
           },
@@ -9378,7 +9923,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodType"
             },
-            "description": "Allowed Payment Method Types for a given PaymentIntent",
+            "description": "Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent",
             "nullable": true
           },
           "business_sub_label": {
@@ -9447,6 +9992,10 @@
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
@@ -10558,6 +11107,17 @@
           }
         }
       },
+      "ProductType": {
+        "type": "string",
+        "enum": [
+          "physical",
+          "digital",
+          "travel",
+          "ride",
+          "event",
+          "accommodation"
+        ]
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
@@ -10706,18 +11266,18 @@
           "payment_id"
         ],
         "properties": {
-          "refund_id": {
+          "payment_id": {
             "type": "string",
-            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.",
-            "example": "ref_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
+            "description": "The payment id against which refund is to be intiated",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
           },
-          "payment_id": {
+          "refund_id": {
             "type": "string",
-            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc. If not provided, this will default to the full payment amount",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment. If this is not passed by the merchant, this field shall be auto generated and provided in the API response. It is recommended to generate uuid(v4) as the refund_id.",
+            "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -10738,7 +11298,7 @@
           },
           "reason": {
             "type": "string",
-            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
+            "description": "Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`",
             "example": "Customer returned the product",
             "nullable": true,
             "maxLength": 255
@@ -10780,11 +11340,11 @@
         "properties": {
           "refund_id": {
             "type": "string",
-            "description": "The identifier for refund"
+            "description": "Unique Identifier for the refund"
           },
           "payment_id": {
             "type": "string",
-            "description": "The identifier for payment"
+            "description": "The payment id against which refund is intiated"
           },
           "amount": {
             "type": "integer",
@@ -10795,13 +11355,13 @@
             "type": "string",
             "description": "The three-letter ISO currency code"
           },
+          "status": {
+            "$ref": "#/components/schemas/RefundStatus"
+          },
           "reason": {
             "type": "string",
             "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
             "nullable": true
-          },
-          "status": {
-            "$ref": "#/components/schemas/RefundStatus"
           },
           "metadata": {
             "type": "object",

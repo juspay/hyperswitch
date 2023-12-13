@@ -97,16 +97,25 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_connector_account::payment_connector_update,
         routes::merchant_connector_account::payment_connector_delete,
 
+        //Routes for gsm
+        routes::gsm::create_gsm_rule,
+        routes::gsm::get_gsm_rule,
+        routes::gsm::update_gsm_rule,
+        routes::gsm::delete_gsm_rule,
+
         // Routes for mandates
         routes::mandates::get_mandate,
         routes::mandates::revoke_mandate,
-
 
         // Routes for Business Profile
         routes::business_profile::business_profile_create,
         routes::business_profile::business_profiles_list,
         routes::business_profile::business_profiles_update,
-        routes::business_profile::business_profiles_delete
+        routes::business_profile::business_profiles_delete,
+
+        // Routes for disputes
+        routes::disputes::retrieve_dispute,
+        routes::disputes::retrieve_disputes_list,
 
     ),
     components(schemas(
@@ -132,6 +141,7 @@ Never share your secret api keys. Keep them guarded and secure.
        api_models::payment_methods::PaymentMethodUpdate,
        api_models::payment_methods::CardDetailFromLocker,
        api_models::payment_methods::CardDetail,
+       api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
@@ -259,6 +269,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
         api_models::payments::AmountInfo,
+        api_models::payments::ProductType,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,

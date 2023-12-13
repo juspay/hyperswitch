@@ -107,7 +107,7 @@ pub struct PaymentIntentNew {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
-    pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
+    pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
 }

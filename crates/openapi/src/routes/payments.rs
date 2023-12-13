@@ -1,6 +1,20 @@
 /// Payments - Create
 ///
-/// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
+/// **Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.
+///
+/// To completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.
+///
+/// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:
+///
+/// 1. Payments - Create
+///
+/// 2. Payments - Update
+///
+/// 3. Payments - Confirm
+///
+/// 4. Payments - Capture.
+///
+/// Use the client secret returned in this API along with your publishable key to make subsequent API calls from your client
 #[utoipa::path(
     post,
     path = "/payments",

@@ -10,6 +10,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
+use data_models::payments::payment_attempt::PaymentAttempt;
 use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -22,13 +23,13 @@ use crate::types::{fraud_check, storage::enums as storage_enums};
 use crate::{
     consts,
     core::{
-        errors::{self, CustomResult},
+        errors::{self, ApiErrorResponse, CustomResult},
         payments::PaymentData,
     },
     pii::PeekInterface,
     types::{
         self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
-        ApplePayPredecryptData, PaymentsCancelData, ResponseId,
+        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -67,6 +68,8 @@ pub trait RouterData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
+    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error>;
+    fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -176,6 +179,13 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
+
+    fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
+        self.address
+            .billing
+            .as_ref()
+            .ok_or_else(missing_field_err("billing"))
+    }
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
@@ -211,6 +221,14 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
+
+    fn get_shipping_address_with_phone_number(&self) -> Result<&api::Address, Error> {
+        self.address
+            .shipping
+            .as_ref()
+            .ok_or_else(missing_field_err("shipping"))
+    }
+
     fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error> {
         self.payment_method_token
             .clone()
@@ -254,7 +272,7 @@ pub trait PaymentsPreProcessingData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -294,7 +312,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -303,14 +321,14 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
     }
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -318,12 +336,12 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
 }
 
 pub trait PaymentsSetupMandateRequestData {
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
 }
 
 impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -335,7 +353,7 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
@@ -352,11 +370,11 @@ pub trait PaymentsAuthorizeRequestData {
 }
 
 pub trait PaymentMethodTokenizationRequestData {
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationData {
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -374,7 +392,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -480,7 +498,7 @@ pub trait BrowserInformationData {
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
 }
 
-impl BrowserInformationData for types::BrowserInformation {
+impl BrowserInformationData for BrowserInformation {
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
         let ip_address = self
             .ip_address
@@ -588,7 +606,7 @@ pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -603,7 +621,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
             .clone()
             .ok_or_else(missing_field_err("cancellation_reason"))
     }
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -613,7 +631,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -629,7 +647,7 @@ impl RefundsRequestData for types::RefundsData {
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
@@ -1650,5 +1668,85 @@ pub trait FraudCheckRecordReturnRequest {
 impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
     fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub trait AccessPaymentAttemptInfo {
+    fn get_browser_info(
+        &self,
+    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>>;
+}
+
+impl AccessPaymentAttemptInfo for PaymentAttempt {
+    fn get_browser_info(
+        &self,
+    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>> {
+        self.browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })
+    }
+}
+
+pub trait PaymentsAttemptData {
+    fn get_browser_info(&self)
+        -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
+}
+
+impl PaymentsAttemptData for PaymentAttempt {
+    fn get_browser_info(
+        &self,
+    ) -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>> {
+        self.browser_info
+            .clone()
+            .ok_or(ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?
+            .parse_value::<BrowserInformation>("BrowserInformation")
+            .change_context(ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FrmTransactionRouterDataRequest {
+    fn is_payment_successful(&self) -> Option<bool>;
+}
+
+#[cfg(feature = "frm")]
+impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
+    fn is_payment_successful(&self) -> Option<bool> {
+        match self.status {
+            storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::CaptureFailed
+            | storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
+
+            storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::Charged => Some(true),
+
+            storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::CaptureInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::PartialCharged
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => None,
+        }
     }
 }

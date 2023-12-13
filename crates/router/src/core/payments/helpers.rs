@@ -2661,8 +2661,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization:
+            request_incremental_authorization: Some(
                 common_enums::RequestIncrementalAuthorization::default(),
+            ),
             incremental_authorization_allowed: None,
             authorization_count: None,
         };
@@ -2715,8 +2716,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization:
+            request_incremental_authorization: Some(
                 common_enums::RequestIncrementalAuthorization::default(),
+            ),
             incremental_authorization_allowed: None,
             authorization_count: None,
         };
@@ -2769,8 +2771,9 @@ mod tests {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization:
+            request_incremental_authorization: Some(
                 common_enums::RequestIncrementalAuthorization::default(),
+            ),
             incremental_authorization_allowed: None,
             authorization_count: None,
         };
@@ -2996,6 +2999,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_http_status_code: router_data.connector_http_status_code,
         external_latency: router_data.external_latency,
         apple_pay_flow: router_data.apple_pay_flow,
+        frm_metadata: router_data.frm_metadata,
     }
 }
 
