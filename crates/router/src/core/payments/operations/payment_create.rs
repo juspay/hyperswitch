@@ -333,6 +333,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data,
             incremental_authorization_details: None,
             authorizations: vec![],
+            frm_metadata: request.frm_metadata.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -559,6 +560,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
         helpers::validate_card_data(request.payment_method_data.clone())?;
+
+        helpers::validate_card_holder_name(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
 

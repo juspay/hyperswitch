@@ -4380,6 +4380,7 @@
           "payme",
           "paypal",
           "payu",
+          "placetopay",
           "powertranz",
           "prophetpay",
           "rapyd",
@@ -4395,7 +4396,8 @@
           "worldpay",
           "zen",
           "signifyd",
-          "plaid"
+          "plaid",
+          "riskified"
         ]
       },
       "ConnectorMetadata": {
@@ -8115,9 +8117,36 @@
             "example": 1,
             "minimum": 0
           },
+          "requires_shipping": {
+            "type": "boolean",
+            "nullable": true
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8148,9 +8177,36 @@
             "format": "int64",
             "description": "the amount per quantity of product"
           },
+          "requires_shipping": {
+            "type": "boolean",
+            "nullable": true
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
+            "nullable": true
+          },
+          "product_id": {
+            "type": "string",
+            "description": "ID of the product that is being purchased",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the product that is being purchased",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand of the product that is being purchased",
+            "nullable": true
+          },
+          "product_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -9787,6 +9843,10 @@
             "type": "boolean",
             "description": "Request for an incremental authorization",
             "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
+            "nullable": true
           }
         }
       },
@@ -10156,6 +10216,10 @@
           "request_incremental_authorization": {
             "type": "boolean",
             "description": "Request for an incremental authorization",
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
@@ -11266,6 +11330,17 @@
             "example": "food"
           }
         }
+      },
+      "ProductType": {
+        "type": "string",
+        "enum": [
+          "physical",
+          "digital",
+          "travel",
+          "ride",
+          "event",
+          "accommodation"
+        ]
       },
       "ReceiverDetails": {
         "type": "object",
