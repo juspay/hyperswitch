@@ -111,7 +111,7 @@ impl Handler {
         }
         logger::info!(
             tasks_remaining = self.active_tasks.load(atomic::Ordering::SeqCst),
-            "Drainer shudown successfully"
+            "Drainer shutdown successfully"
         )
     }
 
