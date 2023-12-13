@@ -20,6 +20,7 @@ CREATE TABLE api_events_v2_queue (
     `latency` UInt128,
     `user_agent` String,
     `ip_addr` String,
+    `url_path` String
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-api-log-events',
 kafka_group_name = 'hyper-c1',
@@ -50,6 +51,7 @@ CREATE TABLE api_events_v2_dist (
     `latency` UInt128,
     `user_agent` String,
     `ip_addr` String,
+    `url_path` String,
     INDEX flowIndex flow_type TYPE bloom_filter GRANULARITY 1,
     INDEX apiIndex api_flow TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -82,7 +84,8 @@ CREATE MATERIALIZED VIEW api_events_v2_mv TO api_events_v2_dist (
     `inserted_at` DateTime CODEC(T64, LZ4),
     `latency` UInt128,
     `user_agent` String,
-    `ip_addr` String
+    `ip_addr` String,
+    `url_path` String
 ) AS
 SELECT
     merchant_id,
@@ -106,7 +109,8 @@ SELECT
     now() as inserted_at,
     latency,
     user_agent,
-    ip_addr
+    ip_addr,
+    url_path
 FROM
     api_events_v2_queue
 where length(_error) = 0;

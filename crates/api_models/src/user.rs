@@ -128,3 +128,8 @@ pub struct VerifyEmailRequest {
 }
 
 pub type VerifyEmailResponse = DashboardEntryResponse;
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct SendVerifyEmailRequest {
+    pub email: pii::Email,
+}

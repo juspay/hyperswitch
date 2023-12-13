@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    {{ hyperloader_sdk_link }}
     <style>
       {{ css_color_scheme }}
 
@@ -45,7 +44,6 @@
         background-color: #fafafa;
         width: 100%;
         height: 100%;
-        max-width: 1900px;
         overflow: scroll;
       }
 
@@ -99,11 +97,12 @@
 
       .hyper-checkout-payment-merchant-name {
         font-weight: 600;
-        font-size: 18px;
+        font-size: 19px;
       }
 
       .hyper-checkout-payment-ref {
-        font-size: 13px;
+        font-size: 12px;
+        margin-top: 5px;
       }
 
       .hyper-checkout-image-header {
@@ -233,7 +232,6 @@
       }
 
       .hyper-checkout-cart-button {
-        color: var(--primary-color);
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
@@ -315,38 +313,99 @@
         margin-top: 10px;
       }
 
-      .page-spinner,
-      .page-spinner::before,
-      .page-spinner::after {
-        border-radius: 50%;
-      }
-
       .page-spinner {
-        color: #ffffff;
-        font-size: 22px;
-        text-indent: -99999px;
-        margin: 0px auto;
-        position: relative;
-        width: 20px;
-        height: 20px;
-        box-shadow: inset 0 0 0 2px;
-        -webkit-transform: translateZ(0);
-        -ms-transform: translateZ(0);
-        transform: translateZ(0);
-      }
-
-      .page-spinner::before,
-      .page-spinner::after {
         position: absolute;
-        content: "";
+        width: 100vw;
+        height: 100vh;
+        z-index: 3;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
-
-      .page-spinner {
-        color: var(--primary-color) !important;
-        height: 50px !important;
-        width: 50px !important;
-        box-shadow: inset 0 0 0 4px !important;
-        margin: auto !important;
+      .sdk-spinner {
+        width: 100%;
+        height: 100%;
+        z-index: 3;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .spinner {
+        width: 60px;
+        height: 60px;
+      }
+      .spinner div {
+        transform-origin: 30px 30px;
+        animation: spinner 1.2s linear infinite;
+      }
+      .spinner div:after {
+        content: " ";
+        display: block;
+        position: absolute;
+        top: 3px;
+        left: 28px;
+        width: 4px;
+        height: 15px;
+        border-radius: 20%;
+        background: var(--primary-color);
+      }
+      .spinner div:nth-child(1) {
+        transform: rotate(0deg);
+        animation-delay: -1.1s;
+      }
+      .spinner div:nth-child(2) {
+        transform: rotate(30deg);
+        animation-delay: -1s;
+      }
+      .spinner div:nth-child(3) {
+        transform: rotate(60deg);
+        animation-delay: -0.9s;
+      }
+      .spinner div:nth-child(4) {
+        transform: rotate(90deg);
+        animation-delay: -0.8s;
+      }
+      .spinner div:nth-child(5) {
+        transform: rotate(120deg);
+        animation-delay: -0.7s;
+      }
+      .spinner div:nth-child(6) {
+        transform: rotate(150deg);
+        animation-delay: -0.6s;
+      }
+      .spinner div:nth-child(7) {
+        transform: rotate(180deg);
+        animation-delay: -0.5s;
+      }
+      .spinner div:nth-child(8) {
+        transform: rotate(210deg);
+        animation-delay: -0.4s;
+      }
+      .spinner div:nth-child(9) {
+        transform: rotate(240deg);
+        animation-delay: -0.3s;
+      }
+      .spinner div:nth-child(10) {
+        transform: rotate(270deg);
+        animation-delay: -0.2s;
+      }
+      .spinner div:nth-child(11) {
+        transform: rotate(300deg);
+        animation-delay: -0.1s;
+      }
+      .spinner div:nth-child(12) {
+        transform: rotate(330deg);
+        animation-delay: 0s;
+      }
+      @keyframes spinner {
+        0% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
       }
 
       #hyper-checkout-status {
@@ -355,6 +414,7 @@
         font-family: "Montserrat";
         height: 100%;
         width: 100%;
+        overflow: hidden;
       }
 
       #hyper-checkout-status-header {
@@ -419,7 +479,6 @@
         margin-top: 20px;
         border-radius: 3px;
         border: 1px solid #e6e6e6;
-        width: 90vw;
       }
 
       .hyper-checkout-status-item {
@@ -604,7 +663,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
     />
-
+  </head>
+  <body>
     <!-- SVG ICONS -->
     <svg xmlns="http://www.w3.org/2000/svg" display="none">
       <defs>
@@ -618,7 +678,7 @@
             width="16"
             height="16"
           >
-            <path d="M16 0H0V16H16V0Z" fill="white" />
+            <path d="M16 0H0V16H16V0Z" fill="white"></path>
           </mask>
           <g mask="url(#mask0_1_13)">
             <mask
@@ -630,13 +690,13 @@
               width="16"
               height="16"
             >
-              <path d="M16 0H0V16H16V0Z" fill="#D9D9D9" />
+              <path d="M16 0H0V16H16V0Z" fill="#D9D9D9"></path>
             </mask>
             <g mask="url(#mask1_1_13)">
               <path
                 d="M3.53716 14.3331C3.20469 14.3331 2.92071 14.2153 2.68525 13.9798C2.44977 13.7444 2.33203 13.4604 2.33203 13.1279V5.53823C2.33203 5.20575 2.44977 4.92178 2.68525 4.68631C2.92071 4.45083 3.20469 4.3331 3.53716 4.3331H4.9987C4.9987 3.50063 5.29058 2.79252 5.87433 2.20876C6.4581 1.62501 7.16621 1.33313 7.99868 1.33313C8.83115 1.33313 9.53927 1.62501 10.123 2.20876C10.7068 2.79252 10.9987 3.50063 10.9987 4.3331H12.4602C12.7927 4.3331 13.0766 4.45083 13.3121 4.68631C13.5476 4.92178 13.6653 5.20575 13.6653 5.53823V13.1279C13.6653 13.4604 13.5476 13.7444 13.3121 13.9798C13.0766 14.2153 12.7927 14.3331 12.4602 14.3331H3.53716ZM3.53716 13.3331H12.4602C12.5115 13.3331 12.5585 13.3117 12.6012 13.269C12.644 13.2262 12.6653 13.1792 12.6653 13.1279V5.53823C12.6653 5.48694 12.644 5.43992 12.6012 5.39718C12.5585 5.35445 12.5115 5.33308 12.4602 5.33308H3.53716C3.48588 5.33308 3.43886 5.35445 3.39611 5.39718C3.35338 5.43992 3.33201 5.48694 3.33201 5.53823V13.1279C3.33201 13.1792 3.35338 13.2262 3.39611 13.269C3.43886 13.3117 3.48588 13.3331 3.53716 13.3331ZM7.99868 8.99973C8.83115 8.99973 9.53927 8.70785 10.123 8.1241C10.7068 7.54033 10.9987 6.83221 10.9987 5.99975H9.99868C9.99868 6.5553 9.80424 7.02752 9.41535 7.41641C9.02646 7.8053 8.55424 7.99975 7.99868 7.99975C7.44313 7.99975 6.9709 7.8053 6.58202 7.41641C6.19313 7.02752 5.99868 6.5553 5.99868 5.99975H4.9987C4.9987 6.83221 5.29058 7.54033 5.87433 8.1241C6.4581 8.70785 7.16621 8.99973 7.99868 8.99973ZM5.99868 4.3331H9.99868C9.99868 3.77754 9.80424 3.30532 9.41535 2.91643C9.02646 2.52754 8.55424 2.3331 7.99868 2.3331C7.44313 2.3331 6.9709 2.52754 6.58202 2.91643C6.19313 3.30532 5.99868 3.77754 5.99868 4.3331Z"
                 fill="#333333"
-              />
+              ></path>
             </g>
           </g>
         </symbol>
@@ -650,7 +710,7 @@
             width="30"
             height="30"
           >
-            <path d="M30 0H0V30H30V0Z" fill="white" />
+            <path d="M30 0H0V30H30V0Z" fill="white"></path>
           </mask>
           <g mask="url(#mask0_1_13)">
             <mask
@@ -662,13 +722,13 @@
               width="30"
               height="30"
             >
-              <path d="M30 0H0V30H30V0Z" fill="#D9D9D9" />
+              <path d="M30 0H0V30H30V0Z" fill="#D9D9D9"></path>
             </mask>
             <g mask="url(#mask1_1_13)">
               <path
                 d="M6.63218 26.8746C6.0088 26.8746 5.47633 26.6537 5.03485 26.2121C4.59332 25.7708 4.37256 25.2383 4.37256 24.6148V10.3842C4.37256 9.76078 4.59332 9.22834 5.03485 8.78683C5.47633 8.34531 6.0088 8.12456 6.63218 8.12456H9.37257C9.37257 6.56368 9.91984 5.23597 11.0144 4.14142C12.1089 3.04689 13.4366 2.49962 14.9975 2.49962C16.5584 2.49962 17.8861 3.04689 18.9806 4.14142C20.0753 5.23597 20.6226 6.56368 20.6226 8.12456H23.3629C23.9863 8.12456 24.5186 8.34531 24.9602 8.78683C25.4018 9.22834 25.6224 9.76078 25.6224 10.3842V24.6148C25.6224 25.2383 25.4018 25.7708 24.9602 26.2121C24.5186 26.6537 23.9863 26.8746 23.3629 26.8746H6.63218ZM6.63218 24.9996H23.3629C23.4591 24.9996 23.5472 24.9594 23.6273 24.8794C23.7075 24.7991 23.7474 24.711 23.7474 24.6148V10.3842C23.7474 10.288 23.7075 10.1999 23.6273 10.1197C23.5472 10.0396 23.4591 9.99952 23.3629 9.99952H6.63218C6.53603 9.99952 6.44786 10.0396 6.36771 10.1197C6.28759 10.1999 6.24752 10.288 6.24752 10.3842V24.6148C6.24752 24.711 6.28759 24.7991 6.36771 24.8794C6.44786 24.9594 6.53603 24.9996 6.63218 24.9996ZM14.9975 16.8745C16.5584 16.8745 17.8861 16.3272 18.9806 15.2327C20.0753 14.1381 20.6226 12.8104 20.6226 11.2495H18.7475C18.7475 12.2912 18.383 13.1766 17.6538 13.9058C16.9246 14.6349 16.0392 14.9995 14.9975 14.9995C13.9559 14.9995 13.0704 14.6349 12.3413 13.9058C11.6121 13.1766 11.2475 12.2912 11.2475 11.2495H9.37257C9.37257 12.8104 9.91984 14.1381 11.0144 15.2327C12.1089 16.3272 13.4366 16.8745 14.9975 16.8745ZM11.2475 8.12456H18.7475C18.7475 7.08289 18.383 6.19747 17.6538 5.46831C16.9246 4.73914 16.0392 4.37456 14.9975 4.37456C13.9559 4.37456 13.0704 4.73914 12.3413 5.46831C11.6121 6.19747 11.2475 7.08289 11.2475 8.12456Z"
                 fill="#333333"
-              />
+              ></path>
             </g>
           </g>
         </symbol>
@@ -732,16 +792,28 @@
         </symbol>
       </defs>
     </svg>
-  </head>
-
-  <body onload="showSDK()">
-    <div class="page-spinner hidden" id="page-spinner"></div>
+    <div id="page-spinner" class="page-spinner">
+      <div class="spinner">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+    </div>
     <div class="hyper-checkout">
       <div class="main hidden" id="hyper-checkout-status">
         <div id="hyper-checkout-status-header"></div>
         <div id="hyper-checkout-status-content"></div>
       </div>
-      <div class="main hidden" id="hyper-checkout-details">
+      <div class="main" id="hyper-checkout-details">
         <div class="hyper-checkout-payment">
           <div class="hyper-checkout-payment-content-details">
             <div id="hyper-checkout-payment-context">
@@ -767,7 +839,7 @@
                     y="0"
                     width="30"
                     height="30"
-                  />
+                  ></use>
                 </svg>
               </div>
             </div>
@@ -790,7 +862,7 @@
                 y="0"
                 width="16"
                 height="16"
-              />
+              ></use>
             </svg>
             <span>Your Cart</span>
             <svg
@@ -807,36 +879,32 @@
                 y="0"
                 width="50"
                 height="50"
-              />
+              ></use>
             </svg>
           </div>
           <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
         </div>
       </div>
-      <div class="hyper-checkout-sdk hidden" id="hyper-checkout-sdk">
+      <div class="hyper-checkout-sdk" id="hyper-checkout-sdk">
         <div id="payment-form-wrap">
-          <form id="payment-form">
-            <div id="unified-checkout">
-              <div
-                id="orca-element-unified-checkout"
-                style="height: auto"
-                class="payment base"
-              >
-                <div id="orca-fullscreen-iframeRef-unified-checkout"></div>
-                <iframe
-                  id="orca-payment-element-iframeRef-unified-checkout"
-                  name="orca-payment-element-iframeRef-unified-checkout"
-                  src="http://localhost:9050/?componentName=payment"
-                  allow="payment *"
-                  style="
-                    border: 0px;
-                    transition: height 0.35s ease 0s, opacity 0.4s ease 0.1s;
-                    height: 368px;
-                  "
-                  width="100%"
-                ></iframe>
-              </div>
+          <div id="sdk-spinner" class="sdk-spinner">
+            <div class="spinner">
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
             </div>
+          </div>
+          <form id="payment-form">
+            <div id="unified-checkout"></div>
             <div id="payment-message" class="hidden"></div>
           </form>
         </div>
@@ -848,7 +916,7 @@
               y="0"
               height="18"
               width="130"
-            />
+            ></use>
           </svg>
         </div>
       </div>
@@ -861,7 +929,7 @@
           y="0"
           height="18"
           width="130"
-        />
+        ></use>
       </svg>
     </div>
 
@@ -877,15 +945,61 @@
       var widgets = null;
       var unifiedCheckout = null;
       var pub_key = window.__PAYMENT_DETAILS.pub_key;
-      var hyper = Hyper(pub_key);
+      var hyper = null;
 
-      function mountUnifiedCheckout(id) {
-        if (unifiedCheckout !== null) {
-          unifiedCheckout.mount(id);
-        }
+      // Boot functions
+      function boot() {
+        // Render UI
+        renderPaymentDetails();
+        renderSDKHeader();
+        renderCart();
+
+        // Deal w loaders
+        show("#sdk-spinner");
+        hide("#page-spinner");
+        hide("#unified-checkout");
+
+        // Add event listeners
+        initializeEventListeners();
+
+        // Initialize SDK
+        initializeSDK();
+      }
+      boot();
+
+      function initializeEventListeners() {
+        window.addEventListener("resize", (event) => {
+          var currentHeight = window.innerHeight;
+          var currentWidth = window.innerWidth;
+          if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
+            hide("#hyper-checkout-cart");
+          } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
+            show("#hyper-checkout-cart");
+          }
+
+          window.state.prevHeight = currentHeight;
+          window.state.prevWidth = currentWidth;
+          window.state.isMobileView = currentWidth <= 1200;
+        });
       }
 
-      async function initialize() {
+      function showSDK() {
+        checkStatus()
+          .then((res) => {
+            if (res.showSdk) {
+              show("#hyper-checkout-sdk");
+              show("#hyper-checkout-details");
+            } else {
+              hide("#hyper-checkout-details");
+              hide("#hyper-checkout-sdk");
+              show("#hyper-checkout-status");
+              show("#hyper-footer");
+            }
+          })
+          .catch((err) => {});
+      }
+
+      async function initializeSDK() {
         var paymentDetails = window.__PAYMENT_DETAILS;
         var client_secret = paymentDetails.client_secret;
         var appearance = {
@@ -901,12 +1015,11 @@
             colorBackground: "rgb(255, 255, 255)",
           },
         };
-
+        hyper = Hyper(pub_key);
         widgets = hyper.widgets({
           appearance,
           clientSecret: client_secret,
         });
-
         var unifiedCheckoutOptions = {
           layout: "tabs",
           sdkHandleConfirmPayment: true,
@@ -920,9 +1033,26 @@
             },
           },
         };
-
         unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
         mountUnifiedCheckout("#unified-checkout");
+
+        // Add event listener for SDK iframe mutations
+        const orcaIFrame = document.getElementById(
+          "orca-payment-element-iframeRef-unified-checkout"
+        );
+        const callback = (mutationList, observer) => {
+          for (const mutation of mutationList) {
+            if (
+              mutation.type === "attributes" &&
+              mutation.attributeName === "style"
+            ) {
+              show("#unified-checkout");
+              hide("#sdk-spinner");
+            }
+          }
+        };
+        const observer = new MutationObserver(callback);
+        observer.observe(orcaIFrame, { attributes: true });
 
         // Handle button press callback
         var paymentElement = widgets.getElement("payment");
@@ -931,8 +1061,15 @@
             handleSubmit(event);
           });
         }
+        showSDK();
       }
-      initialize();
+
+      // Util functions
+      function mountUnifiedCheckout(id) {
+        if (unifiedCheckout !== null) {
+          unifiedCheckout.mount(id);
+        }
+      }
 
       async function handleSubmit(e) {
         var paymentDetails = window.__PAYMENT_DETAILS;
@@ -1211,6 +1348,59 @@
         element.classList.remove(className);
       }
 
+      function formatDate(date) {
+        var months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        var hours = date.getHours();
+        var minutes = date.getMinutes();
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        var suffix = hours > 11 ? "PM" : "AM";
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        var day = date.getDay();
+        var month = months[date.getMonth() - 1];
+        var year = date.getUTCFullYear();
+
+        var locale = navigator.language || navigator.userLanguage;
+        var timezoneShorthand = date
+          .toLocaleDateString(locale, {
+            day: "2-digit",
+            timeZoneName: "long",
+          })
+          .substring(4)
+          .split(" ")
+          .reduce((tz, c) => tz + c.charAt(0).toUpperCase(), "");
+
+        var formatted =
+          hours +
+          ":" +
+          minutes +
+          " " +
+          suffix +
+          " " +
+          timezoneShorthand +
+          "  " +
+          month +
+          " " +
+          day +
+          ", " +
+          year;
+        return formatted;
+      }
+
       function renderPaymentDetails() {
         var paymentDetails = window.__PAYMENT_DETAILS;
 
@@ -1238,8 +1428,9 @@
         // Create expiry node
         var paymentExpiryNode = document.createElement("div");
         paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
-        paymentExpiryNode.innerText =
-          "Link expires on: " + new Date(paymentDetails.expiry).toTimeString();
+        const expiryDate = new Date(paymentDetails.expiry);
+        const formattedDate = formatDate(expiryDate);
+        paymentExpiryNode.innerText = "Link expires on: " + formattedDate;
 
         // Append information to DOM
         var paymentContextNode = document.getElementById(
@@ -1262,6 +1453,11 @@
       }
 
       function renderCart() {
+        if (window.state.isMobileView) {
+          hide("#hyper-checkout-cart");
+        } else {
+          show("#hyper-checkout-cart");
+        }
         var paymentDetails = window.__PAYMENT_DETAILS;
         var orderDetails = paymentDetails.order_details;
         var cartNode = document.getElementById("hyper-checkout-cart");
@@ -1455,48 +1651,7 @@
           sdkHeaderNode.append(sdkHeaderItemNode);
         }
       }
-
-      function showSDK(e) {
-        if (window.state.isMobileView) {
-          hide("#hyper-checkout-cart");
-        } else {
-          show("#hyper-checkout-cart");
-        }
-        setPageLoading(true);
-        checkStatus()
-          .then((res) => {
-            if (res.showSdk) {
-              renderPaymentDetails();
-              renderCart();
-              renderSDKHeader();
-              show("#hyper-checkout-sdk");
-              show("#hyper-checkout-details");
-            } else {
-              hide("#hyper-checkout-sdk");
-              hide("#hyper-checkout-details");
-              show("#hyper-checkout-status");
-              show("#hyper-footer");
-            }
-          })
-          .catch((err) => {})
-          .finally(() => {
-            setPageLoading(false);
-          });
-      }
-
-      window.addEventListener("resize", (event) => {
-        var currentHeight = window.innerHeight;
-        var currentWidth = window.innerWidth;
-        if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
-          hide("#hyper-checkout-cart");
-        } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
-          show("#hyper-checkout-cart");
-        }
-
-        window.state.prevHeight = currentHeight;
-        window.state.prevWidth = currentWidth;
-        window.state.isMobileView = currentWidth <= 1200;
-      });
     </script>
+    {{ hyperloader_sdk_link }}
   </body>
 </html>

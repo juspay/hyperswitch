@@ -535,6 +535,7 @@ mod tests {
                     merchant_id,
                     hashed_api_key.into_inner()
                 ),)
+                .await
                 .is_none()
         )
     }

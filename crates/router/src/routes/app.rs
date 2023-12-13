@@ -897,12 +897,16 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("user/invite").route(web::post().to(invite_user)))
+                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
                 .service(web::resource("/verify_email").route(web::post().to(verify_email)))
+                .service(
+                    web::resource("/verify_email_request")
+                        .route(web::post().to(verify_email_request)),
+                );
         }
         #[cfg(not(feature = "email"))]
         {

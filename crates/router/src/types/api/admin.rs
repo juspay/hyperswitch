@@ -113,7 +113,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                     &pl_config,
                 )
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
+                    field_name: "payment_link_config_value",
                 })
             })
             .transpose()?;
