@@ -537,23 +537,18 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: Option<String>,
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    pub profile_id: Option<String>,
+
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<pii::SecretSerdeValue>,
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
-    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub disabled: Option<bool>,
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
         {
             "payment_method": "wallet",
@@ -584,21 +579,6 @@ pub struct MerchantConnectorCreate {
         }
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-    /// contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
-    pub frm_configs: Option<Vec<FrmConfigs>>,
-
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub business_country: Option<api_enums::CountryAlpha2>,
-
-    pub business_label: Option<String>,
-
-    /// Business Sub label of the merchant
-    #[schema(example = "chase")]
-    pub business_sub_label: Option<String>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -607,12 +587,41 @@ pub struct MerchantConnectorCreate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    pub profile_id: Option<String>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
+
+    /// The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    pub business_label: Option<String>,
+
+    /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
+
+    /// Unique ID of the connector
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub merchant_connector_id: Option<String>,
 
     pub pm_auth_config: Option<serde_json::Value>,
 
-    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
 }
 
@@ -663,26 +672,26 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
-    #[schema(example = "stripe")]
+    #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: String,
 
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// A unique label to identify the connector account created under a business profile
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Unique ID of the connector
+    /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: String,
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+
+    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    #[schema(max_length = 64)]
+    pub profile_id: Option<String>,
+
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: pii::SecretSerdeValue,
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
-    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub disabled: Option<bool>,
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
         {
             "payment_method": "wallet",
@@ -713,25 +722,6 @@ pub struct MerchantConnectorResponse {
         }
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// Business Country of the connector
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub business_country: Option<api_enums::CountryAlpha2>,
-
-    ///Business Type of the merchant
-    #[schema(example = "travel")]
-    pub business_label: Option<String>,
-
-    /// Business Sub label of the merchant
-    #[schema(example = "chase")]
-    pub business_sub_label: Option<String>,
-
-    /// contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
-    pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -741,10 +731,34 @@ pub struct MerchantConnectorResponse {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// The business profile this connector must be created in
-    /// default value from merchant account is taken if not passed
-    #[schema(max_length = 64)]
-    pub profile_id: Option<String>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
+
+    ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(example = "travel")]
+    pub business_label: Option<String>,
+
+    /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
+
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
@@ -762,22 +776,15 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
-    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
+    #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
-    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub test_mode: Option<bool>,
-
-    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
-    #[schema(default = false, example = false)]
-    pub disabled: Option<bool>,
-
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
         {
             "payment_method": "wallet",
@@ -809,14 +816,6 @@ pub struct MerchantConnectorUpdate {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// contains the frm configs for the merchant connector
-    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
-    pub frm_configs: Option<Vec<FrmConfigs>>,
-
     /// Webhook details of this merchant connector
     #[schema(example = json!({
         "connector_webhook_details": {
@@ -824,6 +823,22 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
 
