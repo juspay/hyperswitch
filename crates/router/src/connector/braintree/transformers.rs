@@ -131,12 +131,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         }
                         api_models::payments::WalletData::ApplePay(_)
                         | api_models::payments::WalletData::GooglePay(_)
-                        | api_models::payments::WalletData::SamsungPay(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                utils::get_unimplemented_payment_method_error_message("braintree"),
-                            ))
-                        }
-                        api_models::payments::WalletData::AliPayQr(_)
+                        | api_models::payments::WalletData::SamsungPay(_)
+                        | api_models::payments::WalletData::AliPayQr(_)
                         | api_models::payments::WalletData::AliPayRedirect(_)
                         | api_models::payments::WalletData::AliPayHkRedirect(_)
                         | api_models::payments::WalletData::MomoRedirect(_)
@@ -168,23 +164,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                ))
-            }
-            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                ))
-            }?,
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("braintree"),
+            )),
         }?;
         let braintree_transaction_body = TransactionBody {
             amount,
