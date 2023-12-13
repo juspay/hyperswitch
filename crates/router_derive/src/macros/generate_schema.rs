@@ -39,6 +39,7 @@ fn get_field_type(field_type: syn::Type) -> syn::Result<syn::Ident> {
     }
 }
 
+#[allow(dead_code)]
 /// Get the inner type of option
 fn get_inner_option_type(field: &syn::Type) -> syn::Result<syn::Ident> {
     if let syn::Type::Path(ref path) = &field {
@@ -221,6 +222,8 @@ pub fn polymorphic_macro_derive_inner(
                         .clone()
                         .map(|field_ident| hide_fields.contains(&(field_ident, schema.to_owned())))
                         .unwrap_or(false);
+
+                    dbg!(is_hidden_field);
 
                     if is_hidden_field {
                         None
