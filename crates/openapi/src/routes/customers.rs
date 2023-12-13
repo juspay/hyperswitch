@@ -49,12 +49,12 @@ pub async fn customers_retrieve() {}
     path = "/customers/{customer_id}",
     request_body (
         content = CustomerRequest,
-      examples  (( "Update name and email of a customer" =(
+        examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
             "name": "John Doe"
         })
-      )))
+        )))
     ),
     params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
