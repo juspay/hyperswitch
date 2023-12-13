@@ -109,6 +109,7 @@ pub enum Connector {
     Payme,
     Paypal,
     Payu,
+    Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
