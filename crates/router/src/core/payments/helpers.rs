@@ -946,42 +946,6 @@ pub fn verify_mandate_details(
     )
 }
 
-// This function validates card_holder_name field to be either null or a non-empty string
-pub fn validate_card_holder_name(
-    payment_method_data: Option<api::PaymentMethodData>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    if let Some(pmd) = payment_method_data {
-        match pmd {
-            // This validation would occur during payments create
-            api::PaymentMethodData::Card(card) => {
-                if let Some(name) = &card.card_holder_name {
-                    if name.clone().expose().is_empty() {
-                        return Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "card_holder_name cannot be empty".to_string(),
-                        })
-                        .into_report();
-                    }
-                }
-            }
-
-            // This validation would occur during payments confirm
-            api::PaymentMethodData::CardToken(card) => {
-                if let Some(name) = card.card_holder_name {
-                    if name.expose().is_empty() {
-                        return Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "card_holder_name cannot be empty".to_string(),
-                        })
-                        .into_report();
-                    }
-                }
-            }
-            _ => (),
-        }
-    }
-
-    Ok(())
-}
-
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -1441,13 +1405,15 @@ pub async fn retrieve_payment_method_with_temporary_token(
             let mut is_card_updated = false;
 
             // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
-            // from payment_method.card_token object
+            // from payment_method_data.card_token object
             let name_on_card = if let Some(name) = card.card_holder_name.clone() {
-                if name.expose().is_empty() {
-                    card_token_data.and_then(|token_data| {
-                        is_card_updated = true;
-                        token_data.card_holder_name.clone()
-                    })
+                if name.clone().expose().is_empty() {
+                    card_token_data
+                        .and_then(|token_data| {
+                            is_card_updated = true;
+                            token_data.card_holder_name.clone()
+                        })
+                        .or(Some(name))
                 } else {
                     card.card_holder_name.clone()
                 }
@@ -1528,10 +1494,12 @@ pub async fn retrieve_card_with_permanent_token(
         .attach_printable("failed to fetch card information from the permanent locker")?;
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
-    // from payment_method.card_token object
+    // from payment_method_data.card_token object
     let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.expose().is_empty() {
-            card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+        if name.clone().expose().is_empty() {
+            card_token_data
+                .and_then(|token_data| token_data.card_holder_name.clone())
+                .or(Some(name))
         } else {
             card.name_on_card
         }
