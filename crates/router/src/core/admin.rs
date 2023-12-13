@@ -13,7 +13,6 @@ use common_utils::{
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
-use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
 
 use crate::{
@@ -1795,6 +1794,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             payu::transformers::PayuAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Placetopay => {
+            placetopay::transformers::PlacetopayAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Powertranz => {
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
             Ok(())
@@ -1855,10 +1858,12 @@ pub(crate) fn validate_auth_and_metadata_type(
             signifyd::transformers::SignifydAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Plaid => {
-            PlaidAuthType::foreign_try_from(val)?;
+        api_enums::Connector::Riskified => {
+            riskified::transformers::RiskifiedAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Plaid => Err(report!(errors::ConnectorError::InvalidConnectorName)
+            .attach_printable(format!("invalid connector name: {connector_name}"))),
     }
 }
 

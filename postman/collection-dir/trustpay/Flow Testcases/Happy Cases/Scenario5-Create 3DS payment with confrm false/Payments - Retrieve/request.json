@@ -8,8 +8,13 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/payments/:id",
-    "host": ["{{baseUrl}}"],
-    "path": ["payments", ":id"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id"
+    ],
     "query": [
       {
         "key": "force_sync",
