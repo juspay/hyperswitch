@@ -94,7 +94,7 @@ impl Handler {
                     let shutdown_started = tokio::time::Instant::now();
                     rx.close();
                     loop {
-                        if self.active_tasks.load(atomic::Ordering::Acquire) == 0 {
+                        if self.active_tasks.load(atomic::Ordering::SeqCst) == 0 {
                             logger::info!("Terminating drainer");
                             metrics::SUCCESSFUL_SHUTDOWN.add(&metrics::CONTEXT, 1, &[]);
                             let shutdown_ended = shutdown_started.elapsed().as_secs_f64() * 1000f64;
@@ -109,6 +109,10 @@ impl Handler {
                 Err(mpsc::error::TryRecvError::Empty) => {}
             }
         }
+        logger::info!(
+            tasks_remaining = self.active_tasks.load(atomic::Ordering::SeqCst),
+            "Drainer shudown successfully"
+        )
     }
 
     pub fn spawn_error_handlers(&self, tx: mpsc::Sender<()>) -> errors::DrainerResult<()> {
@@ -267,9 +271,9 @@ async fn drainer(
                 ?entries,
                 "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
             );
-        } else {
-            logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
         }
+    } else {
+        logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
     }
 
     Ok(())
