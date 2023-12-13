@@ -1,5 +1,6 @@
-use crate::routes;
 use utoipa;
+
+use crate::routes;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
