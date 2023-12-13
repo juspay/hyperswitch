@@ -339,7 +339,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError>  {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayNextActionRequest::try_from(req)?;
         let placetopay_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
@@ -587,7 +587,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             utils::Encode::<placetopay::PlacetopayRsyncRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-         Ok(RequestContent::Json(Box::new(req_obj)))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
