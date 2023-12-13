@@ -483,6 +483,7 @@ pub enum Currency {
     SZL,
     THB,
     TND,
+    TOP,
     TRY,
     TTD,
     TWD,
@@ -675,6 +676,7 @@ impl Currency {
             Self::SZL => "748",
             Self::THB => "764",
             Self::TND => "788",
+            Self::TOP => "776",
             Self::TRY => "949",
             Self::TTD => "780",
             Self::TWD => "901",
@@ -829,6 +831,7 @@ impl Currency {
             | Self::SZL
             | Self::THB
             | Self::TND
+            | Self::TOP
             | Self::TRY
             | Self::TTD
             | Self::TWD
@@ -963,6 +966,7 @@ impl Currency {
             | Self::SVC
             | Self::SZL
             | Self::THB
+            | Self::TOP
             | Self::TRY
             | Self::TTD
             | Self::TWD

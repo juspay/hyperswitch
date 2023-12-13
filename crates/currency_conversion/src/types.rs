@@ -201,6 +201,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::SZL => iso::SZL,
         Currency::THB => iso::THB,
         Currency::TND => iso::TND,
+        Currency::TOP => iso::TOP,
         Currency::TTD => iso::TTD,
         Currency::TRY => iso::TRY,
         Currency::TWD => iso::TWD,
