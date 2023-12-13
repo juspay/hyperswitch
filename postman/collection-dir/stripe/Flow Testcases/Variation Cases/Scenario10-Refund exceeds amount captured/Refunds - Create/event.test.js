@@ -47,7 +47,7 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should have value "The refund amount exceeds the amount captured" for "error messsage"
+// Response body should have value "The refund amount exceeds the amount captured" for "error message"
 if (jsonData?.error?.type) {
   pm.test(
     "[POST]::/payments/:id/confirm - Content check if value for 'error.message' matches 'The refund amount exceeds the amount captured'",
