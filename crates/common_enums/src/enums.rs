@@ -488,6 +488,7 @@ pub enum Currency {
     TTD,
     TWD,
     TZS,
+    UAH,
     UGX,
     #[default]
     USD,
@@ -495,11 +496,14 @@ pub enum Currency {
     UZS,
     VND,
     VUV,
+    WST,
     XAF,
+    XCD,
     XOF,
     XPF,
     YER,
     ZAR,
+    ZMW,
 }
 
 impl Currency {
@@ -681,17 +685,21 @@ impl Currency {
             Self::TTD => "780",
             Self::TWD => "901",
             Self::TZS => "834",
+            Self::UAH => "980",
             Self::UGX => "800",
             Self::USD => "840",
             Self::UYU => "858",
             Self::UZS => "860",
             Self::VND => "704",
             Self::VUV => "548",
+            Self::WST => "882",
             Self::XAF => "950",
+            Self::XCD => "951",
             Self::XOF => "952",
             Self::XPF => "953",
             Self::YER => "886",
             Self::ZAR => "710",
+            Self::ZMW => "967",
         }
     }
 
@@ -836,11 +844,15 @@ impl Currency {
             | Self::TTD
             | Self::TWD
             | Self::TZS
+            | Self::UAH
             | Self::USD
             | Self::UYU
             | Self::UZS
+            | Self::WST
+            | Self::XCD
             | Self::YER
-            | Self::ZAR => false,
+            | Self::ZAR
+            | Self::ZMW => false,
         }
     }
 
@@ -971,17 +983,21 @@ impl Currency {
             | Self::TTD
             | Self::TWD
             | Self::TZS
+            | Self::UAH
             | Self::UGX
             | Self::USD
             | Self::UYU
             | Self::UZS
             | Self::VND
             | Self::VUV
+            | Self::WST
             | Self::XAF
+            | Self::XCD
             | Self::XPF
             | Self::XOF
             | Self::YER
-            | Self::ZAR => false,
+            | Self::ZAR
+            | Self::ZMW => false,
         }
     }
 }

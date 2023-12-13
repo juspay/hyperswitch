@@ -437,17 +437,21 @@ impl IntoDirValue for api_enums::Currency {
             Self::TTD => Ok(dirval!(PaymentCurrency = TTD)),
             Self::TWD => Ok(dirval!(PaymentCurrency = TWD)),
             Self::TZS => Ok(dirval!(PaymentCurrency = TZS)),
+            Self::UAH => Ok(dirval!(PaymentCurrency = UAH)),
             Self::UGX => Ok(dirval!(PaymentCurrency = UGX)),
             Self::USD => Ok(dirval!(PaymentCurrency = USD)),
             Self::UYU => Ok(dirval!(PaymentCurrency = UYU)),
             Self::UZS => Ok(dirval!(PaymentCurrency = UZS)),
             Self::VND => Ok(dirval!(PaymentCurrency = VND)),
             Self::VUV => Ok(dirval!(PaymentCurrency = VUV)),
+            Self::WST => Ok(dirval!(PaymentCurrency = WST)),
             Self::XAF => Ok(dirval!(PaymentCurrency = XAF)),
+            Self::XCD => Ok(dirval!(PaymentCurrency = XCD)),
             Self::XOF => Ok(dirval!(PaymentCurrency = XOF)),
             Self::XPF => Ok(dirval!(PaymentCurrency = XPF)),
             Self::YER => Ok(dirval!(PaymentCurrency = YER)),
             Self::ZAR => Ok(dirval!(PaymentCurrency = ZAR)),
+            Self::ZMW => Ok(dirval!(PaymentCurrency = ZMW)),
         }
     }
 }
