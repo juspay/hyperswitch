@@ -1,10 +1,36 @@
 /// Merchant Account - Create
 ///
-/// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
+/// Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.
 #[utoipa::path(
     post,
     path = "/accounts",
-    request_body= MerchantAccountCreate,
+    request_body(
+        content = MerchantAccountCreate,
+        examples(
+            (
+                "Create a merchant account with minimal fields" = (
+                    value = json!({"merchant_id": "merchant_abc"})
+                )
+            ),
+            (
+                "Create a merchant account with webhook url" = (
+                    value = json!({
+                        "merchant_id": "merchant_abc",
+                        "webhook_details" : {
+                            "webhook_url": "https://webhook.site/a5c54f75-1f7e-4545-b781-af525b7e37a0"
+                        }
+                    })
+                )
+            ),
+            (
+                "Create a merchant account with return url" = (
+                    value = json!({"merchant_id": "merchant_abc",
+                "return_url": "https://example.com"})
+                )
+            )
+        )
+
+    ),
     responses(
         (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
         (status = 400, description = "Invalid data")
@@ -17,7 +43,7 @@ pub async fn merchant_account_create() {}
 
 /// Merchant Account - Retrieve
 ///
-/// Retrieve a merchant account details.
+/// Retrieve a *merchant* account details.
 #[utoipa::path(
     get,
     path = "/accounts/{account_id}",
@@ -34,11 +60,42 @@ pub async fn retrieve_merchant_account() {}
 
 /// Merchant Account - Update
 ///
-/// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
+/// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}",
-    request_body = MerchantAccountUpdate,
+    request_body (
+        content = MerchantAccountUpdate,
+        examples(
+            (
+            "Update merchant name" = (
+                value = json!({
+                    "merchant_id": "merchant_abc",
+                    "merchant_name": "merchant_name"
+                })
+            )
+            ),
+            ("Update merchant name" = (
+                value = json!({
+                    "merchant_id": "merchant_abc",
+                    "merchant_name": "merchant_name"
+                })
+            )),
+            ("Update webhook url" = (
+                    value = json!({
+                        "merchant_id": "merchant_abc",
+                        "webhook_details": {
+                            "webhook_url": "https://webhook.site/a5c54f75-1f7e-4545-b781-af525b7e37a0"
+                        }
+                    })
+                )
+            ),
+            ("Update return url" = (
+                value = json!({
+                    "merchant_id": "merchant_abc",
+                    "return_url": "https://example.com"
+                })
+            )))),
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
@@ -52,7 +109,7 @@ pub async fn update_merchant_account() {}
 
 /// Merchant Account - Delete
 ///
-/// To delete a merchant account
+/// Delete a *merchant* account
 #[utoipa::path(
     delete,
     path = "/accounts/{account_id}",

@@ -1076,6 +1076,7 @@ pub struct BusinessProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
+    #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<pii::SecretSerdeValue>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
