@@ -381,7 +381,7 @@ where
                     let request_method = request.method;
 
                     let current_time = Instant::now();
-                    let response = call_connector_api(state, request).await;
+                    let mut response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
 
@@ -389,7 +389,17 @@ where
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        None,
+                        response
+                            .as_mut()
+                            .map(|response| {
+                                response
+                                    .clone()
+                                    .map_or_else(|value| value, |value| value)
+                                    .response
+                                    .escape_ascii()
+                                    .to_string()
+                            })
+                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
