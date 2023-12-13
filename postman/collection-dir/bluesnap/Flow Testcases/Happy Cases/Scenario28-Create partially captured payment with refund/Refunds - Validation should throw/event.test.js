@@ -32,9 +32,9 @@ if (jsonData?.refund_id) {
 // Response body should have value "succeeded" for "status"
 if (jsonData?.error.message) {
   pm.test(
-    "[POST]::/refunds - Content check if value for 'message' matches 'Refund amount exceeds the payment amount'",
+    "[POST]::/refunds - Content check if value for 'message' matches 'The refund amount exceeds the amount captured'",
     function () {
-      pm.expect(jsonData.error.message).to.eql("Refund amount exceeds the payment amount");
+      pm.expect(jsonData.error.message).to.eql("The refund amount exceeds the amount captured");
     },
   );
 }
