@@ -79,6 +79,9 @@ impl
                 order_details: self.order_details.clone(),
                 currency,
                 payment_method,
+                error_code: self.payment_attempt.error_code.clone(),
+                error_message: self.payment_attempt.error_message.clone(),
+                connector_transaction_id: self.payment_attempt.connector_transaction_id.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -105,6 +108,7 @@ impl
             external_latency: None,
             connector_api_version: None,
             apple_pay_flow: None,
+            frm_metadata: None,
         };
 
         Ok(router_data)

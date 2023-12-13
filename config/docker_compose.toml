@@ -73,6 +73,19 @@ host = "redis-standalone"
 port = 6379
 cluster_enabled = false
 cluster_urls = ["redis-cluster:6379"]
+pool_size = 5
+reconnect_max_attempts = 5
+reconnect_delay = 5
+default_ttl = 300
+default_hash_ttl = 900
+use_legacy_version = false
+stream_read_count = 1
+auto_pipeline = true
+disable_auto_backpressure = false
+max_in_flight_commands = 5000
+default_command_timeout = 0
+max_feed_count = 200
+
 
 [refund]
 max_attempts = 10
@@ -125,9 +138,11 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+placetopay.base_url = "https://api-co-dev.placetopay.ws/gateway"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
+riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
@@ -188,6 +203,7 @@ cards = [
     "payme",
     "paypal",
     "payu",
+    "placetopay",
     "powertranz",
     "prophetpay",
     "shift4",
@@ -344,7 +360,7 @@ intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
-connector_events_topic = "hyperswitch-connector-api-events"
+connector_logs_topic = "hyperswitch-connector-api-events"
 
 [analytics]
 source = "sqlx"
