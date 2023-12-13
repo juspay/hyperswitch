@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use common_utils::{ext_traits::ValueExt, pii::Email};
+pub use common_utils::request::Method;
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-pub use common_utils::request::Method;
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
@@ -196,6 +196,18 @@ pub struct CashtocodePaymentsSyncResponse {
     pub amount: i64,
 }
 
+fn get_http_method(
+    payment_method_type: &enums::PaymentMethodType,
+) -> CustomResult<Method, errors::ConnectorError> {
+    match payment_method_type {
+        enums::PaymentMethodType::ClassicReward => Ok(services::Method::Post),
+        enums::PaymentMethodType::Evoucher => Ok(services::Method::Get),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("CashToCode"),
+        ))?,
+    }
+}
+
 impl<F>
     TryFrom<
         types::ResponseRouterData<
@@ -228,12 +240,15 @@ impl<F>
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
-                let method = match item.data.request.payment_method_type {
-                    Some(enums::PaymentMethodType::ClassicReward) => services::Method::Post,
-                    Some(enums::PaymentMethodType::Evoucher) => services::Method::Get,
-                    _ => services::Method::Get,
-                };
-                let redirection_data = services::RedirectForm::from((response_data.pay_url, method));
+                let payment_method_type = item
+                    .data
+                    .request
+                    .payment_method_type
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+                let method = get_http_method(payment_method_type)?;
+                let redirection_data =
+                    services::RedirectForm::from((response_data.pay_url, method));
                 (
                     enums::AttemptStatus::AuthenticationPending,
                     Ok(types::PaymentsResponseData::TransactionResponse {
