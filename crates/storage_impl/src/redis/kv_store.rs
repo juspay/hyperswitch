@@ -115,7 +115,7 @@ where
                 let set_hash_fut   = redis_conn.set_hash_fields(key, value, Some(ttl.into()));
                 let drain_push_fut = store.push_to_drainer_stream::<S>(sql, partition_key);
                 
-                futures::try_join!(set_has_fut, drain_push_fut)?;
+                futures::try_join!(set_hash_fut, drain_push_fut)?;
 
                 Ok(KvResult::Hset(()))
             }
