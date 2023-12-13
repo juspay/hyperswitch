@@ -8624,17 +8624,11 @@
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
-          "max_age",
           "theme",
           "logo",
           "seller_name"
         ],
         "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry"
-          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link"
