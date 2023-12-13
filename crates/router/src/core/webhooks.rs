@@ -8,7 +8,7 @@ use api_models::{
     payments::HeaderPayload,
     webhooks::{self, WebhookResponseTracker},
 };
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
+use common_utils::{errors::{ReportSwitchExt,ErrorSwitch}, events::ApiEventsType};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
@@ -25,7 +25,7 @@ use crate::{
         payments, refunds,
     },
     db::StorageInterface,
-    events::api_logs::ApiEvent,
+    events::api_logs::{ApiEvent, OutgoingWebhookEvent, OutgoingWebhookEventMetric},
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
     services::{self, authentication as auth},
@@ -38,6 +38,7 @@ use crate::{
     },
     utils::{self as helper_utils, generate_id, Encode, OptionExt, ValueExt},
 };
+
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
@@ -732,12 +733,13 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     if state.conf.webhooks.outgoing_enabled {
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
-            event_id: event.event_id,
+            event_id: event.event_id.clone(),
             event_type: event.event_type,
-            content,
+            content:content.clone(),
             timestamp: event.created_at,
         };
-
+        let mut is_error = None;
+        let mut error = None;
         // Using a tokio spawn here and not arbiter because not all caller of this function
         // may have an actix arbiter
         tokio::spawn(async move {
@@ -745,9 +747,33 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
                 trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, &state).await;
 
             if let Err(e) = result {
+                is_error.replace(true);
+                error.replace(serde_json::to_value(e.current_context())
+                        .into_report()
+                        .attach_printable("Failed to serialize json error response")
+                        .change_context(errors::ApiErrorResponse::InternalServerError.switch())
+                        .ok()
+                        .into());
                 logger::error!(?e);
             }
         });
+        let outgoing_webhook_event_type = content.get_outgoing_webhook_event_type();
+        let webhook_event = OutgoingWebhookEvent::new( 
+            merchant_account.merchant_id.clone(), 
+            event.event_id.clone(),
+            event_type, 
+            outgoing_webhook_event_type, 
+            is_error.unwrap_or(false), 
+            error,
+        );
+        match webhook_event.clone().try_into() {
+            Ok(event) => {
+                state.event_handler().log_event(event);
+            }
+            Err(err) => {
+                logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
+            }
+        }
     }
 
     Ok(())

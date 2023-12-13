@@ -83,6 +83,7 @@ pub struct KafkaSettings {
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
+    outgoing_webhook_logs_topic: String,
 }
 
 impl KafkaSettings {
@@ -130,6 +131,7 @@ pub struct KafkaProducer {
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
+    outgoing_webhook_logs_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -166,6 +168,7 @@ impl KafkaProducer {
             attempt_analytics_topic: conf.attempt_analytics_topic.clone(),
             refund_analytics_topic: conf.refund_analytics_topic.clone(),
             api_logs_topic: conf.api_logs_topic.clone(),
+            outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
         })
     }
 
@@ -297,6 +300,7 @@ impl KafkaProducer {
             EventType::PaymentAttempt => &self.attempt_analytics_topic,
             EventType::PaymentIntent => &self.intent_analytics_topic,
             EventType::Refund => &self.refund_analytics_topic,
+            EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
         }
     }
 }
