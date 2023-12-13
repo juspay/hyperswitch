@@ -1,6 +1,7 @@
 use api_models::payments;
 use base64::Engine;
-use common_utils::{pii, errors::CustomResult};
+use common_utils::{errors::CustomResult, pii};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -577,11 +578,15 @@ pub struct BOATransactionMetadata {
 }
 
 pub fn get_connector_metadata(
-    auth_id:  String
+    auth_id: String,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-   common_utils::ext_traits::Encode::<BOATransactionMetadata>::encode_to_value(
-        &BOATransactionMetadata{auth_id}
+    Some(
+        common_utils::ext_traits::Encode::<BOATransactionMetadata>::encode_to_value(
+            &BOATransactionMetadata { auth_id },
+        ),
     )
+    .transpose()
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 impl<F>
@@ -609,22 +614,28 @@ impl<F>
                     info_response.status,
                     item.data.request.is_auto_capture()?,
                 )),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        info_response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: if item.data.request.is_auto_capture()? {get_connector_metadata(info_response.id.clone())} else {None},
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(
-                        info_response
-                            .client_reference_information
-                            .code
-                            .unwrap_or(info_response.id),
-                    ),
-                    incremental_authorization_allowed: None,
-                }),
+                response: {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            info_response.id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: if !item.data.request.is_auto_capture()? {
+                            get_connector_metadata(info_response.id.clone())?
+                        } else {
+                            None
+                        },
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(
+                            info_response
+                                .client_reference_information
+                                .code
+                                .unwrap_or(info_response.id),
+                        ),
+                        incremental_authorization_allowed: None,
+                    })
+                },
                 ..item.data
             }),
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {

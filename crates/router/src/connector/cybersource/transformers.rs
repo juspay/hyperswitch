@@ -1,5 +1,6 @@
 use api_models::payments;
-use common_utils::{pii, errors::CustomResult};
+use common_utils::{errors::CustomResult, pii};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -618,13 +619,16 @@ pub struct CybersourceTransactionMetadata {
 }
 
 pub fn get_connector_metadata(
-    auth_id:  String
+    auth_id: String,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-   common_utils::ext_traits::Encode::<CybersourceTransactionMetadata>::encode_to_value(
-        &CybersourceTransactionMetadata{auth_id}
-    ).change_context(errors::ConnectorError::ResponseHandlingFailed)
+    Some(common_utils::ext_traits::Encode::<
+        CybersourceTransactionMetadata,
+    >::encode_to_value(&CybersourceTransactionMetadata {
+        auth_id,
+    }))
+    .transpose()
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
-
 
 impl<F, T>
     TryFrom<(
@@ -658,7 +662,11 @@ impl<F, T>
                 });
         let status = get_payment_status(is_capture, item.response.status.into());
 
-        let connector_metadata = if is_auth_call && !is_capture {get_connector_metadata(item.response.id.clone())?} else {None};
+        let connector_metadata = if is_auth_call && !is_capture {
+            get_connector_metadata(item.response.id.clone())?
+        } else {
+            None
+        };
 
         Ok(Self {
             status,
