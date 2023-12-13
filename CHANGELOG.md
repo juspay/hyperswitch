@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.84.0+hotfix.3 (2023-12-13)
+
+### Bug Fixes
+
+- **api_locking:** Fix the seconds and millis mismatch while fetching configuration ([#3122](https://github.com/juspay/hyperswitch/pull/3122)) ([`0791b41`](https://github.com/juspay/hyperswitch/commit/0791b41f2ae39cf4d6f2d065796bc0a7db764411))
+
+**Full Changelog:** [`v1.84.0+hotfix.2...v1.84.0+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.84.0+hotfix.2...v1.84.0+hotfix.3)
+
+- - -
+
 ## 1.84.0+hotfix.2 (2023-11-23)
 
 ### Bug Fixes
