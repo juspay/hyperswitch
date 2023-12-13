@@ -120,6 +120,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     connector_details: payment_data.connector_details,
                     order_details: payment_data.order_details,
                     refund: None,
+                    frm_metadata: payment_data.frm_metadata,
                 };
                 Ok(Some(frm_data))
             }
@@ -146,7 +147,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _>(
             state,
             payment_data,
-            frm_data.to_owned(),
+            &mut frm_data.to_owned(),
             merchant_account,
             &key_store,
             customer,
@@ -163,6 +164,9 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
                 order_details: router_data.request.order_details,
                 currency: router_data.request.currency,
                 payment_method: Some(router_data.payment_method),
+                error_code: router_data.request.error_code,
+                error_message: router_data.request.error_message,
+                connector_transaction_id: router_data.request.connector_transaction_id,
             }),
             response: FrmResponse::Transaction(router_data.response),
         }))
@@ -180,7 +184,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _>(
             state,
             payment_data,
-            frm_data.to_owned(),
+            &mut frm_data.to_owned(),
             merchant_account,
             &key_store,
             customer,
@@ -195,6 +199,11 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
             request: FrmRequest::Checkout(FraudCheckCheckoutData {
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
+                currency: router_data.request.currency,
+                browser_info: router_data.request.browser_info,
+                payment_method_data: router_data.request.payment_method_data,
+                email: router_data.request.email,
+                gateway: router_data.request.gateway,
             }),
             response: FrmResponse::Checkout(router_data.response),
         })
