@@ -779,7 +779,7 @@ where
     T: Eq + std::str::FromStr + std::hash::Hash,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    value
+    let (values, mut errors) = value
         .as_ref()
         .trim()
         .split(',')
@@ -792,7 +792,26 @@ where
                 )
             })
         })
-        .collect()
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok(t) => {
+                    values.insert(t);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+    if !errors.is_empty() {
+        // Prepend a known string to the `Vec`
+        errors.splice(0..0, [String::from("Some errors occurred:")]);
+        Err(errors.join("\n"))
+    } else {
+        Ok(values)
+    }
 }
 
 fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
