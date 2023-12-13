@@ -706,7 +706,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(error_response.id),
                 }),
                 ..item.data
             }),

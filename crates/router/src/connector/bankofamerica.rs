@@ -356,47 +356,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bankofamerica::BankOfAmericaErrorResponse = res
-            .response
-            .parse_struct("BankOfAmerica ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let error_message = if res.status_code == 401 {
-            consts::CONNECTOR_UNAUTHORIZED_ERROR
-        } else {
-            consts::NO_ERROR_MESSAGE
-        };
-
-        let (code, message) = match response.error_information {
-            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-            None => (
-                response
-                    .reason
-                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                        reason.to_string()
-                    }),
-                response
-                    .message
-                    .map_or(error_message.to_string(), |message| message),
-            ),
-        };
-        let connector_reason = match response.details {
-            Some(details) => details
-                .iter()
-                .map(|det| format!("{} : {}", det.field, det.reason))
-                .collect::<Vec<_>>()
-                .join(", "),
-            None => message.clone(),
-        };
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: Some(connector_reason),
-            attempt_status: None,
-            connector_transaction_id: response.id,
-        })
+        build_auth_and_capture_error_response(res)
     }
 }
 
@@ -557,7 +517,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        build_auth_and_capture_error_response(res)
     }
 }
 
@@ -836,4 +796,50 @@ impl api::IncomingWebhook for Bankofamerica {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
+}
+
+fn build_auth_and_capture_error_response(
+    res: Response,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    let response: bankofamerica::BankOfAmericaErrorResponse = res
+        .response
+        .parse_struct("BankOfAmerica ErrorResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    let error_message = if res.status_code == 401 {
+        consts::CONNECTOR_UNAUTHORIZED_ERROR
+    } else {
+        consts::NO_ERROR_MESSAGE
+    };
+
+    let (code, message) = match response.error_information {
+        Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+        None => (
+            response
+                .reason
+                .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                    reason.to_string()
+                }),
+            response
+                .message
+                .map_or(error_message.to_string(), |message| message),
+        ),
+    };
+    let connector_reason = match response.details {
+        Some(details) => details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", "),
+        None => message.clone(),
+    };
+
+    Ok(ErrorResponse {
+        status_code: res.status_code,
+        code,
+        message,
+        reason: Some(connector_reason),
+        attempt_status: None,
+        connector_transaction_id: response.id,
+    })
 }

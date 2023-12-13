@@ -677,11 +677,7 @@ impl<F, T>
                     reason: Some(error.reason),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: if is_auth_call {
-                        Some(item.response.id)
-                    } else {
-                        None
-                    },
+                    connector_transaction_id: Some(item.response.id.clone()),
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
