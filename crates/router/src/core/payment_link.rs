@@ -128,6 +128,7 @@ pub async fn intiate_payment_link_flow(
             .clone()
             .theme
             .unwrap_or(default_sdk_theme.to_string()),
+        merchant_description: None,
     };
 
     let js_script = get_js_script(payment_details)?;

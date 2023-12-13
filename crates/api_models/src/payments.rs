@@ -3330,6 +3330,7 @@ pub struct PaymentLinkDetails {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
+    pub merchant_description: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
