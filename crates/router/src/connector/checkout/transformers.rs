@@ -567,6 +567,24 @@ pub struct Balances {
     available_to_capture: i32,
 }
 
+fn get_connector_meta(
+    capture_method: enums::CaptureMethod,
+) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    match capture_method {
+        enums::CaptureMethod::Automatic => Ok(serde_json::json!(CheckoutMeta {
+            psync_flow: CheckoutPaymentIntent::Capture,
+        })),
+        enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
+            Ok(serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Authorize,
+            }))
+        }
+        enums::CaptureMethod::Scheduled => {
+            Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+        }
+    }
+}
+
 impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
@@ -574,17 +592,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_meta = match item.data.request.capture_method {
-            Some(enums::CaptureMethod::Automatic) => serde_json::json!(CheckoutMeta {
-                psync_flow: CheckoutPaymentIntent::Capture,
-            }),
-            Some(enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
-                serde_json::json!(CheckoutMeta {
-                    psync_flow: CheckoutPaymentIntent::Authorize,
-                })
-            }
-            _ => serde_json::json!({}),
-        };
+        let connector_meta =
+            get_connector_meta(item.data.request.capture_method.unwrap_or_default())?;
 
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
