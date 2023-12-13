@@ -85,7 +85,7 @@ impl Handler {
         Ok(())
     }
 
-    pub(crate) async fn shutdown_listner(&self, mut rx: mpsc::Receiver<()>) {
+    pub(crate) async fn shutdown_listener(&self, mut rx: mpsc::Receiver<()>) {
         loop {
             match rx.try_recv() {
                 Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {

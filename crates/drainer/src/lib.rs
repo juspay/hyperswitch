@@ -37,7 +37,7 @@ pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::
 
     let handler_clone = drainer_handler.clone();
 
-    tokio::task::spawn(async move { handler_clone.shutdown_listner(rx).await });
+    tokio::task::spawn(async move { handler_clone.shutdown_listener(rx).await });
 
     drainer_handler.spawn_error_handlers(tx)?;
     drainer_handler.spawn().await?;
