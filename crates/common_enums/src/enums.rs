@@ -482,6 +482,7 @@ pub enum Currency {
     SVC,
     SZL,
     THB,
+    TND,
     TRY,
     TTD,
     TWD,
@@ -673,6 +674,7 @@ impl Currency {
             Self::SVC => "222",
             Self::SZL => "748",
             Self::THB => "764",
+            Self::TND => "788",
             Self::TRY => "949",
             Self::TTD => "780",
             Self::TWD => "901",
@@ -826,6 +828,7 @@ impl Currency {
             | Self::SVC
             | Self::SZL
             | Self::THB
+            | Self::TND
             | Self::TRY
             | Self::TTD
             | Self::TWD
@@ -840,7 +843,9 @@ impl Currency {
 
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
-            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::LYD | Self::OMR => true,
+            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::LYD | Self::OMR | Self::TND => {
+                true
+            }
             Self::AED
             | Self::ALL
             | Self::AMD
