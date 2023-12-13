@@ -1,15 +1,15 @@
-use crate::{
-    errors, instrument, logger, metrics, query::ExecuteQuery, tracing, utils, DrainerSettings,
-    Store, StreamData,
-};
-
-use error_stack::{IntoReport, ResultExt};
+use std::sync::{atomic, Arc};
 
 use common_utils::signals::get_allowed_signals;
-use std::sync::{atomic, Arc};
+use error_stack::{IntoReport, ResultExt};
 use tokio::{
     sync::{mpsc, oneshot},
     time::Interval,
+};
+
+use crate::{
+    errors, instrument, logger, metrics, query::ExecuteQuery, tracing, utils, DrainerSettings,
+    Store, StreamData,
 };
 
 type MpscChannel<T> = (mpsc::Sender<T>, mpsc::Receiver<T>);

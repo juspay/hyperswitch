@@ -1,15 +1,13 @@
+use std::collections::HashMap;
+
+use common_utils::errors;
+use error_stack::{IntoReport, ResultExt};
+use serde::{de::value::MapDeserializer, Deserialize, Serialize};
+
 use crate::{
     kv,
     utils::{deserialize_db_op, deserialize_i64},
 };
-use serde::{Deserialize, Serialize};
-
-use common_utils::errors;
-
-use serde::de::value::MapDeserializer;
-
-use error_stack::{IntoReport, ResultExt};
-use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize)]
 pub struct StreamData {

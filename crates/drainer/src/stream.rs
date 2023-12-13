@@ -1,12 +1,10 @@
-use crate::{errors, metrics, Store};
-
-use error_stack::IntoReport;
-
 use std::collections::HashMap;
 
+use error_stack::IntoReport;
 use redis_interface as redis;
-use router_env::logger;
-use router_env::tracing;
+use router_env::{logger, tracing};
+
+use crate::{errors, metrics, Store};
 
 pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;

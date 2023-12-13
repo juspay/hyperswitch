@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,8 +11,6 @@ use crate::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     PaymentIntent,
 };
-
-use router_env::logger;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "db_op", content = "data")]

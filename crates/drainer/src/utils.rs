@@ -2,7 +2,6 @@ use std::sync::{atomic, Arc};
 
 use error_stack::IntoReport;
 use redis_interface as redis;
-
 use serde::de::Deserialize;
 
 use crate::{
