@@ -610,7 +610,11 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
+    let total_amount_captured = payment_intent
+        .amount_captured
+        .unwrap_or(payment_attempt.amount);
+
+    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
