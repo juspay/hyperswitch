@@ -223,8 +223,6 @@ pub fn polymorphic_macro_derive_inner(
                         .map(|field_ident| hide_fields.contains(&(field_ident, schema.to_owned())))
                         .unwrap_or(false);
 
-                    dbg!(is_hidden_field);
-
                     if is_hidden_field {
                         None
                     } else {

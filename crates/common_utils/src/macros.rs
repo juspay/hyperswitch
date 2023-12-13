@@ -54,6 +54,18 @@ macro_rules! async_spawn {
     };
 }
 
+/// Use this to ensure that the corresponding
+/// openapi route has been implemented in the openapi crate
+#[macro_export]
+macro_rules! openapi_route {
+    ($route_name: ident) => {{
+        #[cfg(feature = "openapi")]
+        use openapi::routes::$route_name as _;
+
+        $route_name
+    }};
+}
+
 #[macro_export]
 macro_rules! fallback_reverse_lookup_not_found {
     ($a:expr,$b:expr) => {
