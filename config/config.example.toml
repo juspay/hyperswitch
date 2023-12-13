@@ -476,6 +476,12 @@ pm_auth_key = "Some_pm_auth_key"
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
 
+[analytics.clickhouse]
+username = ""      # Clickhouse username
+password = ""      # Clickhouse password (optional)
+host = ""          # Clickhouse host in http(s)://<URL>:<PORT> format
+database_name = "" # Clickhouse database name
+
 [analytics.sqlx]
 username = "db_user"      # Analytics DB Username
 password = "db_pass"      # Analytics DB Password
@@ -484,6 +490,7 @@ port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
 connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 
 # Config for KV setup
 [kv_config]
@@ -498,3 +505,23 @@ client_id = "paypal_client_id" # Client ID for PayPal onboarding
 client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
 partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
 enabled = true # Switch to enable or disable PayPal onboarding
+
+[frm]
+enabled = true
+
+[paypal_onboarding]
+client_id = "paypal_client_id" # Client ID for PayPal onboarding
+client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
+partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
+enabled = true # Switch to enable or disable PayPal onboarding
+
+[events]
+source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
+
+[events.kafka]
+brokers = []                       # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"   # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"  # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"   # Kafka topic to be used for Refund events
+api_logs_topic = "topic"           # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"     # Kafka topic to be used for connector api events

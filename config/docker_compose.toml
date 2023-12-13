@@ -360,7 +360,7 @@ intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
-connector_events_topic = "hyperswitch-connector-api-events"
+connector_logs_topic = "hyperswitch-connector-api-events"
 
 [analytics]
 source = "sqlx"

@@ -1668,7 +1668,7 @@ dependencies = [
  "once_cell",
  "phonenumber",
  "proptest",
- "quick-xml",
+ "quick-xml 0.28.2",
  "rand 0.8.5",
  "regex",
  "reqwest",
@@ -3539,6 +3539,7 @@ version = "0.1.0"
 dependencies = [
  "bytes 1.5.0",
  "diesel",
+ "erased-serde",
  "serde",
  "serde_json",
  "subtle",
@@ -4330,7 +4331,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "nom",
- "quick-xml",
+ "quick-xml 0.28.2",
  "regex",
  "regex-cache",
  "serde",
@@ -4616,6 +4617,16 @@ name = "quick-xml"
 version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce5e73202a820a31f8a0ee32ada5e21029c81fd9e3ebf668a40832e4219d9d1"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1004a344b30a54e2ee58d66a71b32d2db2feb0a31f9a2d302bf0536f15de2a33"
 dependencies = [
  "memchr",
  "serde",
@@ -5087,6 +5098,7 @@ dependencies = [
  "openssl",
  "pm_auth",
  "qrcode",
+ "quick-xml 0.31.0",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rdkafka",

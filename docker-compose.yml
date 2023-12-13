@@ -24,8 +24,6 @@ services:
 
   redis-standalone:
     image: redis:7
-    labels:
-      - redis
     networks:
       - router_net
     ports:
@@ -133,8 +131,6 @@ services:
       - clustered_redis
     volumes:
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    labels:
-      - redis
     networks:
       - router_net
     ports:

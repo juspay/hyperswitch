@@ -1,6 +1,8 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+#[cfg(feature = "frm")]
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
@@ -22,7 +24,7 @@ use crate::{
 use crate::{
     services,
     types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -59,9 +61,7 @@ where
         let auth: riskified::RiskifiedAuthType =
             riskified::RiskifiedAuthType::try_from(&req.connector_auth_type)?;
 
-        let riskified_req = self
-            .get_request_body(req, connectors)?
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let riskified_req = self.get_request_body(req, connectors)?;
 
         let binding = types::RequestBody::get_inner_value(riskified_req);
         let payload = binding.peek();
@@ -157,14 +157,9 @@ impl
         &self,
         req: &frm_types::FrmCheckoutRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = riskified::RiskifiedPaymentsCheckoutRequest::try_from(req)?;
-        let riskified_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<riskified::RiskifiedPaymentsCheckoutRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(riskified_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -180,7 +175,7 @@ impl
                 .headers(frm_types::FrmCheckoutType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmCheckoutType::get_request_body(
+                .set_body(frm_types::FrmCheckoutType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -276,25 +271,15 @@ impl
         &self,
         req: &frm_types::FrmTransactionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         match req.is_payment_successful() {
             Some(false) => {
                 let req_obj = riskified::TransactionFailedRequest::try_from(req)?;
-                let riskified_req = types::RequestBody::log_and_get_request_body(
-                    &req_obj,
-                    utils::Encode::<riskified::TransactionFailedRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Some(riskified_req))
+                Ok(RequestContent::Json(Box::new(req_obj)))
             }
             Some(true) => {
                 let req_obj = riskified::TransactionSuccessRequest::try_from(req)?;
-                let riskified_req = types::RequestBody::log_and_get_request_body(
-                    &req_obj,
-                    utils::Encode::<riskified::TransactionSuccessRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Some(riskified_req))
+                Ok(RequestContent::Json(Box::new(req_obj)))
             }
             None => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Transaction".to_owned(),
@@ -318,7 +303,7 @@ impl
                 .headers(frm_types::FrmTransactionType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmTransactionType::get_request_body(
+                .set_body(frm_types::FrmTransactionType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -392,14 +377,9 @@ impl
         &self,
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = riskified::RiskifiedFullfillmentRequest::try_from(req)?;
-        let riskified_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<transformers::RiskifiedFullfillmentRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(riskified_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -417,7 +397,7 @@ impl
                 .headers(frm_types::FrmFulfillmentType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmFulfillmentType::get_request_body(
+                .set_body(frm_types::FrmFulfillmentType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

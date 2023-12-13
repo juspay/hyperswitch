@@ -21,7 +21,7 @@ pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
 };
-pub use common_utils::request::RequestBody;
+pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
