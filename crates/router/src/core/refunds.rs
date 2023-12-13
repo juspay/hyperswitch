@@ -929,7 +929,9 @@ pub async fn start_refund_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
-        Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
+        Some("EXECUTE_REFUND") => {
+            Box::pin(trigger_refund_execute_workflow(state, refund_tracker)).await
+        }
         Some("SYNC_REFUND") => {
             Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await
         }

@@ -60,12 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "processing" for "status"
+// Response body should have value "partially_captured" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'processing'",
+    "[POST]::/payments - Content check if value for 'status' matches 'partially_captured'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
+      pm.expect(jsonData.status).to.eql("partially_captured");
     },
   );
 }

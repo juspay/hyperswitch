@@ -86,6 +86,7 @@ impl FraudCheckConnectorData {
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
             enums::FrmConnectors::Signifyd => Ok(Box::new(&connector::Signifyd)),
+            enums::FrmConnectors::Riskified => Ok(Box::new(&connector::Riskified)),
         }
     }
 }
