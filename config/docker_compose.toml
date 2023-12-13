@@ -314,6 +314,10 @@ cashapp = {country = "US", currency = "USD"}
 [pm_filters.prophetpay]
 card_redirect = { currency = "USD" }
 
+[pm_filters.helcim]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
