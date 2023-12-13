@@ -11,14 +11,11 @@ mod types;
 mod utils;
 use std::sync::Arc;
 
-use tokio::sync::mpsc;
-
 use common_utils::signals::get_allowed_signals;
-
-use error_stack::{IntoReport, ResultExt};
-
 use diesel_models::kv;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use tokio::sync::mpsc;
 
 use crate::{
     connection::pg_connection, services::Store, settings::DrainerSettings, types::StreamData,
