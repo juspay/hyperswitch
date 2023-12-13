@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::pii;
+use common_utils::{pii, errors::CustomResult};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -612,6 +612,20 @@ pub struct CybersourceErrorInformation {
     message: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CybersourceTransactionMetadata {
+    auth_id: String,
+}
+
+pub fn get_connector_metadata(
+    auth_id:  String
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+   common_utils::ext_traits::Encode::<CybersourceTransactionMetadata>::encode_to_value(
+        &CybersourceTransactionMetadata{auth_id}
+    ).change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+
 impl<F, T>
     TryFrom<(
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
@@ -643,6 +657,9 @@ impl<F, T>
                     payment_method_id: None,
                 });
         let status = get_payment_status(is_capture, item.response.status.into());
+
+        let connector_metadata = if is_auth_call && !is_capture {get_connector_metadata(item.response.id.clone())?} else {None};
+
         Ok(Self {
             status,
             response: match item.response.error_information {
@@ -664,7 +681,7 @@ impl<F, T>
                     ),
                     redirection_data: None,
                     mandate_reference,
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: item
                         .response

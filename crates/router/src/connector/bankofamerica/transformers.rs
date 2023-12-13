@@ -1,6 +1,6 @@
 use api_models::payments;
 use base64::Engine;
-use common_utils::pii;
+use common_utils::{pii, errors::CustomResult};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -571,6 +571,19 @@ pub struct BankOfAmericaErrorInformation {
     message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BOATransactionMetadata {
+    auth_id: String,
+}
+
+pub fn get_connector_metadata(
+    auth_id:  String
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+   common_utils::ext_traits::Encode::<BOATransactionMetadata>::encode_to_value(
+        &BOATransactionMetadata{auth_id}
+    )
+}
+
 impl<F>
     TryFrom<
         types::ResponseRouterData<
@@ -602,7 +615,7 @@ impl<F>
                     ),
                     redirection_data: None,
                     mandate_reference: None,
-                    connector_metadata: None,
+                    connector_metadata: if item.data.request.is_auto_capture()? {get_connector_metadata(info_response.id.clone())} else {None},
                     network_txn_id: None,
                     connector_response_reference_id: Some(
                         info_response
