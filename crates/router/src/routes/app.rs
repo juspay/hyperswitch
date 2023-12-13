@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix_web::{web, Scope};
 #[cfg(all(feature = "kms", feature = "olap"))]
 use analytics::AnalyticsConfig;
+use common_utils::openapi_route;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 #[cfg(feature = "kms")]
@@ -13,8 +14,6 @@ use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
-
-use common_utils::openapi_route;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
