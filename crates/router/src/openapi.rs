@@ -1,3 +1,20 @@
+use utoipa;
+
+use crate::routes;
+
+#[derive(utoipa::OpenApi)]
+#[openapi(
+    info(
+        title = "Hyperswitch - API Documentation",
+        contact(
+            name = "Hyperswitch Support",
+            url = "https://hyperswitch.io",
+            email = "hyperswitch@juspay.in"
+        ),
+        // terms_of_service = "https://www.juspay.io/terms",
+        description = r#"
+## Get started
+
 
 Hyperswitch provides a collection of APIs that enable you to process and manage payments.
 Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.
