@@ -11,7 +11,7 @@
     "license": {
       "name": "Apache-2.0"
     },
-    "version": "0.2.0"
+    "version": "0.1.0"
   },
   "servers": [
     {
@@ -26,7 +26,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Merchant",
-        "description": "List payment methods for a Merchant\n\nTo filter and list the applicable payment methods for a particular Merchant ID",
+        "description": "List payment methods for a Merchant\n\nLists the applicable payment methods for a particular Merchant ID. Use the client secret and publishable key authorization to list all relevant payment methods of the merchant for the payment corresponding to the client secret",
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
@@ -75,7 +75,7 @@
           {
             "name": "maximum_amount",
             "in": "query",
-            "description": "The maximum amount amount accepted for processing by the particular payment method.",
+            "description": "The maximum amount accepted for processing by the particular payment method.",
             "required": true,
             "schema": {
               "type": "integer",
@@ -125,6 +125,175 @@
           },
           {
             "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/accounts": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Create",
+        "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
+        "operationId": "Create a Merchant Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/accounts/{account_id}": {
+      "get": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Retrieve",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a merchant account details.",
+        "operationId": "Retrieve a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Update",
+        "description": "Merchant Account - Update\n\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "operationId": "Update a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Delete",
+        "description": "Merchant Account - Delete\n\nTo delete a merchant account",
+        "operationId": "Delete a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
           }
         ]
       }
@@ -387,14 +556,22 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Create Customer",
-        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "summary": "Customers - Create",
+        "description": "Customers - Create\n\nCreates a customer object and stores the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
               }
             }
           },
@@ -427,8 +604,8 @@
         "tags": [
           "Customers List"
         ],
-        "summary": "List customers for a merchant",
-        "description": "List customers for a merchant\n\nTo filter and list the customers for a particular merchant id",
+        "summary": "Customers - List",
+        "description": "Customers - List\n\nLists all the customers for a particular merchant id",
         "operationId": "List all Customers for a Merchant",
         "responses": {
           "200": {
@@ -460,14 +637,14 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Customer",
-        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "summary": "List payment methods for a Payment",
+        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
             "name": "client-secret",
             "in": "path",
-            "description": "A secret known only to your application and the authorization server",
+            "description": "A secret known only to your client and the authorization server. Used for client side authentication",
             "required": true,
             "schema": {
               "type": "string"
@@ -519,7 +696,7 @@
           {
             "name": "maximum_amount",
             "in": "query",
-            "description": "The maximum amount amount accepted for processing by the particular payment method.",
+            "description": "The maximum amount accepted for processing by the particular payment method.",
             "required": true,
             "schema": {
               "type": "integer",
@@ -575,8 +752,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Retrieve Customer",
-        "description": "Retrieve Customer\n\nRetrieve a customer's details.",
+        "summary": "Customers - Retrieve",
+        "description": "Customers - Retrieve\n\nRetrieves a customer's details",
         "operationId": "Retrieve a Customer",
         "parameters": [
           {
@@ -617,8 +794,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Update Customer",
-        "description": "Update Customer\n\nUpdates the customer's details in a customer object.",
+        "summary": "Customers - Update",
+        "description": "Customers - Update\n\nUpdates the customer's details in a customer object.",
         "operationId": "Update a Customer",
         "parameters": [
           {
@@ -636,6 +813,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
               }
             }
           },
@@ -666,8 +851,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Delete Customer",
-        "description": "Delete Customer\n\nDelete a customer record.",
+        "summary": "Customers - Delete",
+        "description": "Customers - Delete\n\nDelete a customer record.",
         "operationId": "Delete a Customer",
         "parameters": [
           {
@@ -708,7 +893,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Customer",
-        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "description": "List payment methods for a Customer\n\nLists all the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -757,7 +942,7 @@
           {
             "name": "maximum_amount",
             "in": "query",
-            "description": "The maximum amount amount accepted for processing by the particular payment method.",
+            "description": "The maximum amount accepted for processing by the particular payment method.",
             "required": true,
             "schema": {
               "type": "integer",
@@ -804,356 +989,6 @@
         "security": [
           {
             "api_key": []
-          }
-        ]
-      }
-    },
-    "/disputes/list": {
-      "get": {
-        "tags": [
-          "Disputes"
-        ],
-        "summary": "Disputes - List Disputes",
-        "description": "Disputes - List Disputes",
-        "operationId": "List Disputes",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of Dispute Objects to include in the response",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "dispute_status",
-            "in": "query",
-            "description": "The status of dispute",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/DisputeStatus"
-                }
-              ],
-              "nullable": true
-            }
-          },
-          {
-            "name": "dispute_stage",
-            "in": "query",
-            "description": "The stage of dispute",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/DisputeStage"
-                }
-              ],
-              "nullable": true
-            }
-          },
-          {
-            "name": "reason",
-            "in": "query",
-            "description": "The reason for dispute",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "connector",
-            "in": "query",
-            "description": "The connector linked to dispute",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "received_time",
-            "in": "query",
-            "description": "The time at which dispute is received",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "received_time.lt",
-            "in": "query",
-            "description": "Time less than the dispute received time",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "received_time.gt",
-            "in": "query",
-            "description": "Time greater than the dispute received time",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "received_time.lte",
-            "in": "query",
-            "description": "Time less than or equals to the dispute received time",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "received_time.gte",
-            "in": "query",
-            "description": "Time greater than or equals to the dispute received time",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The dispute list was retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DisputeResponse"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized request"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/disputes/{dispute_id}": {
-      "get": {
-        "tags": [
-          "Disputes"
-        ],
-        "summary": "Disputes - Retrieve Dispute",
-        "description": "Disputes - Retrieve Dispute",
-        "operationId": "Retrieve a Dispute",
-        "parameters": [
-          {
-            "name": "dispute_id",
-            "in": "path",
-            "description": "The identifier for dispute",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The dispute was retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DisputeResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Dispute does not exist in our records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/gsm": {
-      "post": {
-        "tags": [
-          "Gsm"
-        ],
-        "summary": "Gsm - Create",
-        "description": "Gsm - Create\n\nTo create a Gsm Rule",
-        "operationId": "Create Gsm Rule",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GsmCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Gsm created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GsmResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/gsm/delete": {
-      "post": {
-        "tags": [
-          "Gsm"
-        ],
-        "summary": "Gsm - Delete",
-        "description": "Gsm - Delete\n\nTo delete a Gsm Rule",
-        "operationId": "Delete Gsm Rule",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GsmDeleteRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Gsm deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GsmDeleteResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/gsm/get": {
-      "post": {
-        "tags": [
-          "Gsm"
-        ],
-        "summary": "Gsm - Get",
-        "description": "Gsm - Get\n\nTo get a Gsm Rule",
-        "operationId": "Retrieve Gsm Rule",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GsmRetrieveRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Gsm retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GsmResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/gsm/update": {
-      "post": {
-        "tags": [
-          "Gsm"
-        ],
-        "summary": "Gsm - Update",
-        "description": "Gsm - Update\n\nTo update a Gsm Rule",
-        "operationId": "Update Gsm Rule",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GsmUpdateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Gsm updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GsmResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "admin_api_key": []
           }
         ]
       }
@@ -1240,73 +1075,35 @@
         ]
       }
     },
-    "/payment_link/{payment_link_id}": {
-      "get": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Payments Link - Retrieve",
-        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
-        "operationId": "Retrieve a Payment Link",
-        "parameters": [
-          {
-            "name": "payment_link_id",
-            "in": "path",
-            "description": "The identifier for payment link",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Gets details regarding payment link",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No payment link found"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          },
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
     "/payment_methods": {
       "post": {
         "tags": [
           "Payment Methods"
         ],
         "summary": "PaymentMethods - Create",
-        "description": "PaymentMethods - Create\n\nTo create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants",
+        "description": "PaymentMethods - Create\n\nCreates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants",
         "operationId": "Create a Payment Method",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentMethodCreate"
+              },
+              "examples": {
+                "Save a card": {
+                  "value": {
+                    "card": {
+                      "card_exp_month": "11",
+                      "card_exp_year": "25",
+                      "card_holder_name": "John Doe",
+                      "card_number": "4242424242424242"
+                    },
+                    "customer_id": "{{customer_id}}",
+                    "payment_method": "card",
+                    "payment_method_issuer": "Visa",
+                    "payment_method_type": "credit"
+                  }
+                }
               }
             }
           },
@@ -1340,7 +1137,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Retrieve",
-        "description": "Payment Method - Retrieve\n\nTo retrieve a payment method",
+        "description": "Payment Method - Retrieve\n\nRetrieves a payment method of a customer",
         "operationId": "Retrieve a Payment method",
         "parameters": [
           {
@@ -1379,7 +1176,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Update",
-        "description": "Payment Method - Update\n\nTo update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
+        "description": "Payment Method - Update\n\nUpdate an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
         "operationId": "Update a Payment method",
         "parameters": [
           {
@@ -1428,7 +1225,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDelete payment method",
+        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer",
         "operationId": "Delete a Payment method",
         "parameters": [
           {
@@ -1476,6 +1273,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
+              },
+              "examples": {
+                "Create a payment with minimal fields": {
+                  "value": {
+                    "amount": 6540,
+                    "currency": "USD"
+                  }
+                }
               }
             }
           },
@@ -1910,238 +1715,6 @@
         ]
       }
     },
-    "/payouts/create": {
-      "post": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - Create",
-        "description": "Payouts - Create",
-        "operationId": "Create a Payout",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payout created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutCreateResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/payouts/{payout_id}": {
-      "get": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - Retrieve",
-        "description": "Payouts - Retrieve",
-        "operationId": "Retrieve a Payout",
-        "parameters": [
-          {
-            "name": "payout_id",
-            "in": "path",
-            "description": "The identifier for payout]",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payout retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutCreateResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Payout does not exist in our records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - Update",
-        "description": "Payouts - Update",
-        "operationId": "Update a Payout",
-        "parameters": [
-          {
-            "name": "payout_id",
-            "in": "path",
-            "description": "The identifier for payout]",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutCreateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payout updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutCreateResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/payouts/{payout_id}/cancel": {
-      "post": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - Cancel",
-        "description": "Payouts - Cancel",
-        "operationId": "Cancel a Payout",
-        "parameters": [
-          {
-            "name": "payout_id",
-            "in": "path",
-            "description": "The identifier for payout",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutActionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payout cancelled",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutCreateResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/payouts/{payout_id}/fulfill": {
-      "post": {
-        "tags": [
-          "Payouts"
-        ],
-        "summary": "Payouts - Fulfill",
-        "description": "Payouts - Fulfill",
-        "operationId": "Fulfill a Payout",
-        "parameters": [
-          {
-            "name": "payout_id",
-            "in": "path",
-            "description": "The identifier for payout",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutActionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payout fulfilled",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PayoutCreateResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing Mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/refunds": {
       "post": {
         "tags": [
@@ -2542,6 +2115,7 @@
       },
       "AddressDetails": {
         "type": "object",
+        "description": "Address details",
         "properties": {
           "city": {
             "type": "string",
@@ -4253,6 +3827,7 @@
       },
       "CardNetwork": {
         "type": "string",
+        "description": "Indicates the card network",
         "enum": [
           "Visa",
           "Mastercard",
@@ -4339,13 +3914,6 @@
       "Connector": {
         "type": "string",
         "enum": [
-          "phonypay",
-          "fauxpay",
-          "pretendpay",
-          "stripe_test",
-          "adyen_test",
-          "checkout_test",
-          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -4792,6 +4360,7 @@
       },
       "Currency": {
         "type": "string",
+        "description": "The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars",
         "enum": [
           "AED",
           "ALL",
@@ -5035,7 +4604,7 @@
             "example": "cus_meowerunwiuwiwqw"
           },
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_type": {
             "allOf": [
@@ -7296,38 +6865,38 @@
             "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -7517,38 +7086,38 @@
             "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -7660,38 +7229,38 @@
             "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -8539,6 +8108,7 @@
       },
       "PaymentExperience": {
         "type": "string",
+        "description": "To indicate the type of payment experience that the payment method would go through",
         "enum": [
           "redirect_to_url",
           "invoke_sdk_client",
@@ -8776,6 +8346,7 @@
       },
       "PaymentMethod": {
         "type": "string",
+        "description": "Indicates the type of payment method",
         "enum": [
           "card",
           "card_redirect",
@@ -8798,7 +8369,7 @@
         ],
         "properties": {
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_type": {
             "allOf": [
@@ -9075,8 +8646,8 @@
             "description": "Information about the payment method",
             "example": [
               {
-                "payment_method": "wallet",
                 "payment_experience": null,
+                "payment_method": "wallet",
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
@@ -9132,7 +8703,7 @@
             "example": "card_rGK4Vi5iSW70MY7J2mIy"
           },
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_type": {
             "allOf": [
@@ -9187,6 +8758,7 @@
       },
       "PaymentMethodType": {
         "type": "string",
+        "description": "Indicates the sub type of payment method",
         "enum": [
           "ach",
           "affirm",
@@ -9354,6 +8926,7 @@
       },
       "PaymentType": {
         "type": "string",
+        "description": "To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow",
         "enum": [
           "normal",
           "new_mandate",
@@ -11584,76 +11157,6 @@
           }
         }
       },
-      "RequestPaymentMethodTypes": {
-        "type": "object",
-        "required": [
-          "payment_method_type",
-          "recurring_enabled",
-          "installment_payment_enabled"
-        ],
-        "properties": {
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_experience": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentExperience"
-              }
-            ],
-            "nullable": true
-          },
-          "card_networks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CardNetwork"
-            },
-            "nullable": true
-          },
-          "accepted_currencies": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcceptedCurrencies"
-              }
-            ],
-            "nullable": true
-          },
-          "accepted_countries": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcceptedCountries"
-              }
-            ],
-            "nullable": true
-          },
-          "minimum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
-            "example": 1,
-            "nullable": true
-          },
-          "maximum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
-            "example": 1313,
-            "nullable": true
-          },
-          "recurring_enabled": {
-            "type": "boolean",
-            "description": "Boolean to enable recurring payments / mandates. Default is true.",
-            "default": true,
-            "example": false
-          },
-          "installment_payment_enabled": {
-            "type": "boolean",
-            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
-            "default": true,
-            "example": false
-          }
-        }
-      },
       "RequestSurchargeDetails": {
         "type": "object",
         "required": [
@@ -12840,6 +12343,10 @@
     {
       "name": "Disputes",
       "description": "Manage disputes"
+    },
+    {
+      "name": "API Key",
+      "description": "Create and manage API Keys"
     },
     {
       "name": "Payouts",

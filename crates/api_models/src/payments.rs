@@ -1774,6 +1774,7 @@ pub struct Address {
 }
 
 // used by customers also, could be moved outside
+///Address details
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {

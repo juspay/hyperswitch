@@ -101,6 +101,21 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::mandates::get_mandate,
         routes::mandates::revoke_mandate,
 
+        //Routes for customers
+routes::customers::customers_create,
+routes::customers::customers_retrieve,
+   routes::customers::customers_list,
+routes::customers::customers_update,
+routes::customers::customers_delete,
+
+        //Routes for payment methods
+routes::payment_method::create_payment_method_api,
+routes::payment_method::list_payment_method_api,
+routes::payment_method::list_customer_payment_method_api,
+routes::payment_method::list_customer_payment_method_api_client,
+routes::payment_method::payment_method_retrieve_api,
+routes::payment_method::payment_method_update_api,
+     routes::payment_method::payment_method_delete_api,
     ),
     components(schemas(
         api_models::refunds::RefundRequest,

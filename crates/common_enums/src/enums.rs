@@ -340,6 +340,7 @@ pub enum ConnectorType {
     PaymentMethodAuth,
 }
 
+///The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
     Clone,
@@ -1046,6 +1047,7 @@ pub enum PaymentMethodIssuerCode {
     JpBacs,
 }
 
+///To indicate the type of payment experience that the payment method would go through
 #[derive(
     Eq,
     strum::EnumString,
@@ -1081,6 +1083,7 @@ pub enum PaymentExperience {
     DisplayWaitScreen,
 }
 
+///Indicates the sub type of payment method
 #[derive(
     Clone,
     Copy,
@@ -1186,6 +1189,7 @@ pub enum PaymentMethodType {
     PayEasy,
 }
 
+///Indicates the type of payment method
 #[derive(
     Clone,
     Copy,
@@ -1221,6 +1225,7 @@ pub enum PaymentMethod {
     GiftCard,
 }
 
+///To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow
 #[derive(
     Clone,
     Copy,
@@ -1294,6 +1299,7 @@ pub enum MandateStatus {
     Revoked,
 }
 
+///Indicates the card network
 #[derive(
     Clone,
     Debug,
