@@ -25,7 +25,7 @@
       "business_label": "default",
       "capture_method": "manual",
       "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 1,
+      "amount_to_capture": 6540,
       "customer_id": "bernard123",
       "email": "guest@example.com",
       "name": "John Doe",

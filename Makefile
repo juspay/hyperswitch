@@ -9,6 +9,10 @@
 eq = $(if $(or $(1),$(2)),$(and $(findstring $(1),$(2)),\
                                 $(findstring $(2),$(1))),1)
 
+
+ROOT_DIR_WITH_SLASH := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR := $(realpath $(ROOT_DIR_WITH_SLASH))
+
 #
 # = Targets
 #
@@ -66,6 +70,14 @@ fmt :
 
 clippy :
 	cargo clippy --all-features --all-targets -- -D warnings
+
+# Build the DSL crate as a WebAssembly JS library
+#
+# Usage :
+# 	make euclid-wasm
+
+euclid-wasm:
+	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector
 
 # Run Rust tests of project.
 #

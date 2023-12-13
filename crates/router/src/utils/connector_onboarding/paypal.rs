@@ -1,10 +1,6 @@
-use common_utils::{
-    ext_traits::Encode,
-    request::{Method, Request, RequestBuilder},
-};
+use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
 use error_stack::{IntoReport, ResultExt};
 use http::header;
-use serde_json::json;
 
 use crate::{
     connector,
@@ -51,15 +47,8 @@ pub fn build_paypal_post_request<T>(
     access_token: String,
 ) -> RouterResult<Request>
 where
-    T: serde::Serialize,
+    T: serde::Serialize + Send + 'static,
 {
-    let body = types::RequestBody::log_and_get_request_body(
-        &json!(body),
-        Encode::<serde_json::Value>::encode_to_string_of_json,
-    )
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to build request body")?;
-
     Ok(RequestBuilder::new()
         .method(Method::Post)
         .url(&url)
@@ -72,7 +61,7 @@ where
             header::CONTENT_TYPE.to_string().as_str(),
             "application/json",
         )
-        .body(Some(body))
+        .set_body(RequestContent::Json(Box::new(body)))
         .build())
 }
 
