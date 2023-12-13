@@ -1,10 +1,8 @@
 use std::sync::{atomic, Arc};
 
-use common_utils::signals::get_allowed_signals;
-use error_stack::{IntoReport, ResultExt};
 use tokio::{
     sync::{mpsc, oneshot},
-    time::Interval,
+    time::{self, Duration},
 };
 
 use crate::{
@@ -12,72 +10,84 @@ use crate::{
     Store, StreamData,
 };
 
-type MpscChannel<T> = (mpsc::Sender<T>, mpsc::Receiver<T>);
-
+#[derive(Clone)]
 pub struct Handler {
-    mpsc_channel: MpscChannel<()>,
-    shutdown_interval: Interval,
-    loop_interval: Interval,
+    inner: Arc<HandlerInner>,
+}
+
+impl std::ops::Deref for Handler {
+    type Target = HandlerInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+pub struct HandlerInner {
+    shutdown_interval: Duration,
+    loop_interval: Duration,
     active_tasks: Arc<atomic::AtomicU64>,
     conf: DrainerSettings,
     store: Arc<Store>,
+    running: Arc<atomic::AtomicBool>,
 }
 
 impl Handler {
     pub fn from_conf(conf: DrainerSettings, store: Arc<Store>) -> Self {
-        let shutdown_interval = tokio::time::interval(std::time::Duration::from_millis(
-            conf.shutdown_interval.into(),
-        ));
-        let loop_interval =
-            tokio::time::interval(std::time::Duration::from_millis(conf.loop_interval.into()));
+        let shutdown_interval = Duration::from_millis(conf.shutdown_interval.into());
+        let loop_interval = Duration::from_millis(conf.loop_interval.into());
 
         let active_tasks = Arc::new(atomic::AtomicU64::new(0));
 
-        let (tx, rx) = mpsc::channel(1);
+        let running = Arc::new(atomic::AtomicBool::new(true));
 
-        Self {
-            mpsc_channel: (tx, rx),
+        let handler = HandlerInner {
             shutdown_interval,
             loop_interval,
             active_tasks,
             conf,
             store,
+            running,
+        };
+
+        Self {
+            inner: Arc::new(handler),
         }
     }
 
-    pub async fn spawn(&mut self) -> errors::DrainerResult<()> {
+    pub fn close(&self) {
+        self.running.store(false, atomic::Ordering::SeqCst);
+    }
+
+    pub async fn spawn(&self) -> errors::DrainerResult<()> {
         let mut stream_index: u8 = 0;
         let jobs_picked = Arc::new(atomic::AtomicU8::new(0));
 
-        let tx = self.mpsc_channel.0.clone();
-        let rx = &mut self.mpsc_channel.1;
-
-        let signal = get_allowed_signals().into_report().change_context(
-            errors::DrainerError::SignalError("Failed while getting allowed signals".to_string()),
-        )?;
-        let handle = signal.handle();
-        let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()));
-
-        'event: loop {
+        while self.running.load(atomic::Ordering::SeqCst) {
             metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
+            if self.store.is_stream_available(stream_index).await {
+                tokio::spawn(drainer_handler(
+                    self.store.clone(),
+                    stream_index,
+                    self.conf.max_read_count,
+                    self.active_tasks.clone(),
+                    jobs_picked.clone(),
+                ));
+            }
+            stream_index = utils::increment_stream_index(
+                (stream_index, jobs_picked.clone()),
+                self.store.config.drainer_num_partitions,
+            )
+            .await;
+            time::sleep(self.loop_interval).await;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn shutdown_listner(&self, mut rx: mpsc::Receiver<()>) {
+        loop {
             match rx.try_recv() {
-                Err(mpsc::error::TryRecvError::Empty) => {
-                    if self.store.is_stream_available(stream_index).await {
-                        tokio::spawn(drainer_handler(
-                            self.store.clone(),
-                            stream_index,
-                            self.conf.max_read_count,
-                            self.active_tasks.clone(),
-                            jobs_picked.clone(),
-                        ));
-                    }
-                    stream_index = utils::increment_stream_index(
-                        (stream_index, jobs_picked.clone()),
-                        self.store.config.drainer_num_partitions,
-                    )
-                    .await;
-                    self.loop_interval.tick().await;
-                }
                 Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                     logger::info!("Awaiting shutdown!");
                     metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
@@ -89,24 +99,19 @@ impl Handler {
                             metrics::SUCCESSFUL_SHUTDOWN.add(&metrics::CONTEXT, 1, &[]);
                             let shutdown_ended = shutdown_started.elapsed().as_secs_f64() * 1000f64;
                             metrics::CLEANUP_TIME.record(&metrics::CONTEXT, shutdown_ended, &[]);
-                            break 'event;
+                            self.close();
+                            break;
                         }
-                        self.shutdown_interval.tick().await;
+                        time::sleep(self.shutdown_interval).await;
                     }
+                    break;
                 }
+                Err(mpsc::error::TryRecvError::Empty) => {}
             }
         }
-
-        handle.close();
-        let _ = task_handle
-            .await
-            .map_err(|err| logger::error!("Failed while joining signal handler: {:?}", err));
-
-        Ok(())
     }
 
-    pub fn spawn_error_handlers(&self) -> errors::DrainerResult<()> {
-        let tx = self.mpsc_channel.0.clone();
+    pub fn spawn_error_handlers(&self, tx: mpsc::Sender<()>) -> errors::DrainerResult<()> {
         let (redis_error_tx, redis_error_rx) = oneshot::channel();
 
         let redis_conn_clone = self.store.redis_conn.clone();
@@ -251,17 +256,20 @@ async fn drainer(
         }
     }
 
-    let entries_trimmed = store
-        .trim_from_stream(stream_name, &last_processed_id)
-        .await?;
-
-    if read_count != entries_trimmed {
-        logger::error!(
-            read_entries = %read_count,
-            trimmed_entries = %entries_trimmed,
-            ?entries,
-            "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
-        );
+    if !last_processed_id.is_empty() {
+        let entries_trimmed = store
+            .trim_from_stream(stream_name, &last_processed_id)
+            .await?;
+        if read_count != entries_trimmed {
+            logger::error!(
+                read_entries = %read_count,
+                trimmed_entries = %entries_trimmed,
+                ?entries,
+                "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
+            );
+        } else {
+            logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
+        }
     }
 
     Ok(())
