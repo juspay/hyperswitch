@@ -165,6 +165,7 @@ where
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow,
+        frm_metadata: None,
     };
 
     Ok(router_data)
@@ -947,6 +948,11 @@ pub fn change_order_details_to_new_type(
         quantity: order_details.quantity,
         amount: order_amount,
         product_img_link: order_details.product_img_link,
+        requires_shipping: order_details.requires_shipping,
+        product_id: order_details.product_id,
+        category: order_details.category,
+        brand: order_details.brand,
+        product_type: order_details.product_type,
     }])
 }
 
@@ -1069,7 +1075,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 payment_data
                     .payment_intent
                     .request_incremental_authorization,
-                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+                Some(RequestIncrementalAuthorization::True)
+                    | Some(RequestIncrementalAuthorization::Default)
             ),
         })
     }
@@ -1301,9 +1308,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             country: payment_data.address.billing.and_then(|billing_address| {
                 billing_address.address.and_then(|address| address.country)
@@ -1357,7 +1369,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 payment_data
                     .payment_intent
                     .request_incremental_authorization,
-                RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
+                Some(RequestIncrementalAuthorization::True)
+                    | Some(RequestIncrementalAuthorization::Default)
             ),
         })
     }
