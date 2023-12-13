@@ -150,17 +150,14 @@ pub struct PaymentsRequest {
     #[schema(default = false, example = true)]
     pub confirm: Option<bool>,
 
-    /// The details of a customer for this payment
-    /// This will create the customer if `customer.id` does not exist
-    /// If customer id already exists, it will update the details of the customer
+    /// Passing this object creates a new customer or attaches an existing customer to the payment
     pub customer: Option<CustomerDetails>,
 
-    /// Passing this object creates a new customer or attaches an existing customer to the payment
+    /// The identifier for the customer object. This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
-    /// The customer's email address
-    /// This field will be deprecated soon, use the customer object instead
+    /// TThe customer's email address This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Email>,
 
@@ -256,7 +253,7 @@ pub struct PaymentsRequest {
     }"#)]
     pub browser_info: Option<serde_json::Value>,
 
-    /// Payment Experience for the current payment
+    /// To indicate the type of payment experience that the payment method would go through
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
@@ -365,6 +362,7 @@ pub struct BrowserInformation {
     pub time_zone: Option<i32>,
 
     /// Ip address of the client
+    #[schema(value_type = Option<String>)]
     pub ip_address: Option<std::net::IpAddr>,
 
     /// List of headers that are accepted
