@@ -1941,6 +1941,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]
