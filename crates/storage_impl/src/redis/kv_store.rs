@@ -112,13 +112,10 @@ where
             KvOperation::Hset(value, sql) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
-                redis_conn
-                    .set_hash_fields(key, value, Some(ttl.into()))
-                    .await?;
-
-                store
-                    .push_to_drainer_stream::<S>(sql, partition_key)
-                    .await?;
+                let set_hash_fut   = redis_conn.set_hash_fields(key, value, Some(ttl.into()));
+                let drain_push_fut = store.push_to_drainer_stream::<S>(sql, partition_key);
+                
+                futures::try_join!(set_has_fut, drain_push_fut)?;
 
                 Ok(KvResult::Hset(()))
             }

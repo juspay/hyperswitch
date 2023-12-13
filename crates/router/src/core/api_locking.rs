@@ -60,15 +60,16 @@ impl LockAction {
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                 let redis_locking_key = input.get_redis_locking_key(merchant_id);
-                let delay_between_retries_in_milliseconds = state
-                    .conf()
+                let state_ref = state.conf_as_ref();
+                let delay_between_retries_in_milliseconds = state_ref
                     .lock_settings
-                    .delay_between_retries_in_milliseconds;
+                    .delay_between_retries_in_milliseconds
+                    .to_owned();
                 let redis_lock_expiry_seconds =
-                    state.conf().lock_settings.redis_lock_expiry_seconds;
+                    state_ref.lock_settings.redis_lock_expiry_seconds.to_owned();
                 let lock_retries = input
                     .override_lock_retries
-                    .unwrap_or(state.conf().lock_settings.lock_retries);
+                    .unwrap_or(state_ref.lock_settings.lock_retries.to_owned());
                 for _retry in 0..lock_retries {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(
