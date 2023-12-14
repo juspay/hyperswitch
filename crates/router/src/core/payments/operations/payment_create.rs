@@ -564,13 +564,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     )> {
         helpers::validate_customer_details_in_request(request)?;
 
-        if let Some(payment_link_config) = &request.payment_link_config {
+        if let Some(payment_link) = &request.payment_link {
+            if *payment_link {
             helpers::validate_payment_link_request(
-                payment_link_config,
                 request.confirm,
-                request.order_details.clone(),
             )?;
-        }
+            }
+        };
 
         let payment_id = request.payment_id.clone().ok_or(error_stack::report!(
             errors::ApiErrorResponse::PaymentNotFound
