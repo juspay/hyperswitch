@@ -20,19 +20,255 @@
     }
   ],
   "paths": {
+    "/account/{account_id}/business_profile": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - List",
+        "description": "Business Profile - List\n\nLists all the *business profiles* under a merchant",
+        "operationId": "List Business Profiles",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant Identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profiles Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessProfileResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Create",
+        "description": "Business Profile - Create\n\nCreates a new *business profile* for a merchant",
+        "operationId": "Create A Business Profile",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileCreate"
+              },
+              "examples": {
+                "Create a business profile with minimal fields": {
+                  "value": {}
+                },
+                "Create a business profile with profile name": {
+                  "value": {
+                    "profile_name": "shoe_business"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Business Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}": {
+      "post": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Update",
+        "description": "Business Profile - Update\n\nUpdate the *business profile*",
+        "operationId": "Update a Business Profile",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileCreate"
+              },
+              "examples": {
+                "Update business profile with profile name fields": {
+                  "value": {
+                    "profile_name": "shoe_business"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Business Profile Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Delete",
+        "description": "Business Profile - Delete\n\nDelete the *business profile*",
+        "operationId": "Delete the Business Profile",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profiles Deleted",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/accounts": {
       "post": {
         "tags": [
           "Merchant Account"
         ],
         "summary": "Merchant Account - Create",
-        "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
+        "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.",
         "operationId": "Create a Merchant Account",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MerchantAccountCreate"
+              },
+              "examples": {
+                "Create a merchant account with minimal fields": {
+                  "value": {
+                    "merchant_id": "merchant_abc"
+                  }
+                },
+                "Create a merchant account with return url": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "return_url": "https://example.com"
+                  }
+                },
+                "Create a merchant account with webhook url": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "webhook_details": {
+                      "webhook_url": "https://webhook.site/a5c54f75-1f7e-4545-b781-af525b7e37a0"
+                    }
+                  }
+                }
               }
             }
           },
@@ -66,7 +302,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Retrieve",
-        "description": "Merchant Account - Retrieve\n\nRetrieve a merchant account details.",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a *merchant* account details.",
         "operationId": "Retrieve a Merchant Account",
         "parameters": [
           {
@@ -105,7 +341,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Update",
-        "description": "Merchant Account - Update\n\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "description": "Merchant Account - Update\n\nUpdates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
@@ -123,6 +359,28 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MerchantAccountUpdate"
+              },
+              "examples": {
+                "Update merchant name": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "merchant_name": "merchant_name"
+                  }
+                },
+                "Update return url": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "return_url": "https://example.com"
+                  }
+                },
+                "Update webhook url": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "webhook_details": {
+                      "webhook_url": "https://webhook.site/a5c54f75-1f7e-4545-b781-af525b7e37a0"
+                    }
+                  }
+                }
               }
             }
           },
@@ -154,7 +412,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Delete",
-        "description": "Merchant Account - Delete\n\nTo delete a merchant account",
+        "description": "Merchant Account - Delete\n\nDelete a *merchant* account",
         "operationId": "Delete a Merchant Account",
         "parameters": [
           {
@@ -984,7 +1242,7 @@
           "Payments"
         ],
         "summary": "Payments - List",
-        "description": "Payments - List\n\nTo list the payments",
+        "description": "Payments - List\n\nTo list the *payments*",
         "operationId": "List all Payments",
         "parameters": [
           {
@@ -1077,7 +1335,17 @@
         ],
         "responses": {
           "200": {
-            "description": "Received payment list"
+            "description": "Successfully retrieved a payment list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentListResponse"
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "No payments found"
@@ -1096,7 +1364,7 @@
           "Payments"
         ],
         "summary": "Payments - Session token",
-        "description": "Payments - Session token\n\nTo create the session object or to get session token for wallets",
+        "description": "Payments - Session token\n\nTo create the session object or to get *session token* for wallets",
         "operationId": "Create Session tokens for a Payment",
         "requestBody": {
           "content": {
@@ -1188,7 +1456,7 @@
           "Payments"
         ],
         "summary": "Payments - Update",
-        "description": "Payments - Update\n\nTo update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
+        "description": "Payments - Update\n\nTo update the properties of a *PaymentIntent* object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
         "operationId": "Update a Payment",
         "parameters": [
           {
@@ -1242,7 +1510,7 @@
           "Payments"
         ],
         "summary": "Payments - Cancel",
-        "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action",
+        "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: *`requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`*",
         "operationId": "Cancel a Payment",
         "parameters": [
           {
@@ -1260,6 +1528,16 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentsCancelRequest"
+              },
+              "examples": {
+                "Cancel the payment with cancellation reason": {
+                  "value": {
+                    "cancellation_reason": "requested_by_customer"
+                  }
+                },
+                "Cancel the payment with minimal fields": {
+                  "value": {}
+                }
               }
             }
           },
@@ -3388,6 +3666,189 @@
           "user_agent": {
             "type": "string",
             "description": "User-agent of the browser",
+            "nullable": true
+          }
+        }
+      },
+      "BusinessProfileCreate": {
+        "type": "object",
+        "properties": {
+          "profile_name": {
+            "type": "string",
+            "description": "A short name to identify the business profile",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation, This will be applied to all the\nconnector accounts under this profile",
+            "example": "https://www.example.com/success",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": true,
+            "example": true,
+            "nullable": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response\nIf the value is not provided, a default value is used",
+            "nullable": true
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "routing_algorithm": {
+            "type": "object",
+            "description": "The routing algorithm to be used for routing payments to desired connectors",
+            "nullable": true
+          },
+          "intent_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "frm_routing_algorithm": {
+            "type": "object",
+            "description": "The frm routing algorithm to be used for routing payments to desired FRM's",
+            "nullable": true
+          },
+          "payout_routing_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RoutingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Verified applepay domains for a particular profile",
+            "nullable": true
+          }
+        }
+      },
+      "BusinessProfileResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "profile_id",
+          "profile_name",
+          "enable_payment_response_hash",
+          "redirect_to_merchant_with_http_post"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The unique identifier for Business Profile",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz",
+            "maxLength": 64
+          },
+          "profile_name": {
+            "type": "string",
+            "description": "A short name to identify the business profile",
+            "maxLength": 64
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation, This will be applied to all the\nconnector accounts under this profile",
+            "example": "https://www.example.com/success",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": true,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response\nIf the value is not provided, a default value is used",
+            "nullable": true
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "routing_algorithm": {
+            "type": "object",
+            "description": "The routing algorithm to be used for routing payments to desired connectors",
+            "nullable": true
+          },
+          "intent_fulfillment_time": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true
+          },
+          "frm_routing_algorithm": {
+            "type": "object",
+            "description": "The frm routing algorithm to be used for routing payments to desired FRM's",
+            "nullable": true
+          },
+          "payout_routing_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RoutingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Verified applepay domains for a particular profile",
             "nullable": true
           }
         }
@@ -6478,6 +6939,7 @@
             "$ref": "#/components/schemas/ReconStatus"
           },
           "payment_link_config": {
+            "description": "A config to customise payment link designs",
             "nullable": true
           }
         }
@@ -6613,6 +7075,7 @@
             "maxLength": 64
           },
           "payment_link_config": {
+            "description": "A config to customise payment link designs",
             "nullable": true
           }
         }
