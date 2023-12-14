@@ -1,5 +1,4 @@
 use error_stack::{IntoReport, ResultExt};
-use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    PaymentIntent,
+    PaymentIntent, PgPooledConn,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,7 +16,6 @@ use crate::{
 pub enum DBOperation {
     Insert { insertable: Insertable },
     Update { updatable: Updateable },
-    Delete,
 }
 
 impl DBOperation {
@@ -25,7 +23,6 @@ impl DBOperation {
         match self {
             Self::Insert { .. } => "insert",
             Self::Update { .. } => "update",
-            Self::Delete => "delete",
         }
     }
     pub fn table<'a>(&self) -> &'a str {
@@ -43,18 +40,17 @@ impl DBOperation {
                 Updateable::RefundUpdate(_) => "refund",
                 Updateable::AddressUpdate(_) => "address",
             },
-            Self::Delete => "",
         }
     }
 }
 
 #[derive(Debug)]
 pub enum DBResult {
-    PaymentIntent(PaymentIntent),
-    PaymentAttempt(PaymentAttempt),
-    Refund(Refund),
+    PaymentIntent(Box<PaymentIntent>),
+    PaymentAttempt(Box<PaymentAttempt>),
+    Refund(Box<Refund>),
     Address(Box<Address>),
-    ReverseLookUp(ReverseLookup),
+    ReverseLookUp(Box<ReverseLookup>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,34 +60,35 @@ pub struct TypedSql {
 }
 
 impl DBOperation {
-    pub async fn execute(self, conn: &crate::PgPooledConn) -> crate::StorageResult<DBResult> {
+    pub async fn execute(self, conn: &PgPooledConn) -> crate::StorageResult<DBResult> {
         Ok(match self {
             Self::Insert { insertable } => match insertable {
-                Insertable::PaymentIntent(a) => DBResult::PaymentIntent(a.insert(conn).await?),
-                Insertable::PaymentAttempt(a) => DBResult::PaymentAttempt(a.insert(conn).await?),
-                Insertable::Refund(a) => DBResult::Refund(a.insert(conn).await?),
+                Insertable::PaymentIntent(a) => {
+                    DBResult::PaymentIntent(Box::new(a.insert(conn).await?))
+                }
+                Insertable::PaymentAttempt(a) => {
+                    DBResult::PaymentAttempt(Box::new(a.insert(conn).await?))
+                }
+                Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
                 Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert(conn).await?)),
-                Insertable::ReverseLookUp(rev) => DBResult::ReverseLookUp(rev.insert(conn).await?),
+                Insertable::ReverseLookUp(rev) => {
+                    DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
+                }
             },
             Self::Update { updatable } => match updatable {
                 Updateable::PaymentIntentUpdate(a) => {
-                    DBResult::PaymentIntent(a.orig.update(conn, a.update_data).await?)
+                    DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
-                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(
+                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
-                ),
+                )),
                 Updateable::RefundUpdate(a) => {
-                    DBResult::Refund(a.orig.update(conn, a.update_data).await?)
+                    DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
                 Updateable::AddressUpdate(a) => {
                     DBResult::Address(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
             },
-            Self::Delete => {
-                // [#224]: Implement this
-                logger::error!("Not implemented!");
-                Err(errors::DatabaseError::Others)?
-            }
         })
     }
 }
