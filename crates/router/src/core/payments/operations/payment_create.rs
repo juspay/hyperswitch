@@ -297,7 +297,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
-
+        let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -643,6 +643,12 @@ impl PaymentCreate {
         } else {
             utils::get_payment_attempt_id(payment_id, 1)
         };
+        let surcharge_amount = request
+            .surcharge_details
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = request
+            .surcharge_details
+            .and_then(|surcharge_details| surcharge_details.tax_amount);
 
         Ok((
             storage::PaymentAttemptNew {
@@ -668,6 +674,8 @@ impl PaymentCreate {
                 payment_token: request.payment_token.clone(),
                 mandate_id: request.mandate_id.clone(),
                 business_sub_label: request.business_sub_label.clone(),
+                surcharge_amount,
+                tax_amount,
                 mandate_details: request
                     .mandate_data
                     .as_ref()
