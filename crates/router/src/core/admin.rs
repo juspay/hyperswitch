@@ -863,31 +863,13 @@ pub async fn create_payment_connector(
 
     // The purpose of this merchant account update is just to update the
     // merchant account `modified_at` field for KGraph cache invalidation
-    let merchant_account_update = storage::MerchantAccountUpdate::Update {
-        merchant_name: None,
-        merchant_details: None,
-        return_url: None,
-        webhook_details: None,
-        sub_merchants_enabled: None,
-        parent_merchant_id: None,
-        enable_payment_response_hash: None,
-        locker_id: None,
-        payment_response_hash_key: None,
-        primary_business_details: None,
-        metadata: None,
-        publishable_key: None,
-        redirect_to_merchant_with_http_post: None,
-        routing_algorithm: None,
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
-        default_profile: None,
-        payment_link_config: None,
-    };
-
     state
         .store
-        .update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
+        .update_specific_fields_in_merchant(
+            merchant_id,
+            storage::MerchantAccountUpdate::ModifiedAtUpdate,
+            &key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
@@ -1239,6 +1221,17 @@ pub async fn update_payment_connector(
             .await?;
         }
     }
+
+    // The purpose of this merchant account update is just to update the
+    // merchant account `modified_at` field for KGraph cache invalidation
+    db.update_specific_fields_in_merchant(
+        merchant_id,
+        storage::MerchantAccountUpdate::ModifiedAtUpdate,
+        &key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error updating the merchant account when updating payment connector")?;
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
