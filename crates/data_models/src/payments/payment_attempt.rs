@@ -156,6 +156,16 @@ pub struct PaymentAttempt {
     pub unified_message: Option<String>,
 }
 
+impl PaymentAttempt {
+    pub fn get_total_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+    pub fn get_total_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_amount
+            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or(0))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,

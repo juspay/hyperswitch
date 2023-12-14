@@ -178,6 +178,8 @@ impl MultipleCaptureData {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SurchargeDetails {
+    /// original_amount
+    pub original_amount: i64,
     /// surcharge value
     pub surcharge: common_types::Surcharge,
     /// tax on surcharge value
@@ -198,6 +200,7 @@ impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
         let surcharge_amount = request_surcharge_details.surcharge_amount;
         let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or(0);
         Self {
+            original_amount: payment_attempt.amount,
             surcharge: common_types::Surcharge::Fixed(request_surcharge_details.surcharge_amount),
             tax_on_surcharge: None,
             surcharge_amount,
@@ -219,13 +222,15 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             currency.to_currency_base_unit_asf64(surcharge_details.tax_on_surcharge_amount)?;
         let display_final_amount =
             currency.to_currency_base_unit_asf64(surcharge_details.final_amount)?;
+        let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
+            surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount,
+        )?;
         Ok(Self {
             surcharge: surcharge_details.surcharge.clone().into(),
             tax_on_surcharge: surcharge_details.tax_on_surcharge.clone().map(Into::into),
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
-            display_total_surcharge_amount: display_surcharge_amount
-                + display_tax_on_surcharge_amount,
+            display_total_surcharge_amount,
             display_final_amount,
         })
     }
