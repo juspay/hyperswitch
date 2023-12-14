@@ -566,9 +566,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-            helpers::validate_payment_link_request(
-                request.confirm,
-            )?;
+                helpers::validate_payment_link_request(request.confirm)?;
             }
         };
 
