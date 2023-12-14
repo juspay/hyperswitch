@@ -593,6 +593,7 @@ async fn perform_kgraph_filtering(
                 &context,
                 &mut constraint_graph::Memoization::new(),
                 &mut constraint_graph::CycleCheck::new(),
+                None,
             )
             .into_report()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;

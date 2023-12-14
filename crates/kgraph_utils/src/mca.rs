@@ -21,16 +21,13 @@ fn compile_request_pm_types(
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
 
     let pmt_info = "PaymentMethodType";
-    let pmt_id = builder
-        .make_value_node(
-            (pm_types.payment_method_type, pm)
-                .into_dir_value()
-                .map(Into::into)?,
-            Some(pmt_info),
-            vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
-            None::<()>,
-        )
-        .map_err(KgraphError::GraphConstructionError)?;
+    let pmt_id = builder.make_value_node(
+        (pm_types.payment_method_type, pm)
+            .into_dir_value()
+            .map(Into::into)?,
+        Some(pmt_info),
+        None::<()>,
+    );
     agg_nodes.push((
         pmt_id,
         cgraph::Relation::Positive,
@@ -52,7 +49,7 @@ fn compile_request_pm_types(
 
             let card_network_info = "Card Networks";
             let card_network_id = builder
-                .make_in_aggregator(dir_vals, Some(card_network_info), None::<()>, Vec::new())
+                .make_in_aggregator(dir_vals, Some(card_network_info), None::<()>)
                 .map_err(KgraphError::GraphConstructionError)?;
 
             agg_nodes.push((
@@ -88,12 +85,7 @@ fn compile_request_pm_types(
     if let Some((currencies, relation)) = currencies_data {
         let accepted_currencies_info = "Accepted Currencies";
         let accepted_currencies_id = builder
-            .make_in_aggregator(
-                currencies,
-                Some(accepted_currencies_info),
-                None::<()>,
-                Vec::new(),
-            )
+            .make_in_aggregator(currencies, Some(accepted_currencies_info), None::<()>)
             .map_err(KgraphError::GraphConstructionError)?;
 
         agg_nodes.push((accepted_currencies_id, relation, cgraph::Strength::Strong));
@@ -108,14 +100,11 @@ fn compile_request_pm_types(
         };
 
         let min_amt_info = "Minimum Amount";
-        let min_amt_id = builder
-            .make_value_node(
-                dir::DirValue::PaymentAmount(num_val).into(),
-                Some(min_amt_info),
-                vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
-                None::<()>,
-            )
-            .map_err(KgraphError::GraphConstructionError)?;
+        let min_amt_id = builder.make_value_node(
+            dir::DirValue::PaymentAmount(num_val).into(),
+            Some(min_amt_info),
+            None::<()>,
+        );
 
         amount_nodes.push(min_amt_id);
     }
@@ -127,14 +116,11 @@ fn compile_request_pm_types(
         };
 
         let max_amt_info = "Maximum Amount";
-        let max_amt_id = builder
-            .make_value_node(
-                dir::DirValue::PaymentAmount(num_val).into(),
-                Some(max_amt_info),
-                vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
-                None::<()>,
-            )
-            .map_err(KgraphError::GraphConstructionError)?;
+        let max_amt_id = builder.make_value_node(
+            dir::DirValue::PaymentAmount(num_val).into(),
+            Some(max_amt_info),
+            None::<()>,
+        );
 
         amount_nodes.push(max_amt_id);
     }
@@ -145,14 +131,11 @@ fn compile_request_pm_types(
             refinement: None,
         };
 
-        let zero_amt_id = builder
-            .make_value_node(
-                dir::DirValue::PaymentAmount(zero_num_val).into(),
-                Some("zero_amount"),
-                vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
-                None::<()>,
-            )
-            .map_err(KgraphError::GraphConstructionError)?;
+        let zero_amt_id = builder.make_value_node(
+            dir::DirValue::PaymentAmount(zero_num_val).into(),
+            Some("zero_amount"),
+            None::<()>,
+        );
 
         let or_node_neighbor_id = if amount_nodes.len() == 1 {
             amount_nodes
@@ -177,7 +160,7 @@ fn compile_request_pm_types(
                     &nodes,
                     Some("amount_constraint_aggregator"),
                     None::<()>,
-                    vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                    Some(cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)),
                 )
                 .map_err(KgraphError::GraphConstructionError)?
         };
@@ -190,7 +173,7 @@ fn compile_request_pm_types(
                 ],
                 Some("zero_plus_limits_amount_aggregator"),
                 None::<()>,
-                vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
+                Some(cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)),
             )
             .map_err(KgraphError::GraphConstructionError)?;
 
@@ -203,12 +186,7 @@ fn compile_request_pm_types(
 
     let pmt_all_aggregator_info = "All Aggregator for PaymentMethodType";
     builder
-        .make_all_aggregator(
-            &agg_nodes,
-            Some(pmt_all_aggregator_info),
-            None::<()>,
-            Vec::new(),
-        )
+        .make_all_aggregator(&agg_nodes, Some(pmt_all_aggregator_info), None::<()>, None)
         .map_err(KgraphError::GraphConstructionError)
 }
 
@@ -223,14 +201,11 @@ fn compile_payment_method_enabled(
         .unwrap_or(true)
     {
         let pm_info = "PaymentMethod";
-        let pm_id = builder
-            .make_value_node(
-                enabled.payment_method.into_dir_value().map(Into::into)?,
-                Some(pm_info),
-                vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
-                None::<()>,
-            )
-            .map_err(KgraphError::GraphConstructionError)?;
+        let pm_id = builder.make_value_node(
+            enabled.payment_method.into_dir_value().map(Into::into)?,
+            Some(pm_info),
+            None::<()>,
+        );
 
         let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation)> = Vec::new();
 
@@ -243,12 +218,7 @@ fn compile_payment_method_enabled(
 
         let any_aggregator_info = "Any aggregation for PaymentMethodsType";
         let pm_type_agg_id = builder
-            .make_any_aggregator(
-                &agg_nodes,
-                Some(any_aggregator_info),
-                None::<()>,
-                Vec::new(),
-            )
+            .make_any_aggregator(&agg_nodes, Some(any_aggregator_info), None::<()>, None)
             .map_err(KgraphError::GraphConstructionError)?;
 
         let all_aggregator_info = "All aggregation for PaymentMethod";
@@ -264,7 +234,7 @@ fn compile_payment_method_enabled(
                 ],
                 Some(all_aggregator_info),
                 None::<()>,
-                Vec::new(),
+                None,
             )
             .map_err(KgraphError::GraphConstructionError)?;
 
@@ -296,7 +266,7 @@ fn compile_merchant_connector_graph(
 
     let aggregator_info = "Available Payment methods for connector";
     let pms_enabled_agg_id = builder
-        .make_any_aggregator(&agg_nodes, Some(aggregator_info), None::<()>, Vec::new())
+        .make_any_aggregator(&agg_nodes, Some(aggregator_info), None::<()>, None)
         .map_err(KgraphError::GraphConstructionError)?;
 
     let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
@@ -306,14 +276,8 @@ fn compile_merchant_connector_graph(
     }));
 
     let connector_info = "Connector";
-    let connector_node_id = builder
-        .make_value_node(
-            connector_dir_val.into(),
-            Some(connector_info),
-            vec![cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)],
-            None::<()>,
-        )
-        .map_err(KgraphError::GraphConstructionError)?;
+    let connector_node_id =
+        builder.make_value_node(connector_dir_val.into(), Some(connector_info), None::<()>);
 
     builder
         .make_edge(
@@ -321,6 +285,7 @@ fn compile_merchant_connector_graph(
             connector_node_id,
             cgraph::Strength::Normal,
             cgraph::Relation::Positive,
+            None,
         )
         .map_err(KgraphError::GraphConstructionError)?;
 
@@ -436,6 +401,7 @@ mod tests {
             ]),
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -457,6 +423,7 @@ mod tests {
             ]),
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -478,6 +445,7 @@ mod tests {
             ]),
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -499,6 +467,7 @@ mod tests {
             ]),
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -519,6 +488,7 @@ mod tests {
             ]),
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         //println!("{:#?}", result);
@@ -542,6 +512,7 @@ mod tests {
             ]),
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         //println!("{:#?}", result);
@@ -557,6 +528,7 @@ mod tests {
                 "connector_type": "payment_processor",
                 "connector_name": "bluesnap",
                 "merchant_connector_id": "REDACTED",
+                "status": "inactive",
                 "connector_account_details": {
                     "auth_type": "BodyKey",
                     "api_key": "REDACTED",
@@ -638,6 +610,7 @@ mod tests {
                 "connector_type": "payment_processor",
                 "connector_name": "stripe",
                 "merchant_connector_id": "REDACTED",
+                "status": "inactive",
                 "connector_account_details": {
                     "auth_type": "HeaderKey",
                     "api_key": "REDACTED"
@@ -737,6 +710,7 @@ mod tests {
             &context,
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok(), "stripe validation failed");
@@ -746,6 +720,7 @@ mod tests {
             &context,
             &mut Memoization::new(),
             &mut CycleCheck::new(),
+            None,
         );
         assert!(result.is_err(), "bluesnap validation failed");
     }

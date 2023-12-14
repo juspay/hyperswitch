@@ -21,10 +21,12 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     strength: Strength,
     memo: &'a mut Memoization<V>,
     cycle_map: &'a mut CycleCheck,
+    domains: Option<&'a [DomainId]>,
 }
 
 pub struct ConstraintGraph<'a, V: ValueNode> {
     pub domain: DenseMap<DomainId, DomainInfo<'a>>,
+    pub domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,
     pub nodes: DenseMap<NodeId, Node<V>>,
     pub edges: DenseMap<EdgeId, Edge>,
     pub value_map: FxHashMap<NodeValue<V>, NodeId>,
@@ -36,6 +38,28 @@ impl<'a, V> ConstraintGraph<'a, V>
 where
     V: ValueNode,
 {
+    fn get_predecessor_edges_by_domain(
+        &self,
+        node_id: NodeId,
+        domains: Option<&[DomainId]>,
+    ) -> Result<Vec<&Edge>, GraphError<V>> {
+        let node = self.nodes.get(node_id).ok_or(GraphError::NodeNotFound)?;
+        let mut final_list = Vec::new();
+        for &pred in &node.preds {
+            let edge = self.edges.get(pred).ok_or(GraphError::EdgeNotFound)?;
+            if let Some((domain_id, domains)) = edge.domain.zip(domains) {
+                if domains.contains(&domain_id) {
+                    final_list.push(edge);
+                }
+            } else {
+                final_list.push(edge);
+            }
+        }
+
+        Ok(final_list)
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn check_node<C>(
         &self,
         ctx: &C,
@@ -44,6 +68,46 @@ where
         strength: Strength,
         memo: &mut Memoization<V>,
         cycle_map: &mut CycleCheck,
+        domains: Option<&[DomainIdentifier<'_>]>,
+    ) -> Result<(), GraphError<V>>
+    where
+        C: CheckingContext<Value = V>,
+    {
+        let domains = domains
+            .map(|domain_idents| {
+                domain_idents
+                    .iter()
+                    .map(|domain_ident| {
+                        self.domain_identifier_map
+                            .get(domain_ident)
+                            .copied()
+                            .ok_or(GraphError::DomainNotFound)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        self.check_node_inner(
+            ctx,
+            node_id,
+            relation,
+            strength,
+            memo,
+            cycle_map,
+            domains.as_deref(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn check_node_inner<C>(
+        &self,
+        ctx: &C,
+        node_id: NodeId,
+        relation: Relation,
+        strength: Strength,
+        memo: &mut Memoization<V>,
+        cycle_map: &mut CycleCheck,
+        domains: Option<&[DomainId]>,
     ) -> Result<(), GraphError<V>>
     where
         C: CheckingContext<Value = V>,
@@ -73,6 +137,7 @@ where
                 memo,
                 cycle_map,
                 ctx,
+                domains,
             };
             match &node.node_type {
                 NodeType::AllAggregator => self.validate_all_aggregator(check_node_context),
@@ -96,17 +161,17 @@ where
     {
         let mut unsatisfied = Vec::<Weak<AnalysisTrace<V>>>::new();
 
-        for edge_id in vald.node.preds.iter().copied() {
-            let edge = self.edges.get(edge_id).ok_or(GraphError::EdgeNotFound)?;
+        for edge in self.get_predecessor_edges_by_domain(vald.node_id, vald.domains)? {
             vald.cycle_map
                 .insert(vald.node_id, (vald.strength, vald.relation.into()));
-            if let Err(e) = self.check_node(
+            if let Err(e) = self.check_node_inner(
                 vald.ctx,
                 edge.pred,
                 edge.relation,
                 edge.strength,
                 vald.memo,
                 vald.cycle_map,
+                vald.domains,
             ) {
                 unsatisfied.push(e.get_analysis_trace()?);
             }
@@ -156,17 +221,17 @@ where
         let mut unsatisfied = Vec::<Weak<AnalysisTrace<V>>>::new();
         let mut matched_one = false;
 
-        for edge_id in vald.node.preds.iter().copied() {
-            let edge = self.edges.get(edge_id).ok_or(GraphError::EdgeNotFound)?;
+        for edge in self.get_predecessor_edges_by_domain(vald.node_id, vald.domains)? {
             vald.cycle_map
                 .insert(vald.node_id, (vald.strength, vald.relation.into()));
-            if let Err(e) = self.check_node(
+            if let Err(e) = self.check_node_inner(
                 vald.ctx,
                 edge.pred,
                 edge.relation,
                 edge.strength,
                 vald.memo,
                 vald.cycle_map,
+                vald.domains,
             ) {
                 unsatisfied.push(e.get_analysis_trace()?);
             } else {
@@ -295,17 +360,17 @@ where
                 vald.memo,
             )?
         } else {
-            for edge_id in vald.node.preds.iter().copied() {
-                let edge = self.edges.get(edge_id).ok_or(GraphError::EdgeNotFound)?;
+            for edge in self.get_predecessor_edges_by_domain(vald.node_id, vald.domains)? {
                 vald.cycle_map
                     .insert(vald.node_id, (vald.strength, vald.relation.into()));
-                let result = self.check_node(
+                let result = self.check_node_inner(
                     vald.ctx,
                     edge.pred,
                     edge.relation,
                     edge.strength,
                     vald.memo,
                     vald.cycle_map,
+                    vald.domains,
                 );
 
                 if let Some((resolved_strength, resolved_relation)) =
@@ -432,27 +497,25 @@ where
         };
 
         let add_node = |node_builder: &mut builder::ConstraintGraphBuilder<'a, V>,
-                        node: &Node<V>,
-                        domains: Vec<DomainIdentifier<'_>>|
+                        node: &Node<V>|
          -> Result<NodeId, GraphError<V>> {
             match &node.node_type {
                 NodeType::Value(node_value) => {
-                    node_builder.make_value_node(node_value.clone(), None, domains, None::<()>)
+                    Ok(node_builder.make_value_node(node_value.clone(), None, None::<()>))
                 }
 
                 NodeType::AllAggregator => {
-                    Ok(node_builder.make_all_aggregator(&[], None, None::<()>, domains)?)
+                    Ok(node_builder.make_all_aggregator(&[], None, None::<()>, None)?)
                 }
 
                 NodeType::AnyAggregator => {
-                    Ok(node_builder.make_any_aggregator(&[], None, None::<()>, Vec::new())?)
+                    Ok(node_builder.make_any_aggregator(&[], None, None::<()>, None)?)
                 }
 
                 NodeType::InAggregator(expected) => Ok(node_builder.make_in_aggregator(
                     expected.iter().cloned().collect(),
                     None,
                     None::<()>,
-                    Vec::new(),
                 )?),
             }
         };
@@ -468,26 +531,12 @@ where
         }
 
         for (_old_node_id, node) in g1.nodes.iter() {
-            let mut domain_identifiers: Vec<DomainIdentifier<'_>> = Vec::new();
-            for domain_id in &node.domain_ids {
-                match g1.domain.get(*domain_id) {
-                    Some(domain) => domain_identifiers.push(domain.domain_identifier.clone()),
-                    None => return Err(GraphError::DomainNotFound),
-                }
-            }
-            let new_node_id = add_node(&mut node_builder, node, domain_identifiers.clone())?;
+            let new_node_id = add_node(&mut node_builder, node)?;
             g1_old2new_id.push(new_node_id);
         }
 
         for (_old_node_id, node) in g2.nodes.iter() {
-            let mut domain_identifiers: Vec<DomainIdentifier<'_>> = Vec::new();
-            for domain_id in &node.domain_ids {
-                match g2.domain.get(*domain_id) {
-                    Some(domain) => domain_identifiers.push(domain.domain_identifier.clone()),
-                    None => return Err(GraphError::DomainNotFound),
-                }
-            }
-            let new_node_id = add_node(&mut node_builder, node, domain_identifiers.clone())?;
+            let new_node_id = add_node(&mut node_builder, node)?;
             g2_old2new_id.push(new_node_id);
         }
 
@@ -498,8 +547,19 @@ where
             let new_succ_id = g1_old2new_id
                 .get(edge.succ)
                 .ok_or(GraphError::NodeNotFound)?;
+            let domain_ident = edge
+                .domain
+                .map(|domain_id| g1.domain.get(domain_id).ok_or(GraphError::DomainNotFound))
+                .transpose()?
+                .map(|domain| domain.domain_identifier);
 
-            node_builder.make_edge(*new_pred_id, *new_succ_id, edge.strength, edge.relation)?;
+            node_builder.make_edge(
+                *new_pred_id,
+                *new_succ_id,
+                edge.strength,
+                edge.relation,
+                domain_ident,
+            )?;
         }
 
         for edge in g2.edges.values() {
@@ -509,8 +569,19 @@ where
             let new_succ_id = g2_old2new_id
                 .get(edge.succ)
                 .ok_or(GraphError::NodeNotFound)?;
+            let domain_ident = edge
+                .domain
+                .map(|domain_id| g2.domain.get(domain_id).ok_or(GraphError::DomainNotFound))
+                .transpose()?
+                .map(|domain| domain.domain_identifier);
 
-            node_builder.make_edge(*new_pred_id, *new_succ_id, edge.strength, edge.relation)?;
+            node_builder.make_edge(
+                *new_pred_id,
+                *new_succ_id,
+                edge.strength,
+                edge.relation,
+                domain_ident,
+            )?;
         }
 
         Ok(node_builder.build())

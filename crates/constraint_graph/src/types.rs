@@ -28,16 +28,14 @@ pub struct Node<V: ValueNode> {
     pub node_type: NodeType<V>,
     pub preds: Vec<EdgeId>,
     pub succs: Vec<EdgeId>,
-    pub domain_ids: Vec<DomainId>,
 }
 
 impl<V: ValueNode> Node<V> {
-    pub(crate) fn new(node_type: NodeType<V>, domain_ids: Vec<DomainId>) -> Self {
+    pub(crate) fn new(node_type: NodeType<V>) -> Self {
         Self {
             node_type,
             preds: Vec::new(),
             succs: Vec::new(),
-            domain_ids,
         }
     }
 }
@@ -128,6 +126,7 @@ pub struct Edge {
     pub relation: Relation,
     pub pred: NodeId,
     pub succ: NodeId,
+    pub domain: Option<DomainId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -135,7 +134,7 @@ pub struct DomainId(usize);
 
 impl_entity!(DomainId);
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DomainIdentifier<'a>(&'a str);
 
 impl<'a> DomainIdentifier<'a> {

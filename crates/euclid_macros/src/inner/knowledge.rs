@@ -534,7 +534,7 @@ impl GenContext {
             };
 
             let compiled = quote! {
-                let #identifier = graph.make_value_node(#the_value, None, Vec::new(), None::<()>).expect("NodeId derivation failed");
+                let #identifier = graph.make_value_node(#the_value, None, None::<()>);
             };
 
             tokens.extend(compiled);
@@ -576,7 +576,6 @@ impl GenContext {
                         Vec::from_iter([#(#values_tokens),*]),
                         None,
                         None::<()>,
-                        Vec::new(),
                     ).expect("Failed to make In aggregator");
                 };
 
@@ -601,7 +600,7 @@ impl GenContext {
             for (from_node, relation) in &node_details {
                 let relation = format_ident!("{}", relation.to_string());
                 tokens.extend(quote! {
-                    graph.make_edge(#from_node, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::#relation)
+                    graph.make_edge(#from_node, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::#relation, None)
                         .expect("Failed to make edge");
                 });
             }
@@ -617,10 +616,10 @@ impl GenContext {
             let strength = format_ident!("{}", rule.strength.to_string());
             let (agg_node_ident, _) = self.next_node_ident();
             tokens.extend(quote! {
-                let #agg_node_ident = graph.make_all_aggregator(&[#(#all_agg_nodes),*], None, None::<()>, Vec::new())
+                let #agg_node_ident = graph.make_all_aggregator(&[#(#all_agg_nodes),*], None, None::<()>, None)
                     .expect("Failed to make all aggregator node");
 
-                graph.make_edge(#agg_node_ident, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::Positive)
+                graph.make_edge(#agg_node_ident, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::Positive, None)
                     .expect("Failed to create all aggregator edge");
 
             });

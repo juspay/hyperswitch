@@ -18,7 +18,7 @@ pub struct ConstraintGraphBuilder<'a, V: ValueNode> {
     edges: DenseMap<EdgeId, Edge>,
     domain_identifier_map: FxHashMap<DomainIdentifier<'a>, DomainId>,
     value_map: FxHashMap<NodeValue<V>, NodeId>,
-    edges_map: FxHashMap<(NodeId, NodeId), EdgeId>,
+    edges_map: FxHashMap<(NodeId, NodeId, Option<DomainId>), EdgeId>,
     node_info: DenseMap<NodeId, Option<&'static str>>,
     node_metadata: DenseMap<NodeId, Option<Arc<dyn Metadata>>>,
 }
@@ -44,12 +44,23 @@ where
     pub fn build(self) -> ConstraintGraph<'a, V> {
         ConstraintGraph {
             domain: self.domain,
+            domain_identifier_map: self.domain_identifier_map,
             nodes: self.nodes,
             edges: self.edges,
             value_map: self.value_map,
             node_info: self.node_info,
             node_metadata: self.node_metadata,
         }
+    }
+
+    fn retrieve_domain_from_identifier(
+        &self,
+        domain_ident: DomainIdentifier<'_>,
+    ) -> Result<DomainId, GraphError<V>> {
+        self.domain_identifier_map
+            .get(&domain_ident)
+            .copied()
+            .ok_or(GraphError::DomainNotFound)
     }
 
     pub fn make_domain(
@@ -64,11 +75,11 @@ where
             .map_or_else(
                 || {
                     let domain_id = self.domain.push(DomainInfo {
-                        domain_identifier: domain_identifier.clone(),
+                        domain_identifier,
                         domain_description,
                     });
                     self.domain_identifier_map
-                        .insert(domain_identifier.clone(), domain_id);
+                        .insert(domain_identifier, domain_id);
                     domain_id
                 },
                 |domain_id| *domain_id,
@@ -79,35 +90,19 @@ where
         &mut self,
         value: NodeValue<V>,
         info: Option<&'static str>,
-        domain_identifiers: Vec<DomainIdentifier<'_>>,
         metadata: Option<M>,
-    ) -> Result<NodeId, GraphError<V>> {
-        match self.value_map.get(&value).copied() {
-            Some(node_id) => Ok(node_id),
-            None => {
-                let mut domain_ids: Vec<DomainId> = Vec::new();
-                for domain_ident in &domain_identifiers {
-                    domain_ids.push(
-                        self.domain_identifier_map
-                            .get(domain_ident)
-                            .copied()
-                            .ok_or(GraphError::DomainNotFound)?,
-                    );
-                }
+    ) -> NodeId {
+        self.value_map.get(&value).copied().unwrap_or_else(|| {
+            let node_id = self.nodes.push(Node::new(NodeType::Value(value.clone())));
+            let _node_info_id = self.node_info.push(info);
 
-                let node_id = self
-                    .nodes
-                    .push(Node::new(NodeType::Value(value.clone()), domain_ids));
-                let _node_info_id = self.node_info.push(info);
+            let _node_metadata_id = self
+                .node_metadata
+                .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
-                let _node_metadata_id = self
-                    .node_metadata
-                    .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
-
-                self.value_map.insert(value, node_id);
-                Ok(node_id)
-            }
-        }
+            self.value_map.insert(value, node_id);
+            node_id
+        })
     }
 
     pub fn make_edge(
@@ -116,11 +111,15 @@ where
         succ_id: NodeId,
         strength: Strength,
         relation: Relation,
+        domain: Option<DomainIdentifier<'_>>,
     ) -> Result<EdgeId, GraphError<V>> {
         self.ensure_node_exists(pred_id)?;
         self.ensure_node_exists(succ_id)?;
+        let domain_id = domain
+            .map(|d| self.retrieve_domain_from_identifier(d))
+            .transpose()?;
         self.edges_map
-            .get(&(pred_id, succ_id))
+            .get(&(pred_id, succ_id, domain_id))
             .copied()
             .and_then(|edge_id| self.edges.get(edge_id).cloned().map(|edge| (edge_id, edge)))
             .map_or_else(
@@ -130,8 +129,10 @@ where
                         relation,
                         pred: pred_id,
                         succ: succ_id,
+                        domain: domain_id,
                     });
-                    self.edges_map.insert((pred_id, succ_id), edge_id);
+                    self.edges_map
+                        .insert((pred_id, succ_id, domain_id), edge_id);
 
                     let pred = self
                         .nodes
@@ -162,25 +163,13 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Vec<DomainIdentifier<'_>>,
+        domain: Option<DomainIdentifier<'_>>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
             .try_for_each(|(node_id, _, _)| self.ensure_node_exists(*node_id))?;
 
-        let mut domain_ids: Vec<DomainId> = Vec::new();
-        for domain_ident in &domain {
-            domain_ids.push(
-                self.domain_identifier_map
-                    .get(domain_ident)
-                    .copied()
-                    .ok_or(GraphError::DomainNotFound)?,
-            );
-        }
-
-        let aggregator_id = self
-            .nodes
-            .push(Node::new(NodeType::AllAggregator, domain_ids));
+        let aggregator_id = self.nodes.push(Node::new(NodeType::AllAggregator));
         let _aggregator_info_id = self.node_info.push(info);
 
         let _node_metadata_id = self
@@ -188,7 +177,7 @@ where
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
         for (node_id, relation, strength) in nodes {
-            self.make_edge(*node_id, aggregator_id, *strength, *relation)?;
+            self.make_edge(*node_id, aggregator_id, *strength, *relation, domain)?;
         }
 
         Ok(aggregator_id)
@@ -199,25 +188,13 @@ where
         nodes: &[(NodeId, Relation)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Vec<DomainIdentifier<'_>>,
+        domain: Option<DomainIdentifier<'_>>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
             .try_for_each(|(node_id, _)| self.ensure_node_exists(*node_id))?;
 
-        let mut domain_ids: Vec<DomainId> = Vec::new();
-        for domain_ident in &domain {
-            domain_ids.push(
-                self.domain_identifier_map
-                    .get(domain_ident)
-                    .copied()
-                    .ok_or(GraphError::DomainNotFound)?,
-            );
-        }
-
-        let aggregator_id = self
-            .nodes
-            .push(Node::new(NodeType::AnyAggregator, domain_ids));
+        let aggregator_id = self.nodes.push(Node::new(NodeType::AnyAggregator));
         let _aggregator_info_id = self.node_info.push(info);
 
         let _node_metadata_id = self
@@ -225,7 +202,7 @@ where
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
         for (node_id, relation) in nodes {
-            self.make_edge(*node_id, aggregator_id, Strength::Strong, *relation)?;
+            self.make_edge(*node_id, aggregator_id, Strength::Strong, *relation, domain)?;
         }
 
         Ok(aggregator_id)
@@ -236,7 +213,6 @@ where
         values: Vec<V>,
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Vec<DomainIdentifier<'_>>,
     ) -> Result<NodeId, GraphError<V>> {
         let key = values
             .first()
@@ -250,21 +226,11 @@ where
                 })?;
             }
         }
-
-        let mut domain_ids: Vec<DomainId> = Vec::new();
-        for domain_ident in &domain {
-            domain_ids.push(
-                self.domain_identifier_map
-                    .get(domain_ident)
-                    .copied()
-                    .ok_or(GraphError::DomainNotFound)?,
-            );
-        }
-
-        let node_id = self.nodes.push(Node::new(
-            NodeType::InAggregator(FxHashSet::from_iter(values)),
-            domain_ids,
-        ));
+        let node_id = self
+            .nodes
+            .push(Node::new(NodeType::InAggregator(FxHashSet::from_iter(
+                values,
+            ))));
         let _aggregator_info_id = self.node_info.push(info);
 
         let _node_metadata_id = self
