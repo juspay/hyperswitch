@@ -76,12 +76,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .connector
             .validate_capture_method(self.request.capture_method)
             .to_payment_failed_response()?;
-        if self.request.surcharge_details.is_some() {
-            connector
-                .connector
-                .validate_if_surcharge_implemented()
-                .to_payment_failed_response()?;
-        }
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -417,6 +411,30 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
+            connector_transaction_id: None,
+        })
+    }
+}
+
+impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            amount: Some(data.amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: None,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: None,
+            browser_info: data.browser_info,
+            surcharge_details: None,
+            connector_transaction_id: data.connector_transaction_id,
         })
     }
 }

@@ -4,6 +4,8 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(feature = "olap")]
+use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -13,14 +15,17 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
+use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    events::EventsConfig,
 };
 #[cfg(feature = "kms")]
 pub type Password = kms::KmsValue;
@@ -70,6 +75,7 @@ pub struct Settings {
     pub secrets: Secrets,
     pub locker: Locker,
     pub connectors: Connectors,
+    pub forex_api: ForexApi,
     pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
@@ -94,6 +100,7 @@ pub struct Settings {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    pub payment_method_auth: PaymentMethodAuth,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -107,6 +114,19 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "frm")]
+    pub frm: Frm,
+    #[cfg(feature = "olap")]
+    pub report_download_config: ReportConfig,
+    pub events: EventsConfig,
+    #[cfg(feature = "olap")]
+    pub connector_onboarding: ConnectorOnboarding,
+}
+
+#[cfg(feature = "frm")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Frm {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -117,6 +137,43 @@ pub struct KvConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentLink {
     pub sdk_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ForexApi {
+    pub local_fetch_retry_count: u64,
+    pub api_key: masking::Secret<String>,
+    pub fallback_api_key: masking::Secret<String>,
+    /// in ms
+    pub call_delay: i64,
+    /// in ms
+    pub local_fetch_retry_delay: u64,
+    /// in ms
+    pub api_timeout: u64,
+    /// in ms
+    pub redis_lock_timeout: u64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodAuth {
+    pub redis_expiry: i64,
+    pub pm_auth_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DefaultExchangeRates {
+    pub base_currency: String,
+    pub conversion: HashMap<String, Conversion>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Conversion {
+    #[serde(with = "rust_decimal::serde::str")]
+    pub to_factor: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub from_factor: Decimal,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -484,23 +541,8 @@ pub struct Database {
     pub pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "PascalCase")]
-pub enum QueueStrategy {
-    #[default]
-    Fifo,
-    Lifo,
-}
-
-impl From<QueueStrategy> for bb8::QueueStrategy {
-    fn from(value: QueueStrategy) -> Self {
-        match value {
-            QueueStrategy::Fifo => Self::Fifo,
-            QueueStrategy::Lifo => Self::Lifo,
-        }
-    }
+    pub min_idle: Option<u32>,
+    pub max_lifetime: Option<u64>,
 }
 
 #[cfg(not(feature = "kms"))]
@@ -515,6 +557,8 @@ impl From<Database> for storage_impl::config::Database {
             pool_size: val.pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy.into(),
+            min_idle: val.min_idle,
+            max_lifetime: val.max_lifetime,
         }
     }
 }
@@ -570,10 +614,13 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
+    pub placetopay: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
+    pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
@@ -747,6 +794,7 @@ impl Settings {
                     .list_separator(",")
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
+                    .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
@@ -800,6 +848,7 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         self.lock_settings.validate()?;
+        self.events.validate()?;
         Ok(())
     }
 }
@@ -848,11 +897,26 @@ impl<'de> Deserialize<'de> for LockSettings {
             redis_lock_expiry_seconds,
             delay_between_retries_in_milliseconds,
         } = Inner::deserialize(deserializer)?;
-        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
+        let redis_lock_expiry_milliseconds = redis_lock_expiry_seconds * 1000;
         Ok(Self {
             redis_lock_expiry_seconds,
             delay_between_retries_in_milliseconds,
-            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_milliseconds / delay_between_retries_in_milliseconds,
         })
     }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorOnboarding {
+    pub paypal: PayPalOnboarding,
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PayPalOnboarding {
+    pub client_id: masking::Secret<String>,
+    pub client_secret: masking::Secret<String>,
+    pub partner_id: masking::Secret<String>,
+    pub enabled: bool,
 }

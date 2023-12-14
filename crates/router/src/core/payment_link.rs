@@ -6,7 +6,9 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
+use futures::future;
 use masking::{PeekInterface, Secret};
+use time::PrimitiveDateTime;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
@@ -14,7 +16,10 @@ use crate::{
     errors::RouterResponse,
     routes::AppState,
     services,
-    types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{
+        api::payment_link::PaymentLinkResponseExt, domain, storage::enums as storage_enums,
+        transformers::ForeignFrom,
+    },
 };
 
 pub async fn retrieve_payment_link(
@@ -27,8 +32,12 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let response =
-        api_models::payments::RetrievePaymentLinkResponse::foreign_from(payment_link_object);
+    let status = check_payment_link_status(payment_link_object.fulfilment_time);
+
+    let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
+        payment_link_object,
+        status,
+    ));
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -62,7 +71,7 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresCapture,
             storage_enums::IntentStatus::RequiresMerchantAction,
         ],
-        "create payment link",
+        "use payment link for",
     )?;
 
     let payment_link = db
@@ -195,6 +204,34 @@ fn validate_sdk_requirements(
         field_name: "client_secret",
     })?;
     Ok((pub_key, currency, client_secret))
+}
+
+pub async fn list_payment_link(
+    state: AppState,
+    merchant: domain::MerchantAccount,
+    constraints: api_models::payments::PaymentLinkListConstraints,
+) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
+    let db = state.store.as_ref();
+    let payment_link = db
+        .list_payment_link_by_merchant_id(&merchant.merchant_id, constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve payment link")?;
+    let payment_link_list = future::try_join_all(payment_link.into_iter().map(|payment_link| {
+        api_models::payments::RetrievePaymentLinkResponse::from_db_payment_link(payment_link)
+    }))
+    .await?;
+    Ok(services::ApplicationResponse::Json(payment_link_list))
+}
+
+pub fn check_payment_link_status(fulfillment_time: Option<PrimitiveDateTime>) -> String {
+    let curr_time = Some(common_utils::date_time::now());
+
+    if curr_time > fulfillment_time {
+        "expired".to_string()
+    } else {
+        "active".to_string()
+    }
 }
 
 fn validate_order_details(

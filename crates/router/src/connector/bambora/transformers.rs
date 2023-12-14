@@ -5,7 +5,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
@@ -117,7 +117,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: req_card.card_holder_name,
+                    name: req_card
+                        .card_holder_name
+                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -215,6 +217,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(pg_response.order_number.to_string()),
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -241,6 +244,7 @@ impl<F, T>
                         connector_response_reference_id: Some(
                             item.data.connector_request_reference_id.to_string(),
                         ),
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })

@@ -1,11 +1,17 @@
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
+pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
-#[cfg(feature = "olap")]
-pub mod user;
-
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
+#[cfg(feature = "olap")]
+pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 use std::fmt::Debug;
 
@@ -405,6 +411,7 @@ pub fn handle_json_response_deserialization_failure(
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }

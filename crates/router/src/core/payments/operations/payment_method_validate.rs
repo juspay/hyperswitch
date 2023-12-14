@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "verify")]
+#[operation(operations = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::VerifyRequest, Ctx>
@@ -186,6 +186,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 surcharge_details: None,
                 frm_message: None,
                 payment_link_data: None,
+                frm_metadata: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),

@@ -8,6 +8,10 @@
 
 pub mod api;
 pub mod domain;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
+pub mod pm_auth;
+
 pub mod storage;
 pub mod transformers;
 
@@ -17,11 +21,12 @@ pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
 };
-pub use common_utils::request::RequestBody;
+pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
+use serde::Serialize;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -30,9 +35,10 @@ use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLO
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::RecurringMandatePaymentData,
+        payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
+    types::transformers::ForeignFrom,
     utils::OptionExt,
 };
 
@@ -51,6 +57,11 @@ pub type PaymentsBalanceRouterData =
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
+pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
+    api::IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData =
     RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -139,6 +150,11 @@ pub type PaymentsVoidType =
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
     PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
+pub type IncrementalAuthorizationType = dyn services::ConnectorIntegration<
+    api::IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
 
@@ -292,6 +308,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
+
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -322,7 +340,7 @@ pub struct ApplePayCryptogramData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodBalance {
     pub amount: i64,
-    pub currency: String,
+    pub currency: storage_enums::Currency,
 }
 
 #[cfg(feature = "payouts")]
@@ -355,6 +373,14 @@ pub struct PayoutsFulfillResponseData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)  
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately  
+    /// ```
+    /// get_original_amount()
+    /// get_surcharge_amount()
+    /// get_tax_on_surcharge_amount()
+    /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
+    /// ```
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
@@ -378,8 +404,9 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub customer_id: Option<String>,
+    pub request_incremental_authorization: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -391,6 +418,15 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PaymentsIncrementalAuthorizationData {
+    pub total_amount: i64,
+    pub additional_amount: i64,
+    pub currency: storage_enums::Currency,
+    pub reason: Option<String>,
+    pub connector_transaction_id: String,
 }
 
 #[allow(dead_code)]
@@ -439,8 +475,9 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -514,7 +551,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
+    pub surcharge_details: Option<types::SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
@@ -534,6 +571,7 @@ pub struct SetupMandateRequestData {
     pub email: Option<Email>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub request_incremental_authorization: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -544,59 +582,67 @@ pub struct AccessTokenRequestData {
 }
 
 pub trait Capturable {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         None
-    }
-    fn get_surcharge_amount(&self) -> Option<i64> {
-        None
-    }
-    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        None
-    }
-    fn is_psync(&self) -> bool {
-        false
     }
 }
 
 impl Capturable for PaymentsAuthorizeData {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         let final_amount = self
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount);
         final_amount.or(Some(self.amount))
     }
-    fn get_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount)
-    }
-    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-        self.surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
-    }
 }
 
 impl Capturable for PaymentsCaptureData {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         Some(self.amount_to_capture)
     }
 }
 
 impl Capturable for CompleteAuthorizeData {
-    fn get_capture_amount(&self) -> Option<i64> {
+    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
         Some(self.amount)
     }
 }
 impl Capturable for SetupMandateRequestData {}
-impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsCancelData {
+    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // return previously captured amount
+        payment_data.payment_intent.amount_captured
+    }
+}
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
+impl Capturable for PaymentsIncrementalAuthorizationData {}
 impl Capturable for PaymentsSyncData {
-    fn is_psync(&self) -> bool {
-        true
+    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        payment_data
+            .payment_attempt
+            .amount_to_capture
+            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
 
@@ -660,6 +706,7 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        incremental_authorization_allowed: Option<bool>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -695,6 +742,12 @@ pub enum PaymentsResponseData {
         session_token: Option<api::SessionToken>,
         connector_response_reference_id: Option<String>,
     },
+    IncrementalAuthorizationResponse {
+        status: common_enums::AuthorizationStatus,
+        connector_authorization_id: Option<String>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -703,7 +756,7 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub enum ResponseId {
     ConnectorTransactionId(String),
     EncodedData(String),
@@ -904,7 +957,7 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
@@ -933,6 +986,78 @@ pub enum ConnectorAuthType {
     NoKey,
 }
 
+impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+    fn from(value: api_models::admin::ConnectorAuthType) -> Self {
+        match value {
+            api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            api_models::admin::ConnectorAuthType::HeaderKey { api_key } => {
+                Self::HeaderKey { api_key }
+            }
+            api_models::admin::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Self::BodyKey { api_key, key1 }
+            }
+            api_models::admin::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            api_models::admin::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            api_models::admin::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
+    fn foreign_from(from: ConnectorAuthType) -> Self {
+        match from {
+            ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
+            ConnectorAuthType::HeaderKey { api_key } => Self::HeaderKey { api_key },
+            ConnectorAuthType::BodyKey { api_key, key1 } => Self::BodyKey { api_key, key1 },
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            },
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            },
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                Self::CurrencyAuthKey { auth_key_map }
+            }
+            ConnectorAuthType::NoKey => Self::NoKey,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
     pub connectors: Vec<String>,
@@ -952,6 +1077,7 @@ pub struct ErrorResponse {
     pub reason: Option<String>,
     pub status_code: u16,
     pub attempt_status: Option<storage_enums::AttemptStatus>,
+    pub connector_transaction_id: Option<String>,
 }
 
 impl ErrorResponse {
@@ -968,6 +1094,7 @@ impl ErrorResponse {
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -1011,6 +1138,7 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
                 _ => 500,
             },
             attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -1116,6 +1244,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_method_type: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: data.request.request_incremental_authorization,
         }
     }
 }
@@ -1163,6 +1292,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
+            frm_metadata: data.frm_metadata.clone(),
         }
     }
 }
@@ -1218,6 +1348,7 @@ impl<F1, F2>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }

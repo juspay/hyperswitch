@@ -445,7 +445,8 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("trustpay"),
             )
             .into()),
@@ -498,6 +499,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
             true,
             "Transaction declined (maximum transaction frequency exceeded)",
         ),
+        "800.100.165" => (true, "Transaction declined (card lost)"),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
         "800.100.171" => (true, "transaction declined (pick up card)"),
@@ -510,6 +512,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.700.100" => (
             true,
             "Transaction for the same session is currently being processed, please try again later",
+        ),
+        "900.100.100" => (
+            true,
+            "Unexpected communication error with connector/acquirer",
         ),
         "900.100.300" => (true, "Timeout, uncertain result"),
         _ => (false, ""),
@@ -716,17 +722,19 @@ fn handle_cards_response(
             reason: msg,
             status_code,
             attempt_status: None,
+            connector_transaction_id: Some(response.instance_id.clone()),
         })
     } else {
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
+        resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -755,6 +763,7 @@ fn handle_bank_redirects_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -778,6 +787,7 @@ fn handle_bank_redirects_error_response(
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
@@ -786,6 +796,7 @@ fn handle_bank_redirects_error_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -814,19 +825,31 @@ fn handle_bank_redirects_sync_response(
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
+            connector_transaction_id: Some(
+                response
+                    .payment_information
+                    .references
+                    .payment_request_id
+                    .clone(),
+            ),
         })
     } else {
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(
-            response.payment_information.references.payment_request_id,
+            response
+                .payment_information
+                .references
+                .payment_request_id
+                .clone(),
         ),
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -849,6 +872,7 @@ pub fn handle_webhook_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, None, payment_response_data))
 }
@@ -941,6 +965,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                     reason: item.response.result_info.additional_info,
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -1413,6 +1438,7 @@ fn handle_cards_refund_response(
             reason: msg,
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -1452,6 +1478,7 @@ fn handle_bank_redirects_refund_response(
             reason: msg.map(|message| message.to_string()),
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -1480,6 +1507,7 @@ fn handle_bank_redirects_refund_sync_response(
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -1502,6 +1530,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = types::RefundsResponseData {
@@ -1618,16 +1647,13 @@ pub struct Errors {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TrustpayErrorResponse {
     pub status: i64,
     pub description: Option<String>,
     pub errors: Option<Vec<Errors>>,
-}
-
-#[derive(Deserialize)]
-pub struct TrustPayTransactionStatusErrorResponse {
-    pub status: i64,
-    pub payment_description: String,
+    pub instance_id: Option<String>,
+    pub payment_description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1674,7 +1700,7 @@ impl TryFrom<WebhookStatus> for diesel_models::enums::RefundStatus {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
     pub merchant_reference: String,
-    pub payment_id: String,
+    pub payment_id: Option<String>,
     pub payment_request_id: Option<String>,
 }
 
