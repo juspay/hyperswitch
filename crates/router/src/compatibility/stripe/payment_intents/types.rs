@@ -118,7 +118,7 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: card.holder_name.unwrap_or("name".to_string().into()),
+            card_holder_name: card.holder_name,
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,

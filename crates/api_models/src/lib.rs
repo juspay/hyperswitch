@@ -23,6 +23,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod pm_auth;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_configs;

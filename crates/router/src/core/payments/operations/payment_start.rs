@@ -89,7 +89,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
@@ -171,6 +171,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

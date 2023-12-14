@@ -5,10 +5,11 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     pii::{self, Email},
+    request::RequestContent,
 };
 use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -16,7 +17,9 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{self as connector_util, ApplePay, PaymentsPreProcessingData, RouterData},
+    connector::utils::{
+        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
+    },
     core::errors,
     services,
     types::{
@@ -24,7 +27,7 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 pub struct StripeAuthType {
@@ -1473,24 +1476,8 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                     if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                         payment_method_token
                     {
-                        let expiry_year_4_digit = Secret::new(format!(
-                            "20{}",
-                            decrypt_data
-                                .clone()
-                                .application_expiration_date
-                                .peek()
-                                .get(0..2)
-                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                        ));
-                        let exp_month = Secret::new(
-                            decrypt_data
-                                .clone()
-                                .application_expiration_date
-                                .peek()
-                                .get(2..4)
-                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                                .to_owned(),
-                        );
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                        let exp_month = decrypt_data.get_expiry_month()?;
 
                         Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
                             Box::new(StripeApplePayPredecrypt {
@@ -3438,26 +3425,16 @@ pub struct StripeGpayToken {
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+) -> CustomResult<RequestContent, errors::ConnectorError> {
     match bank_transfer_data {
         api_models::payments::BankTransferData::AchBankTransfer { .. }
         | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
-            let request = types::RequestBody::log_and_get_request_body(
-                &req,
-                utils::Encode::<ChargesRequest>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(request))
+            Ok(RequestContent::FormUrlEncoded(Box::new(req)))
         }
         _ => {
             let req = PaymentIntentRequest::try_from(req)?;
-            let request = types::RequestBody::log_and_get_request_body(
-                &req,
-                utils::Encode::<PaymentIntentRequest>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(request))
+            Ok(RequestContent::FormUrlEncoded(Box::new(req)))
         }
     }
 }

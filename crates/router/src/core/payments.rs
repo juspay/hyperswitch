@@ -204,10 +204,6 @@ where
         );
 
         if should_continue_transaction {
-            operation
-                .to_domain()?
-                .populate_payment_data(state, &mut payment_data, &merchant_account)
-                .await?;
             payment_data = match connector_details {
                 api::ConnectorCallType::PreDetermined(connector) => {
                     let schedule_time = if should_add_task_to_process_tracker {
@@ -484,6 +480,13 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
+        if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
+            // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
+            let surcharge_details =
+                types::SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt));
+            payment_data.surcharge_details = Some(surcharge_details);
+            return Ok(());
+        }
         let raw_card_key = payment_data
             .payment_method_data
             .as_ref()
@@ -562,6 +565,7 @@ where
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
+                original_amount: payment_data.payment_attempt.amount,
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
@@ -1941,6 +1945,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]
