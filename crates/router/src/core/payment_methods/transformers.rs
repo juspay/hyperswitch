@@ -323,7 +323,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(body)));
     Ok(request)
 }
 
@@ -469,7 +469,7 @@ pub async fn mk_get_card_request_hs(
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(body)));
     Ok(request)
 }
 
@@ -543,7 +543,7 @@ pub async fn mk_delete_card_request_hs(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(body)));
     Ok(request)
 }
 
@@ -609,7 +609,7 @@ pub fn mk_crud_locker_request(
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(body)));
     Ok(request)
 }
 
