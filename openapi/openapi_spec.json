@@ -11805,7 +11805,6 @@
           "link_to_pay",
           "amount",
           "created_at",
-          "max_age",
           "status"
         ],
         "properties": {
@@ -11828,7 +11827,8 @@
           },
           "max_age": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           },
           "description": {
             "type": "string",

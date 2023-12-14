@@ -1173,7 +1173,7 @@ pub struct PaymentLinkConfigRequest {
     pub seller_name: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
     /// Custom Payment link expiry
     pub max_age: i64,

@@ -726,14 +726,14 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        max_age -> Timestamp,
+        max_age -> Nullable<Timestamp>,
         #[max_length = 64]
         seller_name -> Nullable<Varchar>,
-        payment_link_config -> Jsonb,
+        payment_link_config -> Nullable<Jsonb>,
         #[max_length = 255]
         description -> Nullable<Varchar>,
         #[max_length = 64]
-        profile_id -> Varchar,
+        profile_id -> Nullable<Varchar>,
     }
 }
 

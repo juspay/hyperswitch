@@ -875,11 +875,11 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        max_age,
+        max_age: Some(max_age),
         seller_name: Some(payment_link_config.seller_name),
         description,
-        payment_link_config: payment_link_config_encoded_value,
-        profile_id,
+        payment_link_config: Some(payment_link_config_encoded_value),
+        profile_id: Some(profile_id),
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

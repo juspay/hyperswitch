@@ -18,12 +18,12 @@ pub struct PaymentLink {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub max_age: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub max_age: Option<PrimitiveDateTime>,
     pub seller_name: Option<String>,
-    pub payment_link_config: serde_json::Value,
+    pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub profile_id: String,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -48,10 +48,10 @@ pub struct PaymentLinkNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub max_age: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub max_age: Option<PrimitiveDateTime>,
     pub seller_name: Option<String>,
-    pub payment_link_config: serde_json::Value,
+    pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub profile_id: String,
+    pub profile_id: Option<String>,
 }

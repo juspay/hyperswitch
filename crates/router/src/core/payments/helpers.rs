@@ -2447,7 +2447,8 @@ pub async fn get_fullfillment_time(
             .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
         let curr_time = common_utils::date_time::now();
-        Ok(Some((payment_link_db.max_age - curr_time).whole_seconds()))
+        let max_age = payment_link_db.max_age.unwrap_or(curr_time);
+        Ok(Some((max_age - curr_time).whole_seconds()))
     } else {
         Ok(intent_fulfillment_time)
     }

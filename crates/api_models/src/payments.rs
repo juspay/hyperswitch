@@ -3301,8 +3301,8 @@ pub struct RetrievePaymentLinkResponse {
     pub amount: i64,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub max_age: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub max_age: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub status: String,
     #[schema(value_type = Option<Currency>)]
