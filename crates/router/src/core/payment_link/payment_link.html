@@ -63,7 +63,6 @@
         display: flex;
         justify-content: center;
         background-color: white;
-        z-index: 100;
         padding: 20px 0;
       }
 
@@ -255,12 +254,17 @@
         font-size: 12px;
         font-weight: 500;
         cursor: pointer;
-        margin-bottom: 30px;
+        align-self: flex-start;
       }
 
-      .hyper-checkout-merchant-description {
+      #hyper-checkout-merchant-description {
         font-size: 13px;
         color: #808080;
+      }
+
+      .powered-by-hyper {
+        margin-top: 40px;
+        align-self: flex-start;
       }
 
       .hyper-checkout-sdk {
@@ -281,11 +285,6 @@
         padding: 20px;
         background-color: white;
         border-radius: 3px;
-      }
-
-      .powered-by-hyper {
-        margin-top: 20px;
-        align-self: flex-start;
       }
 
       #hyper-checkout-sdk-header {
@@ -580,6 +579,7 @@
         .hyper-checkout {
           flex-flow: column;
           margin: 0;
+          height: auto;
         }
 
         .main {
@@ -851,10 +851,7 @@
         <div id="hyper-checkout-status-content"></div>
       </div>
       <div class="main" id="hyper-checkout-details">
-        <div
-          id="hyper-checkout-payment"
-          class="hyper-checkout-payment"
-        >
+        <div id="hyper-checkout-payment" class="hyper-checkout-payment">
           <div class="hyper-checkout-payment-content-details">
             <div class="content-details-wrap">
               <div id="hyper-checkout-payment-context">
@@ -928,6 +925,18 @@
             </svg>
           </div>
           <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
+          <div id="hyper-checkout-merchant-description"></div>
+          <div class="powered-by-hyper">
+            <svg class="fill-current" height="18" width="130" transform="">
+              <use
+                xlink:href="#hyperswitch-brand"
+                x="0"
+                y="0"
+                height="18"
+                width="130"
+              ></use>
+            </svg>
+          </div>
         </div>
       </div>
       <div class="hyper-checkout-sdk" id="hyper-checkout-sdk">
@@ -968,7 +977,7 @@
     </div>
 
     <script>
-     {{ payment_details_js_script }}
+      {{ payment_details_js_script }}
 
       window.state = {
         prevHeight: window.innerHeight,
@@ -998,6 +1007,11 @@
 
         // Initialize SDK
         initializeSDK();
+
+        // State specific functions
+        if (window.state.isMobileView) {
+          show("#hyper-footer");
+        }
       }
       boot();
 
@@ -1007,6 +1021,7 @@
           var currentWidth = window.innerWidth;
           if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
             hide("#hyper-checkout-cart");
+            show("#hyper-footer");
             try {
               const primaryColor = window
                 .getComputedStyle(document.documentElement)
@@ -1026,6 +1041,7 @@
               );
             }
           } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
+            hide("#hyper-footer");
             show("#hyper-checkout-cart");
             try {
               const primaryColor = window
@@ -1519,7 +1535,9 @@
       function renderCart() {
         if (window.state.isMobileView) {
           hide("#hyper-checkout-cart");
+          show("#hyper-footer");
         } else {
+          show("#hyper-checkout-cart");
           show("#hyper-checkout-cart");
         }
         var paymentDetails = window.__PAYMENT_DETAILS;
