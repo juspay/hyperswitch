@@ -176,10 +176,11 @@
                         "number": "8056594427",
                         "country_code": "+91"
                       }
-                    })
-                )
-            ),
-        )
+                    }
+                })
+            )
+            )
+        ),
     ),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
