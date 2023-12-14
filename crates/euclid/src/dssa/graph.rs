@@ -177,6 +177,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn value_analysis(
@@ -185,6 +186,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn check_value_validity(
@@ -193,6 +195,7 @@ pub trait CgraphExt {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<bool, cgraph::GraphError<dir::DirValue>>;
 
     fn key_value_analysis(
@@ -201,6 +204,7 @@ pub trait CgraphExt {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>>;
 
     fn assertion_analysis(
@@ -209,6 +213,7 @@ pub trait CgraphExt {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 
     fn negation_analysis(
@@ -217,12 +222,14 @@ pub trait CgraphExt {
         analysis_ctx: &mut AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 
     fn perform_context_analysis(
         &self,
         ctx: &types::ConjunctiveContext<'_>,
         memo: &mut cgraph::Memoization<dir::DirValue>,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), AnalysisError<dir::DirValue>>;
 }
 
@@ -233,6 +240,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.value_map
             .get(&cgraph::NodeValue::Key(key))
@@ -244,6 +252,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
                     cgraph::Strength::Strong,
                     memo,
                     cycle_map,
+                    domains,
                 )
             })
     }
@@ -254,6 +263,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
         self.value_map
             .get(&cgraph::NodeValue::Value(val))
@@ -265,6 +275,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
                     cgraph::Strength::Strong,
                     memo,
                     cycle_map,
+                    domains,
                 )
             })
     }
@@ -275,6 +286,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<bool, cgraph::GraphError<dir::DirValue>> {
         let maybe_node_id = self.value_map.get(&cgraph::NodeValue::Value(val));
 
@@ -291,6 +303,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
             cgraph::Strength::Weak,
             memo,
             cycle_map,
+            domains,
         );
 
         match result {
@@ -308,9 +321,10 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), cgraph::GraphError<dir::DirValue>> {
-        self.key_analysis(val.get_key(), ctx, memo, cycle_map)
-            .and_then(|_| self.value_analysis(val, ctx, memo, cycle_map))
+        self.key_analysis(val.get_key(), ctx, memo, cycle_map, domains)
+            .and_then(|_| self.value_analysis(val, ctx, memo, cycle_map, domains))
     }
 
     fn assertion_analysis(
@@ -319,9 +333,10 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         positive_ctx.iter().try_for_each(|(value, metadata)| {
-            self.key_value_analysis((*value).clone(), analysis_ctx, memo, cycle_map)
+            self.key_value_analysis((*value).clone(), analysis_ctx, memo, cycle_map, domains)
                 .map_err(|e| AnalysisError::assertion_from_graph_error(metadata, e))
         })
     }
@@ -332,6 +347,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         analysis_ctx: &mut AnalysisContext,
         memo: &mut cgraph::Memoization<dir::DirValue>,
         cycle_map: &mut cgraph::CycleCheck,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         let mut keywise_metadata: FxHashMap<dir::DirKey, Vec<&Metadata>> = FxHashMap::default();
         let mut keywise_negation: FxHashMap<dir::DirKey, FxHashSet<&dir::DirValue>> =
@@ -361,7 +377,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
             let all_metadata = keywise_metadata.remove(&key).unwrap_or_default();
             let first_metadata = all_metadata.first().cloned().cloned().unwrap_or_default();
 
-            self.key_analysis(key.clone(), analysis_ctx, memo, cycle_map)
+            self.key_analysis(key.clone(), analysis_ctx, memo, cycle_map, domains)
                 .map_err(|e| AnalysisError::assertion_from_graph_error(&first_metadata, e))?;
 
             let mut value_set = if let Some(set) = key.kind.get_value_set() {
@@ -374,7 +390,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
 
             for value in value_set {
                 analysis_ctx.insert(value.clone());
-                self.value_analysis(value.clone(), analysis_ctx, memo, cycle_map)
+                self.value_analysis(value.clone(), analysis_ctx, memo, cycle_map, domains)
                     .map_err(|e| {
                         AnalysisError::negation_from_graph_error(all_metadata.clone(), e)
                     })?;
@@ -389,6 +405,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
         &self,
         ctx: &types::ConjunctiveContext<'_>,
         memo: &mut cgraph::Memoization<dir::DirValue>,
+        domains: Option<&[constraint_graph::DomainIdentifier<'_>]>,
     ) -> Result<(), AnalysisError<dir::DirValue>> {
         let mut analysis_ctx = AnalysisContext::from_dir_values(
             ctx.iter()
@@ -409,6 +426,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
             &analysis_ctx,
             memo,
             &mut cgraph::CycleCheck::new(),
+            domains,
         )?;
 
         let negative_ctx = ctx
@@ -425,6 +443,7 @@ impl CgraphExt for cgraph::ConstraintGraph<'_, dir::DirValue> {
             &mut analysis_ctx,
             memo,
             &mut cgraph::CycleCheck::new(),
+            domains,
         )?;
 
         Ok(())
@@ -459,6 +478,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -476,6 +496,7 @@ mod test {
             &AnalysisContext::from_dir_values([dirval!(CaptureMethod = Automatic)]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -496,6 +517,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -516,6 +538,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -536,6 +559,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
         assert!(matches!(
             *Weak::upgrade(&result.unwrap_err().get_analysis_trace().unwrap())
@@ -561,6 +585,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -580,6 +605,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -599,6 +625,7 @@ mod test {
             ]),
             &mut memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(matches!(
@@ -626,6 +653,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -647,6 +675,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -667,6 +696,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_ok());
@@ -688,6 +718,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         assert!(result.is_err());
@@ -709,6 +740,7 @@ mod test {
             ]),
             memo,
             &mut CycleCheck::new(),
+            None,
         );
 
         if let cgraph::AnalysisTrace::Value {
@@ -733,36 +765,23 @@ mod test {
     #[test]
     fn test_memoization_in_kgraph() {
         let mut builder = cgraph::ConstraintGraphBuilder::new();
-        let _node_1 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(
-                    enums::PaymentMethod::Wallet,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node1 construction failed");
-        let _node_2 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::BillingCountry(
-                    enums::BillingCountry::India,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node2 construction failed");
-        let _node_3 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::BusinessCountry(
-                    enums::BusinessCountry::UnitedStatesOfAmerica,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node3 construction failed");
+        let _node_1 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Wallet)),
+            None,
+            None::<()>,
+        );
+        let _node_2 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::BillingCountry(enums::BillingCountry::India)),
+            None,
+            None::<()>,
+        );
+        let _node_3 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::BusinessCountry(
+                enums::BusinessCountry::UnitedStatesOfAmerica,
+            )),
+            None,
+            None::<()>,
+        );
         let mut memo = cgraph::Memoization::new();
         let mut cycle_map = CycleCheck::new();
         let _edge_1 = builder
@@ -771,6 +790,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Strong,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -779,6 +799,7 @@ mod test {
                 _node_3,
                 cgraph::Strength::Strong,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to an edge");
         let graph = builder.build();
@@ -791,6 +812,7 @@ mod test {
             ]),
             &mut memo,
             &mut cycle_map,
+            None,
         );
         let _ans = memo
             .get(&(
@@ -805,24 +827,16 @@ mod test {
     #[test]
     fn test_cycle_resolution_in_graph() {
         let mut builder = cgraph::ConstraintGraphBuilder::new();
-        let _node_1 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(
-                    enums::PaymentMethod::Wallet,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node1 construction failed");
-        let _node_2 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node2 construction failed");
+        let _node_1 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Wallet)),
+            None,
+            None::<()>,
+        );
+        let _node_2 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
+            None,
+            None::<()>,
+        );
         let mut memo = cgraph::Memoization::new();
         let mut cycle_map = cgraph::CycleCheck::new();
         let _edge_1 = builder
@@ -831,6 +845,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -839,6 +854,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to an edge");
         let graph = builder.build();
@@ -850,6 +866,7 @@ mod test {
             ]),
             &mut memo,
             &mut cycle_map,
+            None,
         );
 
         assert!(_result.is_ok());
@@ -858,35 +875,24 @@ mod test {
     #[test]
     fn test_cycle_resolution_in_graph1() {
         let mut builder = cgraph::ConstraintGraphBuilder::new();
-        let _node_1 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(
-                    enums::CaptureMethod::Automatic,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node1 construction failed");
+        let _node_1 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(
+                enums::CaptureMethod::Automatic,
+            )),
+            None,
+            None::<()>,
+        );
 
-        let _node_2 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node2 construction failed");
-        let _node_3 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(
-                    enums::PaymentMethod::Wallet,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node3 construction failed");
+        let _node_2 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
+            None,
+            None::<()>,
+        );
+        let _node_3 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Wallet)),
+            None,
+            None::<()>,
+        );
         let mut memo = cgraph::Memoization::new();
         let mut cycle_map = cgraph::CycleCheck::new();
 
@@ -896,6 +902,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -904,6 +911,7 @@ mod test {
                 _node_3,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_3 = builder
@@ -912,6 +920,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_4 = builder
@@ -920,6 +929,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Strong,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
 
@@ -933,6 +943,7 @@ mod test {
             ]),
             &mut memo,
             &mut cycle_map,
+            None,
         );
 
         assert!(_result.is_ok());
@@ -941,57 +952,38 @@ mod test {
     #[test]
     fn test_cycle_resolution_in_graph2() {
         let mut builder = cgraph::ConstraintGraphBuilder::new();
-        let _node_0 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::BillingCountry(
-                    enums::BillingCountry::Afghanistan,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node0 construction failed");
+        let _node_0 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::BillingCountry(
+                enums::BillingCountry::Afghanistan,
+            )),
+            None,
+            None::<()>,
+        );
 
-        let _node_1 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(
-                    enums::CaptureMethod::Automatic,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node1 construction failed");
+        let _node_1 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::CaptureMethod(
+                enums::CaptureMethod::Automatic,
+            )),
+            None,
+            None::<()>,
+        );
 
-        let _node_2 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node2 construction failed");
-        let _node_3 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(
-                    enums::PaymentMethod::Wallet,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node3 construction failed");
+        let _node_2 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
+            None,
+            None::<()>,
+        );
+        let _node_3 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Wallet)),
+            None,
+            None::<()>,
+        );
 
-        let _node_4 = builder
-            .make_value_node(
-                cgraph::NodeValue::Value(dir::DirValue::PaymentCurrency(
-                    enums::PaymentCurrency::USD,
-                )),
-                None,
-                Vec::new(),
-                None::<()>,
-            )
-            .expect("node4 construction failed");
+        let _node_4 = builder.make_value_node(
+            cgraph::NodeValue::Value(dir::DirValue::PaymentCurrency(enums::PaymentCurrency::USD)),
+            None,
+            None::<()>,
+        );
 
         let mut memo = cgraph::Memoization::new();
         let mut cycle_map = cgraph::CycleCheck::new();
@@ -1002,6 +994,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -1010,6 +1003,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_3 = builder
@@ -1018,6 +1012,7 @@ mod test {
                 _node_3,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_4 = builder
@@ -1026,6 +1021,7 @@ mod test {
                 _node_4,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_5 = builder
@@ -1034,6 +1030,7 @@ mod test {
                 _node_4,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
 
@@ -1043,6 +1040,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
         let _edge_7 = builder
@@ -1051,6 +1049,7 @@ mod test {
                 _node_0,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
+                None,
             )
             .expect("Failed to make an edge");
 
@@ -1066,6 +1065,7 @@ mod test {
             ]),
             &mut memo,
             &mut cycle_map,
+            None,
         );
 
         assert!(_result.is_ok());

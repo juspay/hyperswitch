@@ -93,6 +93,7 @@ fn evaluation(c: &mut Criterion) {
                 ]),
                 &mut Memoization::new(),
                 &mut CycleCheck::new(),
+                None,
             );
         });
     });
@@ -111,6 +112,7 @@ fn evaluation(c: &mut Criterion) {
                 ]),
                 &mut Memoization::new(),
                 &mut CycleCheck::new(),
+                None,
             );
         });
     });

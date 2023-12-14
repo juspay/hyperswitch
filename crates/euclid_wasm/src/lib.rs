@@ -129,7 +129,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
         // checking it against merchant's connectors
         seed_data
             .kgraph
-            .perform_context_analysis(ctx, &mut constraint_graph::Memoization::new())
+            .perform_context_analysis(ctx, &mut constraint_graph::Memoization::new(), None)
             .err_to_js()?;
 
         // Update conjunctive context and run analysis on all of merchant's connectors.
@@ -140,9 +140,11 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 
             let ctx_val = dssa::types::ContextValue::assertion(choice, &dummy_meta);
             ctx.push(ctx_val);
-            let analysis_result = seed_data
-                .kgraph
-                .perform_context_analysis(ctx, &mut constraint_graph::Memoization::new());
+            let analysis_result = seed_data.kgraph.perform_context_analysis(
+                ctx,
+                &mut constraint_graph::Memoization::new(),
+                None,
+            );
             if analysis_result.is_err() {
                 invalid_connectors.insert(conn.clone());
             }

@@ -212,7 +212,7 @@ fn perform_context_analyses(
     perform_condition_analyses(context)?;
     let mut memo = Memoization::new();
     knowledge_graph
-        .perform_context_analysis(context, &mut memo)
+        .perform_context_analysis(context, &mut memo, None)
         .map_err(|err| types::AnalysisError {
             error_type: types::AnalysisErrorType::GraphAnalysis(err, memo),
             metadata: Default::default(),
@@ -313,7 +313,7 @@ mod tests {
                                     & payment_method /= reward
                                     & payment_method /= voucher
                                     & payment_method /= gift_card
-
+                                    & payment_method /= card_redirect
                             }
                         }
                     }
