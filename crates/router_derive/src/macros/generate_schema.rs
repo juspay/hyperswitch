@@ -155,14 +155,20 @@ pub fn polymorphic_macro_derive_inner(
             proc_macro2::Span::call_site(),
             "Cannot use `mandatory_in` on unnamed fields",
         ))?;
-        helpers::get_metadata_inner::<SchemaMeta>("mandatory_in", mandatory_attribute)?
-            .first()
-            .cloned()
-            .map(|mandatory_in_attribute| {
-                let key = (field_ident.clone(), mandatory_in_attribute.struct_name);
-                let value = mandatory_in_attribute.type_ident;
-                required_fields.insert(key, value);
-            });
+
+        // Parse the  #[mandatory_in(PaymentsCreateRequest = u64)] and insert into hashmap
+        // key -> ("amount", PaymentsCreateRequest)
+        // value -> u64
+        if let Some(mandatory_in_attribute) =
+            helpers::get_metadata_inner::<SchemaMeta>("mandatory_in", mandatory_attribute)?.first()
+        {
+            let key = (
+                field_ident.clone(),
+                mandatory_in_attribute.struct_name.clone(),
+            );
+            let value = mandatory_in_attribute.type_ident.clone();
+            required_fields.insert(key, value);
+        }
 
         // Hidden fields are to be inserted in the Hashset
         // The hashset will store it in this format
@@ -197,23 +203,23 @@ pub fn polymorphic_macro_derive_inner(
                     if let Some(field_ident) = field.ident.to_owned() {
                         // If the field is required for this schema, then add
                         // #[schema(value_type = type)] for this field
-                        required_fields
-                            .get(&(field_ident.clone(), schema.to_owned()))
-                            .map(|hola| {
-                                // This is a required field in the Schema
-                                // Add the value type and remove original value type ( if present )
-                                let attribute_without_schema_type = attributes
-                                    .into_iter()
-                                    .filter(|attribute| !attribute.path().is_ident("schema"))
-                                    .map(Clone::clone)
-                                    .collect::<Vec<_>>();
+                        if let Some(required_field_type) =
+                            required_fields.get(&(field_ident.clone(), schema.to_owned()))
+                        {
+                            // This is a required field in the Schema
+                            // Add the value type and remove original value type ( if present )
+                            let attribute_without_schema_type = attributes
+                                .iter()
+                                .filter(|attribute| !attribute.path().is_ident("schema"))
+                                .map(Clone::clone)
+                                .collect::<Vec<_>>();
 
-                                final_attributes = attribute_without_schema_type;
+                            final_attributes = attribute_without_schema_type;
 
-                                let value_type_attribute: syn::Attribute =
-                                    parse_quote!(#[schema(value_type = #hola)]);
-                                final_attributes.push(value_type_attribute);
-                            });
+                            let value_type_attribute: syn::Attribute =
+                                parse_quote!(#[schema(value_type = #required_field_type)]);
+                            final_attributes.push(value_type_attribute);
+                        }
                     }
 
                     // If the field is to be not shown then

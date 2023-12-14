@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix_web::{web, Scope};
 #[cfg(all(feature = "kms", feature = "olap"))]
 use analytics::AnalyticsConfig;
+#[cfg(any(feature = "olap", feature = "oltp"))]
 use common_utils::openapi_route;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};

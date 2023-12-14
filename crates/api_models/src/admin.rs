@@ -103,6 +103,7 @@ pub struct MerchantAccountCreate {
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
 
+    /// Config to customise payment link design
     pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
@@ -194,6 +195,7 @@ pub struct MerchantAccountUpdate {
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 
+    /// A config to customise payment link designs
     pub payment_link_config: Option<serde_json::Value>,
 }
 
@@ -289,6 +291,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
 
+    /// A config to customise payment link designs
     pub payment_link_config: Option<serde_json::Value>,
 }
 
