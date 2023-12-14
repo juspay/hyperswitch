@@ -26,7 +26,161 @@
                     value = json!({"amount": 6540,"currency": "USD"})
                 )
             ),
-        )
+            (
+                "Create a payment with customer details and metadata" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
+                    "customer": {
+                      "id": "cus_abcdefgh",
+                      "name": "John Dough",
+                      "phone": "9999999999",
+                      "email": "john@example.com"
+                    },
+                    "description": "Its my first payment request",
+                    "statement_descriptor_name": "joseph",
+                    "statement_descriptor_suffix": "JS",
+                    "metadata": {
+                      "udf1": "some-value",
+                      "udf2": "some-value"
+                    }
+                  })
+                )
+            ),
+            (
+                "Create a 3DS payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "authentication_type": "three_ds"
+                  })
+                )
+            ),
+            (
+                "Create a manual capture payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "capture_method": "manual"
+                  })
+                )
+            ),
+            (
+                "Create a setup mandate payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer123",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                    "setup_future_usage": "off_session",
+                    "mandate_data": {
+                      "customer_acceptance": {
+                        "acceptance_type": "offline",
+                        "accepted_at": "1963-05-03T04:07:52.723Z",
+                        "online": {
+                          "ip_address": "127.0.0.1",
+                          "user_agent": "amet irure esse"
+                        }
+                      },
+                      "mandate_type": {
+                        "single_use": {
+                          "amount": 6540,
+                          "currency": "USD"
+                        }
+                      }
+                    }
+                  })
+                )
+            ),
+            (
+                "Create a recurring payment with mandate_id" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer",
+                    "authentication_type": "no_three_ds",
+                    "mandate_id": "{{mandate_id}}",
+                    "off_session": true
+                  })
+                )
+            ),
+            (
+                "Create a payment and save the card" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer123",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                    "setup_future_usage": "off_session"
+                  })
+                )
+            ),
+            (
+                "Create a payment using an already saved card's token" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "client_secret": "{{client_secret}}",
+                    "payment_method": "card",
+                    "payment_token": "{{payment_token}}",
+                    "card_cvc": "123"
+                  })
+                )
+            ),
+            (
+                "Create a manual capture payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "customer": {
+                      "id": "cus_abcdefgh"
+                    },
+                    "billing": {
+                      "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "city": "San Fransico",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe"
+                      },
+                      "phone": {
+                        "number": "8056594427",
+                        "country_code": "+91"
+                      }
+                    }
+                })
+            )
+            )
+        ),
     ),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
