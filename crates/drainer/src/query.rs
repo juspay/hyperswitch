@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 use diesel_models::errors::DatabaseError;
-use crate::logger;
 
-use crate::{kv, metrics, pg_connection, services::Store};
+use crate::{kv, logger, metrics, pg_connection, services::Store};
 
 #[async_trait::async_trait]
 pub trait ExecuteQuery {
