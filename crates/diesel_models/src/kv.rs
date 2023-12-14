@@ -66,7 +66,6 @@ pub struct TypedSql {
 impl DBOperation {
     pub async fn execute(self, conn: &crate::PgPooledConn) -> crate::StorageResult<DBResult> {
         Ok(match self {
-            // TODO: Handle errors
             Self::Insert { insertable } => match insertable {
                 Insertable::PaymentIntent(a) => DBResult::PaymentIntent(a.insert(conn).await?),
                 Insertable::PaymentAttempt(a) => DBResult::PaymentAttempt(a.insert(conn).await?),

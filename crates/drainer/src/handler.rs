@@ -86,28 +86,19 @@ impl Handler {
     }
 
     pub(crate) async fn shutdown_listener(&self, mut rx: mpsc::Receiver<()>) {
-        loop {
-            match rx.try_recv() {
-                Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
-                    logger::info!("Awaiting shutdown!");
-                    metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
-                    let shutdown_started = tokio::time::Instant::now();
-                    rx.close();
-                    loop {
-                        if self.active_tasks.load(atomic::Ordering::SeqCst) == 0 {
-                            logger::info!("Terminating drainer");
-                            metrics::SUCCESSFUL_SHUTDOWN.add(&metrics::CONTEXT, 1, &[]);
-                            let shutdown_ended = shutdown_started.elapsed().as_secs_f64() * 1000f64;
-                            metrics::CLEANUP_TIME.record(&metrics::CONTEXT, shutdown_ended, &[]);
-                            self.close();
-                            break;
-                        }
-                        time::sleep(self.shutdown_interval).await;
-                    }
-                    break;
-                }
-                Err(mpsc::error::TryRecvError::Empty) => {}
+        while let Some(_c) = rx.recv().await {
+            logger::info!("Awaiting shutdown!");
+            metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
+            let shutdown_started = tokio::time::Instant::now();
+            rx.close();
+            while self.active_tasks.load(atomic::Ordering::SeqCst) != 0 {
+                time::sleep(self.shutdown_interval).await;
             }
+            logger::info!("Terminating drainer");
+            metrics::SUCCESSFUL_SHUTDOWN.add(&metrics::CONTEXT, 1, &[]);
+            let shutdown_ended = shutdown_started.elapsed().as_secs_f64() * 1000f64;
+            metrics::CLEANUP_TIME.record(&metrics::CONTEXT, shutdown_ended, &[]);
+            self.close();
         }
         logger::info!(
             tasks_remaining = self.active_tasks.load(atomic::Ordering::SeqCst),
@@ -170,10 +161,12 @@ async fn drainer_handler(
 
     let flag_stream_name = store.get_stream_key_flag(stream_index);
 
-    //TODO: USE THE RESULT FOR LOGGING
     let output = store.make_stream_available(flag_stream_name.as_str()).await;
     active_tasks.fetch_sub(1, atomic::Ordering::Release);
-    output
+    output.map_err(|err| {
+        logger::error!(operation = "unlock_stream", err=?err);
+        err
+    })
 }
 
 #[instrument(skip_all, fields(global_id, request_id, session_id))]
