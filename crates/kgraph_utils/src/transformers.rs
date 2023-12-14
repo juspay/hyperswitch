@@ -443,6 +443,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::USD => Ok(dirval!(PaymentCurrency = USD)),
             Self::UYU => Ok(dirval!(PaymentCurrency = UYU)),
             Self::UZS => Ok(dirval!(PaymentCurrency = UZS)),
+            Self::VES => Ok(dirval!(PaymentCurrency = VES)),
             Self::VND => Ok(dirval!(PaymentCurrency = VND)),
             Self::VUV => Ok(dirval!(PaymentCurrency = VUV)),
             Self::WST => Ok(dirval!(PaymentCurrency = WST)),

@@ -495,6 +495,7 @@ pub enum Currency {
     USD,
     UYU,
     UZS,
+    VES,
     VND,
     VUV,
     WST,
@@ -692,6 +693,7 @@ impl Currency {
             Self::USD => "840",
             Self::UYU => "858",
             Self::UZS => "860",
+            Self::VES => "928",
             Self::VND => "704",
             Self::VUV => "548",
             Self::WST => "882",
@@ -851,6 +853,7 @@ impl Currency {
             | Self::USD
             | Self::UYU
             | Self::UZS
+            | Self::VES
             | Self::WST
             | Self::XCD
             | Self::YER
@@ -992,6 +995,7 @@ impl Currency {
             | Self::USD
             | Self::UYU
             | Self::UZS
+            | Self::VES
             | Self::VND
             | Self::VUV
             | Self::WST

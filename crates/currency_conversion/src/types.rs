@@ -212,6 +212,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::USD => iso::USD,
         Currency::UYU => iso::UYU,
         Currency::UZS => iso::UZS,
+        Currency::VES => iso::VES,
         Currency::VND => iso::VND,
         Currency::VUV => iso::VUV,
         Currency::WST => iso::WST,
