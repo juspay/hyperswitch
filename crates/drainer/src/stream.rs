@@ -10,14 +10,18 @@ pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
 pub type StreamReadResult = HashMap<String, StreamEntries>;
 
 impl Store {
+    #[inline(always)]
     pub fn drainer_stream(&self, shard_key: &str) -> String {
         // Example: {shard_5}_drainer_stream
         format!("{{{}}}_{}", shard_key, self.config.drainer_stream_name,)
     }
+
+    #[inline(always)]
     pub(crate) fn get_stream_key_flag(&self, stream_index: u8) -> String {
         format!("{}_in_use", self.get_drainer_stream_name(stream_index))
     }
 
+    #[inline(always)]
     pub(crate) fn get_drainer_stream_name(&self, stream_index: u8) -> String {
         self.drainer_stream(format!("shard_{stream_index}").as_str())
     }
@@ -33,8 +37,7 @@ impl Store {
         {
             Ok(resp) => resp == redis::types::SetnxReply::KeySet,
             Err(error) => {
-                logger::error!(?error);
-                // Add metrics or logs
+                logger::error!(operation="lock_stream",err=?error);
                 false
             }
         }

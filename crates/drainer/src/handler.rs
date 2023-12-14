@@ -10,6 +10,8 @@ use crate::{
     Store, StreamData,
 };
 
+/// Handler handles the spawning and closing of drainer
+/// Arc is used to enable creating a listener for graceful shutdown
 #[derive(Clone)]
 pub struct Handler {
     inner: Arc<HandlerInner>,
@@ -91,6 +93,8 @@ impl Handler {
             metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
             let shutdown_started = tokio::time::Instant::now();
             rx.close();
+
+            //Check until the active tasks are zero. This does not include the tasks in the stream.
             while self.active_tasks.load(atomic::Ordering::SeqCst) != 0 {
                 time::sleep(self.shutdown_interval).await;
             }
