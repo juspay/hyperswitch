@@ -196,12 +196,22 @@ pub struct CashtocodePaymentsSyncResponse {
     pub amount: i64,
 }
 
-fn get_http_method(
+fn get_redirect_form_data(
     payment_method_type: &enums::PaymentMethodType,
-) -> CustomResult<Method, errors::ConnectorError> {
+    response_data: CashtocodePaymentsResponseData,
+) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
     match payment_method_type {
-        enums::PaymentMethodType::ClassicReward => Ok(services::Method::Post),
-        enums::PaymentMethodType::Evoucher => Ok(services::Method::Get),
+        enums::PaymentMethodType::ClassicReward => Ok(services::RedirectForm::Form {
+            //redirect form is manually constructed because the connector for this pm type expects query params in the url
+            endpoint: response_data.pay_url.to_string(),
+            method: services::Method::Post,
+            form_fields: Default::default(),
+        }),
+        enums::PaymentMethodType::Evoucher => Ok(services::RedirectForm::from((
+            //here the pay url gets parsed, and query params are sent as formfields as the connector expects
+            response_data.pay_url,
+            services::Method::Get,
+        ))),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("CashToCode"),
         ))?,
@@ -246,9 +256,15 @@ impl<F>
                     .payment_method_type
                     .as_ref()
                     .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
-                let method = get_http_method(payment_method_type)?;
-                let redirection_data =
-                    services::RedirectForm::from((response_data.pay_url, method));
+                // let method = get_http_method(payment_method_type)?;
+                // let redirection_data =
+                //     services::RedirectForm::from((response_data.pay_url, method));
+                // let redirection_data = services::RedirectForm::Form {
+                //     endpoint: response_data.pay_url.to_string(),
+                //     method,
+                //     form_fields: Default::default(),
+                // };
+                let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (
                     enums::AttemptStatus::AuthenticationPending,
                     Ok(types::PaymentsResponseData::TransactionResponse {
