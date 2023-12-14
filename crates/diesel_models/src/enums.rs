@@ -4,7 +4,8 @@ pub mod diesel_exports {
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
         DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
         DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
@@ -439,7 +440,7 @@ pub enum UserStatus {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum DashboardMetadata {

@@ -195,8 +195,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        data_key -> Varchar,
+        data_key -> DashboardMetadata,
         data_value -> Json,
         #[max_length = 64]
         created_by -> Varchar,
