@@ -82,7 +82,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                 let address = item.get_billing_address()?;
                 let card = Card {
                     card_type,
-                    name_on_card: ccard.card_holder_name.clone(),
+                    name_on_card: ccard
+                        .card_holder_name
+                        .clone()
+                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     account_number: ccard.card_number.clone(),
                     expire_month: ccard.card_exp_month.clone(),
                     expire_year: ccard.card_exp_year.clone(),
@@ -101,9 +104,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))?,
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment {}
+            | api_models::payments::PaymentMethodData::Reward {}
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Forte",
+                })?
+            }
         }
     }
 }
@@ -165,6 +183,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
             ForteResponseCode::A01 => match action {
                 ForteAction::Authorize => Self::Authorized,
                 ForteAction::Sale => Self::Pending,
+                ForteAction::Verify => Self::Charged,
             },
             ForteResponseCode::A05 | ForteResponseCode::A06 => Self::Authorizing,
             _ => Self::Failure,
@@ -218,6 +237,7 @@ pub struct ResponseStatus {
 pub enum ForteAction {
     Sale,
     Authorize,
+    Verify,
 }
 
 #[derive(Debug, Deserialize)]
@@ -260,6 +280,7 @@ impl<F, T>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -307,6 +328,7 @@ impl<F, T>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -374,6 +396,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: None,
             ..item.data
@@ -441,6 +464,7 @@ impl<F, T>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

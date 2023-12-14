@@ -21,6 +21,7 @@ impl Connector for AirwallexTest {
             connector: Box::new(&Airwallex),
             connector_name: types::Connector::Airwallex,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -59,7 +60,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_number: cards::CardNumber::from_str("4035501000000008").unwrap(),
             card_exp_month: Secret::new("02".to_string()),
             card_exp_year: Secret::new("2035".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             card_cvc: Secret::new("123".to_string()),
             card_issuer: None,
             card_network: None,

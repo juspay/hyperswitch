@@ -44,6 +44,19 @@ impl<T>
     }
 }
 
+pub fn check_currency(
+    currency: types::storage::enums::Currency,
+) -> Result<types::storage::enums::Currency, errors::ConnectorError> {
+    if currency == types::storage::enums::Currency::USD {
+        Ok(currency)
+    } else {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("currency {currency} is not supported for this merchant account"),
+            connector: "Helcim",
+        })?
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimVerifyRequest {
@@ -62,6 +75,7 @@ pub struct HelcimPaymentsRequest {
     currency: enums::Currency,
     ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
+    invoice: HelcimInvoice,
     billing_address: HelcimBillingAddress,
     //The ecommerce field is an optional field in Connector Helcim.
     //Setting the ecommerce field to true activates the Helcim Fraud Defender.
@@ -81,6 +95,22 @@ pub struct HelcimBillingAddress {
     city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimInvoice {
+    invoice_number: String,
+    line_items: Vec<HelcimLineItems>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimLineItems {
+    description: String,
+    quantity: u8,
+    price: f64,
+    total: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -111,9 +141,9 @@ impl TryFrom<(&types::SetupMandateRouterData, &api::Card)> for HelcimVerifyReque
             email: item.request.email.clone(),
         };
         let ip_address = item.request.get_browser_info()?.get_ip_address()?;
-
+        let currency = check_currency(item.request.currency)?;
         Ok(Self {
-            currency: item.request.currency,
+            currency,
             ip_address,
             card_data,
             billing_address,
@@ -141,7 +171,8 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_data),
                     connector: "Helcim",
@@ -191,11 +222,30 @@ impl
             .request
             .get_browser_info()?
             .get_ip_address()?;
+        let line_items = vec![
+            (HelcimLineItems {
+                description: item
+                    .router_data
+                    .description
+                    .clone()
+                    .unwrap_or("No Description".to_string()),
+                // By default quantity is set to 1 and price and total is set to amount because these three fields are required to generate an invoice.
+                quantity: 1,
+                price: item.amount,
+                total: item.amount,
+            }),
+        ];
+        let invoice = HelcimInvoice {
+            invoice_number: item.router_data.connector_request_reference_id.clone(),
+            line_items,
+        };
+        let currency = check_currency(item.router_data.request.currency)?;
         Ok(Self {
-            amount: item.amount.to_owned(),
-            currency: item.router_data.request.currency,
+            amount: item.amount,
+            currency,
             ip_address,
             card_data,
+            invoice,
             billing_address,
             ecommerce: None,
         })
@@ -223,12 +273,11 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.router_data.request.payment_method_data),
-                    connector: "Helcim",
-                })?
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.router_data.request.payment_method_data),
+                connector: "Helcim",
+            })?,
         }
     }
 }
@@ -295,6 +344,7 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
 pub struct HelcimPaymentsResponse {
     status: HelcimPaymentStatus,
     transaction_id: u64,
+    invoice_number: Option<String>,
     #[serde(rename = "type")]
     transaction_type: HelcimTransactionType,
 }
@@ -327,7 +377,8 @@ impl<F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.invoice_number.clone(),
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -381,7 +432,8 @@ impl<F>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.invoice_number.clone(),
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -439,7 +491,8 @@ impl<F>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item.response.invoice_number.clone(),
+                    incremental_authorization_allowed: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -525,7 +578,8 @@ impl<F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.invoice_number.clone(),
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -587,7 +641,8 @@ impl<F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.invoice_number.clone(),
+                incremental_authorization_allowed: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data

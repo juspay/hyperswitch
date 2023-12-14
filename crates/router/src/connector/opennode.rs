@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::crypto;
+use common_utils::{crypto, request::RequestContent};
 use error_stack::{IntoReport, ResultExt};
 use transformers as opennode;
 
@@ -22,7 +22,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{BytesExt, Encode},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -72,6 +72,10 @@ impl ConnectorCommon for Opennode {
         "opennode"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -106,6 +110,8 @@ impl ConnectorCommon for Opennode {
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.message,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -168,14 +174,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = opennode::OpennodePaymentsRequest::try_from(req)?;
-        let opennode_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            Encode::<opennode::OpennodePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(opennode_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = opennode::OpennodeRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -192,7 +200,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -406,11 +416,11 @@ impl api::IncomingWebhook for Opennode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif.status))
     }
 }

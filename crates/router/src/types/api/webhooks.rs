@@ -156,6 +156,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             &state.conf.connectors,
             connector_name,
             types::api::GetToken::Connector,
+            None,
         )
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
         .attach_printable("invalid connector name received in payment attempt")?;
@@ -253,7 +254,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError>;
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
     fn get_webhook_api_response(
         &self,

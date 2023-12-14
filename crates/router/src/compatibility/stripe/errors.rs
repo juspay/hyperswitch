@@ -33,7 +33,7 @@ pub enum StripeErrorCode {
         expected_format: String,
     },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "Refund amount exceeds the payment amount.")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "The refund amount exceeds the amount captured.")]
     RefundAmountExceedsPaymentAmount { param: String },
 
     #[error(error_type = StripeErrorType::ApiError, code = "payment_intent_authentication_failure", message = "Payment failed while processing with connector. Retry payment.")]
@@ -239,6 +239,8 @@ pub enum StripeErrorCode {
     PaymentLinkNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Resource Busy. Please try again later")]
     LockTimeout,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant connector account is configured with invalid {config}")]
+    InvalidConnectorConfiguration { config: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -590,6 +592,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PaymentMethodUnactivated
             }
             errors::ApiErrorResponse::ResourceBusy => Self::PaymentMethodUnactivated,
+            errors::ApiErrorResponse::InvalidConnectorConfiguration { config } => {
+                Self::InvalidConnectorConfiguration { config }
+            }
         }
     }
 }
@@ -656,7 +661,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileProviderNotSupported
             | Self::CurrencyNotSupported { .. }
             | Self::DuplicateCustomer
-            | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
+            | Self::PaymentMethodUnactivated
+            | Self::InvalidConnectorConfiguration { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

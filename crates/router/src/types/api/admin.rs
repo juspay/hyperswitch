@@ -4,8 +4,8 @@ pub use api_models::admin::{
     MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
     MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
     MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
-    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm,
-    RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm, ToggleKVRequest,
+    ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
@@ -124,9 +124,10 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
             webhook_details: webhook_details.or(merchant_account.webhook_details),
             metadata: request.metadata,
-            routing_algorithm: request
-                .routing_algorithm
-                .or(merchant_account.routing_algorithm),
+            routing_algorithm: Some(serde_json::json!({
+                "algorithm_id": null,
+                "timestamp": 0
+            })),
             intent_fulfillment_time: request
                 .intent_fulfillment_time
                 .map(i64::from)

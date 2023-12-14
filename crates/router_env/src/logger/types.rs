@@ -66,6 +66,8 @@ pub enum Flow {
     MerchantConnectorsCreate,
     /// Merchant Connectors retrieve flow.
     MerchantConnectorsRetrieve,
+    /// Merchant account list
+    MerchantAccountList,
     /// Merchant Connectors update flow.
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
@@ -163,6 +165,28 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    // Retrieve forex flow.
+    RetrieveForexFlow,
+    /// Routing create flow,
+    RoutingCreateConfig,
+    /// Routing link config
+    RoutingLinkConfig,
+    /// Routing link config
+    RoutingUnlinkConfig,
+    /// Routing retrieve config
+    RoutingRetrieveConfig,
+    /// Routing retrieve active config
+    RoutingRetrieveActiveConfig,
+    /// Routing retrieve default config
+    RoutingRetrieveDefaultConfig,
+    /// Routing retrieve dictionary
+    RoutingRetrieveDictionary,
+    /// Routing update config
+    RoutingUpdateConfig,
+    /// Routing update default config
+    RoutingUpdateDefaultConfig,
+    /// Routing delete config
+    RoutingDeleteConfig,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -203,6 +227,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// Payment Link List flow
+    PaymentLinkList,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -215,6 +241,82 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Rust locker migration
+    RustLockerMigration,
+    /// Gsm Rule Creation flow
+    GsmRuleCreate,
+    /// Gsm Rule Retrieve flow
+    GsmRuleRetrieve,
+    /// Gsm Rule Update flow
+    GsmRuleUpdate,
+    /// Gsm Rule Delete flow
+    GsmRuleDelete,
+    /// User Sign Up
+    UserSignUp,
+    /// User Sign Up
+    UserSignUpWithMerchantId,
+    /// User Sign In
+    UserSignIn,
+    /// User connect account
+    UserConnectAccount,
+    /// Upsert Decision Manager Config
+    DecisionManagerUpsertConfig,
+    /// Delete Decision Manager Config
+    DecisionManagerDeleteConfig,
+    /// Retrieve Decision Manager Config
+    DecisionManagerRetrieveConfig,
+    /// Manual payment fulfillment acknowledgement
+    FrmFulfillment,
+    /// Change password flow
+    ChangePassword,
+    /// Set Dashboard Metadata flow
+    SetDashboardMetadata,
+    /// Get Multiple Dashboard Metadata flow
+    GetMutltipleDashboardMetadata,
+    /// Payment Connector Verify
+    VerifyPaymentConnector,
+    /// Internal user signup
+    InternalUserSignup,
+    /// Switch merchant
+    SwitchMerchant,
+    /// Get permission info
+    GetAuthorizationInfo,
+    /// List roles
+    ListRoles,
+    /// Get role
+    GetRole,
+    /// Update user role
+    UpdateUserRole,
+    /// Create merchant account for user in a org
+    UserMerchantAccountCreate,
+    /// Generate Sample Data
+    GenerateSampleData,
+    /// Delete Sample Data
+    DeleteSampleData,
+    /// List merchant accounts for user
+    UserMerchantAccountList,
+    /// Get users for merchant account
+    GetUserDetails,
+    /// PaymentMethodAuth Link token create
+    PmAuthLinkTokenCreate,
+    /// PaymentMethodAuth Exchange token create
+    PmAuthExchangeToken,
+    /// Get reset password link
+    ForgotPassword,
+    /// Reset password using link
+    ResetPassword,
+    /// Invite users
+    InviteUser,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
+    /// Verify email Token
+    VerifyEmail,
+    /// Send verify email
+    VerifyEmailRequest,
 }
 
 ///

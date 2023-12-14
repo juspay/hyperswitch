@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
+    connector::utils::{self, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services,
@@ -138,7 +138,8 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -282,8 +283,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 Ok(a)
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::ApplePay(_) => {
+                api_models::payments::WalletData::GooglePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
@@ -293,6 +293,32 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                             }
                         },
                     }))
+                }
+                api_models::payments::WalletData::ApplePay(_) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        types::PaymentMethodToken::Token(apple_pay_payment_token) => {
+                            Ok(PaymentSource::Wallets(WalletSource {
+                                source_type: CheckoutSourceTypes::Token,
+                                token: apple_pay_payment_token,
+                            }))
+                        }
+                        types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            let exp_month = decrypt_data.get_expiry_month()?;
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                            Ok(PaymentSource::ApplePayPredecrypt(Box::new(
+                                ApplePayPredecrypt {
+                                    token: decrypt_data.application_primary_account_number,
+                                    decrypt_type: "network_token".to_string(),
+                                    token_type: "applepay".to_string(),
+                                    expiry_month: exp_month,
+                                    expiry_year: expiry_year_4_digit,
+                                    eci: decrypt_data.payment_data.eci_indicator,
+                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                },
+                            )))
+                        }
+                    }
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
@@ -334,11 +360,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("checkout"),
-                ))
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+            )),
         }?;
 
         let three_ds = match item.router_data.auth_type {
@@ -535,6 +560,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         } else {
             None
@@ -548,6 +575,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -582,6 +610,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         } else {
             None
@@ -595,6 +625,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -669,6 +700,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: response.into(),
             ..item.data
@@ -765,6 +797,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
+                incremental_authorization_allowed: None,
             }),
             status,
             amount_captured,

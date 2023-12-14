@@ -1,12 +1,13 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use error_stack::IntoReport;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{consts, metrics, store::kv::TypedSql, KVRouterStore};
+use crate::{metrics, store::kv::TypedSql, KVRouterStore};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -60,7 +61,7 @@ pub enum KvOperation<'a, S: serde::Serialize + Debug> {
 }
 
 #[derive(TryGetEnumVariant)]
-#[error(RedisError(UnknownResult))]
+#[error(RedisError::UnknownResult)]
 pub enum KvResult<T: de::DeserializeOwned> {
     HGet(T),
     Get(T),
@@ -102,15 +103,17 @@ where
     let type_name = std::any::type_name::<T>();
     let operation = op.to_string();
 
+    let ttl = store.ttl_for_kv;
+
     let partition_key = PartitionKey::MerchantIdPaymentIdCombination { combination: key };
 
     let result = async {
         match op {
             KvOperation::Hset(value, sql) => {
-                logger::debug!("Operation: {operation} value: {value:?}");
+                logger::debug!(kv_operation= %operation, value = ?value);
 
                 redis_conn
-                    .set_hash_fields(key, value, Some(consts::KV_TTL))
+                    .set_hash_fields(key, value, Some(ttl.into()))
                     .await?;
 
                 store
@@ -133,39 +136,37 @@ where
             }
 
             KvOperation::HSetNx(field, value, sql) => {
-                logger::debug!("Operation: {operation} value: {value:?}");
+                logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
-                    .serialize_and_set_hash_field_if_not_exist(
-                        key,
-                        field,
-                        value,
-                        Some(consts::KV_TTL),
-                    )
+                    .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(ttl))
                     .await?;
 
                 if matches!(result, redis_interface::HsetnxReply::KeySet) {
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::HSetNx(result))
+                } else {
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-                Ok(KvResult::HSetNx(result))
             }
 
             KvOperation::SetNx(value, sql) => {
-                logger::debug!("Operation: {operation} value: {value:?}");
+                logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
-                    .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
+                    .serialize_and_set_key_if_not_exist(key, value, Some(ttl.into()))
                     .await?;
 
                 if matches!(result, redis_interface::SetnxReply::KeySet) {
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::SetNx(result))
+                } else {
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-
-                Ok(KvResult::SetNx(result))
             }
 
             KvOperation::Get => {
@@ -178,14 +179,14 @@ where
     result
         .await
         .map(|result| {
-            logger::debug!("KvOperation {operation} succeeded");
+            logger::debug!(kv_operation= %operation, status="success");
             let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation.clone());
 
             metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
             result
         })
         .map_err(|err| {
-            logger::error!("KvOperation for {operation} failed with {err:?}");
+            logger::error!(kv_operation = %operation, status="error", error = ?err);
             let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation);
 
             metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);

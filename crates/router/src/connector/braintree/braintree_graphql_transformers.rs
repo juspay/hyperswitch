@@ -86,8 +86,8 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConfig {
-                field_name: "merchant connector account metadata",
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
             })?;
         Ok(metadata)
     }
@@ -109,8 +109,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "merchant connector account metadata",
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
                 })?;
         utils::validate_currency(
             item.router_data.request.currency,
@@ -138,7 +138,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -254,6 +255,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -271,6 +273,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -316,6 +319,8 @@ fn get_error_response<T>(
         message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: error_reason,
         status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     })
 }
 
@@ -432,6 +437,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -449,6 +455,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -492,6 +499,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -536,6 +544,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -602,8 +611,8 @@ impl<F> TryFrom<BraintreeRouterData<&types::RefundsRouterData<F>>> for Braintree
     ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "merchant connector account metadata",
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
                 })?;
 
         utils::validate_currency(
@@ -712,9 +721,7 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
         let metadata: BraintreeMeta = utils::to_connector_meta_from_secret(
             item.connector_meta_data.clone(),
         )
-        .change_context(errors::ConnectorError::InvalidConfig {
-            field_name: "merchant connector account metadata",
-        })?;
+        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         utils::validate_currency(
             item.request.currency,
             Some(metadata.merchant_config_currency),
@@ -860,7 +867,9 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         expiration_year: card_data.card_exp_year,
                         expiration_month: card_data.card_exp_month,
                         cvv: card_data.card_cvc,
-                        cardholder_name: card_data.card_holder_name,
+                        cardholder_name: card_data
+                            .card_holder_name
+                            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     },
                 };
                 Ok(Self {
@@ -879,12 +888,11 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("braintree"),
+            )
+            .into()),
         }
     }
 }
@@ -1061,6 +1069,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1158,6 +1167,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1255,6 +1265,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1345,8 +1356,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "merchant connector account metadata",
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
                 })?;
         utils::validate_currency(
             item.router_data.request.currency,
@@ -1423,9 +1434,10 @@ fn get_braintree_redirect_form(
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented("given payment method".to_owned()),
-            )?,
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                "given payment method".to_owned(),
+            ))?,
         },
     })
 }

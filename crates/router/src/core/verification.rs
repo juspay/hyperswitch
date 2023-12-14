@@ -1,24 +1,18 @@
 pub mod utils;
-use actix_web::web;
 use api_models::verifications::{self, ApplepayMerchantResponse};
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 #[cfg(feature = "kms")]
 use external_services::kms;
 
-use crate::{
-    core::errors::{self, api_error_response},
-    headers, logger,
-    routes::AppState,
-    services, types,
-};
+use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: web::Json<verifications::ApplepayMerchantVerificationRequest>,
+    body: verifications::ApplepayMerchantVerificationRequest,
     kms_config: &kms::KmsConfig,
     merchant_id: String,
 ) -> CustomResult<
@@ -58,13 +52,6 @@ pub async fn verify_merchant_creds_for_applepay(
         partner_merchant_name: APPLEPAY_INTERNAL_MERCHANT_NAME.to_string(),
     };
 
-    let applepay_req = types::RequestBody::log_and_get_request_body(
-        &request_body,
-        Encode::<verifications::ApplepayMerchantVerificationRequest>::encode_to_string_of_json,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encode ApplePay session request to a string of json")?;
-
     let apple_pay_merch_verification_req = services::RequestBuilder::new()
         .method(services::Method::Post)
         .url(applepay_endpoint)
@@ -73,7 +60,7 @@ pub async fn verify_merchant_creds_for_applepay(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string().into(),
         )])
-        .body(Some(applepay_req))
+        .set_body(RequestContent::Json(Box::new(request_body)))
         .add_certificate(Some(cert_data))
         .add_certificate_key(Some(key_data))
         .build();

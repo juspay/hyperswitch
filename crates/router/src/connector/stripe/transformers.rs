@@ -5,10 +5,11 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     pii::{self, Email},
+    request::RequestContent,
 };
 use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -16,7 +17,9 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{self as connector_util, ApplePay, PaymentsPreProcessingData, RouterData},
+    connector::utils::{
+        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
+    },
     core::errors,
     services,
     types::{
@@ -24,7 +27,7 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 pub struct StripeAuthType {
@@ -614,6 +617,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
             enums::PaymentMethodType::Boleto
+            | enums::PaymentMethodType::CardRedirect
             | enums::PaymentMethodType::CryptoCurrency
             | enums::PaymentMethodType::GooglePay
             | enums::PaymentMethodType::Multibanco
@@ -1391,11 +1395,14 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
             payments::CardRedirectData::Knet {}
             | payments::CardRedirectData::Benefit {}
-            | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
+            | payments::CardRedirectData::MomoAtm {}
+            | payments::CardRedirectData::CardRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "stripe",
+                }
+                .into())
             }
-            .into()),
         },
         payments::PaymentMethodData::Reward => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1427,13 +1434,13 @@ fn create_stripe_payment_method(
             .into()),
         },
 
-        payments::PaymentMethodData::Upi(_) | payments::PaymentMethodData::MandatePayment => {
-            Err(errors::ConnectorError::NotSupported {
-                message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "stripe",
-            }
-            .into())
+        payments::PaymentMethodData::Upi(_)
+        | payments::PaymentMethodData::MandatePayment
+        | payments::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
+            message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "stripe",
         }
+        .into()),
     }
 }
 
@@ -1469,24 +1476,8 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                     if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                         payment_method_token
                     {
-                        let expiry_year_4_digit = Secret::new(format!(
-                            "20{}",
-                            decrypt_data
-                                .clone()
-                                .application_expiration_date
-                                .peek()
-                                .get(0..2)
-                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                        ));
-                        let exp_month = Secret::new(
-                            decrypt_data
-                                .clone()
-                                .application_expiration_date
-                                .peek()
-                                .get(2..4)
-                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                                .to_owned(),
-                        );
+                        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                        let exp_month = decrypt_data.get_expiry_month()?;
 
                         Some(Self::Wallet(StripeWallet::ApplePayPredecryptToken(
                             Box::new(StripeApplePayPredecrypt {
@@ -2118,6 +2109,7 @@ impl Deref for PaymentSyncResponse {
 pub struct LastPaymentError {
     code: String,
     message: String,
+    decline_code: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -2329,6 +2321,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: item.response.amount_received,
             ..item.data
@@ -2463,8 +2456,19 @@ impl<F, T>
                 .map(|error| types::ErrorResponse {
                     code: error.code.to_owned(),
                     message: error.code.to_owned(),
-                    reason: Some(error.message.to_owned()),
+                    reason: error
+                        .decline_code
+                        .clone()
+                        .map(|decline_code| {
+                            format!(
+                                "message - {}, decline_code - {}",
+                                error.message, decline_code
+                            )
+                        })
+                        .or(Some(error.message.clone())),
                     status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 });
 
         let connector_metadata =
@@ -2478,6 +2482,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             Err,
         );
@@ -2519,6 +2524,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -2772,6 +2778,13 @@ pub struct ErrorDetails {
     pub error_type: Option<String>,
     pub message: Option<String>,
     pub param: Option<String>,
+    pub decline_code: Option<String>,
+    pub payment_intent: Option<PaymentIntentErrorResponse>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentIntentErrorResponse {
+    pub id: String,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2972,6 +2985,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::GiftCard(..))
             | Some(payments::PaymentMethodData::CardRedirect(..))
             | Some(payments::PaymentMethodData::Voucher(..))
+            | Some(payments::PaymentMethodData::CardToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -3052,6 +3066,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -3393,7 +3408,8 @@ impl
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
             })?,
@@ -3409,26 +3425,16 @@ pub struct StripeGpayToken {
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+) -> CustomResult<RequestContent, errors::ConnectorError> {
     match bank_transfer_data {
         api_models::payments::BankTransferData::AchBankTransfer { .. }
         | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
-            let request = types::RequestBody::log_and_get_request_body(
-                &req,
-                utils::Encode::<ChargesRequest>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(request))
+            Ok(RequestContent::FormUrlEncoded(Box::new(req)))
         }
         _ => {
             let req = PaymentIntentRequest::try_from(req)?;
-            let request = types::RequestBody::log_and_get_request_body(
-                &req,
-                utils::Encode::<PaymentIntentRequest>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(request))
+            Ok(RequestContent::FormUrlEncoded(Box::new(req)))
         }
     }
 }

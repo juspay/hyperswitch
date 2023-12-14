@@ -234,6 +234,7 @@ fn get_payment_response(
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: response.reference,
+            incremental_authorization_allowed: None,
         }),
     }
 }

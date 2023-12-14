@@ -21,23 +21,24 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
-    api::server_wrap(
-        flow,
+    Box::pin(api::server_wrap(
+        flow.clone(),
         state,
         &req,
-        body,
-        |state, auth, body| {
+        (),
+        |state, auth, _| {
             webhooks::webhooks_wrapper::<W, Oss>(
+                &flow,
                 state.to_owned(),
                 &req,
                 auth.merchant_account,
                 auth.key_store,
                 &connector_id_or_name,
-                body,
+                body.clone(),
             )
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
