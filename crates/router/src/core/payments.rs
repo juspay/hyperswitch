@@ -89,7 +89,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
 )>
 where
     F: Send + Clone + Sync,
-    Req: Authenticate,
+    Req: Authenticate + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -204,10 +204,6 @@ where
         );
 
         if should_continue_transaction {
-            operation
-                .to_domain()?
-                .populate_payment_data(state, &mut payment_data, &merchant_account)
-                .await?;
             payment_data = match connector_details {
                 api::ConnectorCallType::PreDetermined(connector) => {
                     let schedule_time = if should_add_task_to_process_tracker {
@@ -427,6 +423,23 @@ where
             .await?;
     }
 
+    let cloned_payment_data = payment_data.clone();
+    let cloned_customer = customer.clone();
+    let cloned_request = req.clone();
+
+    crate::utils::trigger_payments_webhook(
+        merchant_account,
+        business_profile,
+        cloned_payment_data,
+        Some(cloned_request),
+        cloned_customer,
+        state,
+        operation,
+    )
+    .await
+    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+    .ok();
+
     Ok((
         payment_data,
         req,
@@ -484,6 +497,13 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
+        if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
+            // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
+            let surcharge_details =
+                types::SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt));
+            payment_data.surcharge_details = Some(surcharge_details);
+            return Ok(());
+        }
         let raw_card_key = payment_data
             .payment_method_data
             .as_ref()
@@ -562,6 +582,7 @@ where
             payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
+                original_amount: payment_data.payment_attempt.amount,
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
@@ -620,7 +641,7 @@ where
     F: Send + Clone + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
-    Req: Debug + Authenticate,
+    Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
