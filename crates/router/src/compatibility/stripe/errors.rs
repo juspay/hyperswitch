@@ -33,7 +33,7 @@ pub enum StripeErrorCode {
         expected_format: String,
     },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "Refund amount exceeds the payment amount.")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "The refund amount exceeds the amount captured.")]
     RefundAmountExceedsPaymentAmount { param: String },
 
     #[error(error_type = StripeErrorType::ApiError, code = "payment_intent_authentication_failure", message = "Payment failed while processing with connector. Retry payment.")]
