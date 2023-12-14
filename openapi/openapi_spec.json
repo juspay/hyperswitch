@@ -945,10 +945,141 @@
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
               },
               "examples": {
+                "Create a 3DS payment": {
+                  "value": {
+                    "amount": 6540,
+                    "authentication_type": "three_ds",
+                    "currency": "USD"
+                  }
+                },
+                "Create a manual capture payment": {
+                  "value": {
+                    "amount": 6540,
+                    "billing": {
+                      "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "phone": {
+                        "country_code": "+91",
+                        "number": "8056594427"
+                      }
+                    },
+                    "currency": "USD",
+                    "customer": {
+                      "id": "cus_abcdefgh"
+                    }
+                  }
+                },
+                "Create a payment and save the card": {
+                  "value": {
+                    "amount": 6540,
+                    "authentication_type": "no_three_ds",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_id": "StripeCustomer123",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "setup_future_usage": "off_session"
+                  }
+                },
+                "Create a payment using an already saved card's token": {
+                  "value": {
+                    "amount": 6540,
+                    "card_cvc": "123",
+                    "client_secret": "{{client_secret}}",
+                    "confirm": true,
+                    "currency": "USD",
+                    "payment_method": "card",
+                    "payment_token": "{{payment_token}}"
+                  }
+                },
+                "Create a payment with customer details and metadata": {
+                  "value": {
+                    "amount": 6540,
+                    "currency": "USD",
+                    "customer": {
+                      "email": "john@example.com",
+                      "id": "cus_abcdefgh",
+                      "name": "John Dough",
+                      "phone": "9999999999"
+                    },
+                    "description": "Its my first payment request",
+                    "metadata": {
+                      "udf1": "some-value",
+                      "udf2": "some-value"
+                    },
+                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
+                    "statement_descriptor_name": "joseph",
+                    "statement_descriptor_suffix": "JS"
+                  }
+                },
                 "Create a payment with minimal fields": {
                   "value": {
                     "amount": 6540,
                     "currency": "USD"
+                  }
+                },
+                "Create a recurring payment with mandate_id": {
+                  "value": {
+                    "amount": 6540,
+                    "authentication_type": "no_three_ds",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_id": "StripeCustomer",
+                    "mandate_id": "{{mandate_id}}",
+                    "off_session": true
+                  }
+                },
+                "Create a setup mandate payment": {
+                  "value": {
+                    "amount": 6540,
+                    "authentication_type": "no_three_ds",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_id": "StripeCustomer123",
+                    "mandate_data": {
+                      "customer_acceptance": {
+                        "acceptance_type": "offline",
+                        "accepted_at": "1963-05-03T04:07:52.723Z",
+                        "online": {
+                          "ip_address": "127.0.0.1",
+                          "user_agent": "amet irure esse"
+                        }
+                      },
+                      "mandate_type": {
+                        "single_use": {
+                          "amount": 6540,
+                          "currency": "USD"
+                        }
+                      }
+                    },
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "setup_future_usage": "off_session"
                   }
                 }
               }
