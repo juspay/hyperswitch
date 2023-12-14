@@ -30,8 +30,6 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
 };
-#[cfg(not(feature = "connector_choice_mca_id"))]
-use crate::core::utils::get_connector_label;
 use crate::{
     configs::settings,
     core::{
@@ -1190,8 +1188,6 @@ pub async fn list_payment_methods(
 
         for (pm_type, choice) in result {
             let routable_choice = routing_types::RoutableConnectorChoice {
-                #[cfg(feature = "backwards_compatibility")]
-                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
                 connector: choice
                     .connector
                     .connector_name
@@ -1200,10 +1196,7 @@ pub async fn list_payment_methods(
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("")?,
-                #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: choice.connector.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: choice.sub_label,
             };
 
             pre_routing_results.insert(pm_type, routable_choice);
@@ -1217,22 +1210,6 @@ pub async fn list_payment_methods(
         let mut val = Vec::new();
 
         for (payment_method_type, routable_connector_choice) in &pre_routing_results {
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let connector_label = get_connector_label(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                routable_connector_choice.sub_label.as_ref(),
-                #[cfg(feature = "connector_choice_mca_id")]
-                None,
-                routable_connector_choice.connector.to_string().as_str(),
-            );
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let matched_mca = filtered_mcas
-                .iter()
-                .find(|m| connector_label == m.connector_label);
-
-            #[cfg(feature = "connector_choice_mca_id")]
             let matched_mca = filtered_mcas.iter().find(|m| {
                 routable_connector_choice.merchant_connector_id.as_ref()
                     == Some(&m.merchant_connector_id)

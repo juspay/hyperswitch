@@ -86,7 +86,10 @@
       },
       "routing": {
         "type": "single",
-        "data": "stripe"
+        "data": {
+          "connector":"stripe",
+          "merchant_connector_id":"{{merchant_connector_id}}"
+        }
       }
     }
   },

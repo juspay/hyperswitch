@@ -293,11 +293,7 @@ fn compile_merchant_connector_graph(
         .make_any_aggregator(&agg_nodes, Some(aggregator_info), None::<()>, Vec::new())
         .map_err(KgraphError::GraphConstructionError)?;
 
-    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
-        connector,
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        sub_label: mca.business_sub_label,
-    }));
+    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice { connector }));
 
     let connector_info = "Connector";
     let connector_node_id = builder

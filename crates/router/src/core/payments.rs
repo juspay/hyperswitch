@@ -2395,10 +2395,9 @@ where
 
     let mut routing_data = storage::RoutingData {
         routed_through: payment_data.payment_attempt.connector.clone(),
-        #[cfg(feature = "connector_choice_mca_id")]
+
         merchant_connector_id: payment_data.payment_attempt.merchant_connector_id.clone(),
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
+
         algorithm: request_straight_through.clone(),
         routing_info: payment_data
             .payment_attempt
@@ -2432,14 +2431,8 @@ where
             .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
-    #[cfg(feature = "connector_choice_mca_id")]
-    {
-        payment_data.payment_attempt.merchant_connector_id = routing_data.merchant_connector_id;
-    }
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    {
-        payment_data.payment_attempt.business_sub_label = routing_data.business_sub_label;
-    }
+
+    payment_data.payment_attempt.merchant_connector_id = routing_data.merchant_connector_id;
     payment_data.payment_attempt.straight_through_algorithm = Some(encoded_info);
 
     Ok(decided_connector)
@@ -2482,20 +2475,16 @@ where
             &state.conf.connectors,
             &mandate_connector_details.connector,
             api::GetToken::Connector,
-            #[cfg(feature = "connector_choice_mca_id")]
             mandate_connector_details.merchant_connector_id.clone(),
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            None,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(mandate_connector_details.connector.clone());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id =
-                mandate_connector_details.merchant_connector_id.clone();
-        }
+
+        routing_data.merchant_connector_id =
+            mandate_connector_details.merchant_connector_id.clone();
+
         return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 
@@ -2510,23 +2499,15 @@ where
                 &state.conf.connectors,
                 &choice.connector.to_string(),
                 api::GetToken::Connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 choice.merchant_connector_id.clone(),
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
             routing_data.routed_through = Some(choice.connector.to_string());
-            #[cfg(feature = "connector_choice_mca_id")]
-            {
-                routing_data.merchant_connector_id = choice.merchant_connector_id.clone();
-            }
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            {
-                routing_data.business_sub_label = choice.sub_label.clone();
-            }
+
+            routing_data.merchant_connector_id = choice.merchant_connector_id.clone();
+
             return Ok(api::ConnectorCallType::PreDetermined(connector_data));
         }
     }
@@ -2545,7 +2526,6 @@ where
                 connectors,
                 payment_data,
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
             )
             .await
@@ -2567,10 +2547,7 @@ where
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     conn.merchant_connector_id.clone(),
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -2578,14 +2555,9 @@ where
             .attach_printable("Invalid connector name received")?;
 
         routing_data.routed_through = Some(first_connector_choice.connector.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-        }
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
-        }
+
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
         routing_data.routing_info.algorithm = Some(routing_algorithm);
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
@@ -2604,7 +2576,6 @@ where
                 connectors,
                 payment_data,
                 eligible_connectors,
-                #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
             )
             .await
@@ -2626,10 +2597,7 @@ where
                     &state.conf.connectors,
                     &conn.connector.to_string(),
                     api::GetToken::Connector,
-                    #[cfg(feature = "connector_choice_mca_id")]
                     conn.merchant_connector_id,
-                    #[cfg(not(feature = "connector_choice_mca_id"))]
-                    None,
                 )
             })
             .collect::<CustomResult<Vec<_>, _>>()
@@ -2637,14 +2605,9 @@ where
             .attach_printable("Invalid connector name received")?;
 
         routing_data.routed_through = Some(first_connector_choice.connector.to_string());
-        #[cfg(feature = "connector_choice_mca_id")]
-        {
-            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-        }
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        {
-            routing_data.business_sub_label = first_connector_choice.sub_label;
-        }
+
+        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
         return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
@@ -2758,19 +2721,6 @@ where
 
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    for mut connector_data in connectors {
-        if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
-            final_list.push(connector_data);
-        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
-            if connector_data.connector.connector_name == choice.connector.connector_name {
-                connector_data.business_sub_label = choice.sub_label.clone();
-                final_list.push(connector_data);
-            }
-        }
-    }
-
-    #[cfg(feature = "connector_choice_mca_id")]
     for connector_data in connectors {
         if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
@@ -2796,11 +2746,7 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
-        business_profile.routing_algorithm.clone()
-    } else {
-        merchant_account.routing_algorithm.clone()
-    };
+    let routing_algorithm = business_profile.routing_algorithm.clone();
 
     let algorithm_ref = routing_algorithm
         .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
@@ -2825,7 +2771,6 @@ where
         connectors,
         payment_data,
         eligible_connectors,
-        #[cfg(feature = "business_profile_routing")]
         payment_data.payment_intent.profile_id.clone(),
     )
     .await
@@ -2841,14 +2786,7 @@ where
 
     routing_data.routed_through = Some(first_connector_choice.connector.to_string());
 
-    #[cfg(feature = "connector_choice_mca_id")]
-    {
-        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
-    }
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    {
-        routing_data.business_sub_label = first_connector_choice.sub_label;
-    }
+    routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
 
     let connector_data = connectors
         .into_iter()
@@ -2857,10 +2795,7 @@ where
                 &state.conf.connectors,
                 &conn.connector.to_string(),
                 api::GetToken::Connector,
-                #[cfg(feature = "connector_choice_mca_id")]
                 conn.merchant_connector_id,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                None,
             )
         })
         .collect::<CustomResult<Vec<_>, _>>()
