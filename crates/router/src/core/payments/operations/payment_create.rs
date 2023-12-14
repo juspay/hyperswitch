@@ -561,8 +561,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
-        helpers::validate_card_holder_name(request.payment_method_data.clone())?;
-
         helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type =
