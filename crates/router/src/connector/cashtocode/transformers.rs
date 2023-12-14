@@ -256,14 +256,6 @@ impl<F>
                     .payment_method_type
                     .as_ref()
                     .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
-                // let method = get_http_method(payment_method_type)?;
-                // let redirection_data =
-                //     services::RedirectForm::from((response_data.pay_url, method));
-                // let redirection_data = services::RedirectForm::Form {
-                //     endpoint: response_data.pay_url.to_string(),
-                //     method,
-                //     form_fields: Default::default(),
-                // };
                 let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (
                     enums::AttemptStatus::AuthenticationPending,
@@ -310,7 +302,7 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Charged, // Cherged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
+            status: enums::AttemptStatus::Charged, // Charged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
