@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.101.0 (2023-12-14)
+
+### Features
+
+- **payments:** Add outgoing payments webhooks ([#3133](https://github.com/juspay/hyperswitch/pull/3133)) ([`f457846`](https://github.com/juspay/hyperswitch/commit/f4578463d5e1a0f442aacebdfa7af0460489ba8c))
+
+### Bug Fixes
+
+- **connector:** [CashToCode]Fix cashtocode redirection for evoucher pm type ([#3131](https://github.com/juspay/hyperswitch/pull/3131)) ([`71a86a8`](https://github.com/juspay/hyperswitch/commit/71a86a804e15e4d053f92cfddb36a15cf7b77f7a))
+- **locker:** Fix double serialization for json request ([#3134](https://github.com/juspay/hyperswitch/pull/3134)) ([`70b86b7`](https://github.com/juspay/hyperswitch/commit/70b86b71e4809d2a47c6bc1214f72c37d3325c37))
+- **router:** Add routing cache invalidation on payment connector update ([#3132](https://github.com/juspay/hyperswitch/pull/3132)) ([`1f84865`](https://github.com/juspay/hyperswitch/commit/1f848659f135542fdfa967b3b48ad6cdf69fda2c))
+
+**Full Changelog:** [`v1.100.0...v1.101.0`](https://github.com/juspay/hyperswitch/compare/v1.100.0...v1.101.0)
+
+- - -
+
+
 ## 1.100.0 (2023-12-14)
 
 ### Features
