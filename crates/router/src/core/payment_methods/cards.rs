@@ -30,8 +30,6 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
 };
-#[cfg(not(feature = "connector_choice_mca_id"))]
-use crate::core::utils::get_connector_label;
 use crate::{
     configs::settings,
     core::{
@@ -1212,22 +1210,6 @@ pub async fn list_payment_methods(
         let mut val = Vec::new();
 
         for (payment_method_type, routable_connector_choice) in &pre_routing_results {
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let connector_label = get_connector_label(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                routable_connector_choice.sub_label.as_ref(),
-                #[cfg(feature = "connector_choice_mca_id")]
-                None,
-                routable_connector_choice.connector.to_string().as_str(),
-            );
-            #[cfg(not(feature = "connector_choice_mca_id"))]
-            let matched_mca = filtered_mcas
-                .iter()
-                .find(|m| connector_label == m.connector_label);
-
-            #[cfg(feature = "connector_choice_mca_id")]
             let matched_mca = filtered_mcas.iter().find(|m| {
                 routable_connector_choice.merchant_connector_id.as_ref()
                     == Some(&m.merchant_connector_id)
