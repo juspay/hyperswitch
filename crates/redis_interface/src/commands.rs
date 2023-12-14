@@ -297,12 +297,15 @@ impl super::RedisConnectionPool {
             .into_report()
             .change_context(errors::RedisError::SetExpiryFailed)?;
         let results = pipeline.try_all::<RedisValue>().await;
-
-        results[0]
-            .clone()
-            .map_or_else(|err| Err(err), |x| fred::types::RedisValue::convert(x))
-            .into_report()
-            .change_context(errors::RedisError::PipelineError)
+        
+        match results.into_iter().nth(0){
+            Some (result) =>
+                    result
+                        .map_or_else(|err| {Err(err)} , |x| {fred::types::RedisValue::convert(x)})
+                        .into_report()
+                        .change_context(errors::RedisError::PipelineError),
+            None => Err(errors::RedisError::UnknownResult).into_report()
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
