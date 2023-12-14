@@ -1,10 +1,41 @@
 /// Refunds - Create
 ///
-/// To create a refund against an already processed payment
+/// Creates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amounth has been refunded
 #[utoipa::path(
     post,
     path = "/refunds",
-    request_body=RefundRequest,
+    request_body(
+        content = RefundRequest,
+        examples(
+            (
+                "Create an instant refund to refund the whole amount" = (
+                    value = json!({
+                        "payment_id": "{{payment_id}}",
+                        "refund_type": "instant"
+                      })
+                )
+            ),
+            (
+                "Create an instant refund to refund partial amount" = (
+                    value = json!({
+                        "payment_id": "{{payment_id}}",
+                        "refund_type": "instant",
+                        "amount": 654
+                      })
+                )
+            ),
+            (
+                "Create an instant refund with reason" = (
+                    value = json!({
+                        "payment_id": "{{payment_id}}",
+                        "refund_type": "instant",
+                        "amount": 6540,
+                        "reason": "Customer returned product"
+                      })
+                )
+            ),
+        )
+    ),
     responses(
         (status = 200, description = "Refund created", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -15,9 +46,9 @@
 )]
 pub async fn refunds_create() {}
 
-/// Refunds - Retrieve (GET)
+/// Refunds - Retrieve
 ///
-/// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+/// Retrieves a Refund. This may be used to get the status of a previously initiated refund
 #[utoipa::path(
     get,
     path = "/refunds/{refund_id}",
@@ -52,14 +83,25 @@ pub async fn refunds_retrieve_with_body() {}
 
 /// Refunds - Update
 ///
-/// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields
+/// Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields
 #[utoipa::path(
     post,
     path = "/refunds/{refund_id}",
     params(
         ("refund_id" = String, Path, description = "The identifier for refund")
     ),
-    request_body=RefundUpdateRequest,
+    request_body(
+        content = RefundUpdateRequest,
+        examples(
+            (
+                "Update refund reason" = (
+                    value = json!({
+                        "reason": "Paid by mistake"
+                      })
+                )
+            ),
+        )
+    ),
     responses(
         (status = 200, description = "Refund updated", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -72,7 +114,7 @@ pub async fn refunds_update() {}
 
 /// Refunds - List
 ///
-/// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
+/// Lists all the refunds associated with the merchant or a payment_id if payment_id is not provided
 #[utoipa::path(
     post,
     path = "/refunds/list",

@@ -20,7 +20,6 @@ pub mod workflows;
 pub mod analytics;
 pub mod events;
 pub mod middleware;
-pub mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;

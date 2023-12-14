@@ -3,6 +3,8 @@ use std::sync::Arc;
 use actix_web::{web, Scope};
 #[cfg(all(feature = "kms", feature = "olap"))]
 use analytics::AnalyticsConfig;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use common_utils::openapi_route;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 #[cfg(feature = "kms")]
@@ -318,10 +320,10 @@ impl Payments {
         #[cfg(feature = "oltp")]
         {
             route = route
-                .service(web::resource("").route(web::post().to(payments_create)))
+                .service(web::resource("").route(web::post().to(openapi_route!(payments_create))))
                 .service(
                     web::resource("/session_tokens")
-                        .route(web::post().to(payments_connector_session)),
+                        .route(web::post().to(openapi_route!(payments_connector_session))),
                 )
                 .service(
                     web::resource("/sync")
@@ -329,17 +331,17 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}")
-                        .route(web::get().to(payments_retrieve))
-                        .route(web::post().to(payments_update)),
+                        .route(web::get().to(openapi_route!(payments_retrieve)))
+                        .route(web::post().to(openapi_route!(payments_update))),
                 )
                 .service(
-                    web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
+                    web::resource("/{payment_id}/confirm").route(web::post().to(openapi_route!(payments_confirm))),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel").route(web::post().to(payments_cancel)),
+                    web::resource("/{payment_id}/cancel").route(web::post().to(openapi_route!(payments_cancel))),
                 )
                 .service(
-                    web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
+                    web::resource("/{payment_id}/capture").route(web::post().to(openapi_route!(payments_capture))),
                 )
                 .service(
                     web::resource("/{payment_id}/approve")
