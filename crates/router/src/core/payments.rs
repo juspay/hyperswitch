@@ -89,7 +89,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
 )>
 where
     F: Send + Clone + Sync,
-    Req: Authenticate,
+    Req: Authenticate + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -423,6 +423,23 @@ where
             .await?;
     }
 
+    let cloned_payment_data = payment_data.clone();
+    let cloned_customer = customer.clone();
+    let cloned_request = req.clone();
+
+    crate::utils::trigger_payments_webhook(
+        merchant_account,
+        business_profile,
+        cloned_payment_data,
+        Some(cloned_request),
+        cloned_customer,
+        state,
+        operation,
+    )
+    .await
+    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+    .ok();
+
     Ok((
         payment_data,
         req,
@@ -624,7 +641,7 @@ where
     F: Send + Clone + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
-    Req: Debug + Authenticate,
+    Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
