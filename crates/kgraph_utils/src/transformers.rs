@@ -423,6 +423,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::SEK => Ok(dirval!(PaymentCurrency = SEK)),
             Self::SGD => Ok(dirval!(PaymentCurrency = SGD)),
             Self::SHP => Ok(dirval!(PaymentCurrency = SHP)),
+            Self::SLE => Ok(dirval!(PaymentCurrency = SLE)),
             Self::SLL => Ok(dirval!(PaymentCurrency = SLL)),
             Self::SOS => Ok(dirval!(PaymentCurrency = SOS)),
             Self::SRD => Ok(dirval!(PaymentCurrency = SRD)),

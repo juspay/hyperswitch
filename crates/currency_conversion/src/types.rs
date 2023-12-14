@@ -192,6 +192,7 @@ pub fn currency_match(currency: Currency) -> &'static iso::Currency {
         Currency::SEK => iso::SEK,
         Currency::SGD => iso::SGD,
         Currency::SHP => iso::SHP,
+        Currency::SLE => iso::SLE,
         Currency::SLL => iso::SLL,
         Currency::SOS => iso::SOS,
         Currency::SRD => iso::SRD,
