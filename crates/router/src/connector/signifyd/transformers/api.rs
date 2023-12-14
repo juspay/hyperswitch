@@ -11,10 +11,7 @@ use crate::{
         AddressDetailsData, FraudCheckCheckoutRequest, FraudCheckRecordReturnRequest,
         FraudCheckSaleRequest, FraudCheckTransactionRequest, RouterData,
     },
-    core::{
-        errors,
-        fraud_check::types::{self as core_types, FrmFulfillmentRequest},
-    },
+    core::{errors, fraud_check::types as core_types},
     types::{
         self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
@@ -356,7 +353,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
-pub struct FrmFullfillmentSignifydApiRequest {
+pub struct FrmFullfillmentSignifydRequest {
     pub order_id: String,
     pub fulfillment_status: Option<FulfillmentStatus>,
     pub fulfillments: Vec<Fulfillments>,
@@ -391,22 +388,30 @@ pub struct Product {
     pub item_id: String,
 }
 
-impl From<FrmFulfillmentRequest> for FrmFullfillmentSignifydApiRequest {
-    fn from(req: FrmFulfillmentRequest) -> Self {
-        Self {
-            order_id: req.order_id,
-            fulfillment_status: req.fulfillment_status.map(FulfillmentStatus::from),
-            fulfillments: req
+impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFullfillmentSignifydRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            order_id: item.request.fulfillment_req.order_id.clone(),
+            fulfillment_status: item
+                .request
+                .fulfillment_req
+                .fulfillment_status
+                .clone()
+                .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status)),
+            fulfillments: item
+                .request
+                .fulfillment_req
                 .fulfillments
                 .iter()
                 .map(|f| Fulfillments::from(f.clone()))
                 .collect(),
-        }
+        })
     }
 }
 
-impl From<core_types::FulfillmentStatus> for FulfillmentStatus {
-    fn from(status: core_types::FulfillmentStatus) -> Self {
+impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
+    fn from(status: &core_types::FulfillmentStatus) -> Self {
         match status {
             core_types::FulfillmentStatus::PARTIAL => Self::PARTIAL,
             core_types::FulfillmentStatus::COMPLETE => Self::COMPLETE,

@@ -92,7 +92,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount;
+        let amount = payment_attempt.get_total_amount();
 
         let profile_id = payment_intent
             .profile_id
@@ -149,6 +149,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 authorization_id: None,
             }),
             authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

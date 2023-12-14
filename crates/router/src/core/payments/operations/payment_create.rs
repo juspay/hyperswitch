@@ -297,7 +297,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
-
+        let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -333,6 +333,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data,
             incremental_authorization_details: None,
             authorizations: vec![],
+            frm_metadata: request.frm_metadata.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -560,8 +561,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
-        helpers::validate_card_holder_name(request.payment_method_data.clone())?;
-
         helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type =
@@ -644,6 +643,12 @@ impl PaymentCreate {
         } else {
             utils::get_payment_attempt_id(payment_id, 1)
         };
+        let surcharge_amount = request
+            .surcharge_details
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = request
+            .surcharge_details
+            .and_then(|surcharge_details| surcharge_details.tax_amount);
 
         Ok((
             storage::PaymentAttemptNew {
@@ -669,6 +674,8 @@ impl PaymentCreate {
                 payment_token: request.payment_token.clone(),
                 mandate_id: request.mandate_id.clone(),
                 business_sub_label: request.business_sub_label.clone(),
+                surcharge_amount,
+                tax_amount,
                 mandate_details: request
                     .mandate_data
                     .as_ref()
