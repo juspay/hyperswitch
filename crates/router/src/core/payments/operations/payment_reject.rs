@@ -100,7 +100,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         .await?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount.into();
+        let amount = payment_attempt.get_total_amount().into();
 
         let frm_response = db
         .find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_account.merchant_id.clone())
@@ -158,6 +158,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: frm_response.ok(),
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

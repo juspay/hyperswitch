@@ -255,6 +255,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -272,6 +273,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -435,6 +437,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -452,6 +455,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -495,6 +499,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -539,6 +544,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -861,7 +867,9 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         expiration_year: card_data.card_exp_year,
                         expiration_month: card_data.card_exp_month,
                         cvv: card_data.card_cvc,
-                        cardholder_name: card_data.card_holder_name,
+                        cardholder_name: card_data
+                            .card_holder_name
+                            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     },
                 };
                 Ok(Self {
@@ -1061,6 +1069,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1158,6 +1167,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1255,6 +1265,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })

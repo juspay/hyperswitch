@@ -175,6 +175,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::CaptureStatus,
         api_models::enums::ReconStatus,
         api_models::enums::ConnectorStatus,
+        api_models::enums::AuthorizationStatus,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::MerchantConnectorUpdate,
         api_models::admin::PrimaryBusinessDetails,
@@ -267,6 +268,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
         api_models::payments::AmountInfo,
+        api_models::payments::ProductType,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,
@@ -315,8 +317,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RequestSurchargeDetails,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
+        api_models::payments::IncrementalAuthorizationResponse,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::MaskedBankDetails,
+        api_models::payment_methods::SurchargeDetailsResponse,
+        api_models::payment_methods::SurchargeResponse,
+        api_models::payment_methods::SurchargePercentage,
+        api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,
@@ -361,7 +368,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkObject
+        api_models::payments::PaymentLinkObject,
     )),
     modifiers(&SecurityAddon)
 )]

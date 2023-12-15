@@ -82,7 +82,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                 let address = item.get_billing_address()?;
                 let card = Card {
                     card_type,
-                    name_on_card: ccard.card_holder_name.clone(),
+                    name_on_card: ccard
+                        .card_holder_name
+                        .clone()
+                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
                     account_number: ccard.card_number.clone(),
                     expire_month: ccard.card_exp_month.clone(),
                     expire_year: ccard.card_exp_year.clone(),
@@ -277,6 +280,7 @@ impl<F, T>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -324,6 +328,7 @@ impl<F, T>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -391,6 +396,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             amount_captured: None,
             ..item.data
@@ -458,6 +464,7 @@ impl<F, T>
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

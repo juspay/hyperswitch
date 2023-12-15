@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_utils::{
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
@@ -614,6 +616,36 @@ pub struct MerchantConnectorCreate {
     pub status: Option<api_enums::ConnectorStatus>,
 }
 
+// Different patterns of authentication.
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
+pub enum ConnectorAuthType {
+    TemporaryAuth,
+    HeaderKey {
+        api_key: Secret<String>,
+    },
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    MultiAuthKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+    },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
+    },
+    #[default]
+    NoKey,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorWebhookDetails {
@@ -847,7 +879,7 @@ pub struct PaymentMethodsEnabled {
     pub payment_method: common_enums::PaymentMethod,
 
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
+    #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 

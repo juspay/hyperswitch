@@ -244,7 +244,7 @@ async fn get_tracker_for_sync<
     let payment_id_str = payment_attempt.payment_id.clone();
 
     currency = payment_attempt.currency.get_required_value("currency")?;
-    amount = payment_attempt.amount.into();
+    amount = payment_attempt.get_total_amount().into();
 
     let shipping_address = helpers::get_address_by_id(
         db,
@@ -310,6 +310,20 @@ async fn get_tracker_for_sync<
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting refund list for, payment_id: {}, merchant_id: {}",
+                &payment_id_str, merchant_account.merchant_id
+            )
+        })?;
+
+    let authorizations = db
+        .find_all_authorizations_by_merchant_id_payment_id(
+            &merchant_account.merchant_id,
+            &payment_id_str,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while getting authorizations list for, payment_id: {}, merchant_id: {}",
                 &payment_id_str, merchant_account.merchant_id
             )
         })?;
@@ -407,6 +421,9 @@ async fn get_tracker_for_sync<
         payment_link_data: None,
         surcharge_details: None,
         frm_message: frm_response.ok(),
+        incremental_authorization_details: None,
+        authorizations,
+        frm_metadata: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

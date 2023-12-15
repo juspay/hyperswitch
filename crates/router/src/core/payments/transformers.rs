@@ -1,9 +1,10 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentData};
@@ -80,6 +81,7 @@ where
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -163,6 +165,7 @@ where
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow,
+        frm_metadata: None,
     };
 
     Ok(router_data)
@@ -384,6 +387,18 @@ where
         Some(
             payment_data
                 .disputes
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+        )
+    };
+
+    let incremental_authorizations_response = if payment_data.authorizations.is_empty() {
+        None
+    } else {
+        Some(
+            payment_data
+                .authorizations
                 .into_iter()
                 .map(ForeignInto::foreign_into)
                 .collect(),
@@ -687,6 +702,11 @@ where
                         .set_merchant_connector_id(payment_attempt.merchant_connector_id)
                         .set_unified_code(payment_attempt.unified_code)
                         .set_unified_message(payment_attempt.unified_message)
+                        .set_incremental_authorization_allowed(
+                            payment_intent.incremental_authorization_allowed,
+                        )
+                        .set_authorization_count(payment_intent.authorization_count)
+                        .set_incremental_authorizations(incremental_authorizations_response)
                         .to_owned(),
                     headers,
                 ))
@@ -749,6 +769,9 @@ where
                 surcharge_details,
                 unified_code: payment_attempt.unified_code,
                 unified_message: payment_attempt.unified_message,
+                incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
+                authorization_count: payment_intent.authorization_count,
+                incremental_authorizations: incremental_authorizations_response,
                 ..Default::default()
             },
             headers,
@@ -923,6 +946,11 @@ pub fn change_order_details_to_new_type(
         quantity: order_details.quantity,
         amount: order_amount,
         product_img_link: order_details.product_img_link,
+        requires_shipping: order_details.requires_shipping,
+        product_id: order_details.product_id,
+        category: order_details.category,
+        brand: order_details.brand,
+        product_type: order_details.product_type,
     }])
 }
 
@@ -1010,6 +1038,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1020,7 +1053,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1036,6 +1069,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             complete_authorize_url,
             customer_id: None,
             surcharge_details: payment_data.surcharge_details,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                Some(RequestIncrementalAuthorization::True)
+                    | Some(RequestIncrementalAuthorization::Default)
+            ),
         })
     }
 }
@@ -1062,6 +1102,50 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
+    for types::PaymentsIncrementalAuthorizationData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+        Ok(Self {
+            total_amount: payment_data
+                .incremental_authorization_details
+                .clone()
+                .map(|details| details.total_amount)
+                .ok_or(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "missing incremental_authorization_details in payment_data",
+                    ),
+                )?,
+            additional_amount: payment_data
+                .incremental_authorization_details
+                .clone()
+                .map(|details| details.additional_amount)
+                .ok_or(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "missing incremental_authorization_details in payment_data",
+                    ),
+                )?,
+            reason: payment_data
+                .incremental_authorization_details
+                .and_then(|details| details.reason),
+            currency: payment_data.currency,
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         })
     }
 }
@@ -1222,9 +1306,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             country: payment_data.address.billing.and_then(|billing_address| {
                 billing_address.address.and_then(|address| address.country)
@@ -1274,6 +1363,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             return_url: payment_data.payment_intent.return_url,
             browser_info,
             payment_method_type: attempt.payment_method_type,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                Some(RequestIncrementalAuthorization::True)
+                    | Some(RequestIncrementalAuthorization::Default)
+            ),
         })
     }
 }
@@ -1339,6 +1435,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 payload: redirect.json_payload,
             }
         });
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1348,7 +1449,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1413,12 +1514,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
             payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount),
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,

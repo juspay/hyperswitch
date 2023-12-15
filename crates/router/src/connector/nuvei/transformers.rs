@@ -1000,7 +1000,7 @@ impl From<NuveiCardDetails> for PaymentOption {
         Self {
             card: Some(Card {
                 card_number: Some(card.card_number),
-                card_holder_name: Some(card.card_holder_name),
+                card_holder_name: card.card_holder_name,
                 expiration_month: Some(card.card_exp_month),
                 expiration_year: Some(card.card_exp_year),
                 three_d: card_details.three_d,
@@ -1452,6 +1452,7 @@ where
                     },
                     network_txn_id: None,
                     connector_response_reference_id: response.order_id,
+                    incremental_authorization_allowed: None,
                 })
             },
             ..item.data

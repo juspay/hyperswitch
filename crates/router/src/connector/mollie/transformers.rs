@@ -286,7 +286,10 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
         match item.request.payment_method_data.clone() {
             api_models::payments::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
-                let card_holder = ccard.card_holder_name.clone();
+                let card_holder = ccard
+                    .card_holder_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("card_holder_name"))?;
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
@@ -531,6 +534,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

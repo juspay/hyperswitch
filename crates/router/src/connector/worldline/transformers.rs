@@ -351,7 +351,10 @@ fn make_card_request(
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
-        cardholder_name: ccard.card_holder_name.clone(),
+        cardholder_name: ccard
+            .card_holder_name
+            .clone()
+            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
@@ -594,6 +597,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -647,6 +651,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
