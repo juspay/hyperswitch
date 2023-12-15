@@ -419,7 +419,6 @@ pub enum Currency {
     ILS,
     INR,
     IQD,
-    ISK,
     JMD,
     JOD,
     JPY,
@@ -617,7 +616,6 @@ impl Currency {
             Self::ILS => "376",
             Self::INR => "356",
             Self::IQD => "368",
-            Self::ISK => "352",
             Self::JMD => "388",
             Self::JOD => "400",
             Self::JPY => "392",
@@ -715,11 +713,6 @@ impl Currency {
             | Self::CLP
             | Self::DJF
             | Self::GNF
-            // ISO 4217 considers it zero decimal,
-            // Stripe considers it zero decimal since 2023-04-14,
-            // Braintree considers it zero decimal,
-            // Adyen however needs us to send two decimals to submit amounts in ISK
-            | Self::ISK
             | Self::JPY
             | Self::KMF
             | Self::KRW
@@ -925,7 +918,6 @@ impl Currency {
             | Self::IDR
             | Self::ILS
             | Self::INR
-            | Self::ISK
             | Self::JMD
             | Self::JPY
             | Self::KES
