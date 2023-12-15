@@ -781,7 +781,7 @@ where
     T: Eq + std::str::FromStr + std::hash::Hash,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    let (values, mut errors) = value
+    let (values, errors) = value
         .as_ref()
         .trim()
         .split(',')
@@ -808,8 +808,7 @@ where
             },
         );
     if !errors.is_empty() {
-        errors.insert(0, String::from("Some errors occurred:"));
-        Err(errors.join("\n"))
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
     } else {
         Ok(values)
     }
