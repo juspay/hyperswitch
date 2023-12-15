@@ -26,7 +26,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Merchant",
-        "description": "List payment methods for a Merchant\n\nLists the applicable payment methods for a particular Merchant ID. Use the client secret and publishable key authorization to list all relevant payment methods of the merchant for the payment corresponding to the client secret",
+        "description": "List payment methods for a Merchant\n\nLists the applicable payment methods for a particular Merchant ID.\nUse the client secret and publishable key authorization to list all relevant payment methods of the merchant for the payment corresponding to the client secret.",
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
@@ -613,7 +613,7 @@
           "Customers"
         ],
         "summary": "Customers - Create",
-        "description": "Customers - Create\n\nCreates a customer object and stores the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "description": "Customers - Create\n\nCreates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
         "requestBody": {
           "content": {
@@ -661,7 +661,7 @@
           "Customers List"
         ],
         "summary": "Customers - List",
-        "description": "Customers - List\n\nLists all the customers for a particular merchant id",
+        "description": "Customers - List\n\nLists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
         "responses": {
           "200": {
@@ -694,7 +694,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Payment",
-        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`",
+        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -809,7 +809,7 @@
           "Customers"
         ],
         "summary": "Customers - Retrieve",
-        "description": "Customers - Retrieve\n\nRetrieves a customer's details",
+        "description": "Customers - Retrieve\n\nRetrieves a customer's details.",
         "operationId": "Retrieve a Customer",
         "parameters": [
           {
@@ -949,7 +949,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Customer",
-        "description": "List payment methods for a Customer\n\nLists all the applicable payment methods for a particular Customer ID",
+        "description": "List payment methods for a Customer\n\nLists all the applicable payment methods for a particular Customer ID.",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -1487,7 +1487,7 @@
           "Payment Methods"
         ],
         "summary": "PaymentMethods - Create",
-        "description": "PaymentMethods - Create\n\nCreates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants",
+        "description": "PaymentMethods - Create\n\nCreates and stores a payment method against a customer.\nIn case of cards, this API should be used only by PCI compliant merchants.",
         "operationId": "Create a Payment Method",
         "requestBody": {
           "content": {
@@ -1543,7 +1543,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Retrieve",
-        "description": "Payment Method - Retrieve\n\nRetrieves a payment method of a customer",
+        "description": "Payment Method - Retrieve\n\nRetrieves a payment method of a customer.",
         "operationId": "Retrieve a Payment method",
         "parameters": [
           {
@@ -1582,7 +1582,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Update",
-        "description": "Payment Method - Update\n\nUpdate an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
+        "description": "Payment Method - Update\n\nUpdate an existing payment method of a customer.\nThis API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.",
         "operationId": "Update a Payment method",
         "parameters": [
           {
@@ -1631,7 +1631,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Delete",
-        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer",
+        "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
         "operationId": "Delete a Payment method",
         "parameters": [
           {
@@ -4458,7 +4458,7 @@
       },
       "CardNetwork": {
         "type": "string",
-        "description": "Indicates the card network",
+        "description": "Indicates the card network.",
         "enum": [
           "Visa",
           "Mastercard",
@@ -4993,7 +4993,7 @@
       },
       "Currency": {
         "type": "string",
-        "description": "The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars",
+        "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
         "enum": [
           "AED",
           "ALL",
@@ -6974,7 +6974,7 @@
       },
       "MandateStatus": {
         "type": "string",
-        "description": "The status of the mandate, which indicates whether it can be used to initiate a payment",
+        "description": "The status of the mandate, which indicates whether it can be used to initiate a payment.",
         "enum": [
           "active",
           "inactive",
@@ -8851,7 +8851,7 @@
       },
       "PaymentExperience": {
         "type": "string",
-        "description": "To indicate the type of payment experience that the payment method would go through",
+        "description": "To indicate the type of payment experience that the customer would go through",
         "enum": [
           "redirect_to_url",
           "invoke_sdk_client",
@@ -9089,7 +9089,7 @@
       },
       "PaymentMethod": {
         "type": "string",
-        "description": "Indicates the type of payment method",
+        "description": "Indicates the type of payment method. Eg: 'card', 'wallet', etc.",
         "enum": [
           "card",
           "card_redirect",
@@ -9501,7 +9501,7 @@
       },
       "PaymentMethodType": {
         "type": "string",
-        "description": "Indicates the sub type of payment method",
+        "description": "Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.",
         "enum": [
           "ach",
           "affirm",
@@ -9669,7 +9669,7 @@
       },
       "PaymentType": {
         "type": "string",
-        "description": "To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow",
+        "description": "To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.",
         "enum": [
           "normal",
           "new_mandate",
