@@ -56,25 +56,25 @@ pub trait OutgoingWebhookEventMetric {
 impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
     fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
-            Self::PaymentDetails(reponse) => Some(OutgoingWebhookEventContent::Payment {
-                payment_id: reponse.payment_id.clone(),
-                content: reponse.clone(),
+            Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
+                payment_id: payment_payload.payment_id.clone(),
+                content: payment_payload.clone(),
             }),
-            Self::RefundDetails(reponse) => Some(OutgoingWebhookEventContent::Refund {
-                payment_id: reponse.payment_id.clone(),
-                refund_id: reponse.refund_id.clone(),
-                content: reponse.clone(),
+            Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
+                payment_id: refund_payload.payment_id.clone(),
+                refund_id: refund_payload.refund_id.clone(),
+                content: refund_payload.clone(),
             }),
-            Self::DisputeDetails(reponse) => Some(OutgoingWebhookEventContent::Dispute {
-                payment_id: reponse.payment_id.clone(),
-                attempt_id: reponse.attempt_id.clone(),
-                dispute_id: reponse.dispute_id.clone(),
-                content: *reponse.clone(),
+            Self::DisputeDetails(dispute_payload) => Some(OutgoingWebhookEventContent::Dispute {
+                payment_id: dispute_payload.payment_id.clone(),
+                attempt_id: dispute_payload.attempt_id.clone(),
+                dispute_id: dispute_payload.dispute_id.clone(),
+                content: *dispute_payload.clone(),
             }),
-            Self::MandateDetails(reponse) => Some(OutgoingWebhookEventContent::Mandate {
-                payment_method_id: reponse.payment_method_id.clone(),
-                mandate_id: reponse.mandate_id.clone(),
-                content: *reponse.clone(),
+            Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
+                payment_method_id: mandate_payload.payment_method_id.clone(),
+                mandate_id: mandate_payload.mandate_id.clone(),
+                content: *mandate_payload.clone(),
             }),
         }
     }

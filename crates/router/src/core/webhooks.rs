@@ -764,7 +764,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
                 event.event_id.clone(),
                 event_type,
                 outgoing_webhook_event_type,
-                if error.is_some() { true } else { false },
+                error.is_some(),
                 error,
             );
             match webhook_event.clone().try_into() {
