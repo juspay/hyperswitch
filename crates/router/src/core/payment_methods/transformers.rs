@@ -62,7 +62,14 @@ pub struct StoreCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
-    pub duplicate: Option<bool>,
+    pub duplication_check: Option<DataDuplicationCheck>,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DataDuplicationCheck {
+    Duplicated,
+    MetaDataChanged,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
