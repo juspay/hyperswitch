@@ -6,15 +6,14 @@ use std::{
     str::FromStr,
 };
 
-use api_models::{admin as admin_api, routing::ConnectorSelection, enums as api_model_enums};
+use api_models::{admin as admin_api, enums as api_model_enums, routing::ConnectorSelection};
 use common_enums::RoutableConnectors;
-use currency_conversion::{
-    conversion::convert as convert_currency, types as currency_conversion_types,
-};
-
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
     connector,
+};
+use currency_conversion::{
+    conversion::convert as convert_currency, types as currency_conversion_types,
 };
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
