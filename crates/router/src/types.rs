@@ -21,7 +21,7 @@ pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
 };
-pub use common_utils::request::RequestBody;
+pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
@@ -38,7 +38,7 @@ use crate::{
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
+    types::transformers::ForeignFrom,
     utils::OptionExt,
 };
 
@@ -308,6 +308,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
+
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -371,6 +373,14 @@ pub struct PayoutsFulfillResponseData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)  
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately  
+    /// ```
+    /// get_original_amount()
+    /// get_surcharge_amount()
+    /// get_tax_on_surcharge_amount()
+    /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
+    /// ```
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
@@ -1282,6 +1292,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
+            frm_metadata: data.frm_metadata.clone(),
         }
     }
 }
@@ -1337,6 +1348,7 @@ impl<F1, F2>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }

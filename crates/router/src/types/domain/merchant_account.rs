@@ -77,6 +77,7 @@ pub enum MerchantAccountUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
     UnsetDefaultProfile,
+    ModifiedAtUpdate,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -134,6 +135,10 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
+                ..Default::default()
+            },
+            MerchantAccountUpdate::ModifiedAtUpdate => Self {
+                modified_at: Some(date_time::now()),
                 ..Default::default()
             },
         }

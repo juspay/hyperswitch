@@ -244,7 +244,7 @@ async fn get_tracker_for_sync<
     let payment_id_str = payment_attempt.payment_id.clone();
 
     currency = payment_attempt.currency.get_required_value("currency")?;
-    amount = payment_attempt.amount.into();
+    amount = payment_attempt.get_total_amount().into();
 
     let shipping_address = helpers::get_address_by_id(
         db,
@@ -423,6 +423,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        frm_metadata: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {
