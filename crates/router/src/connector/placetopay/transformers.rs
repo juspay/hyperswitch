@@ -1,10 +1,10 @@
 use api_models::payments;
+use common_utils::date_time;
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 
 use crate::{
     connector::utils::{
@@ -53,7 +53,6 @@ pub struct PlacetopayPaymentsRequest {
     instrument: PlacetopayInstrument,
     ip_address: Secret<String, common_utils::pii::IpAddress>,
     user_agent: String,
-    action: PlacetopayAuthorizeAction,
 }
 
 #[derive(Debug, Serialize)]
@@ -66,14 +65,14 @@ pub enum PlacetopayAuthorizeAction {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAuthType {
     login: Secret<String>,
-    trankey: Secret<String>,
+    tran_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAuth {
     login: Secret<String>,
-    trankey: Secret<String>,
+    tran_key: Secret<String>,
     nonce: String,
     seed: String,
 }
@@ -136,7 +135,6 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     cvv: req_card.card_cvc.clone(),
                 };
                 Ok(Self {
-                    action: PlacetopayAuthorizeAction::Checkin,
                     ip_address,
                     user_agent,
                     auth,
@@ -173,16 +171,18 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
         let nonce_bytes = utils::generate_random_bytes(16);
-        let seed = OffsetDateTime::now_utc().to_string();
+        let now = error_stack::IntoReport::into_report(date_time::date_as_yyyymmddthhmmssmmmz())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let seed = format!("{}+00:00", now.split_at(now.len() - 5).0);
         let mut context = digest::Context::new(&digest::SHA256);
         context.update(&nonce_bytes);
         context.update(seed.as_bytes());
-        context.update(placetopay_auth.trankey.peek().as_bytes());
+        context.update(placetopay_auth.tran_key.peek().as_bytes());
         let encoded_digest = base64::Engine::encode(&consts::BASE64_ENGINE, context.finish());
         let nonce = base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes);
         Ok(Self {
             login: placetopay_auth.login,
-            trankey: encoded_digest.into(),
+            tran_key: encoded_digest.into(),
             nonce,
             seed,
         })
@@ -196,7 +196,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 login: api_key.to_owned(),
-                trankey: key1.to_owned(),
+                tran_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -216,6 +216,12 @@ pub enum PlacetopayStatus {
     PendingProcess,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayStatusResponse {
+    status: PlacetopayStatus,
+}
+
 impl From<PlacetopayStatus> for enums::AttemptStatus {
     fn from(item: PlacetopayStatus) -> Self {
         match item {
@@ -231,9 +237,8 @@ impl From<PlacetopayStatus> for enums::AttemptStatus {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayPaymentsResponse {
-    status: PlacetopayStatus,
-    reference: Option<String>,
-    internal_reference: String,
+    status: PlacetopayStatusResponse,
+    internal_reference: u64,
 }
 
 impl<F, T>
@@ -251,20 +256,16 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.internal_reference.clone(),
+                    item.response.internal_reference.to_string(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item
-                    .response
-                    .reference
-                    .clone()
-                    .or(Some(item.response.internal_reference)),
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
             ..item.data
@@ -278,7 +279,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayRefundRequest {
     auth: PlacetopayAuth,
-    internal_reference: String,
+    internal_reference: u64,
     action: PlacetopayNextAction,
 }
 
@@ -286,7 +287,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
-        let internal_reference = item.request.connector_transaction_id.to_owned();
+        let internal_reference = item
+            .request
+            .connector_transaction_id
+            .parse::<u64>()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Refund;
 
         Ok(Self {
@@ -313,7 +319,7 @@ impl From<PlacetopayRefundStatus> for enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayRefundResponse {
     status: PlacetopayRefundStatus,
-    internal_reference: String,
+    internal_reference: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -347,14 +353,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PlacetopayRefundResp
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayRsyncRequest {
     auth: PlacetopayAuth,
-    internal_reference: String,
+    internal_reference: u64,
 }
 
 impl TryFrom<&types::RefundsRouterData<api::RSync>> for PlacetopayRsyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<api::RSync>) -> Result<Self, Self::Error> {
         let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
-        let internal_reference = item.request.connector_transaction_id.to_owned();
+        let internal_reference = item
+            .request
+            .connector_transaction_id
+            .parse::<u64>()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             auth,
             internal_reference,
@@ -371,7 +382,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PlacetopayRefundRespon
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.internal_reference.to_owned(),
+                connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
@@ -382,6 +393,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PlacetopayRefundRespon
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayErrorResponse {
+    pub status: PlacetopayError,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayError {
     pub status: PlacetopayErrorStatus,
     pub message: String,
     pub reason: String,
@@ -397,7 +414,7 @@ pub enum PlacetopayErrorStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayPsyncRequest {
     auth: PlacetopayAuth,
-    internal_reference: String,
+    internal_reference: u64,
 }
 
 impl TryFrom<&types::PaymentsSyncRouterData> for PlacetopayPsyncRequest {
@@ -407,8 +424,10 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PlacetopayPsyncRequest {
         let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
         let internal_reference = item
             .request
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .get_connector_transaction_id()?
+            .parse::<u64>()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             auth,
             internal_reference,
@@ -420,7 +439,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PlacetopayPsyncRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayNextActionRequest {
     auth: PlacetopayAuth,
-    internal_reference: String,
+    internal_reference: u64,
     action: PlacetopayNextAction,
 }
 
@@ -438,7 +457,12 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PlacetopayNextActionRequest 
 
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
-        let internal_reference = item.request.connector_transaction_id.clone();
+        let internal_reference = item
+            .request
+            .connector_transaction_id
+            .parse::<u64>()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Checkout;
         Ok(Self {
             auth,
@@ -453,7 +477,12 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PlacetopayNextActionRequest {
 
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
-        let internal_reference = item.request.connector_transaction_id.clone();
+        let internal_reference = item
+            .request
+            .connector_transaction_id
+            .parse::<u64>()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Void;
         Ok(Self {
             auth,

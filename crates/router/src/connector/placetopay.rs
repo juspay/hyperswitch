@@ -8,7 +8,7 @@ use transformers as placetopay;
 
 use crate::{
     configs::settings,
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{self},
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -18,7 +18,7 @@ use crate::{
     },
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, enums, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -86,13 +86,6 @@ impl ConnectorCommon for Placetopay {
         connectors.placetopay.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
     fn build_error_response(
         &self,
         res: Response,
@@ -104,9 +97,9 @@ impl ConnectorCommon for Placetopay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.reason.to_owned(),
-            message: response.message.to_owned(),
-            reason: Some(response.message),
+            code: response.status.reason.to_owned(),
+            message: response.status.message.to_owned(),
+            reason: Some(response.status.message),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -114,7 +107,21 @@ impl ConnectorCommon for Placetopay {
 }
 
 impl ConnectorValidation for Placetopay {
-    //TODO: implement functions when support enabled
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::Scheduled => Err(utils::construct_not_supported_error_report(
+                capture_method,
+                self.id(),
+            )),
+        }
+    }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -153,18 +160,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.is_auto_capture()? {
-            Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Auto Capture".to_owned(),
-                connector: "placetopay".to_owned(),
-            }
-            .into())
-        } else {
-            Ok(format!("{}/process", self.base_url(connectors)))
-        }
+        Ok(format!("{}/process", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -179,11 +178,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let req_obj = placetopay::PlacetopayPaymentsRequest::try_from(&connector_router_data)?;
-        let placetopay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<placetopay::PlacetopayPsyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -262,11 +256,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayPsyncRequest::try_from(req)?;
-        let placetopay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<placetopay::PlacetopayPsyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -281,7 +270,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(
+                .set_body(types::PaymentsSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -341,11 +330,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayNextActionRequest::try_from(req)?;
-        let placetopay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<placetopay::PlacetopayNextActionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -421,13 +405,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = placetopay::PlacetopayNextActionRequest::try_from(req)?;
+        let req_obj = placetopay::PlacetopayNextActionRequest::try_from(req)?;
 
-        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<placetopay::PlacetopayNextActionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        // let req = types::RequestBody::log_and_get_request_body(
+        //     &req_obj,
+        //     utils::Encode::<placetopay::PlacetopayNextActionRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -442,7 +426,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -502,11 +486,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayRefundRequest::try_from(req)?;
-        let placetopay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<placetopay::PlacetopayRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        // let placetopay_req = types::RequestBody::log_and_get_request_body(
+        //     &req_obj,
+        //     utils::Encode::<placetopay::PlacetopayRefundRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -582,11 +566,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayRsyncRequest::try_from(req)?;
-        let placetopay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<placetopay::PlacetopayRsyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
