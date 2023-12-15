@@ -1902,7 +1902,7 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,

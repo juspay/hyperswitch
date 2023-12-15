@@ -299,10 +299,14 @@ where
                 response: res.into(),
                 status_code: 200,
             };
+            eprintln!("[CONNECTOR_LOGS] 4 {:?}", response);
 
             connector_integration.handle_response(req, response)
         }
-        payments::CallConnectorAction::Avoid => Ok(router_data),
+        payments::CallConnectorAction::Avoid => {
+            eprintln!("[CONNECTOR_LOGS] 5 {:?}", router_data);
+            Ok(router_data)
+        },
         payments::CallConnectorAction::StatusUpdate {
             status,
             error_code,
@@ -321,6 +325,7 @@ where
             } else {
                 None
             };
+            eprintln!("[CONNECTOR_LOGS] 6 {:?}", error_response);
             router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
