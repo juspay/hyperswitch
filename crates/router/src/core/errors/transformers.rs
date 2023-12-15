@@ -65,7 +65,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
-                AER::BadRequest(ApiError::new("IR", 13, "Refund amount exceeds the payment amount", None))
+                AER::BadRequest(ApiError::new("IR", 13, "The refund amount exceeds the amount captured", None))
             }
             Self::PaymentUnexpectedState {
                 current_flow,
