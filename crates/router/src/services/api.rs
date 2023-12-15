@@ -286,8 +286,6 @@ where
         Some(RequestContent::FormData(_)) => json!({"request_type": "FORM_DATA"}),
         None => serde_json::Value::Null,
     });
-    logger::debug!(connector_request_body=?masked_conn_req);
-    logger::debug!(payment_id=?req.payment_id);
     let mut router_data = req.clone();
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
