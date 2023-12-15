@@ -289,7 +289,6 @@ where
     eprintln!("[CONNECTOR_LOGS] 1 {:?}", masked_conn_req);
     logger::debug!(connector_request_body=?masked_conn_req);
     eprintln!("[CONNECTOR_LOGS] 2 {:?}", req.payment_id);
-    logger::debug!(payment_id=?req.payment_id);
     let mut router_data = req.clone();
     eprintln!("[CONNECTOR_LOGS] 3 {:?}", call_connector_action);
     match call_connector_action {
