@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, RouterData, PaymentsSyncRequestData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -859,9 +859,7 @@ impl<F>
                 Ok(Self {
                     status,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            info_response.id,
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(info_response.id),
                         redirection_data: None,
                         mandate_reference,
                         connector_metadata: None,
@@ -930,9 +928,7 @@ impl<F>
                 Ok(Self {
                     status,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            info_response.id,
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(info_response.id),
                         redirection_data: None,
                         mandate_reference,
                         connector_metadata: None,
@@ -1001,9 +997,7 @@ impl<F>
                 Ok(Self {
                     status,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            info_response.id,
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(info_response.id),
                         redirection_data: None,
                         mandate_reference,
                         connector_metadata: None,
@@ -1058,10 +1052,7 @@ impl<F, T>
                     connector_mandate_id: Some(token_info.instrument_identifier.id),
                     payment_method_id: None,
                 });
-        let mut mandate_status = enums::AttemptStatus::foreign_from((
-            item.response.status,
-            false,
-        ));
+        let mut mandate_status = enums::AttemptStatus::foreign_from((item.response.status, false));
         if matches!(mandate_status, enums::AttemptStatus::Authorized) {
             //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
             mandate_status = enums::AttemptStatus::Charged
@@ -1196,11 +1187,14 @@ impl<F>
                     app_response.application_information.status,
                     item.data.request.is_auto_capture()?,
                 ));
-                let incremental_authorization_allowed = Some(status == enums::AttemptStatus::Authorized);
+                let incremental_authorization_allowed =
+                    Some(status == enums::AttemptStatus::Authorized);
                 Ok(Self {
                     status,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(app_response.id.clone()),
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            app_response.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
