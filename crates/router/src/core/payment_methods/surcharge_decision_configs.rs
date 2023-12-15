@@ -310,6 +310,7 @@ fn get_surcharge_details_from_surcharge_output(
         .transpose()?
         .unwrap_or(0);
     Ok(types::SurchargeDetails {
+        original_amount: payment_attempt.amount,
         surcharge: match surcharge_details.surcharge {
             surcharge_decision_configs::SurchargeOutput::Fixed { amount } => {
                 common_utils_types::Surcharge::Fixed(amount)
