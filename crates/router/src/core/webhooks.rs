@@ -25,7 +25,10 @@ use crate::{
         payments, refunds,
     },
     db::StorageInterface,
-    events::api_logs::{ApiEvent, OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+    events::{
+        api_logs::ApiEvent,
+        outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+    },
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
     services::{self, authentication as auth},
