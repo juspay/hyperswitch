@@ -1728,6 +1728,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "connector_configs"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "serde",
+ "serde_with 2.3.3",
+ "toml 0.7.4",
+ "utoipa",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2386,6 +2397,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "connector_configs",
  "currency_conversion",
  "euclid",
  "getrandom 0.2.11",
@@ -5117,7 +5129,7 @@ dependencies = [
  "serde_path_to_error",
  "serde_qs 0.12.0",
  "serde_urlencoded",
- "serde_with",
+ "serde_with 3.4.0",
  "serial_test",
  "sha-1",
  "sqlx",
@@ -5646,6 +5658,22 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07ff71d2c147a7b57362cead5e22f772cd52f6ab31cfcd9edcd7f6aeb2a0afbe"
+dependencies = [
+ "base64 0.13.1",
+ "chrono",
+ "hex",
+ "indexmap 1.9.3",
+ "serde",
+ "serde_json",
+ "serde_with_macros 2.3.3",
+ "time",
+]
+
+[[package]]
+name = "serde_with"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64cd236ccc1b7a29e7e2739f27c0b2dd199804abc4290e32f59f3b68d6405c23"
@@ -5657,8 +5685,20 @@ dependencies = [
  "indexmap 2.1.0",
  "serde",
  "serde_json",
- "serde_with_macros",
+ "serde_with_macros 3.4.0",
  "time",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
 ]
 
 [[package]]
