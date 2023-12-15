@@ -149,7 +149,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .await
         });
 
-        let store = state.clone().store;
+        let store = state.store.clone();
+
         let m_payment_id = payment_intent.payment_id.clone();
         let m_merchant_id = merchant_id.clone();
 
