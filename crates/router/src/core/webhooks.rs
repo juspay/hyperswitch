@@ -736,7 +736,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
             content: content.clone(),
             timestamp: event.created_at,
         };
-
+        let state_clone = state.clone();
         // Using a tokio spawn here and not arbiter because not all caller of this function
         // may have an actix arbiter
         tokio::spawn(async move {
@@ -766,7 +766,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
             );
             match webhook_event.clone().try_into() {
                 Ok(event) => {
-                    state.event_handler().log_event(event);
+                    state_clone.event_handler().log_event(event);
                 }
                 Err(err) => {
                     logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
