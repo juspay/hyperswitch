@@ -553,7 +553,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                 | payments::WalletData::WeChatPayQr(_)
                 | payments::WalletData::CashappQr(_)
                 | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Bank of America"),
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
                 .into()),
             },
@@ -570,7 +570,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::GiftCard(_)
             | payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Bank of America"),
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
                 .into())
             }
