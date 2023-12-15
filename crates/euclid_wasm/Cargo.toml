@@ -10,7 +10,7 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [features]
-default = ["connector_choice_bcompat"]
+default = ["connector_choice_bcompat", "connector_choice_mca_id"]
 release = ["connector_choice_bcompat", "connector_choice_mca_id"]
 connector_choice_bcompat = ["api_models/connector_choice_bcompat"]
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
