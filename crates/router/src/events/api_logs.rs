@@ -1,4 +1,8 @@
 use actix_web::HttpRequest;
+use api_models::{
+    disputes, enums::EventType as OutgoingWebhookEventType, mandates, payments, refunds,
+    webhooks::OutgoingWebhookContent,
+};
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
 use common_utils::impl_misc_api_event_type;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
@@ -20,7 +24,6 @@ use crate::{
         AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
     },
 };
-use api_models::{enums::EventType as OutgoingWebhookEventType, webhooks::OutgoingWebhookContent, payments, refunds, disputes, mandates};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
@@ -119,36 +122,52 @@ pub struct OutgoingWebhookEvent {
     content = "payload",
     rename_all = "snake_case"
 )]
-pub enum OutgoingWebhookEventContent{
-    Payment{payment_id: Option<String>,content: payments::PaymentsResponse,},
-    Refund{payment_id: String, refund_id: String, content: refunds::RefundResponse,},
-    Dispute{payment_id: String, attempt_id: String, dispute_id: String, content: disputes::DisputeResponse,},
-    Mandate{payment_method_id: String, mandate_id: String, content: mandates::MandateResponse,},
+pub enum OutgoingWebhookEventContent {
+    Payment {
+        payment_id: Option<String>,
+        content: payments::PaymentsResponse,
+    },
+    Refund {
+        payment_id: String,
+        refund_id: String,
+        content: refunds::RefundResponse,
+    },
+    Dispute {
+        payment_id: String,
+        attempt_id: String,
+        dispute_id: String,
+        content: disputes::DisputeResponse,
+    },
+    Mandate {
+        payment_method_id: String,
+        mandate_id: String,
+        content: mandates::MandateResponse,
+    },
 }
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
         None
     }
 }
-impl OutgoingWebhookEventMetric for OutgoingWebhookContent{
+impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
     fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
-            Self::PaymentDetails(reponse) => Some(OutgoingWebhookEventContent::Payment{
+            Self::PaymentDetails(reponse) => Some(OutgoingWebhookEventContent::Payment {
                 payment_id: reponse.payment_id.clone(),
                 content: reponse.clone(),
             }),
-            Self::RefundDetails(reponse) => Some(OutgoingWebhookEventContent::Refund{
+            Self::RefundDetails(reponse) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: reponse.payment_id.clone(),
                 refund_id: reponse.refund_id.clone(),
                 content: reponse.clone(),
             }),
-            Self::DisputeDetails(reponse) => Some(OutgoingWebhookEventContent::Dispute{
+            Self::DisputeDetails(reponse) => Some(OutgoingWebhookEventContent::Dispute {
                 payment_id: reponse.payment_id.clone(),
                 attempt_id: reponse.attempt_id.clone(),
                 dispute_id: reponse.dispute_id.clone(),
                 content: *reponse.clone(),
             }),
-            Self::MandateDetails(reponse) => Some(OutgoingWebhookEventContent::Mandate{
+            Self::MandateDetails(reponse) => Some(OutgoingWebhookEventContent::Mandate {
                 payment_method_id: reponse.payment_method_id.clone(),
                 mandate_id: reponse.mandate_id.clone(),
                 content: *reponse.clone(),
@@ -156,7 +175,6 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent{
         }
     }
 }
-
 
 impl OutgoingWebhookEvent {
     pub fn new(
@@ -179,7 +197,6 @@ impl OutgoingWebhookEvent {
     }
 }
 
-
 impl TryFrom<OutgoingWebhookEvent> for RawEvent {
     type Error = serde_json::Error;
 
@@ -191,9 +208,6 @@ impl TryFrom<OutgoingWebhookEvent> for RawEvent {
         })
     }
 }
-
-
-
 
 impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
