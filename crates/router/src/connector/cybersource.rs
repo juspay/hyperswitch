@@ -54,10 +54,17 @@ impl Cybersource {
             api_secret,
         } = auth;
         let is_post_method = matches!(http_method, services::Method::Post);
-        let digest_str = if is_post_method { "digest " } else { "" };
+        let is_patch_method = matches!(http_method, services::Method::Patch);
+        let digest_str = if is_post_method || is_patch_method {
+            "digest "
+        } else {
+            ""
+        };
         let headers = format!("host date (request-target) {digest_str}v-c-merchant-id");
         let request_target = if is_post_method {
             format!("(request-target): post {resource}\ndigest: SHA-256={payload}\n")
+        } else if is_patch_method {
+            format!("(request-target): patch {resource}\ndigest: SHA-256={payload}\n")
         } else {
             format!("(request-target): get {resource}\n")
         };
@@ -852,6 +859,10 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Patch
     }
 
     fn get_content_type(&self) -> &'static str {
