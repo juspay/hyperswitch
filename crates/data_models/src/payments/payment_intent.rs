@@ -110,7 +110,7 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub expiry: PrimitiveDateTime,
+    pub expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

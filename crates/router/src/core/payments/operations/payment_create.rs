@@ -821,7 +821,7 @@ impl PaymentCreate {
             request_incremental_authorization,
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry,
+            expiry: Some(expiry),
         })
     }
 
@@ -898,7 +898,7 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        expiry,
+        expiry: Some(expiry),
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),

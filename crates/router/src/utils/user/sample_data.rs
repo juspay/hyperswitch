@@ -199,7 +199,7 @@ pub async fn generate_sample_data(
             request_incremental_authorization: Default::default(),
             incremental_authorization_allowed: Default::default(),
             authorization_count: Default::default(),
-            expiry,
+            expiry: Some(expiry),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

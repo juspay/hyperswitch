@@ -55,7 +55,7 @@ pub struct PaymentIntent {
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub expiry: PrimitiveDateTime,
+    pub expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(
@@ -105,8 +105,8 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -291,7 +291,7 @@ impl PaymentIntentUpdate {
 
             incremental_authorization_allowed,
             authorization_count,
-            expiry: expiry.unwrap_or(source.expiry),
+            expiry,
             ..source
         }
     }

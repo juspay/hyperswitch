@@ -706,7 +706,7 @@ diesel::table! {
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
-        expiry -> Timestamp,
+        expiry -> Nullable<Timestamp>,
     }
 }
 

@@ -1,9 +1,6 @@
 use api_models::admin as admin_types;
 use common_utils::{
-    consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG,
-    },
+    consts::{DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, TOKEN_TTL},
     ext_traits::{OptionExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
@@ -90,7 +87,6 @@ pub async fn intiate_payment_link_flow(
         extract_payment_link_config(pl_config_value)?
     } else {
         admin_types::PaymentLinkConfig {
-            max_age: DEFAULT_PAYMENT_LINK_EXPIRY,
             theme: DEFAULT_BACKGROUND_COLOR.to_string(),
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
             seller_name: merchant_name,
@@ -116,8 +112,8 @@ pub async fn intiate_payment_link_flow(
 
     let curr_time = common_utils::date_time::now();
     let expiry = payment_link
-        .max_age
-        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY)));
+        .expiry
+        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(TOKEN_TTL)));
 
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,

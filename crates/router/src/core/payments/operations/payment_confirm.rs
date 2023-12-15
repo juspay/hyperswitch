@@ -784,7 +784,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        expiry: Some(m_payment_data_payment_intent.expiry),
+                        expiry: m_payment_data_payment_intent.expiry,
                     },
                     storage_scheme,
                 )
