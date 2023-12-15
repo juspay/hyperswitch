@@ -808,8 +808,7 @@ where
             },
         );
     if !errors.is_empty() {
-        // Prepend a known string to the `Vec`
-        errors.splice(0..0, [String::from("Some errors occurred:")]);
+        errors.insert(0, String::from("Some errors occurred:"));
         Err(errors.join("\n"))
     } else {
         Ok(values)
