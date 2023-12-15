@@ -1,25 +1,26 @@
 /// PaymentMethods - Create
 ///
-///Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants
+/// Creates and stores a payment method against a customer.
+/// In case of cards, this API should be used only by PCI compliant merchants.
 #[utoipa::path(
     post,
     path = "/payment_methods",
     request_body (
         content = PaymentMethodCreate,
-      examples  (( "Save a card" =(
+        examples  (( "Save a card" =(
         value =json!( {
-          "payment_method": "card",
-          "payment_method_type": "credit",
-          "payment_method_issuer": "Visa",
-          "card": {
+            "payment_method": "card",
+            "payment_method_type": "credit",
+            "payment_method_issuer": "Visa",
+            "card": {
             "card_number": "4242424242424242",
             "card_exp_month": "11",
             "card_exp_year": "25",
             "card_holder_name": "John Doe"
-          },
-          "customer_id": "{{customer_id}}"
+            },
+            "customer_id": "{{customer_id}}"
         })
-      )))
+        )))
     ),
     responses(
         (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
@@ -34,7 +35,8 @@ pub async fn create_payment_method_api() {}
 
 /// List payment methods for a Merchant
 ///
-/// Lists the applicable payment methods for a particular Merchant ID. Use the client secret and publishable key authorization to list all relevant payment methods of the merchant for the payment corresponding to the client secret
+/// Lists the applicable payment methods for a particular Merchant ID.
+/// Use the client secret and publishable key authorization to list all relevant payment methods of the merchant for the payment corresponding to the client secret.
 #[utoipa::path(
     get,
     path = "/account/payment_methods",
@@ -60,7 +62,7 @@ pub async fn list_payment_method_api() {}
 
 /// List payment methods for a Customer
 ///
-/// Lists all the applicable payment methods for a particular Customer ID
+/// Lists all the applicable payment methods for a particular Customer ID.
 #[utoipa::path(
     get,
     path = "/customers/{customer_id}/payment_methods",
@@ -86,7 +88,7 @@ pub async fn list_customer_payment_method_api() {}
 
 /// List payment methods for a Payment
 ///
-/// Lists all the applicable payment methods for a particular payment tied to the `client_secret`
+/// Lists all the applicable payment methods for a particular payment tied to the `client_secret`.
 #[utoipa::path(
     get,
     path = "/customers/payment_methods",
@@ -113,7 +115,7 @@ pub async fn list_customer_payment_method_api_client() {}
 
 /// Payment Method - Retrieve
 ///
-/// Retrieves a payment method of a customer
+/// Retrieves a payment method of a customer.
 #[utoipa::path(
     get,
     path = "/payment_methods/{method_id}",
@@ -132,7 +134,8 @@ pub async fn payment_method_retrieve_api() {}
 
 /// Payment Method - Update
 ///
-/// Update an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments
+/// Update an existing payment method of a customer.
+/// This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.
 #[utoipa::path(
     post,
     path = "/payment_methods/{method_id}",
@@ -152,7 +155,7 @@ pub async fn payment_method_update_api() {}
 
 /// Payment Method - Delete
 ///
-/// Deletes a payment method of a customer
+/// Deletes a payment method of a customer.
 #[utoipa::path(
     delete,
     path = "/payment_methods/{method_id}",

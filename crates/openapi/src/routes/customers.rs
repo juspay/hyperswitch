@@ -1,17 +1,18 @@
 /// Customers - Create
 ///
-/// Creates a customer object and stores the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.
+/// Creates a customer object and stores the customer details to be reused for future payments.
+/// Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
     post,
     path = "/customers",
     request_body  (
         content = CustomerRequest,
-      examples  (( "Update name and email of a customer" =(
+        examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
             "name": "John Doe"
         })
-      )))
+        )))
     ),
     responses(
         (status = 200, description = "Customer Created", body = CustomerResponse),
@@ -26,7 +27,7 @@ pub async fn customers_create() {}
 
 /// Customers - Retrieve
 ///
-/// Retrieves a customer's details
+/// Retrieves a customer's details.
 #[utoipa::path(
     get,
     path = "/customers/{customer_id}",
@@ -86,7 +87,7 @@ pub async fn customers_delete() {}
 
 /// Customers - List
 ///
-/// Lists all the customers for a particular merchant id
+/// Lists all the customers for a particular merchant id.
 #[utoipa::path(
     post,
     path = "/customers/list",
