@@ -587,18 +587,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     )> {
         helpers::validate_customer_details_in_request(request)?;
 
-        if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-            helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
-        }
-
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-                helpers::validate_payment_link_request(
-                    request.confirm,
-                    request.order_details.clone(),
-                )?;
+                helpers::validate_payment_link_request(request.confirm)?;
             }
-        }
+        };
 
         let payment_id = request.payment_id.clone().ok_or(error_stack::report!(
             errors::ApiErrorResponse::PaymentNotFound
@@ -907,8 +900,8 @@ async fn create_payment_link(
         last_modified_at,
         expiry,
         description,
-        payment_link_config: payment_link_config_encoded_value,
-        profile_id,
+        payment_link_config: Some(payment_link_config_encoded_value),
+        profile_id: Some(profile_id),
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

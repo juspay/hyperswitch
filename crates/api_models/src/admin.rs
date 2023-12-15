@@ -1170,7 +1170,7 @@ pub struct PaymentLinkConfigRequest {
     pub seller_name: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
     pub theme: String,

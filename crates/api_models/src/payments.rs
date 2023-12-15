@@ -3306,8 +3306,8 @@ pub struct RetrievePaymentLinkResponse {
     pub amount: i64,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub status: String,
     #[schema(value_type = Option<Currency>)]
@@ -3335,6 +3335,7 @@ pub struct PaymentLinkDetails {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
+    pub merchant_description: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

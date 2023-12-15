@@ -11831,7 +11831,8 @@
           },
           "expiry": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           },
           "description": {
             "type": "string",

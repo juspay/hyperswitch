@@ -1,7 +1,8 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_THEME,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO,
+        DEFAULT_PRODUCT_IMG,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -74,12 +75,27 @@ pub async fn intiate_payment_link_flow(
         "use payment link for",
     )?;
 
+    let merchant_name = merchant_account
+        .merchant_name
+        .clone()
+        .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
+        .unwrap_or_default();
+
     let payment_link = db
         .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let payment_link_config = extract_payment_link_config(payment_link.payment_link_config)?;
+    let payment_link_config = if let Some(pl_config_value) = payment_link.payment_link_config {
+        extract_payment_link_config(pl_config_value)?
+    } else {
+        admin_types::PaymentLinkConfig {
+            max_age: DEFAULT_PAYMENT_LINK_EXPIRY,
+            theme: DEFAULT_BACKGROUND_COLOR.to_string(),
+            logo: DEFAULT_MERCHANT_LOGO.to_string(),
+            seller_name: merchant_name,
+        }
+    };
 
     let order_details = validate_order_details(payment_intent.order_details)?;
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url {
@@ -98,42 +114,29 @@ pub async fn intiate_payment_link_flow(
         payment_intent.client_secret,
     )?;
 
-    let (default_sdk_theme, default_background_color) =
-        (DEFAULT_SDK_THEME, DEFAULT_BACKGROUND_COLOR);
+    let curr_time = common_utils::date_time::now();
+    let expiry = payment_link
+        .max_age
+        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY)));
 
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency,
         payment_id: payment_intent.payment_id,
-        merchant_name: payment_link_config.clone().config.seller_name.unwrap_or(
-            merchant_account
-                .merchant_name
-                .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
-                .unwrap_or_default(),
-        ),
+        merchant_name: payment_link_config.clone().seller_name,
         order_details,
         return_url,
-        expiry: payment_link.expiry,
+        expiry,
         pub_key,
         client_secret,
-        merchant_logo: payment_link_config
-            .config
-            .clone()
-            .logo
-            .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string()),
+        merchant_logo: payment_link_config.clone().logo,
         max_items_visible_after_collapse: 3,
-        theme: payment_link_config
-            .config
-            .clone()
-            .theme
-            .unwrap_or(default_sdk_theme.to_string()),
+        theme: payment_link_config.clone().theme,
+        merchant_description: payment_intent.description,
     };
 
     let js_script = get_js_script(payment_details)?;
-    let css_script = get_color_scheme_css(
-        payment_link_config.clone(),
-        default_background_color.to_string(),
-    );
+    let css_script = get_color_scheme_css(payment_link_config.clone());
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
@@ -158,14 +161,8 @@ fn get_js_script(
     Ok(format!("window.__PAYMENT_DETAILS = {payment_details_str};"))
 }
 
-fn get_color_scheme_css(
-    payment_link_config: api_models::payments::PaymentCreatePaymentLinkConfig,
-    default_primary_color: String,
-) -> String {
-    let background_primary_color = payment_link_config
-        .config
-        .theme
-        .unwrap_or(default_primary_color.clone());
+fn get_color_scheme_css(payment_link_config: api_models::admin::PaymentLinkConfig) -> String {
+    let background_primary_color = payment_link_config.theme;
     format!(
         ":root {{
       --primary-color: {background_primary_color};
@@ -210,8 +207,8 @@ pub async fn list_payment_link(
     Ok(services::ApplicationResponse::Json(payment_link_list))
 }
 
-pub fn check_payment_link_status(max_age: PrimitiveDateTime) -> String {
-    let curr_time = common_utils::date_time::now();
+pub fn check_payment_link_status(max_age: Option<PrimitiveDateTime>) -> String {
+    let curr_time = Some(common_utils::date_time::now());
 
     if curr_time > max_age {
         "expired".to_string()
@@ -265,17 +262,12 @@ pub fn extract_business_payment_link_config(
 
 pub fn extract_payment_link_config(
     pl_config: serde_json::Value,
-) -> Result<
-    api_models::payments::PaymentCreatePaymentLinkConfig,
-    error_stack::Report<errors::ApiErrorResponse>,
-> {
-    serde_json::from_value::<api_models::payments::PaymentCreatePaymentLinkConfig>(
-        pl_config.clone(),
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "payment_link_config",
-    })
+) -> Result<api_models::admin::PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
+    serde_json::from_value::<api_models::admin::PaymentLinkConfig>(pl_config.clone())
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
+        })
 }
 
 pub fn get_payment_link_config_based_on_priority(
