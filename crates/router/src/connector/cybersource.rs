@@ -3,7 +3,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -27,7 +26,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -185,8 +184,10 @@ where
             .skip(base_url.len() - 1)
             .collect();
         let sha256 = self.generate_digest(
-            types::RequestBody::get_inner_value(cybersource_req)
-                .expose()
+            cybersource_req
+                .map_or("{}".to_string(), |s| {
+                    types::RequestBody::get_inner_value(s).expose()
+                })
                 .as_bytes(),
         );
         let http_method = self.get_http_method();
@@ -277,9 +278,14 @@ impl
         &self,
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = cybersource::CybersourceZeroMandateRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = cybersource::CybersourceZeroMandateRequest::try_from(req)?;
+        let cybersource_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<cybersource::CybersourceZeroMandateRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_req))
     }
 
     fn build_request(
@@ -293,7 +299,7 @@ impl
                 .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(types::SetupMandateType::get_request_body(
+                .body(types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -369,16 +375,21 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = cybersource::CybersourceRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount_to_capture,
             req,
         ))?;
-        let connector_req =
+        let connector_request =
             cybersource::CybersourcePaymentsCaptureRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_payments_request))
     }
     fn build_request(
         &self,
@@ -393,7 +404,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
+                .body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -466,6 +477,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         self.common_get_content_type()
     }
 
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        Ok(Some(
+            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        ))
+    }
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
@@ -539,16 +560,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = cybersource::CybersourceRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_req =
+        let connector_request =
             cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_payments_request))
     }
 
     fn build_request(
@@ -565,7 +591,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .headers(types::PaymentsAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
-            .set_body(self.get_request_body(req, connectors)?)
+            .body(self.get_request_body(req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -633,8 +659,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(serde_json::json!({}))))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        Ok(Some(
+            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        ))
     }
 
     fn build_request(
@@ -648,7 +677,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(self.get_request_body(req, connectors)?)
+                .body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -718,16 +747,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = cybersource::CybersourceRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let connector_req =
+        let connector_request =
             cybersource::CybersourceRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let cybersource_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cybersource::CybersourceRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_refund_request))
     }
     fn build_request(
         &self,
@@ -742,7 +776,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(self.get_request_body(req, connectors)?)
+                .body(self.get_request_body(req, connectors)?)
                 .build(),
         ))
     }
@@ -811,6 +845,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -875,7 +912,7 @@ impl
         &self,
         req: &types::PaymentsIncrementalAuthorizationRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = cybersource::CybersourceRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -886,7 +923,13 @@ impl
             cybersource::CybersourcePaymentsIncrementalAuthorizationRequest::try_from(
                 &connector_router_data,
             )?;
-        Ok(RequestContent::Json(Box::new(connector_request)))
+        let cybersource_payments_incremental_authorization_request =
+            types::RequestBody::log_and_get_request_body(
+                &connector_request,
+                utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cybersource_payments_incremental_authorization_request))
     }
     fn build_request(
         &self,
@@ -903,7 +946,7 @@ impl
                 .headers(types::IncrementalAuthorizationType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::IncrementalAuthorizationType::get_request_body(
+                .body(types::IncrementalAuthorizationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

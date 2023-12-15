@@ -7,7 +7,6 @@ use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     date_time,
     ext_traits::ByteSliceExt,
-    request::RequestContent,
 };
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
@@ -31,7 +30,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{BytesExt, Encode},
 };
 
 #[derive(Debug, Clone)]
@@ -69,14 +68,21 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let api_method = self.get_http_method().to_string();
-        let body = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?)
-            .peek()
-            .to_owned();
-        let md5_payload = crypto::Md5
-            .generate_digest(body.as_bytes())
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let payload = encode(md5_payload);
+        let api_method;
+        let payload = match self.get_request_body(req, connectors)? {
+            Some(val) => {
+                let body = types::RequestBody::get_inner_value(val).peek().to_owned();
+                api_method = "POST".to_string();
+                let md5_payload = crypto::Md5
+                    .generate_digest(body.as_bytes())
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                encode(md5_payload)
+            }
+            None => {
+                api_method = "GET".to_string();
+                String::default()
+            }
+        };
 
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .into_report()
@@ -213,15 +219,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = cryptopay::CryptopayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_req = cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_request =
+            cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
+        let cryptopay_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            Encode::<cryptopay::CryptopayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(cryptopay_req))
     }
 
     fn build_request(
@@ -239,7 +251,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -293,10 +305,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
-    }
-
-    fn get_http_method(&self) -> services::Method {
-        services::Method::Get
     }
 
     fn get_url(

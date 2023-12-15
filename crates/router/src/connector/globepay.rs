@@ -2,10 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{
-    crypto::{self, GenerateDigest},
-    request::RequestContent,
-};
+use common_utils::crypto::{self, GenerateDigest};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
@@ -25,7 +22,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -193,9 +190,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = globepay::GlobepayPaymentsRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = globepay::GlobepayPaymentsRequest::try_from(req)?;
+        let globepay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<globepay::GlobepayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(globepay_req))
     }
 
     fn build_request(
@@ -213,7 +215,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -367,9 +369,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = globepay::GlobepayRefundRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let globepay_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<globepay::GlobepayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(globepay_req))
     }
 
     fn build_request(
@@ -385,7 +392,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::RefundExecuteType::get_request_body(
+                .body(types::RefundExecuteType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

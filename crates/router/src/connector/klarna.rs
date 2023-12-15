@@ -2,7 +2,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
-use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -22,7 +21,7 @@ use crate::{
         api::{self, ConnectorCommon},
         storage::enums as storage_enums,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -157,10 +156,15 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let klarna_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(klarna_req))
     }
 
     fn build_request(
@@ -176,7 +180,7 @@ impl
                 .headers(types::PaymentsSessionType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsSessionType::get_request_body(
+                .body(types::PaymentsSessionType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -413,7 +417,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = klarna::KlarnaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -421,7 +425,12 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let klarna_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(klarna_req))
     }
 
     fn build_request(
@@ -439,7 +448,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

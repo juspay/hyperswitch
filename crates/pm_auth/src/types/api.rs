@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{
     errors::CustomResult,
-    request::{Request, RequestContent},
+    request::{Request, RequestBody},
 };
 use masking::Maskable;
 
@@ -38,8 +38,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_request_body(
         &self,
         _req: &super::PaymentAuthRouterData<T, Req, Resp>,
-    ) -> CustomResult<RequestContent, ConnectorError> {
-        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    ) -> CustomResult<Option<RequestBody>, ConnectorError> {
+        Ok(None)
     }
 
     fn build_request(

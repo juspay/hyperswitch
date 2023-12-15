@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::{core::errors, headers, services::request::Maskable};
 
 pub trait OutgoingWebhookType:
-    Serialize + From<webhooks::OutgoingWebhook> + Sync + Send + std::fmt::Debug + 'static
+    Serialize + From<webhooks::OutgoingWebhook> + Sync + Send + std::fmt::Debug
 {
     fn get_outgoing_webhooks_signature(
         &self,

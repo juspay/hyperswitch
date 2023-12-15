@@ -6,7 +6,6 @@ use storage_impl::errors::ApplicationError;
 use crate::{db::KafkaProducer, services::kafka::KafkaSettings};
 
 pub mod api_logs;
-pub mod connector_api_logs;
 pub mod event_logger;
 pub mod kafka_handler;
 
@@ -30,7 +29,6 @@ pub enum EventType {
     PaymentAttempt,
     Refund,
     ApiLogs,
-    ConnectorApiLogs,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as bitpay;
@@ -23,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -175,16 +175,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = bitpay::BitpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let connector_req = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
+        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let bitpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bitpay_req))
     }
 
     fn build_request(
@@ -202,7 +207,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

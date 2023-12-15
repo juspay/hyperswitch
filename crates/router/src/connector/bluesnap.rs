@@ -6,7 +6,6 @@ use base64::Engine;
 use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
-    request::RequestContent,
 };
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
@@ -35,7 +34,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merchant-transaction:";
@@ -268,9 +267,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapVoidRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
     }
 
     fn build_request(
@@ -283,7 +287,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-            .set_body(types::PaymentsVoidType::get_request_body(
+            .body(types::PaymentsVoidType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -440,7 +444,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = bluesnap::BluesnapRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -448,7 +452,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req,
         ))?;
         let connector_req = bluesnap::BluesnapCaptureRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
     }
 
     fn build_request(
@@ -463,7 +472,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .headers(types::PaymentsCaptureType::get_headers(
                 self, req, connectors,
             )?)
-            .set_body(types::PaymentsCaptureType::get_request_body(
+            .body(types::PaymentsCaptureType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -530,9 +539,14 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         &self,
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapCreateWalletToken::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapCreateWalletToken>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
     }
 
     fn build_request(
@@ -548,7 +562,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
                 .headers(types::PaymentsSessionType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsSessionType::get_request_body(
+                .body(types::PaymentsSessionType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -621,7 +635,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = bluesnap::BluesnapRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -632,12 +646,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             true => {
                 let connector_req =
                     bluesnap::BluesnapPaymentsTokenRequest::try_from(&connector_router_data)?;
-                Ok(RequestContent::Json(Box::new(connector_req)))
+                let bluesnap_req = types::RequestBody::log_and_get_request_body(
+                    &connector_req,
+                    utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Some(bluesnap_req))
             }
             _ => {
                 let connector_req =
                     bluesnap::BluesnapPaymentsRequest::try_from(&connector_router_data)?;
-                Ok(RequestContent::Json(Box::new(connector_req)))
+                let bluesnap_req = types::RequestBody::log_and_get_request_body(
+                    &connector_req,
+                    utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Some(bluesnap_req))
             }
         }
     }
@@ -657,7 +681,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -750,7 +774,7 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = bluesnap::BluesnapRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -759,7 +783,12 @@ impl
         ))?;
         let connector_req =
             bluesnap::BluesnapCompletePaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
     }
     fn build_request(
         &self,
@@ -776,7 +805,7 @@ impl
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -844,7 +873,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = bluesnap::BluesnapRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -852,7 +881,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = bluesnap::BluesnapRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
     }
 
     fn build_request(
@@ -867,7 +901,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .set_body(types::RefundExecuteType::get_request_body(
+            .body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

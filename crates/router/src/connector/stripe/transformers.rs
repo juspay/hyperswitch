@@ -5,7 +5,6 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     pii::{self, Email},
-    request::RequestContent,
 };
 use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
@@ -27,7 +26,7 @@ use crate::{
         storage::enums,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 pub struct StripeAuthType {
@@ -3425,16 +3424,26 @@ pub struct StripeGpayToken {
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<RequestContent, errors::ConnectorError> {
+) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
     match bank_transfer_data {
         api_models::payments::BankTransferData::AchBankTransfer { .. }
         | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
-            Ok(RequestContent::FormUrlEncoded(Box::new(req)))
+            let request = types::RequestBody::log_and_get_request_body(
+                &req,
+                utils::Encode::<ChargesRequest>::url_encode,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            Ok(Some(request))
         }
         _ => {
             let req = PaymentIntentRequest::try_from(req)?;
-            Ok(RequestContent::FormUrlEncoded(Box::new(req)))
+            let request = types::RequestBody::log_and_get_request_body(
+                &req,
+                utils::Encode::<PaymentIntentRequest>::url_encode,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            Ok(Some(request))
         }
     }
 }
