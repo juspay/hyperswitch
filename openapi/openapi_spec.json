@@ -11808,7 +11808,6 @@
           "link_to_pay",
           "amount",
           "created_at",
-          "expiry",
           "status"
         ],
         "properties": {
