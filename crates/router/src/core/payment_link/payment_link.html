@@ -999,7 +999,11 @@
     </div>
 
     <script>
-      {{ payment_details_js_script }}
+      {
+        {
+          payment_details_js_script;
+        }
+      }
 
       window.state = {
         prevHeight: window.innerHeight,
@@ -1567,16 +1571,16 @@
       function renderCart() {
         var paymentDetails = window.__PAYMENT_DETAILS;
         var orderDetails = paymentDetails.order_details;
-        var cartNode = document.getElementById("hyper-checkout-cart");
-        var cartItemsNode = document.getElementById(
-          "hyper-checkout-cart-items"
-        );
-
-        var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
-          paymentDetails.max_items_visible_after_collapse;
 
         // Cart items
         if (Array.isArray(orderDetails) && orderDetails.length > 0) {
+          var cartNode = document.getElementById("hyper-checkout-cart");
+          var cartItemsNode = document.getElementById(
+            "hyper-checkout-cart-items"
+          );
+          var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
+            paymentDetails.max_items_visible_after_collapse;
+
           orderDetails.map((item, index) => {
             if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
               return;
@@ -1603,18 +1607,20 @@
             expandButtonNode.append(buttonTextNode, buttonImageNode);
             cartNode.insertBefore(expandButtonNode, cartNode.lastElementChild);
           }
-        } else if (
-          typeof paymentDetails.merchant_description === "string" &&
-          paymentDetails.merchant_description.length > 0
-        ) {
+        } else {
           hide("#hyper-checkout-cart-header");
           hide("#hyper-checkout-cart-items");
           hide("#hyper-checkout-cart-image");
-          show("#hyper-checkout-merchant-description");
-          const merchantDescription = paymentDetails.merchant_description;
-          document.getElementById(
-            "hyper-checkout-merchant-description"
-          ).innerText = merchantDescription;
+          if (
+            typeof paymentDetails.merchant_description === "string" &&
+            paymentDetails.merchant_description.length > 0
+          ) {
+            show("#hyper-checkout-merchant-description");
+            const merchantDescription = paymentDetails.merchant_description;
+            document.getElementById(
+              "hyper-checkout-merchant-description"
+            ).innerText = merchantDescription;
+          }
         }
       }
 
