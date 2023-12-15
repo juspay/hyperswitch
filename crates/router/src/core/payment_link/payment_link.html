@@ -434,49 +434,60 @@
         }
       }
 
-      #hyper-checkout-status {
+      #hyper-checkout-status-canvas {
+        width: 100%;
+        height: 100%;
+        justify-content: center;
+        align-items: center;
+        background-color: var(--primary-color);
+      }
+
+      .hyper-checkout-status-wrap {
         display: flex;
         flex-flow: column;
         font-family: "Montserrat";
-        height: 100%;
-        width: 100%;
-        overflow: hidden;
+        width: auto;
+        min-width: 400px;
+        background-color: white;
+        border-radius: 5px;
       }
 
       #hyper-checkout-status-header {
         max-width: 1200px;
-        border: 1px solid #e6e6e6;
         border-radius: 3px;
-        padding: 20px;
+        border-bottom: 1px solid #e6e6e6;
       }
 
       #hyper-checkout-status-header,
       #hyper-checkout-status-content {
-        width: 100%;
         display: flex;
         align-items: center;
         justify-content: space-between;
         font-size: 24px;
         font-weight: 600;
+        padding: 15px 20px;
       }
 
       .hyper-checkout-status-amount {
         font-family: "Montserrat";
-        font-size: 40px;
+        font-size: 35px;
         font-weight: 700;
       }
 
       .hyper-checkout-status-merchant-logo {
         border: 1px solid #e6e6e6;
-        height: 62px;
-        width: 62px;
+        border-radius: 5px;
+        padding: 3px;
+        height: 48px;
+        width: 48px;
       }
 
       #hyper-checkout-status-content {
-        justify-content: center;
-        align-items: center;
-        flex-flow: column;
         height: 100%;
+        flex-flow: column;
+        min-height: 500px;
+        align-items: center;
+        justify-content: center;
       }
 
       .hyper-checkout-status-image {
@@ -486,17 +497,18 @@
 
       .hyper-checkout-status-text {
         text-align: center;
-        font-size: 28px;
+        font-size: 21px;
         font-weight: 600;
         margin-top: 20px;
       }
 
       .hyper-checkout-status-message {
         text-align: center;
-        font-size: 12px;
+        font-size: 12px !important;
         margin-top: 10px;
         font-size: 14px;
         font-weight: 500;
+        max-width: 400px;
       }
 
       .hyper-checkout-status-details {
@@ -691,6 +703,14 @@
           width: calc(100vw - 20px);
         }
 
+        #hyper-checkout-status-canvas {
+          background-color: #fefefe;
+        }
+
+        .hyper-checkout-status-wrap {
+          min-width: 100vw;
+        }
+
         #hyper-checkout-status-header {
           max-width: calc(100% - 40px);
         }
@@ -846,9 +866,11 @@
       </div>
     </div>
     <div class="hyper-checkout">
-      <div class="main hidden" id="hyper-checkout-status">
-        <div id="hyper-checkout-status-header"></div>
-        <div id="hyper-checkout-status-content"></div>
+      <div class="main hidden" id="hyper-checkout-status-canvas">
+        <div class="hyper-checkout-status-wrap">
+          <div id="hyper-checkout-status-header"></div>
+          <div id="hyper-checkout-status-content"></div>
+        </div>
       </div>
       <div class="main" id="hyper-checkout-details">
         <div id="hyper-checkout-payment" class="hyper-checkout-payment">
@@ -983,6 +1005,7 @@
         prevHeight: window.innerHeight,
         prevWidth: window.innerWidth,
         isMobileView: window.innerWidth <= 1200,
+        currentScreen: "payment_link",
       };
 
       var widgets = null;
@@ -1006,11 +1029,16 @@
         initializeEventListeners();
 
         // Initialize SDK
-        initializeSDK();
+        if (window.Hyper) {
+          initializeSDK();
+        }
 
         // State specific functions
         if (window.state.isMobileView) {
           show("#hyper-footer");
+          hide("#hyper-checkout-cart");
+        } else {
+          show("#hyper-checkout-cart");
         }
       }
       boot();
@@ -1021,7 +1049,9 @@
           var currentWidth = window.innerWidth;
           if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
             hide("#hyper-checkout-cart");
-            show("#hyper-footer");
+            if (window.state.currentScreen === "payment_link") {
+              show("#hyper-footer");
+            }
             try {
               const primaryColor = window
                 .getComputedStyle(document.documentElement)
@@ -1041,7 +1071,9 @@
               );
             }
           } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
-            hide("#hyper-footer");
+            if (window.state.currentScreen === "payment_link") {
+              hide("#hyper-footer");
+            }
             show("#hyper-checkout-cart");
             try {
               const primaryColor = window
@@ -1072,8 +1104,9 @@
             } else {
               hide("#hyper-checkout-details");
               hide("#hyper-checkout-sdk");
-              show("#hyper-checkout-status");
-              show("#hyper-footer");
+              show("#hyper-checkout-status-canvas");
+              hide("#hyper-footer");
+              window.state.currentScreen = "status";
             }
           })
           .catch((err) => {});
@@ -1179,8 +1212,7 @@
           if (paymentIntent && paymentIntent.status) {
             hide("#hyper-checkout-sdk");
             hide("#hyper-checkout-details");
-            show("#hyper-checkout-status");
-            show("#hyper-footer");
+            show("#hyper-checkout-status-canvas");
             showStatus(paymentIntent);
           }
         }
@@ -1533,13 +1565,6 @@
       }
 
       function renderCart() {
-        if (window.state.isMobileView) {
-          hide("#hyper-checkout-cart");
-          show("#hyper-footer");
-        } else {
-          show("#hyper-checkout-cart");
-          show("#hyper-checkout-cart");
-        }
         var paymentDetails = window.__PAYMENT_DETAILS;
         var orderDetails = paymentDetails.order_details;
         var cartNode = document.getElementById("hyper-checkout-cart");
