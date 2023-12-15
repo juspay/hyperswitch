@@ -3,8 +3,8 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{
-    ext_traits::{BytesExt, Encode},
-    request::{Method, Request, RequestBody, RequestBuilder},
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::ResultExt;
 use masking::{Mask, Maskable};
@@ -121,14 +121,9 @@ impl ConnectorIntegration<LinkToken, auth_types::LinkTokenRequest, auth_types::L
     fn get_request_body(
         &self,
         req: &auth_types::LinkTokenRouterData,
-    ) -> errors::CustomResult<Option<RequestBody>, errors::ConnectorError> {
+    ) -> errors::CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = plaid::PlaidLinkTokenRequest::try_from(req)?;
-        let plaid_req = RequestBody::log_and_get_request_body(
-            &req_obj,
-            Encode::<plaid::PlaidLinkTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(plaid_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -146,7 +141,7 @@ impl ConnectorIntegration<LinkToken, auth_types::LinkTokenRequest, auth_types::L
                 .headers(auth_types::PaymentAuthLinkTokenType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(auth_types::PaymentAuthLinkTokenType::get_request_body(
+                .set_body(auth_types::PaymentAuthLinkTokenType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -212,14 +207,9 @@ impl
     fn get_request_body(
         &self,
         req: &auth_types::ExchangeTokenRouterData,
-    ) -> errors::CustomResult<Option<RequestBody>, errors::ConnectorError> {
+    ) -> errors::CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = plaid::PlaidExchangeTokenRequest::try_from(req)?;
-        let plaid_req = RequestBody::log_and_get_request_body(
-            &req_obj,
-            Encode::<plaid::PlaidExchangeTokenRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(plaid_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -237,7 +227,7 @@ impl
                 .headers(auth_types::PaymentAuthExchangeTokenType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(auth_types::PaymentAuthExchangeTokenType::get_request_body(
+                .set_body(auth_types::PaymentAuthExchangeTokenType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -299,14 +289,9 @@ impl
     fn get_request_body(
         &self,
         req: &auth_types::BankDetailsRouterData,
-    ) -> errors::CustomResult<Option<RequestBody>, errors::ConnectorError> {
+    ) -> errors::CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = plaid::PlaidBankAccountCredentialsRequest::try_from(req)?;
-        let plaid_req = RequestBody::log_and_get_request_body(
-            &req_obj,
-            Encode::<plaid::PlaidBankAccountCredentialsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(plaid_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -324,7 +309,9 @@ impl
                 .headers(auth_types::PaymentAuthBankAccountDetailsType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(auth_types::PaymentAuthBankAccountDetailsType::get_request_body(self, req)?)
+                .set_body(
+                    auth_types::PaymentAuthBankAccountDetailsType::get_request_body(self, req)?,
+                )
                 .build(),
         ))
     }

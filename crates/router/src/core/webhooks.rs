@@ -8,7 +8,7 @@ use api_models::{
     payments::HeaderPayload,
     webhooks::{self, WebhookResponseTracker},
 };
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, request::RequestContent};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
@@ -30,13 +30,12 @@ use crate::{
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
     services::{self, authentication as auth},
     types::{
-        self as router_types,
         api::{self, mandates::MandateResponseExt},
         domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
-    utils::{self as helper_utils, generate_id, Encode, OptionExt, ValueExt},
+    utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
@@ -743,7 +742,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         tokio::spawn(async move {
             let mut error = None;
             let result =
-                trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, &state).await;
+                trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, state).await;
 
             if let Err(e) = result {
                 error.replace(
@@ -782,7 +781,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
 pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     business_profile: diesel_models::business_profile::BusinessProfile,
     webhook: api::OutgoingWebhook,
-    state: &AppState,
+    state: AppState,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = business_profile
         .webhook_details
@@ -807,13 +806,6 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     let outgoing_webhooks_signature = transformed_outgoing_webhook
         .get_outgoing_webhooks_signature(business_profile.payment_response_hash_key.clone())?;
 
-    let transformed_outgoing_webhook_string = router_types::RequestBody::log_and_get_request_body(
-        &transformed_outgoing_webhook,
-        Encode::<serde_json::Value>::encode_to_string_of_json,
-    )
-    .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-    .attach_printable("There was an issue when encoding the outgoing webhook body")?;
-
     let mut header = vec![(
         reqwest::header::CONTENT_TYPE.to_string(),
         "application/json".into(),
@@ -828,12 +820,12 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
         .url(&webhook_url)
         .attach_default_headers()
         .headers(header)
-        .body(Some(transformed_outgoing_webhook_string))
+        .set_body(RequestContent::Json(Box::new(transformed_outgoing_webhook)))
         .build();
 
     let response = state
         .api_client
-        .send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS), false)
+        .send_request(&state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS), false)
         .await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
@@ -1160,9 +1152,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
         let webhook_details = api::IncomingWebhookDetails {
             object_reference_id: object_ref_id,
-            resource_object: event_object
-                .raw_serialize()
-                .and_then(|ref val| serde_json::to_vec(val))
+            resource_object: serde_json::to_vec(&event_object)
                 .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
                 .attach_printable_lazy(|| {

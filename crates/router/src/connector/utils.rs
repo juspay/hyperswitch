@@ -28,8 +28,8 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api, storage::payment_attempt::PaymentAttemptExt, transformers::ForeignTryFrom,
-        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
+        self, api, transformers::ForeignTryFrom, ApplePayPredecryptData, BrowserInformation,
+        PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -367,6 +367,10 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_original_amount(&self) -> i64;
+    fn get_surcharge_amount(&self) -> Option<i64>;
+    fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
+    fn get_total_surcharge_amount(&self) -> Option<i64>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -472,6 +476,27 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_original_amount(&self) -> i64 {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.original_amount)
+            .unwrap_or(self.amount)
+    }
+    fn get_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount)
+    }
+    fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount)
+    }
+    fn get_total_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
     }
 }
 
