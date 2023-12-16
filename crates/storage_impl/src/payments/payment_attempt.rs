@@ -331,6 +331,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
+                let payment_attempt = payment_attempt.populate_derived_fields();
                 let key = format!(
                     "mid_{}_pid_{}",
                     payment_attempt.merchant_id, payment_attempt.payment_id
@@ -343,6 +344,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     attempt_id: payment_attempt.attempt_id.clone(),
                     status: payment_attempt.status,
                     amount: payment_attempt.amount,
+                    net_amount: payment_attempt.net_amount,
                     currency: payment_attempt.currency,
                     save_to_locker: payment_attempt.save_to_locker,
                     connector: payment_attempt.connector.clone(),
@@ -1035,6 +1037,7 @@ impl DataModelExt for PaymentAttempt {
             attempt_id: self.attempt_id,
             status: self.status,
             amount: self.amount,
+            net_amount: self.net_amount,
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
@@ -1087,6 +1090,7 @@ impl DataModelExt for PaymentAttempt {
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             amount: storage_model.amount,
+            net_amount: storage_model.net_amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
@@ -1139,6 +1143,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
+            net_amount: self.calculate_net_amount(),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1236,6 +1241,7 @@ impl DataModelExt for PaymentAttemptNew {
             merchant_connector_id: storage_model.merchant_connector_id,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
+            net_amount: storage_model.net_amount,
         }
     }
 }
