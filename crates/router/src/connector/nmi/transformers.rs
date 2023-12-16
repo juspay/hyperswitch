@@ -215,7 +215,7 @@ impl
 }
 
 #[derive(Debug, Serialize)]
-pub struct NmiCompleteReqeust {
+pub struct NmiCompleteRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     security_key: Secret<String>,
@@ -249,7 +249,7 @@ pub struct NmiRedirectResponseData {
     three_ds_version: ThreeDsVersion,
 }
 
-impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteReqeust {
+impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
     type Error = Error;
     fn try_from(
         item: &NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>,

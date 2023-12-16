@@ -386,7 +386,7 @@ impl
             req.request.amount,
             req,
         ))?;
-        let connector_req = nmi::NmiCompleteReqeust::try_from(&connector_router_data)?;
+        let connector_req = nmi::NmiCompleteRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
     fn build_request(
