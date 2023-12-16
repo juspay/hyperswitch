@@ -774,7 +774,7 @@ pub struct CybersourceClientReferenceResponse {
     token_information: Option<CybersourceTokenInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceErrorInformationResponse {
     id: String,
@@ -814,6 +814,42 @@ pub struct CybersourceTokenInformation {
 pub struct CybersourceErrorInformation {
     reason: Option<String>,
     message: Option<String>,
+}
+
+impl<F, T>
+    TryFrom<(
+        &CybersourceErrorInformationResponse,
+        types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (error_response, item): (
+            &CybersourceErrorInformationResponse,
+            types::ResponseRouterData<
+                F,
+                CybersourcePaymentsResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Err(types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: error_response
+                    .error_information
+                    .message
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: error_response.error_information.reason.clone(),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl<F>
@@ -870,20 +906,9 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            }),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Self::try_from((&error_response.clone(), item))
+            }
         }
     }
 }
@@ -910,8 +935,6 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((info_response.status, true));
-                let incremental_authorization_allowed =
-                    Some(status == enums::AttemptStatus::Authorized);
                 let mandate_reference =
                     info_response
                         .token_information
@@ -934,25 +957,14 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
-                        incremental_authorization_allowed,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            }),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Self::try_from((&error_response.clone(), item))
+            }
         }
     }
 }
@@ -979,8 +991,6 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((info_response.status, false));
-                let incremental_authorization_allowed =
-                    Some(status == enums::AttemptStatus::Authorized);
                 let mandate_reference =
                     info_response
                         .token_information
@@ -1003,25 +1013,14 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
-                        incremental_authorization_allowed,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..item.data
-            }),
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
+                Self::try_from((&error_response.clone(), item))
+            }
         }
     }
 }
