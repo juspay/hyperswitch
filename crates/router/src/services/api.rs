@@ -279,15 +279,6 @@ where
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     logger::debug!(connector_request=?connector_request);
-    let masked_conn_req = connector_request.as_ref().map(|req| match &req.body {
-        Some(RequestContent::Json(payload))
-        | Some(RequestContent::FormUrlEncoded(payload))
-        | Some(RequestContent::Xml(payload)) => payload.masked_serialize().unwrap_or_default(),
-        Some(RequestContent::FormData(_)) => json!({"request_type": "FORM_DATA"}),
-        None => serde_json::Value::Null,
-    });
-    logger::debug!(connector_request_body=?masked_conn_req);
-    logger::debug!(payment_id=?req.payment_id);
     let mut router_data = req.clone();
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
