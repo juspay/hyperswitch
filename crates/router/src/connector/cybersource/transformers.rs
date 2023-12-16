@@ -817,13 +817,12 @@ pub struct CybersourceErrorInformation {
 }
 
 impl<F, T>
-    TryFrom<(
+    From<(
         &CybersourceErrorInformationResponse,
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn from(
         (error_response, item): (
             &CybersourceErrorInformationResponse,
             types::ResponseRouterData<
@@ -833,8 +832,8 @@ impl<F, T>
                 types::PaymentsResponseData,
             >,
         ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             response: Err(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: error_response
@@ -848,7 +847,7 @@ impl<F, T>
                 connector_transaction_id: None,
             }),
             ..item.data
-        })
+        }
     }
 }
 
@@ -907,7 +906,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Self::try_from((&error_response.clone(), item))
+                Ok(Self::from((&error_response.clone(), item)))
             }
         }
     }
@@ -956,7 +955,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Self::try_from((&error_response.clone(), item))
+                Ok(Self::from((&error_response.clone(), item)))
             }
         }
     }
@@ -1005,7 +1004,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Self::try_from((&error_response.clone(), item))
+                Ok(Self::from((&error_response.clone(), item)))
             }
         }
     }
