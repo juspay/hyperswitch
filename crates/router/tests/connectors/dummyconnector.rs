@@ -14,7 +14,7 @@ impl utils::Connector for DummyConnectorTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::DummyConnector;
         types::api::ConnectorData {
-            connector: Box::new(&DummyConnector::<1>),
+            connector: Box::new(&DummyConnector),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,

@@ -1,5 +1,5 @@
 pub mod paypal;
-pub mod stripe;
+// pub mod stripe;
 
 use error_stack::{IntoReport, ResultExt};
 

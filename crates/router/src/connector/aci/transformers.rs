@@ -1,5 +1,14 @@
 use std::str::FromStr;
 
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[serde_with::skip_serializing_none]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RefundMethod {
+    StoreCredit,
+    OriginalPaymentInstrument,
+    NewPaymentInstrument,
+}
+
 use api_models::enums::BankNames;
 use common_utils::pii::Email;
 use error_stack::report;
