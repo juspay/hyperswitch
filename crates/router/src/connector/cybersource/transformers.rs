@@ -935,13 +935,6 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((info_response.status, true));
-                let mandate_reference =
-                    info_response
-                        .token_information
-                        .map(|token_info| types::MandateReference {
-                            connector_mandate_id: Some(token_info.instrument_identifier.id),
-                            payment_method_id: None,
-                        });
                 let connector_response_reference_id = Some(
                     info_response
                         .client_reference_information
@@ -953,7 +946,7 @@ impl<F>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(info_response.id),
                         redirection_data: None,
-                        mandate_reference,
+                        mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
@@ -991,13 +984,6 @@ impl<F>
         match item.response {
             CybersourcePaymentsResponse::ClientReferenceInformation(info_response) => {
                 let status = enums::AttemptStatus::foreign_from((info_response.status, false));
-                let mandate_reference =
-                    info_response
-                        .token_information
-                        .map(|token_info| types::MandateReference {
-                            connector_mandate_id: Some(token_info.instrument_identifier.id),
-                            payment_method_id: None,
-                        });
                 let connector_response_reference_id = Some(
                     info_response
                         .client_reference_information
@@ -1009,7 +995,7 @@ impl<F>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(info_response.id),
                         redirection_data: None,
-                        mandate_reference,
+                        mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
