@@ -1,4 +1,4 @@
-CREATE TABLE api_events_v2_queue (
+CREATE TABLE api_events_queue (
     `merchant_id` String,
     `payment_id` Nullable(String),
     `refund_id` Nullable(String),
@@ -14,12 +14,15 @@ CREATE TABLE api_events_v2_queue (
     `api_auth_type` LowCardinality(String),
     `request` String,
     `response` Nullable(String),
+    `error` Nullable(String),
     `authentication_data` Nullable(String),
     `status_code` UInt32,
-    `created_at` DateTime CODEC(T64, LZ4),
+    `created_at_timestamp` DateTime64(3),
     `latency` UInt128,
     `user_agent` String,
     `ip_addr` String,
+    `hs_latency` Nullable(UInt128),
+    `http_method` LowCardinality(String),
     `url_path` String
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-api-log-events',
@@ -28,7 +31,7 @@ kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
 
-CREATE TABLE api_events_v2_dist (
+CREATE TABLE api_events_dist (
     `merchant_id` String,
     `payment_id` Nullable(String),
     `refund_id` Nullable(String),
@@ -44,13 +47,15 @@ CREATE TABLE api_events_v2_dist (
     `api_auth_type` LowCardinality(String),
     `request` String,
     `response` Nullable(String),
+    `error` Nullable(String),
     `authentication_data` Nullable(String),
     `status_code` UInt32,
-    `created_at` DateTime CODEC(T64, LZ4),
-    `inserted_at` DateTime CODEC(T64, LZ4),
+    `created_at_timestamp` DateTime64(3),
     `latency` UInt128,
     `user_agent` String,
     `ip_addr` String,
+    `hs_latency` Nullable(UInt128),
+    `http_method` LowCardinality(String),
     `url_path` String,
     INDEX flowIndex flow_type TYPE bloom_filter GRANULARITY 1,
     INDEX apiIndex api_flow TYPE bloom_filter GRANULARITY 1,
@@ -62,7 +67,7 @@ ORDER BY
 TTL created_at + toIntervalMonth(6)
 ;
 
-CREATE MATERIALIZED VIEW api_events_v2_mv TO api_events_v2_dist (
+CREATE MATERIALIZED VIEW api_events_mv TO api_events_dist (
     `merchant_id` String,
     `payment_id` Nullable(String),
     `refund_id` Nullable(String),
@@ -78,13 +83,15 @@ CREATE MATERIALIZED VIEW api_events_v2_mv TO api_events_v2_dist (
     `api_auth_type` LowCardinality(String),
     `request` String,
     `response` Nullable(String),
+    `error` Nullable(String),
     `authentication_data` Nullable(String),
     `status_code` UInt32,
-    `created_at` DateTime CODEC(T64, LZ4),
-    `inserted_at` DateTime CODEC(T64, LZ4),
+    `created_at_timestamp` DateTime64(3),
     `latency` UInt128,
     `user_agent` String,
     `ip_addr` String,
+    `hs_latency` Nullable(UInt128),
+    `http_method` LowCardinality(String),
     `url_path` String
 ) AS
 SELECT
@@ -103,16 +110,19 @@ SELECT
     api_auth_type,
     request,
     response,
+    error,
     authentication_data,
     status_code,
-    created_at,
+    created_at_timestamp,
     now() as inserted_at,
     latency,
     user_agent,
     ip_addr,
+    hs_latency,
+    http_method,
     url_path
 FROM
-    api_events_v2_queue
+    api_events_queue
 where length(_error) = 0;
 
 
@@ -133,6 +143,6 @@ SELECT
     _offset AS offset,
     _raw_message AS raw,
     _error AS error
-FROM api_events_v2_queue
+FROM api_events_queue
 WHERE length(_error) > 0
 ;
