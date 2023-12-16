@@ -940,7 +940,7 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
-        request.method()
+        request.method(),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
