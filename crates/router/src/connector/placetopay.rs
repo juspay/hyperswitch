@@ -406,12 +406,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayNextActionRequest::try_from(req)?;
-
-        // let req = types::RequestBody::log_and_get_request_body(
-        //     &req_obj,
-        //     utils::Encode::<placetopay::PlacetopayNextActionRequest>::encode_to_string_of_json,
-        // )
-        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -486,11 +480,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayRefundRequest::try_from(req)?;
-        // let placetopay_req = types::RequestBody::log_and_get_request_body(
-        //     &req_obj,
-        //     utils::Encode::<placetopay::PlacetopayRefundRequest>::encode_to_string_of_json,
-        // )
-        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
