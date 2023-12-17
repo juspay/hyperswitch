@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
 };
 
 const PASSWORD: &str = "password";
@@ -261,6 +261,14 @@ pub struct VoltPaymentsResponse {
     id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum VoltPaymentsResponseData {
+    WebhookResponse(VoltWebhookObjectResource),
+    PaymentsResponse(VoltPaymentsResponse),
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, VoltPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -402,6 +410,73 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
             }),
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+pub struct VoltWebhookBodyReference {
+    pub reference: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VoltWebhookBodyEventType {
+    pub status: VoltWebhookStatus,
+    pub detailed_status: Option<VoltDetailedStatus>,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+pub struct VoltWebhookObjectResource {
+    pub reference: String,
+    pub status: VoltWebhookStatus,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VoltWebhookStatus {
+    Completed,
+    Failed,
+    Pending,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VoltDetailedStatus {
+    RefusedByRisk,
+    RefusedByBank,
+    ErrorAtBank,
+    CancelledByUser,
+    AbandonedByUser,
+    Failed,
+}
+
+impl ForeignFrom<(VoltWebhookStatus, Option<VoltDetailedStatus>)> for api::IncomingWebhookEvent {
+    fn foreign_from(
+        (status, detailed_status): (VoltWebhookStatus, Option<VoltDetailedStatus>),
+    ) -> Self {
+        match status {
+            VoltWebhookStatus::Completed => Self::PaymentIntentSuccess,
+            VoltWebhookStatus::Failed => {
+                if let Some(volt_detailed_status) = detailed_status {
+                    Self::from(volt_detailed_status)
+                } else {
+                    Self::EventNotSupported
+                }
+            }
+            VoltWebhookStatus::Pending => Self::PaymentIntentProcessing,
+        }
+    }
+}
+
+impl From<VoltDetailedStatus> for api::IncomingWebhookEvent {
+    fn from(detail_status: VoltDetailedStatus) -> Self {
+        match detail_status {
+            VoltDetailedStatus::RefusedByRisk => Self::PaymentIntentFailure,
+            VoltDetailedStatus::RefusedByBank => Self::PaymentIntentFailure,
+            VoltDetailedStatus::ErrorAtBank => Self::PaymentIntentFailure,
+            VoltDetailedStatus::CancelledByUser => Self::PaymentIntentCancelled,
+            VoltDetailedStatus::AbandonedByUser => Self::PaymentIntentCancelled,
+            VoltDetailedStatus::Failed => Self::PaymentIntentFailure,
+        }
     }
 }
 

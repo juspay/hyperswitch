@@ -2,11 +2,12 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use transformers as volt;
 
+use super::utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -19,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -559,24 +561,80 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Volt {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = utils::get_header_key_value("X-Volt-Signed", request.headers)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        Ok(signature.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let x_volt_timed = utils::get_header_key_value("X-Volt-Timed", request.headers)?;
+        let user_agent = utils::get_header_key_value("User-Agent", request.headers)?;
+        let version = user_agent
+            .split('/')
+            .last()
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(format!(
+            "{}|{}|{}",
+            String::from_utf8_lossy(request.body),
+            x_volt_timed,
+            version
+        )
+        .into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook_body: volt::VoltWebhookBodyReference = request
+            .body
+            .parse_struct("VoltWebhookBodyReference")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.reference),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let payload: volt::VoltWebhookBodyEventType = request
+            .body
+            .parse_struct("VoltWebhookBodyEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::IncomingWebhookEvent::foreign_from((
+            payload.status,
+            payload.detailed_status,
+        )))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: volt::VoltWebhookObjectResource = request
+            .body
+            .parse_struct("VoltWebhookObjectResource")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(details))
     }
 }
