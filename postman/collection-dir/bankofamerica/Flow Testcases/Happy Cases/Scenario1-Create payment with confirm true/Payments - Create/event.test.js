@@ -63,9 +63,9 @@ if (jsonData?.client_secret) {
 // Response body should have value "processing" for "status" because payment gets succeeded after one day.
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'processing'",
+    "[POST]::/payments - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
+      pm.expect(jsonData.status).to.eql("succeeded");
     },
   );
 }
