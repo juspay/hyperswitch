@@ -118,10 +118,9 @@ fn get_card_details(
                 "".to_string(),
             ),
         )),
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-            connector: "nmi",
-        })
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("Nmi"),
+        ))
         .into_report(),
     }
 }
@@ -268,7 +267,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
         let three_ds_data: NmiRedirectResponseData = serde_json::from_value(payload_data)
             .into_report()
             .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "cavv",
+                field_name: "three_ds_data",
             })?;
 
         Ok(Self {
