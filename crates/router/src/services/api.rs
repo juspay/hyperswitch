@@ -12,6 +12,7 @@ use std::{
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -19,7 +20,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -772,6 +773,12 @@ pub enum RedirectForm {
         card_token: String,
         bin: String,
     },
+    Nmi {
+        amount: String,
+        currency: Currency,
+        public_key: Secret<String>,
+        customer_vault_id: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -1494,6 +1501,79 @@ pub fn build_redirection_form(
                                         }}); </script>"
                                     )))
                 }}
+        }
+        RedirectForm::Nmi {
+            amount,
+            currency,
+            public_key,
+            customer_vault_id,
+        } => {
+            let public_key_val = public_key.peek();
+            maud::html! {
+                    (maud::DOCTYPE)
+                    head {
+                        (PreEscaped(r#"<script src="https://secure.networkmerchants.com/js/v1/Gateway.js"></script>"#))
+                    }
+                    (PreEscaped(format!("<script>
+                    const gateway = Gateway.create('{public_key_val}');
+
+                    // Initialize the ThreeDSService
+                    const threeDS = gateway.get3DSecure();
+            
+                    const options = {{
+                        customerVaultId: '{customer_vault_id}',
+                        currency: '{currency}',
+                        amount: '{amount}'
+                    }};
+
+                    var responseForm = document.createElement('form');
+                    responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                    responseForm.method='POST';
+            
+                    const threeDSsecureInterface = threeDS.createUI(options);
+                    threeDSsecureInterface.start('body');
+            
+                    threeDSsecureInterface.on('challenge', function(e) {{
+                        console.log('Challenged');
+                    }});
+            
+                    threeDSsecureInterface.on('complete', function(e) {{
+                        
+                        var item1=document.createElement('input');
+                        item1.type='hidden';
+                        item1.name='cavv';
+                        item1.value=e.cavv;
+                        responseForm.appendChild(item1);
+
+                        var item2=document.createElement('input');
+                        item2.type='hidden';
+                        item2.name='xid';
+                        item2.value=e.xid;
+                        responseForm.appendChild(item2);
+
+                        var item3=document.createElement('input');
+                        item3.type='hidden';
+                        item3.name='cardHolderAuth';
+                        item3.value=e.cardHolderAuth;
+                        responseForm.appendChild(item3);
+
+                        var item4=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='threeDsVersion';
+                        item4.value=e.threeDsVersion;
+                        responseForm.appendChild(item4);
+
+                        document.body.appendChild(responseForm);
+                        responseForm.submit();
+                    }});
+            
+                    threeDSsecureInterface.on('failure', function(e) {{
+                        responseForm.submit();
+                    }});
+            
+            </script>"
+            )))
+                }
         }
     }
 }
