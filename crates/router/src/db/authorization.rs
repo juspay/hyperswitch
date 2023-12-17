@@ -1,3 +1,4 @@
+use diesel_models::authorization::AuthorizationUpdateInternal;
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
@@ -94,8 +95,8 @@ impl AuthorizationInterface for MockDb {
             merchant_id: authorization.merchant_id,
             payment_id: authorization.payment_id,
             amount: authorization.amount,
-            created_at: authorization.created_at,
-            modified_at: authorization.modified_at,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
             status: authorization.status,
             error_code: authorization.error_code,
             error_message: authorization.error_message,
@@ -121,7 +122,7 @@ impl AuthorizationInterface for MockDb {
         if authorizations_found.is_empty() {
             Err(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authorization for authorization_id = {authorization_id} and merchant_id = {merchant_id}"
+                    "cannot find authorization for merchant_id = {merchant_id} and payment_id = {payment_id} "
                 ))
                 .into(),
             )
