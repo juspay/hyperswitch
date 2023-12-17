@@ -254,7 +254,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError>;
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
     fn get_webhook_api_response(
         &self,

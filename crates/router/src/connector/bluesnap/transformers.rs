@@ -221,7 +221,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => {
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
                 ))
@@ -240,160 +241,160 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
             _ => BluesnapTxnType::AuthCapture,
         };
-        let (payment_method, card_holder_info) =
-            match item.router_data.request.payment_method_data.clone() {
-                api::PaymentMethodData::Card(ref ccard) => Ok((
-                    PaymentMethodDetails::CreditCard(Card {
-                        card_number: ccard.card_number.clone(),
-                        expiration_month: ccard.card_exp_month.clone(),
-                        expiration_year: ccard.get_expiry_year_4_digit(),
-                        security_code: ccard.card_cvc.clone(),
-                    }),
-                    get_card_holder_info(
-                        item.router_data.get_billing_address()?,
-                        item.router_data.request.get_email()?,
-                    )?,
-                )),
-                api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                    api_models::payments::WalletData::GooglePay(payment_method_data) => {
-                        let gpay_object =
-                            Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
-                                &BluesnapGooglePayObject {
-                                    payment_method_data: utils::GooglePayWalletData::from(
-                                        payment_method_data,
-                                    ),
-                                },
-                            )
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                        Ok((
-                            PaymentMethodDetails::Wallet(BluesnapWallet {
-                                wallet_type: BluesnapWalletTypes::GooglePay,
-                                encoded_payment_token: Secret::new(
-                                    consts::BASE64_ENGINE.encode(gpay_object),
-                                ),
-                            }),
-                            None,
-                        ))
+        let (payment_method, card_holder_info) = match item
+            .router_data
+            .request
+            .payment_method_data
+            .clone()
+        {
+            api::PaymentMethodData::Card(ref ccard) => Ok((
+                PaymentMethodDetails::CreditCard(Card {
+                    card_number: ccard.card_number.clone(),
+                    expiration_month: ccard.card_exp_month.clone(),
+                    expiration_year: ccard.get_expiry_year_4_digit(),
+                    security_code: ccard.card_cvc.clone(),
+                }),
+                get_card_holder_info(
+                    item.router_data.get_billing_address()?,
+                    item.router_data.request.get_email()?,
+                )?,
+            )),
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(payment_method_data) => {
+                    let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
+                        &BluesnapGooglePayObject {
+                            payment_method_data: utils::GooglePayWalletData::from(
+                                payment_method_data,
+                            ),
+                        },
+                    )
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    Ok((
+                        PaymentMethodDetails::Wallet(BluesnapWallet {
+                            wallet_type: BluesnapWalletTypes::GooglePay,
+                            encoded_payment_token: Secret::new(
+                                consts::BASE64_ENGINE.encode(gpay_object),
+                            ),
+                        }),
+                        None,
+                    ))
+                }
+                api_models::payments::WalletData::ApplePay(payment_method_data) => {
+                    let apple_pay_payment_data = payment_method_data
+                        .get_applepay_decoded_payment_data()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
+                        .expose()[..]
+                        .as_bytes()
+                        .parse_struct("ApplePayEncodedPaymentData")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+                    let billing = item
+                        .router_data
+                        .address
+                        .billing
+                        .to_owned()
+                        .get_required_value("billing")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing",
+                        })?;
+
+                    let billing_address = billing
+                        .address
+                        .get_required_value("billing_address")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing",
+                        })?;
+
+                    let mut address = Vec::new();
+                    if let Some(add) = billing_address.line1.to_owned() {
+                        address.push(add)
                     }
-                    api_models::payments::WalletData::ApplePay(payment_method_data) => {
-                        let apple_pay_payment_data = payment_method_data
-                            .get_applepay_decoded_payment_data()
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                        let apple_pay_payment_data: ApplePayEncodedPaymentData =
-                            apple_pay_payment_data.expose()[..]
-                                .as_bytes()
-                                .parse_struct("ApplePayEncodedPaymentData")
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                        let billing = item
-                            .router_data
-                            .address
-                            .billing
-                            .to_owned()
-                            .get_required_value("billing")
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing",
-                            })?;
-
-                        let billing_address = billing
-                            .address
-                            .get_required_value("billing_address")
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing",
-                            })?;
-
-                        let mut address = Vec::new();
-                        if let Some(add) = billing_address.line1.to_owned() {
-                            address.push(add)
-                        }
-                        if let Some(add) = billing_address.line2.to_owned() {
-                            address.push(add)
-                        }
-                        if let Some(add) = billing_address.line3.to_owned() {
-                            address.push(add)
-                        }
-
-                        let apple_pay_object =
-                            Encode::<EncodedPaymentToken>::encode_to_string_of_json(
-                                &EncodedPaymentToken {
-                                    token: ApplepayPaymentData {
-                                        payment_data: apple_pay_payment_data,
-                                        payment_method: payment_method_data
-                                            .payment_method
-                                            .to_owned()
-                                            .into(),
-                                        transaction_identifier: payment_method_data
-                                            .transaction_identifier,
-                                    },
-                                    billing_contact: BillingDetails {
-                                        country_code: billing_address.country,
-                                        address_lines: Some(address),
-                                        family_name: billing_address.last_name.to_owned(),
-                                        given_name: billing_address.first_name.to_owned(),
-                                        postal_code: billing_address.zip,
-                                    },
-                                },
-                            )
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                        Ok((
-                            PaymentMethodDetails::Wallet(BluesnapWallet {
-                                wallet_type: BluesnapWalletTypes::ApplePay,
-                                encoded_payment_token: Secret::new(
-                                    consts::BASE64_ENGINE.encode(apple_pay_object),
-                                ),
-                            }),
-                            get_card_holder_info(
-                                item.router_data.get_billing_address()?,
-                                item.router_data.request.get_email()?,
-                            )?,
-                        ))
+                    if let Some(add) = billing_address.line2.to_owned() {
+                        address.push(add)
                     }
-                    payments::WalletData::AliPayQr(_)
-                    | payments::WalletData::AliPayRedirect(_)
-                    | payments::WalletData::AliPayHkRedirect(_)
-                    | payments::WalletData::MomoRedirect(_)
-                    | payments::WalletData::KakaoPayRedirect(_)
-                    | payments::WalletData::GoPayRedirect(_)
-                    | payments::WalletData::GcashRedirect(_)
-                    | payments::WalletData::ApplePayRedirect(_)
-                    | payments::WalletData::ApplePayThirdPartySdk(_)
-                    | payments::WalletData::DanaRedirect {}
-                    | payments::WalletData::GooglePayRedirect(_)
-                    | payments::WalletData::GooglePayThirdPartySdk(_)
-                    | payments::WalletData::MbWayRedirect(_)
-                    | payments::WalletData::MobilePayRedirect(_)
-                    | payments::WalletData::PaypalRedirect(_)
-                    | payments::WalletData::PaypalSdk(_)
-                    | payments::WalletData::SamsungPay(_)
-                    | payments::WalletData::TwintRedirect {}
-                    | payments::WalletData::VippsRedirect {}
-                    | payments::WalletData::TouchNGoRedirect(_)
-                    | payments::WalletData::WeChatPayRedirect(_)
-                    | payments::WalletData::CashappQr(_)
-                    | payments::WalletData::SwishQr(_)
-                    | payments::WalletData::WeChatPayQr(_) => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("bluesnap"),
-                        ))
+                    if let Some(add) = billing_address.line3.to_owned() {
+                        address.push(add)
                     }
-                },
-                payments::PaymentMethodData::PayLater(_)
-                | payments::PaymentMethodData::BankRedirect(_)
-                | payments::PaymentMethodData::BankDebit(_)
-                | payments::PaymentMethodData::BankTransfer(_)
-                | payments::PaymentMethodData::Crypto(_)
-                | payments::PaymentMethodData::MandatePayment
-                | payments::PaymentMethodData::Reward
-                | payments::PaymentMethodData::Upi(_)
-                | payments::PaymentMethodData::CardRedirect(_)
-                | payments::PaymentMethodData::Voucher(_)
-                | payments::PaymentMethodData::GiftCard(_) => {
+
+                    let apple_pay_object = Encode::<EncodedPaymentToken>::encode_to_string_of_json(
+                        &EncodedPaymentToken {
+                            token: ApplepayPaymentData {
+                                payment_data: apple_pay_payment_data,
+                                payment_method: payment_method_data
+                                    .payment_method
+                                    .to_owned()
+                                    .into(),
+                                transaction_identifier: payment_method_data.transaction_identifier,
+                            },
+                            billing_contact: BillingDetails {
+                                country_code: billing_address.country,
+                                address_lines: Some(address),
+                                family_name: billing_address.last_name.to_owned(),
+                                given_name: billing_address.first_name.to_owned(),
+                                postal_code: billing_address.zip,
+                            },
+                        },
+                    )
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+                    Ok((
+                        PaymentMethodDetails::Wallet(BluesnapWallet {
+                            wallet_type: BluesnapWalletTypes::ApplePay,
+                            encoded_payment_token: Secret::new(
+                                consts::BASE64_ENGINE.encode(apple_pay_object),
+                            ),
+                        }),
+                        get_card_holder_info(
+                            item.router_data.get_billing_address()?,
+                            item.router_data.request.get_email()?,
+                        )?,
+                    ))
+                }
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_)
+                | payments::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("bluesnap"),
                     ))
                 }
-            }?;
+            },
+            payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("bluesnap"),
+            )),
+        }?;
         Ok(Self {
             amount: item.amount.to_owned(),
             payment_method,
@@ -855,6 +856,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

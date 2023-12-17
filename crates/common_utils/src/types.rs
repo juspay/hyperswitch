@@ -2,7 +2,10 @@
 use error_stack::{IntoReport, ResultExt};
 use serde::{de::Visitor, Deserialize, Deserializer};
 
-use crate::errors::{CustomResult, PercentageError};
+use crate::{
+    consts,
+    errors::{CustomResult, PercentageError},
+};
 
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
@@ -77,7 +80,9 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
             match value.split('.').last() {
-                Some(decimal_part) => decimal_part.trim_end_matches('0').len() <= PRECISION.into(),
+                Some(decimal_part) => {
+                    decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
+                }
                 // will never be None
                 None => false,
             }
@@ -133,4 +138,14 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
     {
         data.deserialize_map(PercentageVisitor::<PRECISION> {})
     }
+}
+
+/// represents surcharge type and value
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum Surcharge {
+    /// Fixed Surcharge value
+    Fixed(i64),
+    /// Surcharge percentage
+    Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
 }

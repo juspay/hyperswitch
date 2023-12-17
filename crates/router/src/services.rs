@@ -1,7 +1,15 @@
 pub mod api;
 pub mod authentication;
+pub mod authorization;
 pub mod encryption;
+#[cfg(feature = "olap")]
+pub mod jwt;
+pub mod kafka;
 pub mod logger;
+pub mod pm_auth;
+
+#[cfg(feature = "email")]
+pub mod email;
 
 #[cfg(feature = "kms")]
 use data_models::errors::StorageError;

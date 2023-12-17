@@ -1,0 +1,9 @@
+<yandex>
+    <macros>
+        <replica>clickhouse-02</replica>
+        <shard>02</shard>
+        <layer>01</layer>
+        <installation>data</installation>
+        <cluster>cluster_1</cluster>
+    </macros>
+</yandex>

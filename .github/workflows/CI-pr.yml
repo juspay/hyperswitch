@@ -41,17 +41,25 @@ jobs:
     name: Check formatting
     runs-on: ubuntu-latest
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -71,8 +79,8 @@ jobs:
           cargo +nightly fmt --all
           if ! git diff --exit-code --quiet -- crates; then
             echo "::notice::Formatting check failed"
-            git config --local user.name 'github-actions[bot]'
-            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add crates
             git commit --message 'chore: run formatter'
             git push
@@ -91,7 +99,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Fetch base branch"
         shell: bash
@@ -108,12 +116,12 @@ jobs:
         with:
           toolchain: 1.65
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
           version: 0.6.5
@@ -122,149 +130,53 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
-      - name: Check files changed
+      - name: Check modified crates
         shell: bash
         run: |
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/api_models/; then
-            echo "api_models_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "api_models_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/cards/; then
-            echo "cards_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "cards_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/common_enums/; then
-            echo "common_enums_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "common_enums_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/common_utils/; then
-            echo "common_utils_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "common_utils_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/diesel_models/; then
-            echo "diesel_models_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "diesel_models_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/drainer/; then
-            echo "drainer_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "drainer_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/external_services/; then
-            echo "external_services_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "external_services_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/masking/; then
-            echo "masking_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "masking_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/redis_interface/; then
-            echo "redis_interface_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "redis_interface_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/router/; then
-            echo "router_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "router_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/storage_impl/; then
-            echo "storage_impl_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "storage_impl_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/router_derive/; then
-            echo "router_derive_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "router_derive_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/router_env/; then
-            echo "router_env_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "router_env_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/test_utils/; then
-            echo "test_utils_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "test_utils_changes_exist=true" >> $GITHUB_ENV
-          fi
+          # Obtain a list of workspace members
+          workspace_members="$(
+            cargo metadata --format-version 1 --no-deps \
+              | jq --compact-output --monochrome-output --raw-output '.workspace_members | sort | .[] | split(" ")[0]'
+          )"
 
-      - name: Cargo hack api_models
-        if: env.api_models_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p api_models
+          PACKAGES_CHECKED=()
+          PACKAGES_SKIPPED=()
 
-      - name: Cargo hack cards
-        if: env.cards_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p cards
+          while IFS= read -r package_name; do
+            # Obtain comma-separated list of transitive workspace dependencies for each workspace member
+            change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
+              | grep 'crates/' \
+              | sort --unique \
+              | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
 
-      - name: Cargo hack common_enums
-        if: env.common_enums_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p common_enums
+            # Store change paths in an array by splitting `change_paths` by comma
+            IFS=',' read -ra change_paths <<< "${change_paths}"
 
-      - name: Cargo hack common_utils
-        if: env.common_utils_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p common_utils
+            # A package must be checked if any of its transitive dependencies (or itself) has been modified
+            if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
+              printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_SKIPPED+=("${package_name}")
+            else
+              printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_CHECKED+=("${package_name}")
+            fi
+          done <<< "${workspace_members}"
 
-      - name: Cargo hack diesel_models
-        if: env.diesel_models_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p diesel_models
+          printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
+          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
 
-      - name: Cargo hack drainer
-        if: env.drainer_changes_exist == 'true'
+      - name: Run `cargo hack` on modified crates
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p drainer
+        run: |
+          # Store packages to check in an array by splitting `PACKAGES_CHECKED` by space
+          IFS=' ' read -ra PACKAGES_CHECKED <<< "${PACKAGES_CHECKED}"
 
-      - name: Cargo hack external_services
-        if: env.external_services_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p external_services
-
-      - name: Cargo hack masking
-        if: env.masking_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p masking
-
-      - name: Cargo hack redis_interface
-        if: env.redis_interface_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p redis_interface
-
-      - name: Cargo hack router
-        if: env.router_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --skip kms,basilisk,kv_store,accounts_cache,openapi --no-dev-deps -p router
-
-      - name: Cargo hack storage_impl
-        if: env.storage_impl_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p storage_impl
-
-      - name: Cargo hack router_derive
-        if: env.router_derive_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p router_derive
-
-      - name: Cargo hack router_env
-        if: env.router_env_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p router_env
-
-      - name: Cargo hack test_utils
-        if: env.test_utils_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p test_utils
+          for package in "${PACKAGES_CHECKED[@]}"; do
+            printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
+            cargo hack check --each-feature --all-targets --package "${package}"
+            echo '::endgroup::'
+          done
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -280,7 +192,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v3
+  #       uses: actions/checkout@v4
 
   #     - name: Run cargo-deny
   #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
@@ -299,17 +211,25 @@ jobs:
         # - windows-latest
 
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: "Fetch base branch"
         shell: bash
@@ -328,16 +248,16 @@ jobs:
           components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.1.0
+      #   uses: baptiste0928/cargo-install@v2.2.0
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -360,163 +280,67 @@ jobs:
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- Cargo.lock ; then
-            git config --local user.name 'github-actions[bot]'
-            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add Cargo.lock
             git commit --message 'chore: update Cargo.lock'
             git push
           fi
 
-      - name: Check files changed
+      - name: Check modified crates
         shell: bash
         run: |
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/api_models/; then
-            echo "api_models_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "api_models_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/cards/; then
-            echo "cards_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "cards_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/common_enums/; then
-            echo "common_enums_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "common_enums_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/common_utils/; then
-            echo "common_utils_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "common_utils_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/diesel_models/; then
-            echo "diesel_models_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "diesel_models_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/drainer/; then
-            echo "drainer_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "drainer_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/external_services/; then
-            echo "external_services_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "external_services_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/masking/; then
-            echo "masking_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "masking_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/redis_interface/; then
-            echo "redis_interface_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "redis_interface_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/router/; then
-            echo "router_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "router_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/router_derive/; then
-            echo "router_derive_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "router_derive_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/storage_impl/; then
-            echo "storage_impl_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "storage_impl_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/router_env/; then
-            echo "router_env_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "router_env_changes_exist=true" >> $GITHUB_ENV
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/test_utils/; then
-            echo "test_utils_changes_exist=false" >> $GITHUB_ENV
-          else
-            echo "test_utils_changes_exist=true" >> $GITHUB_ENV
-          fi
+          # Obtain a list of workspace members
+          workspace_members="$(
+            cargo metadata --format-version 1 --no-deps \
+              | jq --compact-output --monochrome-output --raw-output '.workspace_members | sort | .[] | split(" ")[0]'
+          )"
 
-      - name: Cargo hack api_models
-        if: env.api_models_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p api_models
+          PACKAGES_CHECKED=()
+          PACKAGES_SKIPPED=()
 
-      - name: Cargo hack cards
-        if: env.cards_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p cards
+          while IFS= read -r package_name; do
+            # Obtain comma-separated list of transitive workspace dependencies for each workspace member
+            change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
+              | grep 'crates/' \
+              | sort --unique \
+              | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
 
-      - name: Cargo hack common_enums
-        if: env.common_enums_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p common_enums
+            # Store change paths in an array by splitting `change_paths` by comma
+            IFS=',' read -ra change_paths <<< "${change_paths}"
 
-      - name: Cargo hack common_utils
-        if: env.common_utils_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p common_utils
+            # A package must be checked if any of its transitive dependencies (or itself) has been modified
+            if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
+              printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_SKIPPED+=("${package_name}")
+            else
+              printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
+              PACKAGES_CHECKED+=("${package_name}")
+            fi
+          done <<< "${workspace_members}"
 
-      - name: Cargo hack diesel_models
-        if: env.diesel_models_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p diesel_models
+          printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
+          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
 
-      - name: Cargo hack drainer
-        if: env.drainer_changes_exist == 'true'
+      - name: Run `cargo hack` on modified crates
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p drainer
+        run: |
+          # Store packages to check in an array by splitting `PACKAGES_CHECKED` by space
+          IFS=' ' read -ra PACKAGES_CHECKED <<< "${PACKAGES_CHECKED}"
 
-      - name: Cargo hack external_services
-        if: env.external_services_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p external_services
-
-      - name: Cargo hack masking
-        if: env.masking_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p masking
-
-      - name: Cargo hack redis_interface
-        if: env.redis_interface_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p redis_interface
-
-      - name: Cargo hack router
-        if: env.router_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --skip kms,basilisk,kv_store,accounts_cache,openapi --no-dev-deps -p router
-
-      - name: Cargo hack router_derive
-        if: env.router_derive_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p router_derive
-
-      - name: Cargo hack storage_impl
-        if: env.storage_impl_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p storage_impl
-
-      - name: Cargo hack router_env
-        if: env.router_env_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p router_env
-
-      - name: Cargo hack test_utils
-        if: env.test_utils_changes_exist == 'true'
-        shell: bash
-        run: cargo hack check --each-feature --no-dev-deps -p test_utils
+          for package in "${PACKAGES_CHECKED[@]}"; do
+            printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
+            cargo hack check --each-feature --all-targets --package "${package}"
+            echo '::endgroup::'
+          done
 
   typos:
     name: Spell check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Spell check
         uses: crate-ci/typos@master
