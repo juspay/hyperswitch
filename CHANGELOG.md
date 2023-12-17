@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.84.0+hotfix.4 (2023-12-17)
+
+### Features
+
+- **connector:** [BOA/CYBERSOURCE] Fix Status Mapping for Terminal St… ([#3153](https://github.com/juspay/hyperswitch/pull/3153)) ([`3d645fd`](https://github.com/juspay/hyperswitch/commit/3d645fddb100ab7c0099fff152de1a0958b2e1ac))
+
+**Full Changelog:** [`v1.84.0+hotfix.3...v1.84.0+hotfix.4`](https://github.com/juspay/hyperswitch/compare/v1.84.0+hotfix.3...v1.84.0+hotfix.4)
+
+- - -
+
 ## 1.84.0+hotfix.3 (2023-12-13)
 
 ### Bug Fixes
