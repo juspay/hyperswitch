@@ -1630,6 +1630,12 @@ pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
         || capture_method == Some(enums::CaptureMethod::ManualMultiple)
 }
 
+pub fn generate_random_bytes(length: usize) -> Vec<u8> {
+    // returns random bytes of length n
+    let mut rng = rand::thread_rng();
+    (0..length).map(|_| rand::Rng::gen(&mut rng)).collect()
+}
+
 pub fn validate_currency(
     request_currency: types::storage::enums::Currency,
     merchant_config_currency: Option<types::storage::enums::Currency>,
