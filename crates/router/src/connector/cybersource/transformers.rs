@@ -405,9 +405,8 @@ pub struct ApplicationInformation {
 
 fn get_payment_status(is_capture: bool, status: enums::AttemptStatus) -> enums::AttemptStatus {
     let is_authorized = matches!(status, enums::AttemptStatus::Authorized);
-    let is_pending = matches!(status, enums::AttemptStatus::Pending);
-    if is_capture && (is_authorized || is_pending) {
-        return enums::AttemptStatus::Charged;
+    if is_capture && is_authorized {
+        return enums::AttemptStatus::Pending;
     }
     status
 }
