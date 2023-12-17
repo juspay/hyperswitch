@@ -258,6 +258,10 @@ pub async fn add_bank_to_locker(
     let payout_method_data = api::PayoutMethodData::Bank(bank.clone());
     let enc_data = async {
         serde_json::to_value(payout_method_data.to_owned())
+            .map_err(|err| {
+                logger::error!("Error while encoding payout method data: {}", err);
+                errors::VaultError::SavePaymentMethodFailed
+            })
             .into_report()
             .change_context(errors::VaultError::SavePaymentMethodFailed)
             .attach_printable("Unable to encode payout method data")

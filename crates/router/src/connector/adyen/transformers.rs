@@ -4012,7 +4012,7 @@ pub struct AdyenPayoutEligibilityRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PayoutCardDetails {
     #[serde(rename = "type")]
-    _type: String,
+    payment_method_type: String,
     number: String,
     expiry_month: String,
     expiry_year: String,
@@ -4077,7 +4077,7 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
     fn try_from(item: &PayoutMethodData) -> Result<Self, Self::Error> {
         match item {
             PayoutMethodData::Card(card) => Ok(Self {
-                _type: "scheme".to_string(), // FIXME: Remove hardcoding
+                payment_method_type: "scheme".to_string(), // FIXME: Remove hardcoding
                 number: card.card_number.peek().to_string(),
                 expiry_month: card.expiry_month.peek().to_string(),
                 expiry_year: card.expiry_year.peek().to_string(),
