@@ -93,7 +93,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_attempt.payment_method = Some(storage_enums::PaymentMethod::Wallet);
 
-        let amount = payment_intent.amount.into();
+        let amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
