@@ -530,7 +530,7 @@ pub async fn payments_capture(
 
     let flow = Flow::PaymentsCapture;
     let payload = payment_types::PaymentsCaptureRequest {
-        payment_id: path.into_inner(),
+        payment_id,
         ..json_payload.into_inner()
     };
 
