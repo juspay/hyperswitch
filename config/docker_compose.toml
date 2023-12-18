@@ -138,7 +138,7 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
-placetopay.base_url = "https://api-co-dev.placetopay.ws/gateway"
+placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -314,6 +314,10 @@ cashapp = {country = "US", currency = "USD"}
 [pm_filters.prophetpay]
 card_redirect = { currency = "USD" }
 
+[pm_filters.helcim]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -360,7 +364,7 @@ intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
-connector_events_topic = "hyperswitch-connector-api-events"
+connector_logs_topic = "hyperswitch-connector-api-events"
 
 [analytics]
 source = "sqlx"

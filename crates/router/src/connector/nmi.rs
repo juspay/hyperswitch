@@ -2,15 +2,14 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nmi;
 
-use self::transformers::NmiCaptureRequest;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
@@ -18,7 +17,6 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils,
 };
 
 #[derive(Clone, Debug)]
@@ -144,14 +142,9 @@ impl
         &self,
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<nmi::NmiPaymentsRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -159,6 +152,7 @@ impl
         _req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Setup Mandate".to_string(),
             connector: "nmi".to_string(),
@@ -169,7 +163,7 @@ impl
         //         .method(services::Method::Post)
         //         .url(&types::SetupMandateType::get_url(self, req, connectors)?)
         //         .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-        //         .body(types::SetupMandateType::get_request_body(
+        //         .set_body(types::SetupMandateType::get_request_body(
         //             self, req, connectors,
         //         )?)
         //         .build(),
@@ -182,6 +176,90 @@ impl
         res: types::Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl api::PaymentsPreProcessing for Nmi {}
+
+impl
+    ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for Nmi
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/transact.php", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nmi::NmiVaultRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let req = Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPreProcessingRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: nmi::NmiVaultResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
@@ -222,7 +300,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = nmi::NmiRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -230,12 +308,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = nmi::NmiPaymentsRequest::try_from(&connector_router_data)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<nmi::NmiPaymentsRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -252,7 +325,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -265,6 +338,91 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl api::PaymentsCompleteAuthorize for Nmi {}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Nmi
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/transact.php", self.base_url(connectors)))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = nmi::NmiRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = nmi::NmiCompleteRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: nmi::NmiCompleteResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
@@ -305,14 +463,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nmi::NmiSyncRequest::try_from(req)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<nmi::NmiSyncRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -325,7 +478,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(
+                .set_body(types::PaymentsSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -375,7 +528,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = nmi::NmiRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -383,12 +536,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req,
         ))?;
         let connector_req = nmi::NmiCaptureRequest::try_from(&connector_router_data)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<NmiCaptureRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -403,7 +551,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -456,14 +604,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nmi::NmiCancelRequest::try_from(req)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<nmi::NmiCancelRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -476,7 +619,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -527,7 +670,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = nmi::NmiRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -535,12 +678,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let connector_req = nmi::NmiRefundRequest::try_from(&connector_router_data)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<nmi::NmiRefundRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -555,7 +693,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::RefundExecuteType::get_request_body(
+                .set_body(types::RefundExecuteType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -606,14 +744,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundsRouterData<api::RSync>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nmi::NmiSyncRequest::try_from(req)?;
-        let nmi_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<nmi::NmiSyncRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(nmi_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -626,7 +759,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .method(services::Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

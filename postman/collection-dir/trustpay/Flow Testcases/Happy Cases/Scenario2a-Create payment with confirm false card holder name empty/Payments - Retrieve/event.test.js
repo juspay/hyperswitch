@@ -60,12 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "requires_payment_method" for "status"
+// Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments:id - Content check if value for 'status' matches 'requires_payment_method'",
+    "[POST]::/payments:id - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("requires_payment_method");
+      pm.expect(jsonData.status).to.eql("succeeded");
     },
   );
 }
