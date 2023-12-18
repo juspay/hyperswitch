@@ -21,10 +21,7 @@ pub struct OutgoingWebhookEvent {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(
-    tag = "outgoing_webhook_event_type",
-    rename_all = "snake_case"
-)]
+#[serde(tag = "outgoing_webhook_event_type", rename_all = "snake_case")]
 pub enum OutgoingWebhookEventContent {
     Payment {
         payment_id: Option<String>,
