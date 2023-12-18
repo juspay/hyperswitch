@@ -378,7 +378,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
@@ -489,6 +489,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            frm_metadata: request.frm_metadata.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -732,7 +733,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
-                        amount: payment_data.amount.into(),
+                        amount: payment_data.payment_attempt.amount,
                         currency: payment_data.currency,
                         status: attempt_status,
                         payment_method,
@@ -780,7 +781,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 m_db.update_payment_intent(
                     m_payment_data_payment_intent,
                     storage::PaymentIntentUpdate::Update {
-                        amount: payment_data.amount.into(),
+                        amount: payment_data.payment_intent.amount,
                         currency: payment_data.currency,
                         setup_future_usage,
                         status: intent_status,
@@ -871,8 +872,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             })?;
 
         helpers::validate_payment_method_fields_present(request)?;
-
-        helpers::validate_card_holder_name(request.payment_method_data.clone())?;
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
