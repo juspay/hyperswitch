@@ -8,6 +8,7 @@ use std::{
 
 use api_models::{
     admin as admin_api, conditional_configs::ConditionalConfigs, routing::ConnectorSelection,
+    surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
 use currency_conversion::{
@@ -210,6 +211,12 @@ pub fn get_key_type(key: &str) -> Result<String, String> {
 #[wasm_bindgen(js_name = getThreeDsKeys)]
 pub fn get_three_ds_keys() -> JsResult {
     let keys = <ConditionalConfigs as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
+}
+
+#[wasm_bindgen(js_name= getSurchargeKeys)]
+pub fn get_surcharge_keys() -> JsResult {
+    let keys = <SurchargeDecisionConfigs as EuclidDirFilter>::ALLOWED;
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
