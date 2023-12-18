@@ -119,16 +119,7 @@ impl AuthorizationInterface for MockDb {
             .cloned()
             .collect();
 
-        if authorizations_found.is_empty() {
-            Err(
-                errors::StorageError::ValueNotFound(format!(
-                    "cannot find authorization for merchant_id = {merchant_id} and payment_id = {payment_id} "
-                ))
-                .into(),
-            )
-        } else {
-            Ok(authorizations_found)
-        }
+        Ok(authorizations_found)
     }
 
     async fn update_authorization_by_merchant_id_authorization_id(

@@ -61,9 +61,9 @@ impl AuthorizationUpdateInternal {
     pub fn create_authorization(self, source: Authorization) -> Authorization {
         Authorization {
             status: self.status.unwrap_or(source.status),
-            error_code: self.error_code,
-            error_message: self.error_message,
-            modified_at: self.modified_at.unwrap_or(source.modified_at),
+            error_code: self.error_code.unwrap_or(source.error_code),
+            error_message: self.error_message.unwrap_or(source.error_message),
+            modified_at: self.modified_at.unwrap_or(common_utils::date_time::now()),
             connector_authorization_id: self.connector_authorization_id,
             ..source
         }
