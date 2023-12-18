@@ -279,7 +279,7 @@ pub fn payments_update() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     request_body(
-     content = PaymentsRequest,
+     content = PaymentsConfirmRequest,
      examples(
       (
         "Confirm a payment with payment method data" = (
@@ -320,7 +320,21 @@ pub fn payments_confirm() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsCaptureRequest,
+    request_body (
+        content = PaymentsCaptureRequest,
+        examples(
+            (
+                "Capture the full amount" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Capture partial amount" = (
+                    value = json!({"amount_to_capture": 654})
+                )
+            ),
+        )
+    ),
     responses(
         (status = 200, description = "Payment captured", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
@@ -333,7 +347,7 @@ pub fn payments_capture() {}
 
 /// Payments - Session token
 ///
-/// To create the session object or to get *session token* for wallets
+/// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
 #[utoipa::path(
     post,
     path = "/payments/session_tokens",

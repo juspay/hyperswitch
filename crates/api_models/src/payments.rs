@@ -82,7 +82,7 @@ pub struct CustomerDetails {
     ToSchema,
     router_derive::PolymorphicSchema,
 )]
-#[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest)]
+#[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest, PaymentsConfirmRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency
@@ -237,6 +237,7 @@ pub struct PaymentsRequest {
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[remove_in(PaymentsUpdateRequest)]
     pub mandate_id: Option<String>,
 
     /// Additional details required by 3DS 2.0
@@ -264,11 +265,13 @@ pub struct PaymentsRequest {
     /// Business country of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
     #[schema(example = "food")]
+    #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     pub business_label: Option<String>,
 
     /// Merchant connector details used to make payments.
@@ -280,6 +283,7 @@ pub struct PaymentsRequest {
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Business sub label for the payment
+    #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest, PaymentsCreateRequest)]
     pub business_sub_label: Option<String>,
 
     /// Denotes the retry action
@@ -300,9 +304,11 @@ pub struct PaymentsRequest {
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
+    #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     pub profile_id: Option<String>,
 
     /// surcharge_details for this payment
+    #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<RequestSurchargeDetails>)]
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
@@ -688,6 +694,7 @@ pub struct CustomerAcceptance {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, ToSchema)]
 #[serde(rename_all = "lowercase")]
+/// This is used to indicate if the mandate was accepted online or offline
 pub enum AcceptanceType {
     Online,
     #[default]
@@ -3118,7 +3125,7 @@ pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = MerchantConnectorDetailsWrap)]
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 

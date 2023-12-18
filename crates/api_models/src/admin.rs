@@ -923,6 +923,7 @@ pub enum AcceptedCurrencies {
     content = "list",
     rename_all = "snake_case"
 )]
+/// Object to filter the customer countries for which the payment method is displayed
 pub enum AcceptedCountries {
     #[schema(value_type = Vec<CountryAlpha2>)]
     EnableOnly(Vec<api_enums::CountryAlpha2>),
