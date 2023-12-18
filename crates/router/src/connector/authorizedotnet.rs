@@ -127,10 +127,9 @@ impl
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "Authorizedotnet".to_string(),
-        }
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Authorizedotnet".to_string(),
+        )
         .into())
     }
 }

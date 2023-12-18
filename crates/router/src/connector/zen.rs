@@ -388,11 +388,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Void".to_owned(),
-            connector: "Zen".to_owned(),
-        }
-        .into())
+        Err(errors::ConnectorError::NotImplemented("Setup Mandate flow for Zen".to_string()).into())
     }
 }
 

@@ -206,11 +206,11 @@ impl
         _req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "Helcim".to_string(),
-        }
-        .into())
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Helcim".to_string())
+                .into(),
+        )
+
         // Ok(Some(
         //     services::RequestBuilder::new()
         //         .method(services::Method::Post)

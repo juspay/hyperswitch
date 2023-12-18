@@ -139,10 +139,9 @@ impl
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "Multisafepay".to_string(),
-        }
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Multisafepay".to_string(),
+        )
         .into())
     }
 }

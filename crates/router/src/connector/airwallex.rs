@@ -131,11 +131,10 @@ impl
         _req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "Airwallex".to_string(),
-        }
-        .into())
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Airwallex".to_string())
+                .into(),
+        )
     }
 }
 

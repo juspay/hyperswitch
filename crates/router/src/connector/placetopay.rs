@@ -150,11 +150,10 @@ impl
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "Placetopay".to_string(),
-        }
-        .into())
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Placetopay".to_string())
+                .into(),
+        )
     }
 }
 

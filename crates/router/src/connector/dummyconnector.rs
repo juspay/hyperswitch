@@ -162,10 +162,9 @@ impl<const T: u8>
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "DummyConnector".to_string(),
-        }
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for DummyConnector".to_string(),
+        )
         .into())
     }
 }

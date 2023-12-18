@@ -146,11 +146,7 @@ impl
         >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Setup Mandate".to_string(),
-            connector: "Aci".to_string(),
-        }
-        .into())
+        Err(errors::ConnectorError::NotImplemented("Setup Mandate flow for Aci".to_string()).into())
     }
 }
 
