@@ -240,8 +240,8 @@ impl ConnectorCommon for Bankofamerica {
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),
-                    message: response.response.rmsg,
-                    reason: None,
+                    message: response.response.rmsg.clone(),
+                    reason: Some(response.response.rmsg),
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
