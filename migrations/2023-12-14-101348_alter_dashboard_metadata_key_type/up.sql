@@ -19,7 +19,7 @@ CREATE TYPE "DashboardMetadata" AS ENUM (
     'is_multiple_configuration',
     'configuration_type',
     'feedback',
-    'prodintent'
+    'prod_intent'
 );
 
 ALTER TABLE dashboard_metadata ALTER COLUMN data_key TYPE "DashboardMetadata" USING (data_key::"DashboardMetadata");
