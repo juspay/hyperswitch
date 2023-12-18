@@ -32,7 +32,7 @@ pub struct MerchantAccountCreate {
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
     pub merchant_name: Option<Secret<String>>,
 
-    /// Merchant related details
+    /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -67,8 +67,7 @@ pub struct MerchantAccountCreate {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -87,7 +86,7 @@ pub struct MerchantAccountCreate {
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
 
-    ///Default business details for connector routing
+    /// Details about the primary business unit of the merchant account
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 
@@ -103,6 +102,7 @@ pub struct MerchantAccountCreate {
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
 
+    /// Config to customise payment link design
     pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
@@ -124,7 +124,7 @@ pub struct MerchantAccountUpdate {
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
 
-    /// Merchant related details
+    /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
@@ -138,7 +138,7 @@ pub struct MerchantAccountUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -159,7 +159,7 @@ pub struct MerchantAccountUpdate {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for payment response
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -178,7 +178,7 @@ pub struct MerchantAccountUpdate {
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
 
-    ///Default business details for connector routing
+    /// Details about the primary business unit of the merchant account
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 
     /// The frm routing algorithm to be used for routing payments to desired FRM's
@@ -194,6 +194,7 @@ pub struct MerchantAccountUpdate {
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 
+    /// Default configuration for payment links
     pub payment_link_config: Option<serde_json::Value>,
 }
 
@@ -215,7 +216,7 @@ pub struct MerchantAccountResponse {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response If the value is not provided, a default value is used
     #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
     pub payment_response_hash_key: Option<String>,
 
@@ -223,7 +224,7 @@ pub struct MerchantAccountResponse {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: bool,
 
-    /// Merchant related details
+    /// Details about the merchant
     #[schema(value_type = Option<MerchantDetails>)]
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
@@ -235,7 +236,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -263,7 +264,8 @@ pub struct MerchantAccountResponse {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
-    ///Default business details for connector routing
+
+    /// Details about the primary business unit of the merchant account
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
 
@@ -285,10 +287,11 @@ pub struct MerchantAccountResponse {
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 
-    /// A enum value to indicate the status of recon service. By default it is not_requested.
+    /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
 
+    /// A config to customise payment link designs
     pub payment_link_config: Option<serde_json::Value>,
 }
 
@@ -1005,12 +1008,11 @@ pub enum PayoutStraightThroughAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
-    /// A short name to identify the business profile
+    /// The name of business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
-    /// The URL to redirect after the completion of the operation, This will be applied to all the
-    /// connector accounts under this profile
+    /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<url::Url>,
 
@@ -1018,8 +1020,7 @@ pub struct BusinessProfileCreate {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -1046,7 +1047,7 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be  used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -1065,16 +1066,15 @@ pub struct BusinessProfileResponse {
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
 
-    /// The unique identifier for Business Profile
+    /// The default business profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
     pub profile_id: String,
 
-    /// A short name to identify the business profile
+    /// Name of the business profile
     #[schema(max_length = 64)]
     pub profile_name: String,
 
-    /// The URL to redirect after the completion of the operation, This will be applied to all the
-    /// connector accounts under this profile
+    /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 
@@ -1082,8 +1082,7 @@ pub struct BusinessProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -1091,6 +1090,7 @@ pub struct BusinessProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
+    #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<pii::SecretSerdeValue>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -1106,11 +1106,11 @@ pub struct BusinessProfileResponse {
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<i64>,
 
-    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be  used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -1126,12 +1126,11 @@ pub struct BusinessProfileResponse {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
-    /// A short name to identify the business profile
+    /// The name of business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
-    /// The URL to redirect after the completion of the operation, This will be applied to all the
-    /// connector accounts under this profile
+    /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<url::Url>,
 
@@ -1139,8 +1138,7 @@ pub struct BusinessProfileUpdate {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
-    /// If the value is not provided, a default value is used
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -1167,7 +1165,7 @@ pub struct BusinessProfileUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be  used for routing payouts to desired connectors
+    /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(

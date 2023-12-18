@@ -1038,6 +1038,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1048,7 +1053,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1301,9 +1306,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             country: payment_data.address.billing.and_then(|billing_address| {
                 billing_address.address.and_then(|address| address.country)
@@ -1425,6 +1435,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 payload: redirect.json_payload,
             }
         });
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1434,7 +1449,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             capture_method: payment_data.payment_attempt.capture_method,
-            amount: payment_data.amount.into(),
+            amount,
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
@@ -1499,12 +1514,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
 
         Ok(Self {
             payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(payment_data.amount.into()),
+            amount: Some(amount),
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,

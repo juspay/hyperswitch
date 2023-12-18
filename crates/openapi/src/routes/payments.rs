@@ -194,7 +194,7 @@ pub fn payments_create() {}
 
 /// Payments - Retrieve
 ///
-/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+/// Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
     get,
     path = "/payments/{payment_id}",
@@ -214,14 +214,51 @@ pub fn payments_retrieve() {}
 
 /// Payments - Update
 ///
-/// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
+/// To update the properties of a *PaymentIntent* object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}",
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsRequest,
+   request_body(
+     content = PaymentsUpdateRequest,
+     examples(
+      (
+        "Update the payment amount" = (
+          value = json!({
+              "amount": 7654,
+            }
+          )
+        )
+      ),
+      (
+        "Update the shipping address" = (
+          value = json!(
+            {
+              "shipping": {
+                "address": {
+                    "line1": "1467",
+                    "line2": "Harrison Street",
+                    "line3": "Harrison Street",
+                    "city": "San Fransico",
+                    "state": "California",
+                    "zip": "94122",
+                    "country": "US",
+                    "first_name": "joseph",
+                    "last_name": "Doe"
+                },
+                "phone": {
+                    "number": "8056594427",
+                    "country_code": "+91"
+                }
+              },
+            }
+          )
+        )
+      )
+     )
+    ),
     responses(
         (status = 200, description = "Payment updated", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
@@ -234,14 +271,36 @@ pub fn payments_update() {}
 
 /// Payments - Confirm
 ///
-/// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
+/// **Use this API to confirm the payment and forward the payment to the payment processor.**\n\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\n\n1. fail with `failed` status or\n\n2. transition to a `requires_customer_action` status with a `next_action` block or\n\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsRequest,
+    request_body(
+     content = PaymentsRequest,
+     examples(
+      (
+        "Confirm a payment with payment method data" = (
+          value = json!({
+              "payment_method": "card",
+              "payment_method_type": "credit",
+              "payment_method_data": {
+                "card": {
+                  "card_number": "4242424242424242",
+                  "card_exp_month": "10",
+                  "card_exp_year": "25",
+                  "card_holder_name": "joseph Doe",
+                  "card_cvc": "123"
+                }
+              }
+            }
+          )
+        )
+      )
+     )
+    ),
     responses(
         (status = 200, description = "Payment confirmed", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
@@ -274,7 +333,7 @@ pub fn payments_capture() {}
 
 /// Payments - Session token
 ///
-/// To create the session object or to get session token for wallets
+/// To create the session object or to get *session token* for wallets
 #[utoipa::path(
     post,
     path = "/payments/session_tokens",
@@ -291,11 +350,25 @@ pub fn payments_connector_session() {}
 
 /// Payments - Cancel
 ///
-/// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
+/// A Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/cancel",
-    request_body=PaymentsCancelRequest,
+    request_body (
+        content = PaymentsCancelRequest,
+        examples(
+            (
+                "Cancel the payment with minimal fields" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Cancel the payment with cancellation reason" = (
+                    value = json!({"cancellation_reason": "requested_by_customer"})
+                )
+            ),
+        )
+    ),
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
@@ -311,7 +384,7 @@ pub fn payments_cancel() {}
 
 /// Payments - List
 ///
-/// To list the payments
+/// To list the *payments*
 #[utoipa::path(
     get,
     path = "/payments/list",
@@ -327,7 +400,7 @@ pub fn payments_cancel() {}
         ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
     ),
     responses(
-        (status = 200, description = "Received payment list"),
+        (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
