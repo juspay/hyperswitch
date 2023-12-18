@@ -96,6 +96,14 @@ impl ConnectorValidation for Nmi {
             ),
         }
     }
+
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // in case we dont have transaction id, we can make psync using attempt id
+        Ok(())
+    }
 }
 
 impl
