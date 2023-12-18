@@ -508,6 +508,7 @@ diesel::table! {
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
+        payment_link_config -> Nullable<Jsonb>,
     }
 }
 
@@ -726,9 +727,9 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        max_age -> Nullable<Timestamp>,
+        fulfilment_time -> Nullable<Timestamp>,
         #[max_length = 64]
-        seller_name -> Nullable<Varchar>,
+        custom_merchant_name -> Nullable<Varchar>,
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 255]
         description -> Nullable<Varchar>,

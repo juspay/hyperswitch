@@ -49,8 +49,8 @@ pub struct PaymentLinkNew {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub max_age: Option<PrimitiveDateTime>,
-    pub seller_name: Option<String>,
+    pub fulfilment_time: Option<PrimitiveDateTime>,
+    pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<String>,
