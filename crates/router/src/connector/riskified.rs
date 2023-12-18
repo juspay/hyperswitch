@@ -14,7 +14,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -22,7 +22,6 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
-    services,
     types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
 };
