@@ -110,6 +110,7 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -226,6 +227,7 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {

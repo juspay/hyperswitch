@@ -101,6 +101,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     request_incremental_authorization: new.request_incremental_authorization,
                     incremental_authorization_allowed: new.incremental_authorization_allowed,
                     authorization_count: new.authorization_count,
+                    fingerprint_id: new.fingerprint_id.clone(),
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -768,6 +769,7 @@ impl DataModelExt for PaymentIntentNew {
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
             authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
         }
     }
 
@@ -811,6 +813,7 @@ impl DataModelExt for PaymentIntentNew {
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
             authorization_count: storage_model.authorization_count,
+            fingerprint_id: storage_model.fingerprint_id,
         }
     }
 }
@@ -859,6 +862,7 @@ impl DataModelExt for PaymentIntent {
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
             authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
         }
     }
 
@@ -903,6 +907,7 @@ impl DataModelExt for PaymentIntent {
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
             authorization_count: storage_model.authorization_count,
+            fingerprint_id: storage_model.fingerprint_id,
         }
     }
 }

@@ -55,6 +55,7 @@ pub struct PaymentIntent {
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(
@@ -112,6 +113,7 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -229,6 +231,7 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentIntentUpdate {
@@ -261,6 +264,7 @@ impl PaymentIntentUpdate {
             surcharge_applicable,
             incremental_authorization_allowed,
             authorization_count,
+            fingerprint_id,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -293,6 +297,7 @@ impl PaymentIntentUpdate {
 
             incremental_authorization_allowed,
             authorization_count,
+            fingerprint_id,
             ..source
         }
     }

@@ -854,7 +854,8 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    pm_blocklist (merchant_id) {
+    pm_blocklist (id) {
+        id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
         pm_hash -> Text,
@@ -865,7 +866,8 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    pm_fingerprint (fingerprint_id) {
+    pm_fingerprint (id) {
+        id -> Int4,
         #[max_length = 64]
         fingerprint_id -> Varchar,
         kms_hash -> Text,

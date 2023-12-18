@@ -53,4 +53,5 @@ pub struct PaymentIntent {
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub fingerprint_id: Option<String>,
 }

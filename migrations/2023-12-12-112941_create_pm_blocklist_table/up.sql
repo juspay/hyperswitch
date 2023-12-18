@@ -1,7 +1,8 @@
 -- Your SQL goes here
 
 CREATE TABLE pm_blocklist (
-  merchant_id VARCHAR(64) PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
+  merchant_id VARCHAR(64) NOT NULL,
   pm_hash TEXT NOT NULL
 );
 

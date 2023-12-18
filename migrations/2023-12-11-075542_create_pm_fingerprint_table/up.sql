@@ -1,7 +1,8 @@
 -- Your SQL goes here
 
 CREATE TABLE pm_fingerprint (
-  fingerprint_id VARCHAR(64) PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
+  fingerprint_id VARCHAR(64) NOT NULL,
   kms_hash TEXT NOT NULL
 );
 

@@ -31,6 +31,8 @@ pub mod payment_intent;
 pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
+pub mod pm_blocklist;
+pub mod pm_fingerprint;
 pub mod payouts;
 pub mod process_tracker;
 pub mod query;

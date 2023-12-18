@@ -2,20 +2,22 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
+use base64::Engine;
 use common_utils::{
     crypto::{self, SignMessage},
     ext_traits::{AsyncExt, Encode},
 };
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
-#[cfg(feature = "kms")]
-use external_services::kms;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
+    consts::BASE64_ENGINE,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
@@ -746,17 +748,30 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         .attach_printable("error in pm fingerprint creation")
                         .ok()
                     }
-                    // can be used in future to generate the fingerprints of other payment_methods
+                    // TODO can be used in future to generate the fingerprints of other payment_methods
                     _ => todo!(),
                 });
 
         //validating the payment method.
-        // #[cfg(feature = "kms")]
-        // let kms_encrypted_fingerprint = kms::get_kms_client(kms_config)
-        //     .await
-        //     .decrypt(state.conf.forex_api.fallback_api_key.peek())
-        //     .await
-        //     .change_context(ForexCacheError::KmsDecryptionFailed)?;
+        match db
+            .find_pm_blocklist_entry_by_merchant_id_hash(
+                merchant_id,
+                fingerprint
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .map(|hash| BASE64_ENGINE.encode(hash))?,
+            )
+            .await
+        {
+            Ok(result) => {
+                println!("Block the payment {:?}", result);
+            }
+            Err(e) => {
+                println!("The entry isn't found we can move on {:?}", e);
+                // KMS ENCRYPT THE HASH AND STORE IN THE TABLE AND GIVE BACK THE ID
+            }
+        }
+
 
         let surcharge_amount = payment_data
             .surcharge_details

@@ -26,6 +26,8 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
+pub mod pm_blocklist;
+pub mod pm_fingerprint;
 mod query;
 pub mod refund;
 pub mod reverse_lookup;
@@ -47,7 +49,7 @@ pub use self::{
     address::*, api_keys::*, authorization::*, capture::*, cards_info::*, configs::*, customers::*,
     dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
     gsm::*, locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
-    merchant_key_store::*, payment_link::*, payment_method::*, payout_attempt::*, payouts::*,
+    merchant_key_store::*, payment_link::*, payment_method::*, payout_attempt::*, payouts::*, pm_blocklist::*, pm_fingerprint::*,
     process_tracker::*, refund::*, reverse_lookup::*, routing_algorithm::*, user::*, user_role::*,
 };
 use crate::types::api::routing;

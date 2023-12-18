@@ -25,6 +25,8 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
+pub mod pm_fingerprint;
+pub mod pm_blocklist;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
@@ -84,6 +86,8 @@ pub trait StorageInterface:
     + PaymentAttemptInterface
     + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + pm_blocklist::PmBlocklistInterface
+    + pm_fingerprint::PmFingerprintInterface
     + scheduler::SchedulerInterface
     + payout_attempt::PayoutAttemptInterface
     + payouts::PayoutsInterface
