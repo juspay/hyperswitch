@@ -140,7 +140,7 @@ pub async fn api_key_update(
     let (merchant_id, key_id) = path.into_inner();
     let mut payload = json_payload.into_inner();
     payload.key_id = key_id;
-    payload.merchant_id = merchant_id;
+    payload.merchant_id = merchant_id.clone();
 
     api::server_wrap(
         flow,
@@ -148,7 +148,14 @@ pub async fn api_key_update(
         &req,
         payload,
         |state, _, payload| api_keys::update_api_key(state, payload),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::ApiKeyWrite,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
