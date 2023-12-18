@@ -69,7 +69,6 @@ impl AuthorizationUpdateInternal {
                 .or(source.connector_authorization_id),
             ..source
         }
-
     }
 }
 

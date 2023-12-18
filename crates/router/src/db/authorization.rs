@@ -81,10 +81,9 @@ impl AuthorizationInterface for MockDb {
         authorization: storage::AuthorizationNew,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         let mut authorizations = self.authorizations.lock().await;
-        if authorizations
-            .iter()
-            .any(|authorization_inner| authorization_inner.authorization_id == authorization.authorization_id)
-        {
+        if authorizations.iter().any(|authorization_inner| {
+            authorization_inner.authorization_id == authorization.authorization_id
+        }) {
             Err(errors::StorageError::DuplicateValue {
                 entity: "authorization_id",
                 key: None,
@@ -101,7 +100,7 @@ impl AuthorizationInterface for MockDb {
             error_code: authorization.error_code,
             error_message: authorization.error_message,
             connector_authorization_id: authorization.connector_authorization_id,
-            previously_authorized_amount: authorization.previously_authorized_amount,            
+            previously_authorized_amount: authorization.previously_authorized_amount,
         };
         authorizations.push(authorization.clone());
         Ok(authorization)
