@@ -196,7 +196,7 @@ pub async fn create_merchant_account(
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
-            payment_link_config: None
+            payment_link_config: None,
         })
     }
     .await
@@ -574,7 +574,7 @@ pub async fn merchant_account_update(
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
-        payment_link_config: None
+        payment_link_config: None,
     };
 
     let response = db
