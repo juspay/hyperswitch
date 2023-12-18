@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.102.0+hotfix.1 (2023-12-18)
+
+### Bug Fixes
+
+- **connector:** [BOA/CYBERSOURCE] Update error handling ([#3157](https://github.com/juspay/hyperswitch/pull/3157)) ([`e1de1ba`](https://github.com/juspay/hyperswitch/commit/e1de1ba8a1017b28eb8d9109a8c5984a2a543e9a))
+
+**Full Changelog:** [`v1.102.0...v1.102.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.102.0...v1.102.0+hotfix.1)
+
+- - -
+
 ## 1.102.0 (2023-12-17)
 
 ### Features
