@@ -214,7 +214,7 @@ pub fn payments_retrieve() {}
 
 /// Payments - Update
 ///
-/// Updates a Payment. Use this API to attach a payment method and metadata fields after the Payment is created. `amount`, `currency` and `customer_id` cannot be updated using `client secret` and `publishable_key` auth due to security reasons.
+/// To update the properties of a *PaymentIntent* object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}",
@@ -333,7 +333,7 @@ pub fn payments_capture() {}
 
 /// Payments - Session token
 ///
-/// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
+/// To create the session object or to get *session token* for wallets
 #[utoipa::path(
     post,
     path = "/payments/session_tokens",
@@ -354,7 +354,21 @@ pub fn payments_connector_session() {}
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/cancel",
-    request_body=PaymentsCancelRequest,
+    request_body (
+        content = PaymentsCancelRequest,
+        examples(
+            (
+                "Cancel the payment with minimal fields" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Cancel the payment with cancellation reason" = (
+                    value = json!({"cancellation_reason": "requested_by_customer"})
+                )
+            ),
+        )
+    ),
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
@@ -370,7 +384,7 @@ pub fn payments_cancel() {}
 
 /// Payments - List
 ///
-/// To list the payments
+/// To list the *payments*
 #[utoipa::path(
     get,
     path = "/payments/list",
@@ -386,7 +400,7 @@ pub fn payments_cancel() {}
         ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
     ),
     responses(
-        (status = 200, description = "Received payment list"),
+        (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
