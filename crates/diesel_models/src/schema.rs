@@ -196,8 +196,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        data_key -> Varchar,
+        data_key -> DashboardMetadata,
         data_value -> Json,
         #[max_length = 64]
         created_by -> Varchar,
@@ -508,6 +507,7 @@ diesel::table! {
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
+        payment_link_config -> Nullable<Jsonb>,
     }
 }
 
@@ -727,7 +727,9 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        expiry -> Nullable<Timestamp>,
+        fulfilment_time -> Nullable<Timestamp>,
+        #[max_length = 64]
+        custom_merchant_name -> Nullable<Varchar>,
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 255]
         description -> Nullable<Varchar>,
@@ -979,14 +981,13 @@ diesel::table! {
         role_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        status -> Varchar,
+        status -> UserStatus,
         #[max_length = 64]
         created_by -> Varchar,
         #[max_length = 64]
         last_modified_by -> Varchar,
         created_at -> Timestamp,
-        last_modified_at -> Timestamp,
+        last_modified -> Timestamp,
     }
 }
 

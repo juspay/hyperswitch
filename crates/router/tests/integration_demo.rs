@@ -154,6 +154,6 @@ async fn exceed_refund() {
     let message: serde_json::Value = user_client.create_refund(&server, &payment_id, 100).await;
     assert_eq!(
         message["error"]["message"],
-        "Refund amount exceeds the payment amount."
+        "The refund amount exceeds the amount captured."
     );
 }

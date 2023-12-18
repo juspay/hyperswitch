@@ -1,5 +1,9 @@
 {
   "childrenOrder": [
+    "Scenario11-Save card flow",
+    "Scenario12-Don't Pass CVV for save card flow and verify success payment",
+    "Scenario13-Pass Invalid CVV for save card flow and verify failed payment",
+    "Scenario14-Save card payment with manual capture",
     "Scenario1-Create payment with confirm true",
     "Scenario2-Create payment with confirm false",
     "Scenario3-Create payment without PMD",

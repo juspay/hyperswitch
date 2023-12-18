@@ -381,7 +381,7 @@ pub async fn invite_user(
                 created_by: user_from_token.user_id.clone(),
                 last_modified_by: user_from_token.user_id,
                 created_at: now,
-                last_modified_at: now,
+                last_modified: now,
             })
             .await
             .map_err(|e| {

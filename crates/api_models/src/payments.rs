@@ -324,15 +324,16 @@ pub struct PaymentsRequest {
     ///(900) for 15 mins
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
+
+    /// additional data related to some frm connectors
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 impl PaymentsRequest {
     pub fn get_total_capturable_amount(&self) -> Option<i64> {
         let surcharge_amount = self
             .surcharge_details
-            .map(|surcharge_details| {
-                surcharge_details.surcharge_amount + surcharge_details.tax_amount.unwrap_or(0)
-            })
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .unwrap_or(0);
         self.amount
             .map(|amount| i64::from(amount) + surcharge_amount)
@@ -2609,8 +2610,30 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    // Does the order includes shipping
+    pub requires_shipping: Option<bool>,
     /// The image URL of the product
     pub product_img_link: Option<String>,
+    /// ID of the product that is being purchased
+    pub product_id: Option<String>,
+    /// Category of the product that is being purchased
+    pub category: Option<String>,
+    /// Brand of the product that is being purchased
+    pub brand: Option<String>,
+    /// Type of the product that is being purchased
+    pub product_type: Option<ProductType>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProductType {
+    #[default]
+    Physical,
+    Digital,
+    Travel,
+    Ride,
+    Event,
+    Accommodation,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2621,8 +2644,18 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    // Does the order include shipping
+    pub requires_shipping: Option<bool>,
     /// The image URL of the product
     pub product_img_link: Option<String>,
+    /// ID of the product that is being purchased
+    pub product_id: Option<String>,
+    /// Category of the product that is being purchased
+    pub category: Option<String>,
+    /// Brand of the product that is being purchased
+    pub brand: Option<String>,
+    /// Type of the product that is being purchased
+    pub product_type: Option<ProductType>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -3322,7 +3355,7 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
-    pub amount: i64,
+    pub amount: String,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
@@ -3332,7 +3365,7 @@ pub struct PaymentLinkDetails {
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithStringAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
     pub merchant_description: Option<String>,
@@ -3397,4 +3430,18 @@ pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub config: admin::PaymentLinkConfigRequest,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithStringAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: String,
+    /// Product Image link
+    pub product_img_link: Option<String>,
 }
