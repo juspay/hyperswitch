@@ -26,7 +26,161 @@
                     value = json!({"amount": 6540,"currency": "USD"})
                 )
             ),
-        )
+            (
+                "Create a payment with customer details and metadata" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
+                    "customer": {
+                      "id": "cus_abcdefgh",
+                      "name": "John Dough",
+                      "phone": "9999999999",
+                      "email": "john@example.com"
+                    },
+                    "description": "Its my first payment request",
+                    "statement_descriptor_name": "joseph",
+                    "statement_descriptor_suffix": "JS",
+                    "metadata": {
+                      "udf1": "some-value",
+                      "udf2": "some-value"
+                    }
+                  })
+                )
+            ),
+            (
+                "Create a 3DS payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "authentication_type": "three_ds"
+                  })
+                )
+            ),
+            (
+                "Create a manual capture payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "capture_method": "manual"
+                  })
+                )
+            ),
+            (
+                "Create a setup mandate payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer123",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                    "setup_future_usage": "off_session",
+                    "mandate_data": {
+                      "customer_acceptance": {
+                        "acceptance_type": "offline",
+                        "accepted_at": "1963-05-03T04:07:52.723Z",
+                        "online": {
+                          "ip_address": "127.0.0.1",
+                          "user_agent": "amet irure esse"
+                        }
+                      },
+                      "mandate_type": {
+                        "single_use": {
+                          "amount": 6540,
+                          "currency": "USD"
+                        }
+                      }
+                    }
+                  })
+                )
+            ),
+            (
+                "Create a recurring payment with mandate_id" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer",
+                    "authentication_type": "no_three_ds",
+                    "mandate_id": "{{mandate_id}}",
+                    "off_session": true
+                  })
+                )
+            ),
+            (
+                "Create a payment and save the card" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer123",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                    "setup_future_usage": "off_session"
+                  })
+                )
+            ),
+            (
+                "Create a payment using an already saved card's token" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "client_secret": "{{client_secret}}",
+                    "payment_method": "card",
+                    "payment_token": "{{payment_token}}",
+                    "card_cvc": "123"
+                  })
+                )
+            ),
+            (
+                "Create a manual capture payment" = (
+                    value = json!({
+                    "amount": 6540,
+                    "currency": "USD",
+                    "customer": {
+                      "id": "cus_abcdefgh"
+                    },
+                    "billing": {
+                      "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "city": "San Fransico",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe"
+                      },
+                      "phone": {
+                        "number": "8056594427",
+                        "country_code": "+91"
+                      }
+                    }
+                })
+            )
+            )
+        ),
     ),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
@@ -40,7 +194,7 @@ pub fn payments_create() {}
 
 /// Payments - Retrieve
 ///
-/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+/// Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
     get,
     path = "/payments/{payment_id}",
@@ -67,7 +221,44 @@ pub fn payments_retrieve() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsRequest,
+   request_body(
+     content = PaymentsUpdateRequest,
+     examples(
+      (
+        "Update the payment amount" = (
+          value = json!({
+              "amount": 7654,
+            }
+          )
+        )
+      ),
+      (
+        "Update the shipping address" = (
+          value = json!(
+            {
+              "shipping": {
+                "address": {
+                    "line1": "1467",
+                    "line2": "Harrison Street",
+                    "line3": "Harrison Street",
+                    "city": "San Fransico",
+                    "state": "California",
+                    "zip": "94122",
+                    "country": "US",
+                    "first_name": "joseph",
+                    "last_name": "Doe"
+                },
+                "phone": {
+                    "number": "8056594427",
+                    "country_code": "+91"
+                }
+              },
+            }
+          )
+        )
+      )
+     )
+    ),
     responses(
         (status = 200, description = "Payment updated", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
@@ -80,14 +271,36 @@ pub fn payments_update() {}
 
 /// Payments - Confirm
 ///
-/// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
+/// **Use this API to confirm the payment and forward the payment to the payment processor.**\n\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\n\n1. fail with `failed` status or\n\n2. transition to a `requires_customer_action` status with a `next_action` block or\n\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsRequest,
+    request_body(
+     content = PaymentsRequest,
+     examples(
+      (
+        "Confirm a payment with payment method data" = (
+          value = json!({
+              "payment_method": "card",
+              "payment_method_type": "credit",
+              "payment_method_data": {
+                "card": {
+                  "card_number": "4242424242424242",
+                  "card_exp_month": "10",
+                  "card_exp_year": "25",
+                  "card_holder_name": "joseph Doe",
+                  "card_cvc": "123"
+                }
+              }
+            }
+          )
+        )
+      )
+     )
+    ),
     responses(
         (status = 200, description = "Payment confirmed", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
@@ -137,7 +350,7 @@ pub fn payments_connector_session() {}
 
 /// Payments - Cancel
 ///
-/// A Payment could can be cancelled when it is in one of these statuses: *`requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`*
+/// A Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/cancel",
