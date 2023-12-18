@@ -1037,7 +1037,7 @@ impl DataModelExt for PaymentAttempt {
             attempt_id: self.attempt_id,
             status: self.status,
             amount: self.amount,
-            net_amount: self.net_amount,
+            net_amount: Some(self.net_amount),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
@@ -1084,13 +1084,13 @@ impl DataModelExt for PaymentAttempt {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             amount: storage_model.amount,
-            net_amount: storage_model.net_amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
@@ -1143,7 +1143,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
-            net_amount: self.net_amount,
+            net_amount: Some(self.net_amount),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1194,6 +1194,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
@@ -1241,7 +1242,6 @@ impl DataModelExt for PaymentAttemptNew {
             merchant_connector_id: storage_model.merchant_connector_id,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
-            net_amount: storage_model.net_amount,
         }
     }
 }

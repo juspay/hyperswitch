@@ -62,7 +62,7 @@ pub struct PaymentAttemptBatchNew {
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: i64,
+    pub net_amount: Option<i64>,
 }
 
 #[allow(dead_code)]

@@ -63,7 +63,15 @@ pub struct PaymentAttempt {
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: i64,
+    pub net_amount: Option<i64>,
+}
+
+impl PaymentAttempt {
+    pub fn get_or_calculate_net_amount(&self) -> i64 {
+        self.net_amount.unwrap_or(
+            self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0),
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -129,7 +137,7 @@ pub struct PaymentAttemptNew {
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: i64,
+    pub net_amount: Option<i64>,
 }
 
 impl PaymentAttemptNew {
@@ -138,9 +146,14 @@ impl PaymentAttemptNew {
         self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
 
+    pub fn get_or_calculate_net_amount(&self) -> i64 {
+        self.net_amount
+            .unwrap_or_else(|| self.calculate_net_amount())
+    }
+
     pub fn populate_derived_fields(self) -> Self {
         let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = payment_attempt_new.calculate_net_amount();
+        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
         payment_attempt_new
     }
 }
@@ -393,7 +406,7 @@ impl PaymentAttemptUpdate {
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
-            net_amount: net_amount.unwrap_or(source.net_amount),
+            net_amount: net_amount.or(source.net_amount),
             currency: currency.or(source.currency),
             status: status.unwrap_or(source.status),
             connector_transaction_id: connector_transaction_id.or(source.connector_transaction_id),
