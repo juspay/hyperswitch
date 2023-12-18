@@ -102,7 +102,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         .await?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount.into();
+        let amount = payment_attempt.get_total_amount().into();
 
         payment_attempt.cancellation_reason = request.cancellation_reason.clone();
 
@@ -173,6 +173,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

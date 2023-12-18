@@ -388,6 +388,7 @@ impl ConnectorData {
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
+                enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
@@ -405,7 +406,9 @@ impl ConnectorData {
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd | enums::Connector::Plaid => {
+                enums::Connector::Signifyd
+                | enums::Connector::Plaid
+                | enums::Connector::Riskified => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -1,9 +1,11 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
 use crate::{
+    connector::utils::PaymentsAttemptData,
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
@@ -15,7 +17,7 @@ use crate::{
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
         storage::enums as storage_enums,
-        ConnectorAuthType, ResponseId, RouterData,
+        BrowserInformation, ConnectorAuthType, ResponseId, RouterData,
     },
     AppState,
 };
@@ -43,6 +45,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 id: "ConnectorAuthType".to_string(),
             })?;
 
+        let browser_info: Option<BrowserInformation> = self.payment_attempt.get_browser_info().ok();
         let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
         let router_data = RouterData {
@@ -68,6 +71,27 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             request: FraudCheckCheckoutData {
                 amount: self.payment_attempt.amount,
                 order_details: self.order_details.clone(),
+                currency: self.payment_attempt.currency,
+                browser_info,
+                payment_method_data: self
+                    .payment_attempt
+                    .payment_method_data
+                    .as_ref()
+                    .map(|pm_data| {
+                        pm_data
+                            .clone()
+                            .parse_value::<api_models::payments::AdditionalPaymentData>(
+                                "AdditionalPaymentData",
+                            )
+                    })
+                    .transpose()
+                    .unwrap_or_default(),
+                email: customer.clone().and_then(|customer_data| {
+                    customer_data
+                        .email
+                        .and_then(|email| Email::try_from(email.into_inner().expose()).ok())
+                }),
+                gateway: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -94,6 +118,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             external_latency: None,
             connector_api_version: None,
             apple_pay_flow: None,
+            frm_metadata: self.frm_metadata.clone(),
         };
 
         Ok(router_data)

@@ -1,12 +1,13 @@
 use cards::CardNumber;
-use common_utils::ext_traits::XmlExt;
+use common_utils::{errors::CustomResult, ext_traits::XmlExt};
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData},
     core::errors,
+    services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
 };
 
@@ -25,17 +26,22 @@ pub enum TransactionType {
 
 pub struct NmiAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) public_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     type Error = Error;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
-            Ok(Self {
+        match auth_type {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+                public_key: None,
+            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                public_key: Some(key1.to_owned()),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -68,6 +74,291 @@ impl<T>
             amount: utils::to_currency_base_unit_asf64(amount, currency)?,
             router_data,
         })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct NmiVaultRequest {
+    security_key: Secret<String>,
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
+    customer_vault: CustomerAction,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerAction {
+    AddCustomer,
+    UpdateCustomer,
+}
+
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+        let (ccnumber, ccexp) = get_card_details(item.request.payment_method_data.clone())?;
+
+        Ok(Self {
+            security_key: auth_type.api_key,
+            ccnumber,
+            ccexp,
+            customer_vault: CustomerAction::AddCustomer,
+        })
+    }
+}
+
+fn get_card_details(
+    payment_method_data: Option<api::PaymentMethodData>,
+) -> CustomResult<(CardNumber, Secret<String>), errors::ConnectorError> {
+    match payment_method_data {
+        Some(api::PaymentMethodData::Card(ref card_details)) => Ok((
+            card_details.card_number.clone(),
+            utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
+                card_details,
+                "".to_string(),
+            ),
+        )),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("Nmi"),
+        ))
+        .into_report(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NmiVaultResponse {
+    pub response: Response,
+    pub responsetext: String,
+    pub customer_vault_id: String,
+    pub response_code: String,
+}
+
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::PreProcessing,
+            NmiVaultResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsPreProcessingRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::PreProcessing,
+            NmiVaultResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth_type: NmiAuthType = (&item.data.connector_auth_type).try_into()?;
+        let amount_data =
+            item.data
+                .request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?;
+        let currency_data =
+            item.data
+                .request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let (response, status) = match item.response.response {
+            Response::Approved => (
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: Some(services::RedirectForm::Nmi {
+                        amount: utils::to_currency_base_unit_asf64(
+                            amount_data,
+                            currency_data.to_owned(),
+                        )?
+                        .to_string(),
+                        currency: currency_data,
+                        customer_vault_id: item.response.customer_vault_id,
+                        public_key: auth_type.public_key.ok_or(
+                            errors::ConnectorError::InvalidConnectorConfig {
+                                config: "public_key",
+                            },
+                        )?,
+                    }),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                }),
+                enums::AttemptStatus::AuthenticationPending,
+            ),
+            Response::Declined | Response::Error => (
+                Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext,
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                enums::AttemptStatus::Failure,
+            ),
+        };
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct NmiCompleteRequest {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
+    security_key: Secret<String>,
+    cardholder_auth: CardHolderAuthType,
+    cavv: String,
+    xid: String,
+    three_ds_version: ThreeDsVersion,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CardHolderAuthType {
+    Verified,
+    Attempted,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ThreeDsVersion {
+    #[serde(rename = "2.0.0")]
+    VersionTwo,
+    #[serde(rename = "2.2.0")]
+    VersionTwoPointTwo,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NmiRedirectResponseData {
+    cavv: String,
+    xid: String,
+    card_holder_auth: CardHolderAuthType,
+    three_ds_version: ThreeDsVersion,
+}
+
+impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
+    type Error = Error;
+    fn try_from(
+        item: &NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let transaction_type = match item.router_data.request.is_auto_capture()? {
+            true => TransactionType::Sale,
+            false => TransactionType::Auth,
+        };
+        let auth_type: NmiAuthType = (&item.router_data.connector_auth_type).try_into()?;
+        let payload_data = item
+            .router_data
+            .request
+            .get_redirect_response_payload()?
+            .expose();
+
+        let three_ds_data: NmiRedirectResponseData = serde_json::from_value(payload_data)
+            .into_report()
+            .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "three_ds_data",
+            })?;
+
+        Ok(Self {
+            transaction_type,
+            security_key: auth_type.api_key,
+            cardholder_auth: three_ds_data.card_holder_auth,
+            cavv: three_ds_data.cavv,
+            xid: three_ds_data.xid,
+            three_ds_version: three_ds_data.three_ds_version,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NmiCompleteResponse {
+    pub response: Response,
+    pub responsetext: String,
+    pub authcode: Option<String>,
+    pub transactionid: String,
+    pub avsresponse: Option<String>,
+    pub cvvresponse: Option<String>,
+    pub orderid: String,
+    pub response_code: String,
+}
+
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::CompleteAuthorize,
+            NmiCompleteResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsCompleteAuthorizeRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::CompleteAuthorize,
+            NmiCompleteResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let (response, status) = match item.response.response {
+            Response::Approved => (
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                }),
+                if let Some(diesel_models::enums::CaptureMethod::Automatic) =
+                    item.data.request.capture_method
+                {
+                    enums::AttemptStatus::CaptureInitiated
+                } else {
+                    enums::AttemptStatus::Authorizing
+                },
+            ),
+            Response::Declined | Response::Error => (
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
+                enums::AttemptStatus::Failure,
+            ),
+        };
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
+    fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
+        Self {
+            code: response.response_code,
+            message: response.responsetext,
+            reason: None,
+            status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+        }
     }
 }
 

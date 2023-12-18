@@ -63,6 +63,7 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
+    pub request_id: Option<RequestId>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -99,7 +100,8 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string())
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
     }
 
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
@@ -228,6 +230,7 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
+                request_id: None,
             }
         })
         .await
@@ -916,7 +919,7 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("user/invite").route(web::post().to(invite_user)))
+                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
