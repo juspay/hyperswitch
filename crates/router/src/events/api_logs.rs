@@ -59,7 +59,7 @@ impl ApiEvent {
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
-        http_method: &http::Method
+        http_method: &http::Method,
     ) -> Self {
         Self {
             merchant_id,
@@ -137,9 +137,8 @@ impl ApiEventMetric for PaymentsRedirectResponseData {
             connector: self.connector.clone(),
             payment_id: match &self.resource_id {
                 api_models::payments::PaymentIdType::PaymentIntentId(id) => Some(id.clone()),
-                _ => None
-            }
-        }
-        )
+                _ => None,
+            },
+        })
     }
 }
