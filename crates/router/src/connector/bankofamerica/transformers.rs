@@ -1020,28 +1020,8 @@ pub struct BankOfAmericaErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: Option<String>,
     pub message: Option<String>,
-    pub reason: Option<Reason>,
+    pub reason: Option<String>,
     pub details: Option<Vec<Details>>,
-}
-
-#[derive(Debug, Deserialize, strum::Display)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Reason {
-    MissingField,
-    InvalidData,
-    DuplicateRequest,
-    InvalidCard,
-    AuthAlreadyReversed,
-    CardTypeNotAccepted,
-    InvalidMerchantConfiguration,
-    ProcessorUnavailable,
-    InvalidAmount,
-    InvalidCardType,
-    InvalidPaymentId,
-    NotSupported,
-    SystemError,
-    ServerTimeout,
-    ServiceTimeout,
 }
 
 #[derive(Debug, Deserialize, Clone)]
