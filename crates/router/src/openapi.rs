@@ -268,6 +268,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
         api_models::payments::AmountInfo,
+        api_models::payments::ProductType,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,

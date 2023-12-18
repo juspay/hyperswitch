@@ -614,9 +614,11 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
+    pub placetopay: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
+    pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
     pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
@@ -895,11 +897,11 @@ impl<'de> Deserialize<'de> for LockSettings {
             redis_lock_expiry_seconds,
             delay_between_retries_in_milliseconds,
         } = Inner::deserialize(deserializer)?;
-        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
+        let redis_lock_expiry_milliseconds = redis_lock_expiry_seconds * 1000;
         Ok(Self {
             redis_lock_expiry_seconds,
             delay_between_retries_in_milliseconds,
-            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_milliseconds / delay_between_retries_in_milliseconds,
         })
     }
 }
