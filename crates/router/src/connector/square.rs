@@ -162,6 +162,21 @@ impl
         types::PaymentsResponseData,
     > for Square
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Setup Mandate".to_string(),
+            connector: "Square".to_string(),
+        }
+        .into())
+    }
 }
 
 #[async_trait::async_trait]

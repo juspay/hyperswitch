@@ -124,6 +124,17 @@ impl
         types::PaymentsResponseData,
     > for Airwallex
 {
+    fn build_request(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Setup Mandate".to_string(),
+            connector: "Airwallex".to_string(),
+        }
+        .into())
+    }
 }
 
 impl api::PaymentToken for Airwallex {}
