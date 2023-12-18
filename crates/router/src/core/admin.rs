@@ -91,16 +91,6 @@ pub async fn create_merchant_account(
             })
             .transpose()?;
 
-    if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
     let key_store = domain::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
         key: domain_types::encrypt(key.to_vec().into(), master_key)
@@ -182,9 +172,7 @@ pub async fn create_merchant_account(
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
             routing_algorithm: Some(serde_json::json!({
-                "algorithm_id": null,
-                "timestamp": 0
-            })),
+                "algorithm_id":null,"timestamp":0})),
             sub_merchants_enabled: req.sub_merchants_enabled,
             parent_merchant_id,
             enable_payment_response_hash,
@@ -475,16 +463,6 @@ pub async fn merchant_account_update(
         }))?;
     }
 
-    if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
     let primary_business_details = req
         .primary_business_details
         .as_ref()
@@ -563,7 +541,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        routing_algorithm: req.routing_algorithm,
+        routing_algorithm: None,
         sub_merchants_enabled: req.sub_merchants_enabled,
 
         parent_merchant_id: get_parent_merchant(
@@ -1439,16 +1417,6 @@ pub async fn create_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
     let business_profile =
         create_and_insert_business_profile(db, request, merchant_account.clone()).await?;
 
@@ -1551,16 +1519,6 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
     let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -1570,7 +1528,7 @@ pub async fn update_business_profile(
         redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
         webhook_details,
         metadata: request.metadata,
-        routing_algorithm: request.routing_algorithm,
+        routing_algorithm: None,
         intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
         frm_routing_algorithm: request.frm_routing_algorithm,
         payout_routing_algorithm: request.payout_routing_algorithm,
