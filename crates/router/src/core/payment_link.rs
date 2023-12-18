@@ -97,7 +97,6 @@ pub async fn intiate_payment_link_flow(
         }
     };
 
-    let order_details = validate_order_details(payment_intent.order_details)?;
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url {
         payment_create_return_url
     } else {
@@ -113,6 +112,7 @@ pub async fn intiate_payment_link_flow(
         payment_intent.currency,
         payment_intent.client_secret,
     )?;
+    let order_details = validate_order_details(payment_intent.order_details, currency)?;
 
     let curr_time = common_utils::date_time::now();
     let expiry = payment_link
@@ -120,7 +120,10 @@ pub async fn intiate_payment_link_flow(
         .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY)));
 
     let payment_details = api_models::payments::PaymentLinkDetails {
-        amount: payment_intent.amount,
+        amount: currency
+            .to_currency_base_unit(payment_intent.amount)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?,
         currency,
         payment_id: payment_intent.payment_id,
         merchant_name: payment_link_config.clone().seller_name,
@@ -219,8 +222,9 @@ pub fn check_payment_link_status(max_age: Option<PrimitiveDateTime>) -> String {
 
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
+    currency: api_models::enums::Currency,
 ) -> Result<
-    Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    Option<Vec<api_models::payments::OrderDetailsWithStringAmount>>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
     let order_details = order_details
@@ -239,14 +243,31 @@ fn validate_order_details(
         })
         .transpose()?;
 
-    let updated_order_details = order_details.map(|mut order_details| {
-        for order in order_details.iter_mut() {
-            if order.product_img_link.is_none() {
-                order.product_img_link = Some(DEFAULT_PRODUCT_IMG.to_string());
+    let updated_order_details = match order_details {
+        Some(mut order_details) => {
+            let mut order_details_amount_string_array: Vec<
+                api_models::payments::OrderDetailsWithStringAmount,
+            > = Vec::new();
+            for order in order_details.iter_mut() {
+                let mut order_details_amount_string : api_models::payments::OrderDetailsWithStringAmount = Default::default();
+                if order.product_img_link.is_none() {
+                    order_details_amount_string.product_img_link =
+                        Some(DEFAULT_PRODUCT_IMG.to_string())
+                } else {
+                    order_details_amount_string.product_img_link = order.product_img_link.clone()
+                };
+                order_details_amount_string.amount = currency
+                    .to_currency_base_unit(order.amount)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+                order_details_amount_string.product_name = order.product_name.clone();
+                order_details_amount_string.quantity = order.quantity;
+                order_details_amount_string_array.push(order_details_amount_string)
             }
+            Some(order_details_amount_string_array)
         }
-        order_details
-    });
+        None => None,
+    };
     Ok(updated_order_details)
 }
 

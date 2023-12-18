@@ -3350,7 +3350,7 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
-    pub amount: i64,
+    pub amount: String,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
@@ -3360,7 +3360,7 @@ pub struct PaymentLinkDetails {
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithStringAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
     pub merchant_description: Option<String>,
@@ -3425,4 +3425,18 @@ pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub config: admin::PaymentLinkConfigRequest,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithStringAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: String,
+    /// Product Image link
+    pub product_img_link: Option<String>,
 }
