@@ -1227,7 +1227,7 @@
           "Payments"
         ],
         "summary": "Payments - Session token",
-        "description": "Payments - Session token\n\nTo create the session object or to get session token for wallets",
+        "description": "Payments - Session token\n\nCreates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
         "operationId": "Create Session tokens for a Payment",
         "requestBody": {
           "content": {
@@ -1267,7 +1267,7 @@
           "Payments"
         ],
         "summary": "Payments - Retrieve",
-        "description": "Payments - Retrieve\n\nTo retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "description": "Payments - Retrieve\n\nRetrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Payment",
         "parameters": [
           {
@@ -1319,7 +1319,7 @@
           "Payments"
         ],
         "summary": "Payments - Update",
-        "description": "Payments - Update\n\nTo update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
+        "description": "Payments - Update\n\nUpdates a Payment. Use this API to attach a payment method and metadata fields after the Payment is created. `amount`, `currency` and `customer_id` cannot be updated using `client secret` and `publishable_key` auth due to security reasons.",
         "operationId": "Update a Payment",
         "parameters": [
           {
@@ -1401,7 +1401,7 @@
           "Payments"
         ],
         "summary": "Payments - Cancel",
-        "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action",
+        "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.",
         "operationId": "Cancel a Payment",
         "parameters": [
           {
