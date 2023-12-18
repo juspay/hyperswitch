@@ -36,7 +36,7 @@ impl PmBlocklist {
         conn: &PgPooledConn,
         merchant_id: String,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _,>(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
             None,

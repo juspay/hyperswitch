@@ -406,9 +406,14 @@ impl PmBlacklist {
             .service(
                 web::resource("/block").route(web::post().to(pm_blacklist::block_payment_method)),
             )
-            .service(web::resource("/unblock").route(web::post().to(pm_blacklist::unblock_payment_method))
+            .service(
+                web::resource("/unblock")
+                    .route(web::post().to(pm_blacklist::unblock_payment_method)),
             )
-            .service(web::resource("/blocklist").route(web::get().to(pm_blacklist::list_blocked_payment_methods)))
+            .service(
+                web::resource("/blocklist")
+                    .route(web::get().to(pm_blacklist::list_blocked_payment_methods)),
+            )
     }
 }
 

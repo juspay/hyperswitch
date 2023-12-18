@@ -1,4 +1,4 @@
-use diesel::{Insertable, Queryable, Identifiable};
+use diesel::{Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::pm_fingerprint;
@@ -18,4 +18,3 @@ pub struct PmFingerprint {
     pub fingerprint_id: String,
     pub kms_hash: String,
 }
-

@@ -33,7 +33,7 @@ pub async fn block_payment_method(
 
     Ok(services::api::ApplicationResponse::Json(
         pm_blacklist::BlacklistPmResponse {
-            fingerprints_blocked 
+            fingerprints_blocked,
         },
     ))
 }
@@ -47,33 +47,34 @@ pub async fn unblock_payment_method(
     services::ApplicationResponse<pm_blacklist::UnblockPmResponse>,
     errors::ApiErrorResponse,
 > {
-    let entries = 
-    body
+    let entries = body
         .data
         .iter()
-        .map(|hash|
-        state
-                .store
-                .delete_pm_blocklist_entry_by_merchant_id_hash(
-                    merchant_account.merchant_id.clone(),
-                    hash.to_string()))
-                .collect::<Vec<_>>();
+        .map(|hash| {
+            state.store.delete_pm_blocklist_entry_by_merchant_id_hash(
+                merchant_account.merchant_id.clone(),
+                hash.to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
     let new_futures = futures::future::join_all(entries).await;
     let mut fingerprints_unblocked = Vec::new();
-    let _ = new_futures.iter().for_each(|unblocked_pm| match unblocked_pm {
-        Ok(res) => {
-            if *res {
-                fingerprints_unblocked.extend(body.data.clone().drain(..));
+    let _ = new_futures
+        .iter()
+        .for_each(|unblocked_pm| match unblocked_pm {
+            Ok(res) => {
+                if *res {
+                    fingerprints_unblocked.extend(body.data.clone().drain(..));
+                }
             }
-        },
-        Err(e) => {
-            logger::error!("Unblocking pm failed {e:?}");
-        }
-    });
+            Err(e) => {
+                logger::error!("Unblocking pm failed {e:?}");
+            }
+        });
 
     Ok(services::api::ApplicationResponse::Json(
         pm_blacklist::UnblockPmResponse {
-            data: fingerprints_unblocked
+            data: fingerprints_unblocked,
         },
     ))
 }
@@ -86,15 +87,20 @@ pub async fn list_blocked_payment_methods(
     services::ApplicationResponse<pm_blacklist::ListBlockedPmResponse>,
     errors::ApiErrorResponse,
 > {
-    let blocked_pms = state.store.list_all_blocked_pm_for_merchant(merchant_account.merchant_id).await
+    let blocked_pms = state
+        .store
+        .list_all_blocked_pm_for_merchant(merchant_account.merchant_id)
+        .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let mut fingerprints_blocked = Vec::new();
-    blocked_pms.iter().for_each(|pm| fingerprints_blocked.push(pm.pm_hash.clone()));
+    blocked_pms
+        .iter()
+        .for_each(|pm| fingerprints_blocked.push(pm.pm_hash.clone()));
 
     Ok(services::api::ApplicationResponse::Json(
-        pm_blacklist::ListBlockedPmResponse{
-            fingerprints_blocked
+        pm_blacklist::ListBlockedPmResponse {
+            fingerprints_blocked,
         },
     ))
 }
@@ -151,4 +157,3 @@ fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &Vec<T>) -> Vec<T> {
         })
         .collect()
 }
-

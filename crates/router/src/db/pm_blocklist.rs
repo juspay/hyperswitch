@@ -12,24 +12,24 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PmBlocklistInterface {
-    async fn insert_pm_blocklist_item (
+    async fn insert_pm_blocklist_item(
         &self,
         pm_blocklist_new: storage::PmBlocklistNew,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError>;
 
-    async fn find_pm_blocklist_entry_by_merchant_id_hash (
+    async fn find_pm_blocklist_entry_by_merchant_id_hash(
         &self,
         merchant_id: String,
         hash: String,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError>;
 
-    async fn delete_pm_blocklist_entry_by_merchant_id_hash (
+    async fn delete_pm_blocklist_entry_by_merchant_id_hash(
         &self,
         merchant_id: String,
         hash: String,
     ) -> CustomResult<bool, errors::StorageError>;
 
-    async fn list_all_blocked_pm_for_merchant (
+    async fn list_all_blocked_pm_for_merchant(
         &self,
         merchant_id: String,
     ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError>;
@@ -172,4 +172,3 @@ impl PmBlocklistInterface for KafkaStore {
         }])
     }
 }
-

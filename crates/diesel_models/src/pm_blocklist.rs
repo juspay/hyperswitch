@@ -1,4 +1,4 @@
-use diesel::{Insertable, Queryable, Identifiable};
+use diesel::{Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::pm_blocklist;
@@ -18,4 +18,3 @@ pub struct PmBlocklist {
     pub merchant_id: String,
     pub pm_hash: String,
 }
-

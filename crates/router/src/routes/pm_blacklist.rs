@@ -32,7 +32,7 @@ pub async fn block_payment_method(
     .await
 }
 
-pub async fn unblock_payment_method (
+pub async fn unblock_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<pm_blacklist_model::UnblockPmRequest>,
@@ -56,7 +56,7 @@ pub async fn unblock_payment_method (
     .await
 }
 
-pub async fn list_blocked_payment_methods (
+pub async fn list_blocked_payment_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {

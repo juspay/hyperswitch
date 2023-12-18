@@ -773,7 +773,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             }
         }
 
-
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
