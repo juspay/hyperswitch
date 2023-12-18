@@ -45,28 +45,36 @@ impl BlocklistLookupInterface for Store {
             .into_report()
     }
 
-    async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
+    async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
         &self,
         merchant_id: String,
         kms_decrypted_hash: String,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::BlocklistLookup::find_by_merchant_id_kms_encrypted_hash(&conn, merchant_id, kms_decrypted_hash)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        storage::BlocklistLookup::find_by_merchant_id_kms_encrypted_hash(
+            &conn,
+            merchant_id,
+            kms_decrypted_hash,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
-    async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
+    async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
         &self,
         merchant_id: String,
         kms_decrypted_hash: String,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::BlocklistLookup::delete_by_merchant_id_kms_decrypted_hash(&conn, merchant_id, kms_decrypted_hash)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        storage::BlocklistLookup::delete_by_merchant_id_kms_decrypted_hash(
+            &conn,
+            merchant_id,
+            kms_decrypted_hash,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 }
 
@@ -85,7 +93,7 @@ impl BlocklistLookupInterface for MockDb {
         })
     }
 
-    async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
+    async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
         &self,
         merchant_id: String,
         kms_decrypted_hash: String,
@@ -97,7 +105,7 @@ impl BlocklistLookupInterface for MockDb {
         })
     }
 
-    async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
+    async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
         &self,
         merchant_id: String,
         kms_decrypted_hash: String,
@@ -120,7 +128,7 @@ impl BlocklistLookupInterface for KafkaStore {
         })
     }
 
-    async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
+    async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
         &self,
         merchant_id: String,
         kms_decrypted_hash: String,
@@ -132,7 +140,7 @@ impl BlocklistLookupInterface for KafkaStore {
         })
     }
 
-    async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
+    async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
         &self,
         merchant_id: String,
         kms_decrypted_hash: String,
