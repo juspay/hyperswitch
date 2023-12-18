@@ -3167,7 +3167,7 @@ impl AttemptType {
             merchant_connector_id: None,
             unified_code: None,
             unified_message: None,
-            net_amount: old_payment_attempt.net_amount,
+            net_amount: old_payment_attempt.amount,
         }
     }
 
