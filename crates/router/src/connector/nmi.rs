@@ -152,7 +152,6 @@ impl
         _req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Setup Mandate".to_string(),
             connector: "nmi".to_string(),
