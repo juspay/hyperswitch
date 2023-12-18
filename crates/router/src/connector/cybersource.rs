@@ -109,44 +109,60 @@ impl ConnectorCommon for Cybersource {
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::ErrorResponse = res
+        let response: cybersource::CybersourceErrorResponse = res
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let details = response.details.unwrap_or_default();
-        let connector_reason = details
-            .iter()
-            .map(|det| format!("{} : {}", det.field, det.reason))
-            .collect::<Vec<_>>()
-            .join(", ");
 
         let error_message = if res.status_code == 401 {
             consts::CONNECTOR_UNAUTHORIZED_ERROR
         } else {
             consts::NO_ERROR_MESSAGE
         };
+        match response {
+            transformers::CybersourceErrorResponse::StandardError(response) => {
+                let (code, message) = match response.error_information {
+                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+                    None => (
+                        response
+                            .reason
+                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                reason.to_string()
+                            }),
+                        response
+                            .message
+                            .map_or(error_message.to_string(), |message| message),
+                    ),
+                };
+                let connector_reason = match response.details {
+                    Some(details) => details
+                        .iter()
+                        .map(|det| format!("{} : {}", det.field, det.reason))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    None => message.clone(),
+                };
 
-        let (code, message) = match response.error_information {
-            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-            None => (
-                response
-                    .reason
-                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                        reason.to_string()
-                    }),
-                response
-                    .message
-                    .map_or(error_message.to_string(), |message| message),
-            ),
-        };
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: Some(connector_reason),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+                Ok(types::ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason: Some(connector_reason),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            transformers::CybersourceErrorResponse::AuthenticationError(response) => {
+                Ok(types::ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: response.response.rmsg.clone(),
+                    reason: Some(response.response.rmsg),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+        }
     }
 }
 
