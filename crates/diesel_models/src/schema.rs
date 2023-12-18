@@ -61,6 +61,18 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    blocklist_lookup (id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        kms_decrypted_hash -> Text,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     business_profile (profile_id) {
         #[max_length = 64]
         profile_id -> Varchar,
@@ -1038,6 +1050,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    blocklist_lookup,
     business_profile,
     captures,
     cards_info,

@@ -2,6 +2,7 @@ pub mod address;
 pub mod api_keys;
 pub mod authorization;
 pub mod business_profile;
+pub mod blocklist_lookup;
 pub mod cache;
 pub mod capture;
 pub mod cards_info;
@@ -69,6 +70,7 @@ pub trait StorageInterface:
     + dyn_clone::DynClone
     + address::AddressInterface
     + api_keys::ApiKeyInterface
+    + blocklist_lookup::BlocklistLookupInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
     + customers::CustomerInterface
