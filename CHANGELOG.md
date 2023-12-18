@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.102.0 (2023-12-17)
+
+### Features
+
+- **connector:**
+  - [CYBERSOURCE] Implement Google Pay ([#3139](https://github.com/juspay/hyperswitch/pull/3139)) ([`4ae6af4`](https://github.com/juspay/hyperswitch/commit/4ae6af4632bbef5d21c3cb28538dcc4a94a10789))
+  - [PlaceToPay] Implement Cards for PlaceToPay ([#3117](https://github.com/juspay/hyperswitch/pull/3117)) ([`107c66f`](https://github.com/juspay/hyperswitch/commit/107c66fec331376aa8c9f1e710e1503793fde119))
+  - [CYBERSOURCE] Implement Apple Pay ([#3149](https://github.com/juspay/hyperswitch/pull/3149)) ([`5f53d84`](https://github.com/juspay/hyperswitch/commit/5f53d84a8b92f8aab67d09666b45362b287809ff))
+  - [NMI] Implement 3DS for Cards ([#3143](https://github.com/juspay/hyperswitch/pull/3143)) ([`7df4523`](https://github.com/juspay/hyperswitch/commit/7df45235b1b55c3e4f1205169fb512d2aadc98ac))
+
+### Bug Fixes
+
+- **connector:**
+  - [Checkout] Fix status mapping for checkout ([#3073](https://github.com/juspay/hyperswitch/pull/3073)) ([`5b2c329`](https://github.com/juspay/hyperswitch/commit/5b2c3291d4fbe3c4154c187b4e915dc3365e761a))
+  - [Cybersource] signature authentication in incremental_authorization flow ([#3141](https://github.com/juspay/hyperswitch/pull/3141)) ([`d47a7cc`](https://github.com/juspay/hyperswitch/commit/d47a7cc418b0f4bb609d99f4a463a14c39df46e4))
+- [CYBERSOURCE] Fix Status Mapping ([#3144](https://github.com/juspay/hyperswitch/pull/3144)) ([`62c0c47`](https://github.com/juspay/hyperswitch/commit/62c0c47e99f154399687a32caf9999b365da60ae))
+
+### Testing
+
+- **postman:** Update postman collection files ([`d40de4c`](https://github.com/juspay/hyperswitch/commit/d40de4c8b51010a9e6a3164196702a20c2ab3563))
+
+### Miscellaneous Tasks
+
+- **deps:** Bump zerocopy from 0.7.26 to 0.7.31 ([#3136](https://github.com/juspay/hyperswitch/pull/3136)) ([`d8de3c2`](https://github.com/juspay/hyperswitch/commit/d8de3c285c90103da93f0f3fd0241924dabd256f))
+- **events:** Remove duplicate logs ([#3148](https://github.com/juspay/hyperswitch/pull/3148)) ([`a78fed7`](https://github.com/juspay/hyperswitch/commit/a78fed73babace05b4f668ef219909277045ba85))
+
+**Full Changelog:** [`v1.101.0...v1.102.0`](https://github.com/juspay/hyperswitch/compare/v1.101.0...v1.102.0)
+
+- - -
+
+
 ## 1.101.0 (2023-12-14)
 
 ### Features
