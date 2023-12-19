@@ -3106,7 +3106,7 @@
         ],
         "summary": "Routing - Retrieve Default For Profile",
         "description": "Routing - Retrieve Default For Profile\n\nRetrieve default config for profiles",
-        "operationId": "Retrieve default config for profiles",
+        "operationId": "Retrieve default configs for all profiles",
         "responses": {
           "200": {
             "description": "Successfully retrieved default config",
@@ -3142,7 +3142,7 @@
         ],
         "summary": "Routing - Update Default For Profile",
         "description": "Routing - Update Default For Profile\n\nUpdate default config for profiles",
-        "operationId": "Update default config for profile",
+        "operationId": "Update default configs for all profiles",
         "parameters": [
           {
             "name": "profile_id",
@@ -3211,12 +3211,12 @@
         ],
         "summary": "Routing - Retrieve",
         "description": "Routing - Retrieve\n\nRetrieve a routing algorithm",
-        "operationId": "Retrieve a routing algorithm",
+        "operationId": "Retrieve a routing config",
         "parameters": [
           {
             "name": "algorithm_id",
             "in": "path",
-            "description": "The unique identifier for an algorithm",
+            "description": "The unique identifier for a config",
             "required": true,
             "schema": {
               "type": "string"
@@ -3225,7 +3225,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successfully fetched routing algorithm",
+            "description": "Successfully fetched routing config",
             "content": {
               "application/json": {
                 "schema": {
@@ -3266,7 +3266,7 @@
           {
             "name": "algorithm_id",
             "in": "path",
-            "description": "The unique identifier for an algorithm",
+            "description": "The unique identifier for a config",
             "required": true,
             "schema": {
               "type": "string"
