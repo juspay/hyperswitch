@@ -901,10 +901,15 @@ impl api::IncomingWebhook for Nmi {
             .parse_struct("nmi NmiWebhookBody")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        if let nmi::NmiActionType::Sale = webhook_body.event_body.action.action_type {
-            return Ok(Box::new(nmi::SyncResponse::try_from(&webhook_body)?));
+        match webhook_body.event_body.action.action_type {
+            nmi::NmiActionType::Sale
+            | nmi::NmiActionType::Auth
+            | nmi::NmiActionType::Capture
+            | nmi::NmiActionType::Void
+            | nmi::NmiActionType::Credit => {
+                Ok(Box::new(nmi::SyncResponse::try_from(&webhook_body)?))
+            }
+            nmi::NmiActionType::Refund => Ok(Box::new(webhook_body)),
         }
-
-        Ok(Box::new(webhook_body))
     }
 }
