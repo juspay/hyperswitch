@@ -21,11 +21,16 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
+    let body_vec: Vec<u8> = body.to_vec();
+    let payload: serde_json::Value = serde_json::from_slice(&body_vec)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
+
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &req,
-        (),
+        payload,
         |state, auth, _| {
             webhooks::webhooks_wrapper::<W, Oss>(
                 &flow,
