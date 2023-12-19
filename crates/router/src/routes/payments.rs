@@ -17,12 +17,6 @@ use crate::{
         payments::{self, PaymentRedirectFlow},
         utils as core_utils,
     },
-    // openapi::examples::{
-    //     PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
-    //     PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
-    //     PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-    //     PAYMENTS_CREATE_WITH_ORDER_DETAILS,
-    // },
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
@@ -35,65 +29,6 @@ use crate::{
     },
 };
 
-/// Payments - Create
-///
-/// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
-#[utoipa::path(
-    post,
-    path = "/payments",
-    request_body(
-        content = PaymentsCreateRequest,
-        // examples(
-        //     (
-        //         "Create a payment with minimul fields" = (
-        //             value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a manual capture payment" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with address" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with customer details" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
-        //         )
-        //     ),
-        //     (
-        //         "Create a 3DS payment" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment" = (
-        //             value = json!(PAYMENTS_CREATE)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with order details" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with order category for noon" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
-        //         )
-        //     ),
-        // )
-    ),
-    responses(
-        (status = 200, description = "Payment created", body = PaymentsResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Create a Payment",
-    security(("api_key" = [])),
-)]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn payments_create(
     state: web::Data<app::AppState>,
@@ -224,7 +159,6 @@ pub async fn payments_start(
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
-// #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -292,7 +226,6 @@ pub async fn payments_retrieve(
     security(("api_key" = []))
 )]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
-// #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -357,7 +290,6 @@ pub async fn payments_retrieve_with_gateway_creds(
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
-// #[post("/{payment_id}")]
 pub async fn payments_update(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

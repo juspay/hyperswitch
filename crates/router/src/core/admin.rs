@@ -13,7 +13,6 @@ use common_utils::{
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
-use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
 
 use crate::{
@@ -777,14 +776,13 @@ pub async fn create_payment_connector(
     let pm_auth_connector =
         api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
 
-    let is_unroutable_connector = if pm_auth_connector.is_some() {
+    if pm_auth_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
             })
             .into_report();
         }
-        true
     } else {
         let routable_connector_option = req
             .connector_name
@@ -795,7 +793,6 @@ pub async fn create_payment_connector(
                 message: "Invalid connector name given".to_string(),
             })?;
         routable_connector = Some(routable_connector_option);
-        false
     };
 
     // If connector label is not passed in the request, generate one
@@ -864,31 +861,13 @@ pub async fn create_payment_connector(
 
     // The purpose of this merchant account update is just to update the
     // merchant account `modified_at` field for KGraph cache invalidation
-    let merchant_account_update = storage::MerchantAccountUpdate::Update {
-        merchant_name: None,
-        merchant_details: None,
-        return_url: None,
-        webhook_details: None,
-        sub_merchants_enabled: None,
-        parent_merchant_id: None,
-        enable_payment_response_hash: None,
-        locker_id: None,
-        payment_response_hash_key: None,
-        primary_business_details: None,
-        metadata: None,
-        publishable_key: None,
-        redirect_to_merchant_with_http_post: None,
-        routing_algorithm: None,
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
-        default_profile: None,
-        payment_link_config: None,
-    };
-
     state
         .store
-        .update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
+        .update_specific_fields_in_merchant(
+            merchant_id,
+            storage::MerchantAccountUpdate::ModifiedAtUpdate,
+            &key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
@@ -1018,40 +997,6 @@ pub async fn create_payment_connector(
             metrics::request::add_attributes("merchant", merchant_id.to_string()),
         ],
     );
-
-    if !is_unroutable_connector {
-        if let Some(routable_connector_val) = routable_connector {
-            let choice = routing_types::RoutableConnectorChoice {
-                #[cfg(feature = "backwards_compatibility")]
-                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
-                connector: routable_connector_val,
-                #[cfg(feature = "connector_choice_mca_id")]
-                merchant_connector_id: Some(mca.merchant_connector_id.clone()),
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: req.business_sub_label.clone(),
-            };
-
-            if !default_routing_config.contains(&choice) {
-                default_routing_config.push(choice.clone());
-                routing_helpers::update_merchant_default_config(
-                    &*state.clone().store,
-                    merchant_id,
-                    default_routing_config,
-                )
-                .await?;
-            }
-
-            if !default_routing_config_for_profile.contains(&choice) {
-                default_routing_config_for_profile.push(choice);
-                routing_helpers::update_merchant_default_config(
-                    &*state.store,
-                    &profile_id,
-                    default_routing_config_for_profile,
-                )
-                .await?;
-            }
-        }
-    };
 
     let mca_response = mca.try_into()?;
     Ok(service_api::ApplicationResponse::Json(mca_response))
@@ -1240,6 +1185,17 @@ pub async fn update_payment_connector(
             .await?;
         }
     }
+
+    // The purpose of this merchant account update is just to update the
+    // merchant account `modified_at` field for KGraph cache invalidation
+    db.update_specific_fields_in_merchant(
+        merchant_id,
+        storage::MerchantAccountUpdate::ModifiedAtUpdate,
+        &key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error updating the merchant account when updating payment connector")?;
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
@@ -1795,6 +1751,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             payu::transformers::PayuAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Placetopay => {
+            placetopay::transformers::PlacetopayAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Powertranz => {
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
             Ok(())
@@ -1855,10 +1815,12 @@ pub(crate) fn validate_auth_and_metadata_type(
             signifyd::transformers::SignifydAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Plaid => {
-            PlaidAuthType::foreign_try_from(val)?;
+        api_enums::Connector::Riskified => {
+            riskified::transformers::RiskifiedAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Plaid => Err(report!(errors::ConnectorError::InvalidConnectorName)
+            .attach_printable(format!("invalid connector name: {connector_name}"))),
     }
 }
 
