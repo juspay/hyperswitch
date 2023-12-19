@@ -1041,15 +1041,15 @@ impl From<String> for NmiStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SyncTransactionResponse {
-    transaction_id: String,
-    condition: String,
+    pub transaction_id: String,
+    pub condition: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct SyncResponse {
-    transaction: SyncTransactionResponse,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SyncResponse {
+    pub transaction: SyncTransactionResponse,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1074,12 +1074,12 @@ pub struct NmiReferenceBody {
     pub action: NmiActionBody,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiActionBody {
     pub action_type: NmiActionType,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NmiActionType {
     Auth,
@@ -1098,66 +1098,80 @@ pub struct NmiWebhookEventBody {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum NmiWebhookEventType {
     #[serde(rename = "transaction.sale.success")]
-    PaymentIntentSuccess,
+    SaleSuccess,
     #[serde(rename = "transaction.sale.failure")]
-    PaymentIntentFailure,
+    SaleFailure,
     #[serde(rename = "transaction.sale.unknown")]
-    PaymentIntentProcessing,
+    SaleUnknown,
     #[serde(rename = "transaction.auth.success")]
     AuthSuccess,
     #[serde(rename = "transaction.auth.failure")]
     AuthFailure,
     #[serde(rename = "transaction.auth.unknown")]
-    AuthProcessing,
+    AuthUnknown,
     #[serde(rename = "transaction.refund.success")]
     RefundSuccess,
     #[serde(rename = "transaction.refund.failure")]
     RefundFailure,
     #[serde(rename = "transaction.refund.unknown")]
-    RefundProcessing,
+    RefundUnknown,
     #[serde(rename = "transaction.void.success")]
     VoidSuccess,
     #[serde(rename = "transaction.void.failure")]
     VoidFailure,
     #[serde(rename = "transaction.void.unknown")]
-    VoidProcessing,
+    VoidUnknown,
     #[serde(rename = "transaction.capture.success")]
     CaptureSuccess,
     #[serde(rename = "transaction.capture.failure")]
     CaptureFailure,
     #[serde(rename = "transaction.capture.unknown")]
-    CaptureProcessing,
+    CaptureUnknown,
 }
 
 impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
     fn foreign_from(status: NmiWebhookEventType) -> Self {
         match status {
-            NmiWebhookEventType::PaymentIntentSuccess => Self::PaymentIntentSuccess,
-            NmiWebhookEventType::PaymentIntentFailure => Self::PaymentIntentFailure,
+            NmiWebhookEventType::SaleSuccess => Self::PaymentIntentSuccess,
+            NmiWebhookEventType::SaleFailure => Self::PaymentIntentFailure,
             NmiWebhookEventType::RefundSuccess => Self::RefundSuccess,
             NmiWebhookEventType::RefundFailure => Self::RefundFailure,
-            NmiWebhookEventType::PaymentIntentProcessing
-            | NmiWebhookEventType::RefundProcessing
+            NmiWebhookEventType::VoidSuccess => Self::PaymentIntentCancelled,
+            NmiWebhookEventType::SaleUnknown
+            | NmiWebhookEventType::RefundUnknown
             | NmiWebhookEventType::AuthSuccess
             | NmiWebhookEventType::AuthFailure
-            | NmiWebhookEventType::AuthProcessing
-            | NmiWebhookEventType::VoidSuccess
+            | NmiWebhookEventType::AuthUnknown
             | NmiWebhookEventType::VoidFailure
-            | NmiWebhookEventType::VoidProcessing
+            | NmiWebhookEventType::VoidUnknown
             | NmiWebhookEventType::CaptureSuccess
             | NmiWebhookEventType::CaptureFailure
-            | NmiWebhookEventType::CaptureProcessing => Self::EventNotSupported,
+            | NmiWebhookEventType::CaptureUnknown => Self::EventNotSupported,
         }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NmiWebhookBody {
-    pub event_type: NmiWebhookEventType,
     pub event_body: NmiWebhookObject,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NmiWebhookObject {
+    pub transaction_id: String,
     pub order_id: String,
+    pub condition: String,
+    pub action: NmiActionBody,
+}
+
+impl TryFrom<&NmiWebhookBody> for SyncResponse {
+    type Error = Error;
+    fn try_from(item: &NmiWebhookBody) -> Result<Self, Self::Error> {
+        let transaction = SyncTransactionResponse {
+            transaction_id: item.event_body.transaction_id.to_owned(),
+            condition: item.event_body.condition.to_owned(),
+        };
+
+        Ok(Self { transaction })
+    }
 }
