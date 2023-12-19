@@ -2,9 +2,10 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use regex::Regex;
 use transformers as nmi;
 
 use super::utils as connector_utils;
@@ -15,6 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse,
     },
 };
@@ -93,6 +95,14 @@ impl ConnectorValidation for Nmi {
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // in case we dont have transaction id, we can make psync using attempt id
+        Ok(())
     }
 }
 
@@ -784,24 +794,124 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Nmi {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let sig_header =
+            connector_utils::get_header_key_value("webhook-signature", request.headers)?;
+
+        let regex_pattern = r"t=(.*),s=(.*)";
+
+        if let Some(captures) = Regex::new(regex_pattern)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?
+            .captures(sig_header)
+        {
+            let signature = captures
+                .get(1)
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
+                .into_report()?
+                .as_str();
+            return Ok(signature.as_bytes().to_vec());
+        }
+
+        Err(errors::ConnectorError::WebhookSignatureNotFound).into_report()
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let sig_header =
+            connector_utils::get_header_key_value("webhook-signature", request.headers)?;
+
+        let regex_pattern = r"t=(.*),s=(.*)";
+
+        if let Some(captures) = Regex::new(regex_pattern)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?
+            .captures(sig_header)
+        {
+            let nonce = captures
+                .get(0)
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
+                .into_report()?
+                .as_str();
+
+            let message = format!("{}.{}", nonce, String::from_utf8_lossy(request.body));
+
+            return Ok(message.into_bytes());
+        }
+        Err(errors::ConnectorError::WebhookSignatureNotFound).into_report()
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let reference_body: nmi::NmiWebhookObjectReference = request
+            .body
+            .parse_struct("nmi NmiWebhookObjectReference")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        let object_reference_id = match reference_body.event_body.action.action_type {
+            nmi::NmiActionType::Sale => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
+            nmi::NmiActionType::Refund => api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::RefundId(reference_body.event_body.order_id),
+            ),
+            _ => Err(errors::ConnectorError::WebhooksNotImplemented).into_report()?,
+        };
+
+        Ok(object_reference_id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::EventNotSupported)
+        let event_type_body: nmi::NmiWebhookEventBody = request
+            .body
+            .parse_struct("nmi NmiWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(api::IncomingWebhookEvent::foreign_from(
+            event_type_body.event_type,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook_body: nmi::NmiWebhookBody = request
+            .body
+            .parse_struct("nmi NmiWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        match webhook_body.event_body.action.action_type {
+            nmi::NmiActionType::Sale
+            | nmi::NmiActionType::Auth
+            | nmi::NmiActionType::Capture
+            | nmi::NmiActionType::Void
+            | nmi::NmiActionType::Credit => {
+                Ok(Box::new(nmi::SyncResponse::try_from(&webhook_body)?))
+            }
+            nmi::NmiActionType::Refund => Ok(Box::new(webhook_body)),
+        }
     }
 }
