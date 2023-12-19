@@ -6,7 +6,10 @@ use std::{
     str::FromStr,
 };
 
-use api_models::{admin as admin_api, routing::ConnectorSelection};
+use api_models::{
+    admin as admin_api, conditional_configs::ConditionalConfigs, routing::ConnectorSelection,
+    surcharge_decision_configs::SurchargeDecisionConfigs,
+};
 use common_enums::RoutableConnectors;
 use currency_conversion::{
     conversion::convert as convert_currency, types as currency_conversion_types,
@@ -20,7 +23,7 @@ use euclid::{
     },
     frontend::{
         ast,
-        dir::{self, enums as dir_enums},
+        dir::{self, enums as dir_enums, EuclidDirFilter},
     },
 };
 use once_cell::sync::OnceCell;
@@ -203,6 +206,18 @@ pub fn get_key_type(key: &str) -> Result<String, String> {
     let key = dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
     let key_str = key.get_type().to_string();
     Ok(key_str)
+}
+
+#[wasm_bindgen(js_name = getThreeDsKeys)]
+pub fn get_three_ds_keys() -> JsResult {
+    let keys = <ConditionalConfigs as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
+}
+
+#[wasm_bindgen(js_name= getSurchargeKeys)]
+pub fn get_surcharge_keys() -> JsResult {
+    let keys = <SurchargeDecisionConfigs as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
 #[wasm_bindgen(js_name=parseToString)]

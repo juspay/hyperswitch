@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.102.1 (2023-12-18)
+
+### Bug Fixes
+
+- **connector:** [BOA/CYBERSOURCE] Update error handling ([#3156](https://github.com/juspay/hyperswitch/pull/3156)) ([`8e484dd`](https://github.com/juspay/hyperswitch/commit/8e484ddab8d3f4463299c7f7e8ce75b8dd628599))
+- **euclid_wasm:** Add function to retrieve keys for 3ds and surcharge decision manager ([#3160](https://github.com/juspay/hyperswitch/pull/3160)) ([`30fe9d1`](https://github.com/juspay/hyperswitch/commit/30fe9d19e4955035a370f8f9ce37963cdb76c68a))
+- **payment_link:** Added amount conversion to base unit based on currency ([#3162](https://github.com/juspay/hyperswitch/pull/3162)) ([`0fa61a9`](https://github.com/juspay/hyperswitch/commit/0fa61a9dd194c5b3688f8f68b056c263d92327d0))
+- Change prodintent name in dashboard metadata ([#3161](https://github.com/juspay/hyperswitch/pull/3161)) ([`8db3361`](https://github.com/juspay/hyperswitch/commit/8db3361d80f674a28a3916830a4b0c1c2b89776a))
+
+### Refactors
+
+- **connector:**
+  - [Helcim] change error message from not supported to not implemented ([#2850](https://github.com/juspay/hyperswitch/pull/2850)) ([`41b5a82`](https://github.com/juspay/hyperswitch/commit/41b5a82bafa9b0392bb43ed268fefc5187b48636))
+  - [Forte] change error message from not supported to not implemented ([#2847](https://github.com/juspay/hyperswitch/pull/2847)) ([`3fc0e2d`](https://github.com/juspay/hyperswitch/commit/3fc0e2d8195948d50f735df5192ae0f8431b432b))
+  - [Cryptopay] change error message from not supported to not implemented ([#2846](https://github.com/juspay/hyperswitch/pull/2846)) ([`2d895be`](https://github.com/juspay/hyperswitch/commit/2d895be9856d17cd923665568aa9b6e54fc1a305))
+- **router:** [ACI] change payment error message from not supported to not implemented error ([#2837](https://github.com/juspay/hyperswitch/pull/2837)) ([`cc12e8a`](https://github.com/juspay/hyperswitch/commit/cc12e8a2435e5e47eeec77c620c747b156a3e16b))
+- **users:** Rename `user_roles` and `dashboard_metadata` columns ([#3135](https://github.com/juspay/hyperswitch/pull/3135)) ([`e3589e6`](https://github.com/juspay/hyperswitch/commit/e3589e641c8a0b3b690b82f09a61d512db2d9932))
+
+**Full Changelog:** [`v1.102.0+hotfix.1...v1.102.1`](https://github.com/juspay/hyperswitch/compare/v1.102.0+hotfix.1...v1.102.1)
+
+- - -
+
+
 ## 1.102.0 (2023-12-17)
 
 ### Features

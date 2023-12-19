@@ -123,7 +123,7 @@ impl UserRoleInterface for MockDb {
             status: user_role.status,
             created_by: user_role.created_by,
             created_at: user_role.created_at,
-            last_modified_at: user_role.last_modified_at,
+            last_modified: user_role.last_modified,
             last_modified_by: user_role.last_modified_by,
             org_id: user_role.org_id,
         };
