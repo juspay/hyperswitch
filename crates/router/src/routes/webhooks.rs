@@ -21,17 +21,12 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
-    let body_vec: Vec<u8> = body.to_vec();
-    let payload: serde_json::Value = serde_json::from_slice(&body_vec)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
-
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &req,
-        payload,
-        |state, auth, _| {
+        WebhookBytes(body),
+        |state, auth, payload| {
             webhooks::webhooks_wrapper::<W, Oss>(
                 &flow,
                 state.to_owned(),
@@ -39,11 +34,27 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
                 auth.merchant_account,
                 auth.key_store,
                 &connector_id_or_name,
-                body.clone(),
+                payload.0,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[derive(Debug)]
+struct WebhookBytes(web::Bytes);
+
+impl serde::Serialize for WebhookBytes {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let payload: serde_json::Value = serde_json::from_slice(&self.0).unwrap_or_default();
+        payload.serialize(serializer)
+    }
+}
+
+impl common_utils::events::ApiEventMetric for WebhookBytes {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
 }
