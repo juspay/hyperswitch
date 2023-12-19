@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
+    admin::ConnectorAuthType,
     enums::{CardNetwork, Connector, PaymentMethodType},
     payments,
 };
@@ -20,33 +19,6 @@ pub struct CurrencyAuthKeyType {
     pub password_evoucher: Option<String>,
     pub username_evoucher: Option<String>,
     pub merchant_id_evoucher: Option<String>,
-}
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-// ConnectorAuthType is currently in OSS crates/router/src/types.rs which need to be moved to crates/api_models/src/enums.rs
-pub enum ConnectorAuthType {
-    HeaderKey {
-        api_key: String,
-    },
-    BodyKey {
-        api_key: String,
-        key1: String,
-    },
-    SignatureKey {
-        api_key: String,
-        key1: String,
-        api_secret: String,
-    },
-    MultiAuthKey {
-        api_key: String,
-        key1: String,
-        api_secret: String,
-        key2: String,
-    },
-    CurrencyAuthKey {
-        auth_key_map: HashMap<String, CurrencyAuthKeyType>,
-    },
-    #[default]
-    NoKey,
 }
 
 #[serde_with::skip_serializing_none]
@@ -169,9 +141,7 @@ impl ConnectorConfig {
         let config = toml::from_str::<Self>(include_str!("../toml/development.toml"));
 
         #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
-        return Err(String::from(
-            "Atleast one features has to be enabled for connectorconfig",
-        ));
+        compile_error!("Atleast one features has to be enabled for connectorconfig");
 
         #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
         match config {

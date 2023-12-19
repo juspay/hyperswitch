@@ -2,8 +2,9 @@
 name = "connector_configs"
 description = "Connector Integration Dashboard"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true 
+rust-version.workspace = true
+license.workspace = true
 
 [features]
 default = ["payouts", "dummy_connector"]
@@ -15,7 +16,7 @@ payouts = []
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
-serde = { version = "1.0.160", features = ["derive"] }
-serde_with = "2.3.2"
+serde = { version = "1.0.108", features = ["derive"] }
+serde_with = "3.4.0"
 toml = "0.7.3"
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
