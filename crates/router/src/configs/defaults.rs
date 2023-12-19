@@ -4492,6 +4492,25 @@ impl Default for super::settings::RequiredFields {
                                         common: HashMap::new(),
                                     }
                                 ),
+                                (
+                                    enums::Connector::Aci,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.eps.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.eps.country".to_string(),
+                                                    display_name: "bank_account_country".to_string(),
+                                                    field_type: enums::FieldType::UserCountryCode,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                
                                 ]),
                         },
                     ),
