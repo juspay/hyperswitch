@@ -22,9 +22,7 @@
   "paths": {
     "/account/payment_methods": {
       "get": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "List payment methods for a Merchant",
         "description": "List payment methods for a Merchant\n\nLists the applicable payment methods for a particular Merchant ID.\nUse the client secret and publishable key authorization to list all relevant payment methods of the merchant for the payment corresponding to the client secret.",
         "operationId": "List all Payment Methods for a Merchant",
@@ -131,9 +129,7 @@
     },
     "/account/{account_id}/business_profile": {
       "get": {
-        "tags": [
-          "Business Profile"
-        ],
+        "tags": ["Business Profile"],
         "summary": "Business Profile - List",
         "description": "Business Profile - List\n\nLists all the *business profiles* under a merchant",
         "operationId": "List Business Profiles",
@@ -170,9 +166,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Business Profile"
-        ],
+        "tags": ["Business Profile"],
         "summary": "Business Profile - Create",
         "description": "Business Profile - Create\n\nCreates a new *business profile* for a merchant",
         "operationId": "Create A Business Profile",
@@ -231,9 +225,7 @@
     },
     "/account/{account_id}/business_profile/{profile_id}": {
       "post": {
-        "tags": [
-          "Business Profile"
-        ],
+        "tags": ["Business Profile"],
         "summary": "Business Profile - Update",
         "description": "Business Profile - Update\n\nUpdate the *business profile*",
         "operationId": "Update a Business Profile",
@@ -296,9 +288,7 @@
         ]
       },
       "delete": {
-        "tags": [
-          "Business Profile"
-        ],
+        "tags": ["Business Profile"],
         "summary": "Business Profile - Delete",
         "description": "Business Profile - Delete\n\nDelete the *business profile*",
         "operationId": "Delete the Business Profile",
@@ -346,9 +336,7 @@
     },
     "/accounts": {
       "post": {
-        "tags": [
-          "Merchant Account"
-        ],
+        "tags": ["Merchant Account"],
         "summary": "Merchant Account - Create",
         "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.",
         "operationId": "Create a Merchant Account",
@@ -407,9 +395,7 @@
     },
     "/accounts/{account_id}": {
       "get": {
-        "tags": [
-          "Merchant Account"
-        ],
+        "tags": ["Merchant Account"],
         "summary": "Merchant Account - Retrieve",
         "description": "Merchant Account - Retrieve\n\nRetrieve a *merchant* account details.",
         "operationId": "Retrieve a Merchant Account",
@@ -446,9 +432,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Merchant Account"
-        ],
+        "tags": ["Merchant Account"],
         "summary": "Merchant Account - Update",
         "description": "Merchant Account - Update\n\nUpdates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
         "operationId": "Update a Merchant Account",
@@ -517,9 +501,7 @@
         ]
       },
       "delete": {
-        "tags": [
-          "Merchant Account"
-        ],
+        "tags": ["Merchant Account"],
         "summary": "Merchant Account - Delete",
         "description": "Merchant Account - Delete\n\nDelete a *merchant* account",
         "operationId": "Delete a Merchant Account",
@@ -558,9 +540,7 @@
     },
     "/accounts/{account_id}/connectors": {
       "get": {
-        "tags": [
-          "Merchant Connector Account"
-        ],
+        "tags": ["Merchant Connector Account"],
         "summary": "Merchant Connector - List",
         "description": "Merchant Connector - List\n\nList Merchant Connector Details for the merchant",
         "operationId": "List all Merchant Connectors",
@@ -603,9 +583,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Merchant Connector Account"
-        ],
+        "tags": ["Merchant Connector Account"],
         "summary": "Merchant Connector - Create",
         "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
@@ -680,9 +658,7 @@
     },
     "/accounts/{account_id}/connectors/{connector_id}": {
       "get": {
-        "tags": [
-          "Merchant Connector Account"
-        ],
+        "tags": ["Merchant Connector Account"],
         "summary": "Merchant Connector - Retrieve",
         "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
@@ -732,9 +708,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Merchant Connector Account"
-        ],
+        "tags": ["Merchant Connector Account"],
         "summary": "Merchant Connector - Update",
         "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
@@ -813,9 +787,7 @@
         ]
       },
       "delete": {
-        "tags": [
-          "Merchant Connector Account"
-        ],
+        "tags": ["Merchant Connector Account"],
         "summary": "Merchant Connector - Delete",
         "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
@@ -867,9 +839,7 @@
     },
     "/customers": {
       "post": {
-        "tags": [
-          "Customers"
-        ],
+        "tags": ["Customers"],
         "summary": "Customers - Create",
         "description": "Customers - Create\n\nCreates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
@@ -915,9 +885,7 @@
     },
     "/customers/list": {
       "post": {
-        "tags": [
-          "Customers List"
-        ],
+        "tags": ["Customers List"],
         "summary": "Customers - List",
         "description": "Customers - List\n\nLists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
@@ -948,9 +916,7 @@
     },
     "/customers/payment_methods": {
       "get": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "List payment methods for a Payment",
         "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
         "operationId": "List all Payment Methods for a Customer",
@@ -1063,9 +1029,7 @@
     },
     "/customers/{customer_id}": {
       "get": {
-        "tags": [
-          "Customers"
-        ],
+        "tags": ["Customers"],
         "summary": "Customers - Retrieve",
         "description": "Customers - Retrieve\n\nRetrieves a customer's details.",
         "operationId": "Retrieve a Customer",
@@ -1105,9 +1069,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Customers"
-        ],
+        "tags": ["Customers"],
         "summary": "Customers - Update",
         "description": "Customers - Update\n\nUpdates the customer's details in a customer object.",
         "operationId": "Update a Customer",
@@ -1162,9 +1124,7 @@
         ]
       },
       "delete": {
-        "tags": [
-          "Customers"
-        ],
+        "tags": ["Customers"],
         "summary": "Customers - Delete",
         "description": "Customers - Delete\n\nDelete a customer record.",
         "operationId": "Delete a Customer",
@@ -1203,9 +1163,7 @@
     },
     "/customers/{customer_id}/payment_methods": {
       "get": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "List payment methods for a Customer",
         "description": "List payment methods for a Customer\n\nLists all the applicable payment methods for a particular Customer ID.",
         "operationId": "List all Payment Methods for a Customer",
@@ -1309,9 +1267,7 @@
     },
     "/disputes/list": {
       "get": {
-        "tags": [
-          "Disputes"
-        ],
+        "tags": ["Disputes"],
         "summary": "Disputes - List Disputes",
         "description": "Disputes - List Disputes\nLists all the Disputes for a merchant",
         "operationId": "List Disputes",
@@ -1458,9 +1414,7 @@
     },
     "/disputes/{dispute_id}": {
       "get": {
-        "tags": [
-          "Disputes"
-        ],
+        "tags": ["Disputes"],
         "summary": "Disputes - Retrieve Dispute",
         "description": "Disputes - Retrieve Dispute\nRetrieves a dispute",
         "operationId": "Retrieve a Dispute",
@@ -1499,9 +1453,7 @@
     },
     "/gsm": {
       "post": {
-        "tags": [
-          "Gsm"
-        ],
+        "tags": ["Gsm"],
         "summary": "Gsm - Create",
         "description": "Gsm - Create\n\nCreates a GSM (Global Status Mapping) Rule. A GSM rule is used to map a connector's error message/error code combination during a particular payments flow/sub-flow to Hyperswitch's unified status/error code/error message combination. It is also used to decide the next action in the flow - retry/requeue/do_default",
         "operationId": "Create Gsm Rule",
@@ -1539,9 +1491,7 @@
     },
     "/gsm/delete": {
       "post": {
-        "tags": [
-          "Gsm"
-        ],
+        "tags": ["Gsm"],
         "summary": "Gsm - Delete",
         "description": "Gsm - Delete\n\nDeletes a Gsm Rule",
         "operationId": "Delete Gsm Rule",
@@ -1579,9 +1529,7 @@
     },
     "/gsm/get": {
       "post": {
-        "tags": [
-          "Gsm"
-        ],
+        "tags": ["Gsm"],
         "summary": "Gsm - Get",
         "description": "Gsm - Get\n\nRetrieves a Gsm Rule",
         "operationId": "Retrieve Gsm Rule",
@@ -1619,9 +1567,7 @@
     },
     "/gsm/update": {
       "post": {
-        "tags": [
-          "Gsm"
-        ],
+        "tags": ["Gsm"],
         "summary": "Gsm - Update",
         "description": "Gsm - Update\n\nUpdates a Gsm Rule",
         "operationId": "Update Gsm Rule",
@@ -1659,9 +1605,7 @@
     },
     "/mandates/revoke/{mandate_id}": {
       "post": {
-        "tags": [
-          "Mandates"
-        ],
+        "tags": ["Mandates"],
         "summary": "Mandates - Revoke Mandate",
         "description": "Mandates - Revoke Mandate\n\nRevokes a mandate created using the Payments/Create API",
         "operationId": "Revoke a Mandate",
@@ -1700,9 +1644,7 @@
     },
     "/mandates/{mandate_id}": {
       "get": {
-        "tags": [
-          "Mandates"
-        ],
+        "tags": ["Mandates"],
         "summary": "Mandates - Retrieve Mandate",
         "description": "Mandates - Retrieve Mandate\n\nRetrieves a mandate created using the Payments/Create API",
         "operationId": "Retrieve a Mandate",
@@ -1741,9 +1683,7 @@
     },
     "/payment_methods": {
       "post": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "PaymentMethods - Create",
         "description": "PaymentMethods - Create\n\nCreates and stores a payment method against a customer.\nIn case of cards, this API should be used only by PCI compliant merchants.",
         "operationId": "Create a Payment Method",
@@ -1797,9 +1737,7 @@
     },
     "/payment_methods/{method_id}": {
       "get": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "Payment Method - Retrieve",
         "description": "Payment Method - Retrieve\n\nRetrieves a payment method of a customer.",
         "operationId": "Retrieve a Payment method",
@@ -1836,9 +1774,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "Payment Method - Update",
         "description": "Payment Method - Update\n\nUpdate an existing payment method of a customer.\nThis API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.",
         "operationId": "Update a Payment method",
@@ -1885,9 +1821,7 @@
         ]
       },
       "delete": {
-        "tags": [
-          "Payment Methods"
-        ],
+        "tags": ["Payment Methods"],
         "summary": "Payment Method - Delete",
         "description": "Payment Method - Delete\n\nDeletes a payment method of a customer.",
         "operationId": "Delete a Payment method",
@@ -1926,9 +1860,7 @@
     },
     "/payments": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Create",
         "description": "Payments - Create\n\n**Creates a payment object when amount and currency are passed.** This API is also used to create a mandate by passing the `mandate_object`.\n\nTo completely process a payment you will have to create a payment, attach a payment method, confirm and capture funds.\n\nDepending on the user journey you wish to achieve, you may opt to complete all the steps in a single request by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request or you could use the following sequence of API requests to achieve the same:\n\n1. Payments - Create\n\n2. Payments - Update\n\n3. Payments - Confirm\n\n4. Payments - Capture.\n\nUse the client secret returned in this API along with your publishable key to make subsequent API calls from your client",
         "operationId": "Create a Payment",
@@ -2105,9 +2037,7 @@
     },
     "/payments/list": {
       "get": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - List",
         "description": "Payments - List\n\nTo list the *payments*",
         "operationId": "List all Payments",
@@ -2227,9 +2157,7 @@
     },
     "/payments/session_tokens": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Session token",
         "description": "Payments - Session token\n\nCreates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
         "operationId": "Create Session tokens for a Payment",
@@ -2267,9 +2195,7 @@
     },
     "/payments/{payment_id}": {
       "get": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Retrieve",
         "description": "Payments - Retrieve\n\nRetrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Payment",
@@ -2319,9 +2245,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Update",
         "description": "Payments - Update\n\nTo update the properties of a *PaymentIntent* object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
         "operationId": "Update a Payment",
@@ -2401,9 +2325,7 @@
     },
     "/payments/{payment_id}/cancel": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Cancel",
         "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.",
         "operationId": "Cancel a Payment",
@@ -2455,9 +2377,7 @@
     },
     "/payments/{payment_id}/capture": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Capture",
         "description": "Payments - Capture\n\nTo capture the funds for an uncaptured payment",
         "operationId": "Capture a Payment",
@@ -2516,9 +2436,7 @@
     },
     "/payments/{payment_id}/confirm": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Payments - Confirm",
         "description": "Payments - Confirm\n\n**Use this API to confirm the payment and forward the payment to the payment processor.**\\n\\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\\n\\n1. fail with `failed` status or\\n\\n2. transition to a `requires_customer_action` status with a `next_action` block or\\n\\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture",
         "operationId": "Confirm a Payment",
@@ -2587,9 +2505,7 @@
     },
     "/refunds": {
       "post": {
-        "tags": [
-          "Refunds"
-        ],
+        "tags": ["Refunds"],
         "summary": "Refunds - Create",
         "description": "Refunds - Create\n\nCreates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amounth has been refunded",
         "operationId": "Create a Refund",
@@ -2650,9 +2566,7 @@
     },
     "/refunds/list": {
       "post": {
-        "tags": [
-          "Refunds"
-        ],
+        "tags": ["Refunds"],
         "summary": "Refunds - List",
         "description": "Refunds - List\n\nLists all the refunds associated with the merchant or a payment_id if payment_id is not provided",
         "operationId": "List all Refunds",
@@ -2687,9 +2601,7 @@
     },
     "/refunds/{refund_id}": {
       "get": {
-        "tags": [
-          "Refunds"
-        ],
+        "tags": ["Refunds"],
         "summary": "Refunds - Retrieve",
         "description": "Refunds - Retrieve\n\nRetrieves a Refund. This may be used to get the status of a previously initiated refund",
         "operationId": "Retrieve a Refund",
@@ -2726,9 +2638,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Refunds"
-        ],
+        "tags": ["Refunds"],
         "summary": "Refunds - Update",
         "description": "Refunds - Update\n\nUpdates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields",
         "operationId": "Update a Refund",
@@ -2784,9 +2694,9 @@
     },
     "/routing": {
       "get": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - List",
+        "description": "Routing - List\n\nList all routing configs",
         "operationId": "List routing configs",
         "parameters": [
           {
@@ -2852,9 +2762,9 @@
         ]
       },
       "post": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Create",
+        "description": "Routing - Create\n\nCreate a routing config",
         "operationId": "Create a routing config",
         "requestBody": {
           "content": {
@@ -2905,9 +2815,9 @@
     },
     "/routing/active": {
       "get": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Retrieve Config",
+        "description": "Routing - Retrieve Config\n\nRetrieve active config",
         "operationId": "Retrieve active config",
         "parameters": [
           {
@@ -2954,9 +2864,9 @@
     },
     "/routing/deactivate": {
       "post": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Deactivate",
+        "description": "Routing - Deactivate\n\nDeactivates a routing config",
         "operationId": "Deactivate a routing config",
         "requestBody": {
           "content": {
@@ -3004,9 +2914,9 @@
     },
     "/routing/default": {
       "get": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Retrieve Default Config",
+        "description": "Routing - Retrieve Default Config\n\nRetrieve default fallback config",
         "operationId": "Retrieve default fallback config",
         "responses": {
           "200": {
@@ -3036,9 +2946,9 @@
         ]
       },
       "post": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Update Default Config",
+        "description": "Routing - Update Default Config\n\nUpdate default fallback config",
         "operationId": "Update default fallback config",
         "requestBody": {
           "content": {
@@ -3089,9 +2999,9 @@
     },
     "/routing/default/profile": {
       "get": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Retrieve Default For Profile",
+        "description": "Routing - Retrieve Default For Profile\n\nRetrieve default config for profiles",
         "operationId": "Retrieve default config for profiles",
         "responses": {
           "200": {
@@ -3123,9 +3033,9 @@
     },
     "/routing/default/profile/{profile_id}": {
       "post": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Update Default For Profile",
+        "description": "Routing - Update Default For Profile\n\nUpdate default config for profiles",
         "operationId": "Update default config for profile",
         "parameters": [
           {
@@ -3190,9 +3100,9 @@
     },
     "/routing/{algorithm_id}": {
       "get": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Retrieve",
+        "description": "Routing - Retrieve\n\nRetrieve a routing algorithm",
         "operationId": "Retrieve a routing algorithm",
         "parameters": [
           {
@@ -3238,9 +3148,9 @@
     },
     "/routing/{algorithm_id}/activate": {
       "post": {
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
+        "summary": "Routing - Activate config",
+        "description": "Routing - Activate config\n\nActivate a routing config",
         "operationId": "Activate a routing config",
         "parameters": [
           {
@@ -3290,25 +3200,17 @@
       "AcceptanceType": {
         "type": "string",
         "description": "This is used to indicate if the mandate was accepted online or offline",
-        "enum": [
-          "online",
-          "offline"
-        ]
+        "enum": ["online", "offline"]
       },
       "AcceptedCountries": {
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "list"
-            ],
+            "required": ["type", "list"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "enable_only"
-                ]
+                "enum": ["enable_only"]
               },
               "list": {
                 "type": "array",
@@ -3320,16 +3222,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "list"
-            ],
+            "required": ["type", "list"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "disable_only"
-                ]
+                "enum": ["disable_only"]
               },
               "list": {
                 "type": "array",
@@ -3341,15 +3238,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type"
-            ],
+            "required": ["type"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "all_accepted"
-                ]
+                "enum": ["all_accepted"]
               }
             }
           }
@@ -3363,16 +3256,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "list"
-            ],
+            "required": ["type", "list"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "enable_only"
-                ]
+                "enum": ["enable_only"]
               },
               "list": {
                 "type": "array",
@@ -3384,16 +3272,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "list"
-            ],
+            "required": ["type", "list"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "disable_only"
-                ]
+                "enum": ["disable_only"]
               },
               "list": {
                 "type": "array",
@@ -3405,15 +3288,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type"
-            ],
+            "required": ["type"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "all_accepted"
-                ]
+                "enum": ["all_accepted"]
               }
             }
           }
@@ -3459,9 +3338,7 @@
       },
       "AchBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "properties": {
           "email": {
             "type": "string",
@@ -3598,11 +3475,7 @@
       },
       "AlfamartVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
+        "required": ["first_name", "last_name", "email"],
         "properties": {
           "first_name": {
             "type": "string",
@@ -3632,10 +3505,7 @@
       },
       "AmountInfo": {
         "type": "object",
-        "required": [
-          "label",
-          "amount"
-        ],
+        "required": ["label", "amount"],
         "properties": {
           "label": {
             "type": "string",
@@ -3656,9 +3526,7 @@
         "oneOf": [
           {
             "type": "string",
-            "enum": [
-              "never"
-            ]
+            "enum": ["never"]
           },
           {
             "type": "string",
@@ -3668,11 +3536,7 @@
       },
       "ApplePayPaymentRequest": {
         "type": "object",
-        "required": [
-          "country_code",
-          "currency_code",
-          "total"
-        ],
+        "required": ["country_code", "currency_code", "total"],
         "properties": {
           "country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
@@ -3762,11 +3626,7 @@
       },
       "ApplepayPaymentMethod": {
         "type": "object",
-        "required": [
-          "display_name",
-          "network",
-          "type"
-        ],
+        "required": ["display_name", "network", "type"],
         "properties": {
           "display_name": {
             "type": "string",
@@ -3861,19 +3721,11 @@
       },
       "AuthenticationType": {
         "type": "string",
-        "enum": [
-          "three_ds",
-          "no_three_ds"
-        ]
+        "enum": ["three_ds", "no_three_ds"]
       },
       "AuthorizationStatus": {
         "type": "string",
-        "enum": [
-          "success",
-          "failure",
-          "processing",
-          "unresolved"
-        ]
+        "enum": ["success", "failure", "processing", "unresolved"]
       },
       "BacsBankTransfer": {
         "type": "object",
@@ -3912,11 +3764,7 @@
       },
       "BacsBankTransferInstructions": {
         "type": "object",
-        "required": [
-          "account_holder_name",
-          "account_number",
-          "sort_code"
-        ],
+        "required": ["account_holder_name", "account_number", "sort_code"],
         "properties": {
           "account_holder_name": {
             "type": "string",
@@ -3947,10 +3795,7 @@
       },
       "BankDebitBilling": {
         "type": "object",
-        "required": [
-          "name",
-          "email"
-        ],
+        "required": ["name", "email"],
         "properties": {
           "name": {
             "type": "string",
@@ -3976,9 +3821,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ach_bank_debit"
-            ],
+            "required": ["ach_bank_debit"],
             "properties": {
               "ach_bank_debit": {
                 "type": "object",
@@ -4033,9 +3876,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "sepa_bank_debit"
-            ],
+            "required": ["sepa_bank_debit"],
             "properties": {
               "sepa_bank_debit": {
                 "type": "object",
@@ -4064,17 +3905,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "becs_bank_debit"
-            ],
+            "required": ["becs_bank_debit"],
             "properties": {
               "becs_bank_debit": {
                 "type": "object",
-                "required": [
-                  "billing_details",
-                  "account_number",
-                  "bsb_number"
-                ],
+                "required": ["billing_details", "account_number", "bsb_number"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/BankDebitBilling"
@@ -4101,9 +3936,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bacs_bank_debit"
-            ],
+            "required": ["bacs_bank_debit"],
             "properties": {
               "bacs_bank_debit": {
                 "type": "object",
@@ -4288,10 +4121,7 @@
       },
       "BankRedirectBilling": {
         "type": "object",
-        "required": [
-          "billing_name",
-          "email"
-        ],
+        "required": ["billing_name", "email"],
         "properties": {
           "billing_name": {
             "type": "string",
@@ -4309,9 +4139,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "bancontact_card"
-            ],
+            "required": ["bancontact_card"],
             "properties": {
               "bancontact_card": {
                 "type": "object",
@@ -4356,9 +4184,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bizum"
-            ],
+            "required": ["bizum"],
             "properties": {
               "bizum": {
                 "type": "object"
@@ -4367,9 +4193,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "blik"
-            ],
+            "required": ["blik"],
             "properties": {
               "blik": {
                 "type": "object",
@@ -4384,17 +4208,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "eps"
-            ],
+            "required": ["eps"],
             "properties": {
               "eps": {
                 "type": "object",
-                "required": [
-                  "billing_details",
-                  "bank_name",
-                  "country"
-                ],
+                "required": ["billing_details", "bank_name", "country"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/BankRedirectBilling"
@@ -4411,16 +4229,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "giropay"
-            ],
+            "required": ["giropay"],
             "properties": {
               "giropay": {
                 "type": "object",
-                "required": [
-                  "billing_details",
-                  "country"
-                ],
+                "required": ["billing_details", "country"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/BankRedirectBilling"
@@ -4444,17 +4257,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "ideal"
-            ],
+            "required": ["ideal"],
             "properties": {
               "ideal": {
                 "type": "object",
-                "required": [
-                  "billing_details",
-                  "bank_name",
-                  "country"
-                ],
+                "required": ["billing_details", "bank_name", "country"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/BankRedirectBilling"
@@ -4471,16 +4278,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "interac"
-            ],
+            "required": ["interac"],
             "properties": {
               "interac": {
                 "type": "object",
-                "required": [
-                  "country",
-                  "email"
-                ],
+                "required": ["country", "email"],
                 "properties": {
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -4495,15 +4297,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "online_banking_czech_republic"
-            ],
+            "required": ["online_banking_czech_republic"],
             "properties": {
               "online_banking_czech_republic": {
                 "type": "object",
-                "required": [
-                  "issuer"
-                ],
+                "required": ["issuer"],
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
@@ -4514,9 +4312,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "online_banking_finland"
-            ],
+            "required": ["online_banking_finland"],
             "properties": {
               "online_banking_finland": {
                 "type": "object",
@@ -4531,15 +4327,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "online_banking_poland"
-            ],
+            "required": ["online_banking_poland"],
             "properties": {
               "online_banking_poland": {
                 "type": "object",
-                "required": [
-                  "issuer"
-                ],
+                "required": ["issuer"],
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
@@ -4550,15 +4342,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "online_banking_slovakia"
-            ],
+            "required": ["online_banking_slovakia"],
             "properties": {
               "online_banking_slovakia": {
                 "type": "object",
-                "required": [
-                  "issuer"
-                ],
+                "required": ["issuer"],
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
@@ -4569,16 +4357,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "open_banking_uk"
-            ],
+            "required": ["open_banking_uk"],
             "properties": {
               "open_banking_uk": {
                 "type": "object",
-                "required": [
-                  "issuer",
-                  "country"
-                ],
+                "required": ["issuer", "country"],
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
@@ -4592,15 +4375,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "przelewy24"
-            ],
+            "required": ["przelewy24"],
             "properties": {
               "przelewy24": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "bank_name": {
                     "allOf": [
@@ -4619,9 +4398,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "sofort"
-            ],
+            "required": ["sofort"],
             "properties": {
               "sofort": {
                 "type": "object",
@@ -4648,15 +4425,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "trustly"
-            ],
+            "required": ["trustly"],
             "properties": {
               "trustly": {
                 "type": "object",
-                "required": [
-                  "country"
-                ],
+                "required": ["country"],
                 "properties": {
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -4667,15 +4440,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "online_banking_fpx"
-            ],
+            "required": ["online_banking_fpx"],
             "properties": {
               "online_banking_fpx": {
                 "type": "object",
-                "required": [
-                  "issuer"
-                ],
+                "required": ["issuer"],
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
@@ -4686,15 +4455,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "online_banking_thailand"
-            ],
+            "required": ["online_banking_thailand"],
             "properties": {
               "online_banking_thailand": {
                 "type": "object",
-                "required": [
-                  "issuer"
-                ],
+                "required": ["issuer"],
                 "properties": {
                   "issuer": {
                     "$ref": "#/components/schemas/BankNames"
@@ -4709,15 +4474,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ach_bank_transfer"
-            ],
+            "required": ["ach_bank_transfer"],
             "properties": {
               "ach_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/AchBillingDetails"
@@ -4728,16 +4489,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "sepa_bank_transfer"
-            ],
+            "required": ["sepa_bank_transfer"],
             "properties": {
               "sepa_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details",
-                  "country"
-                ],
+                "required": ["billing_details", "country"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
@@ -4751,15 +4507,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "bacs_bank_transfer"
-            ],
+            "required": ["bacs_bank_transfer"],
             "properties": {
               "bacs_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/SepaAndBacsBillingDetails"
@@ -4770,15 +4522,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "multibanco_bank_transfer"
-            ],
+            "required": ["multibanco_bank_transfer"],
             "properties": {
               "multibanco_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/MultibancoBillingDetails"
@@ -4789,15 +4537,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "permata_bank_transfer"
-            ],
+            "required": ["permata_bank_transfer"],
             "properties": {
               "permata_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4808,15 +4552,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "bca_bank_transfer"
-            ],
+            "required": ["bca_bank_transfer"],
             "properties": {
               "bca_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4827,15 +4567,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "bni_va_bank_transfer"
-            ],
+            "required": ["bni_va_bank_transfer"],
             "properties": {
               "bni_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4846,15 +4582,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "bri_va_bank_transfer"
-            ],
+            "required": ["bri_va_bank_transfer"],
             "properties": {
               "bri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4865,15 +4597,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "cimb_va_bank_transfer"
-            ],
+            "required": ["cimb_va_bank_transfer"],
             "properties": {
               "cimb_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4884,15 +4612,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "danamon_va_bank_transfer"
-            ],
+            "required": ["danamon_va_bank_transfer"],
             "properties": {
               "danamon_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4903,15 +4627,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "mandiri_va_bank_transfer"
-            ],
+            "required": ["mandiri_va_bank_transfer"],
             "properties": {
               "mandiri_va_bank_transfer": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
+                "required": ["billing_details"],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/DokuBillingDetails"
@@ -4922,9 +4642,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "pix"
-            ],
+            "required": ["pix"],
             "properties": {
               "pix": {
                 "type": "object"
@@ -4933,9 +4651,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "pse"
-            ],
+            "required": ["pse"],
             "properties": {
               "pse": {
                 "type": "object"
@@ -4948,9 +4664,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "doku_bank_transfer_instructions"
-            ],
+            "required": ["doku_bank_transfer_instructions"],
             "properties": {
               "doku_bank_transfer_instructions": {
                 "$ref": "#/components/schemas/DokuBankTransferInstructions"
@@ -4959,9 +4673,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "ach_credit_transfer"
-            ],
+            "required": ["ach_credit_transfer"],
             "properties": {
               "ach_credit_transfer": {
                 "$ref": "#/components/schemas/AchTransfer"
@@ -4970,9 +4682,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "sepa_bank_instructions"
-            ],
+            "required": ["sepa_bank_instructions"],
             "properties": {
               "sepa_bank_instructions": {
                 "$ref": "#/components/schemas/SepaBankTransferInstructions"
@@ -4981,9 +4691,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bacs_bank_instructions"
-            ],
+            "required": ["bacs_bank_instructions"],
             "properties": {
               "bacs_bank_instructions": {
                 "$ref": "#/components/schemas/BacsBankTransferInstructions"
@@ -4992,9 +4700,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "multibanco"
-            ],
+            "required": ["multibanco"],
             "properties": {
               "multibanco": {
                 "$ref": "#/components/schemas/MultibancoTransferInstructions"
@@ -5282,12 +4988,7 @@
       },
       "CaptureMethod": {
         "type": "string",
-        "enum": [
-          "automatic",
-          "manual",
-          "manual_multiple",
-          "scheduled"
-        ]
+        "enum": ["automatic", "manual", "manual_multiple", "scheduled"]
       },
       "CaptureResponse": {
         "type": "object",
@@ -5362,12 +5063,7 @@
       },
       "CaptureStatus": {
         "type": "string",
-        "enum": [
-          "started",
-          "charged",
-          "pending",
-          "failed"
-        ]
+        "enum": ["started", "charged", "pending", "failed"]
       },
       "Card": {
         "type": "object",
@@ -5497,9 +5193,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "knet"
-            ],
+            "required": ["knet"],
             "properties": {
               "knet": {
                 "type": "object"
@@ -5508,9 +5202,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "benefit"
-            ],
+            "required": ["benefit"],
             "properties": {
               "benefit": {
                 "type": "object"
@@ -5519,9 +5211,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "momo_atm"
-            ],
+            "required": ["momo_atm"],
             "properties": {
               "momo_atm": {
                 "type": "object"
@@ -5530,9 +5220,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "card_redirect"
-            ],
+            "required": ["card_redirect"],
             "properties": {
               "card_redirect": {
                 "type": "object"
@@ -5543,9 +5231,7 @@
       },
       "CardToken": {
         "type": "object",
-        "required": [
-          "card_holder_name"
-        ],
+        "required": ["card_holder_name"],
         "properties": {
           "card_holder_name": {
             "type": "string",
@@ -5565,12 +5251,7 @@
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
-        "required": [
-          "lhs",
-          "comparison",
-          "value",
-          "metadata"
-        ],
+        "required": ["lhs", "comparison", "value", "metadata"],
         "properties": {
           "lhs": {
             "type": "string",
@@ -5691,16 +5372,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "priority"
-                ]
+                "enum": ["priority"]
               },
               "data": {
                 "type": "array",
@@ -5712,16 +5388,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
+                "enum": ["volume_split"]
               },
               "data": {
                 "type": "array",
@@ -5738,10 +5409,7 @@
       },
       "ConnectorStatus": {
         "type": "string",
-        "enum": [
-          "inactive",
-          "active"
-        ]
+        "enum": ["inactive", "active"]
       },
       "ConnectorType": {
         "type": "string",
@@ -5759,10 +5427,7 @@
       },
       "ConnectorVolumeSplit": {
         "type": "object",
-        "required": [
-          "connector",
-          "split"
-        ],
+        "required": ["connector", "split"],
         "properties": {
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectorChoice"
@@ -6031,10 +5696,7 @@
       "CreateApiKeyRequest": {
         "type": "object",
         "description": "The request body for creating an API Key.",
-        "required": [
-          "name",
-          "expiration"
-        ],
+        "required": ["name", "expiration"],
         "properties": {
           "name": {
             "type": "string",
@@ -6244,9 +5906,7 @@
       },
       "CustomerAcceptance": {
         "type": "object",
-        "required": [
-          "acceptance_type"
-        ],
+        "required": ["acceptance_type"],
         "properties": {
           "acceptance_type": {
             "$ref": "#/components/schemas/AcceptanceType"
@@ -6302,9 +5962,7 @@
       },
       "CustomerDetails": {
         "type": "object",
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "properties": {
           "id": {
             "type": "string",
@@ -6402,9 +6060,7 @@
               "$ref": "#/components/schemas/PaymentExperience"
             },
             "description": "Type of payment experience enabled with the connector",
-            "example": [
-              "redirect_to_url"
-            ],
+            "example": ["redirect_to_url"],
             "nullable": true
           },
           "card": {
@@ -6460,9 +6116,7 @@
       },
       "CustomerPaymentMethodsListResponse": {
         "type": "object",
-        "required": [
-          "customer_payment_methods"
-        ],
+        "required": ["customer_payment_methods"],
         "properties": {
           "customer_payment_methods": {
             "type": "array",
@@ -6535,10 +6189,7 @@
       },
       "CustomerResponse": {
         "type": "object",
-        "required": [
-          "customer_id",
-          "created_at"
-        ],
+        "required": ["customer_id", "created_at"],
         "properties": {
           "customer_id": {
             "type": "string",
@@ -6757,11 +6408,7 @@
       },
       "DisputeStage": {
         "type": "string",
-        "enum": [
-          "pre_dispute",
-          "dispute",
-          "pre_arbitration"
-        ]
+        "enum": ["pre_dispute", "dispute", "pre_arbitration"]
       },
       "DisputeStatus": {
         "type": "string",
@@ -6777,11 +6424,7 @@
       },
       "DokuBankTransferInstructions": {
         "type": "object",
-        "required": [
-          "expires_at",
-          "reference",
-          "instructions_url"
-        ],
+        "required": ["expires_at", "reference", "instructions_url"],
         "properties": {
           "expires_at": {
             "type": "string",
@@ -6798,11 +6441,7 @@
       },
       "DokuBillingDetails": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
+        "required": ["first_name", "last_name", "email"],
         "properties": {
           "first_name": {
             "type": "string",
@@ -6823,12 +6462,7 @@
       },
       "EphemeralKeyCreateResponse": {
         "type": "object",
-        "required": [
-          "customer_id",
-          "created_at",
-          "expires",
-          "secret"
-        ],
+        "required": ["customer_id", "created_at", "expires", "secret"],
         "properties": {
           "customer_id": {
             "type": "string",
@@ -6888,63 +6522,43 @@
         "oneOf": [
           {
             "type": "string",
-            "enum": [
-              "user_card_number"
-            ]
+            "enum": ["user_card_number"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_card_expiry_month"
-            ]
+            "enum": ["user_card_expiry_month"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_card_expiry_year"
-            ]
+            "enum": ["user_card_expiry_year"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_card_cvc"
-            ]
+            "enum": ["user_card_cvc"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_full_name"
-            ]
+            "enum": ["user_full_name"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_email_address"
-            ]
+            "enum": ["user_email_address"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_phone_number"
-            ]
+            "enum": ["user_phone_number"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_country_code"
-            ]
+            "enum": ["user_country_code"]
           },
           {
             "type": "object",
-            "required": [
-              "user_country"
-            ],
+            "required": ["user_country"],
             "properties": {
               "user_country": {
                 "type": "object",
-                "required": [
-                  "options"
-                ],
+                "required": ["options"],
                 "properties": {
                   "options": {
                     "type": "array",
@@ -6958,15 +6572,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "user_currency"
-            ],
+            "required": ["user_currency"],
             "properties": {
               "user_currency": {
                 "type": "object",
-                "required": [
-                  "options"
-                ],
+                "required": ["options"],
                 "properties": {
                   "options": {
                     "type": "array",
@@ -6980,51 +6590,35 @@
           },
           {
             "type": "string",
-            "enum": [
-              "user_billing_name"
-            ]
+            "enum": ["user_billing_name"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_address_line1"
-            ]
+            "enum": ["user_address_line1"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_address_line2"
-            ]
+            "enum": ["user_address_line2"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_address_city"
-            ]
+            "enum": ["user_address_city"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_address_pincode"
-            ]
+            "enum": ["user_address_pincode"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_address_state"
-            ]
+            "enum": ["user_address_state"]
           },
           {
             "type": "object",
-            "required": [
-              "user_address_country"
-            ],
+            "required": ["user_address_country"],
             "properties": {
               "user_address_country": {
                 "type": "object",
-                "required": [
-                  "options"
-                ],
+                "required": ["options"],
                 "properties": {
                   "options": {
                     "type": "array",
@@ -7038,33 +6632,23 @@
           },
           {
             "type": "string",
-            "enum": [
-              "user_blik_code"
-            ]
+            "enum": ["user_blik_code"]
           },
           {
             "type": "string",
-            "enum": [
-              "user_bank"
-            ]
+            "enum": ["user_bank"]
           },
           {
             "type": "string",
-            "enum": [
-              "text"
-            ]
+            "enum": ["text"]
           },
           {
             "type": "object",
-            "required": [
-              "drop_down"
-            ],
+            "required": ["drop_down"],
             "properties": {
               "drop_down": {
                 "type": "object",
-                "required": [
-                  "options"
-                ],
+                "required": ["options"],
                 "properties": {
                   "options": {
                     "type": "array",
@@ -7081,19 +6665,12 @@
       },
       "FrmAction": {
         "type": "string",
-        "enum": [
-          "cancel_txn",
-          "auto_refund",
-          "manual_review"
-        ]
+        "enum": ["cancel_txn", "auto_refund", "manual_review"]
       },
       "FrmConfigs": {
         "type": "object",
         "description": "Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
-        "required": [
-          "gateway",
-          "payment_methods"
-        ],
+        "required": ["gateway", "payment_methods"],
         "properties": {
           "gateway": {
             "$ref": "#/components/schemas/ConnectorType"
@@ -7110,9 +6687,7 @@
       "FrmMessage": {
         "type": "object",
         "description": "frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None",
-        "required": [
-          "frm_name"
-        ],
+        "required": ["frm_name"],
         "properties": {
           "frm_name": {
             "type": "string"
@@ -7146,10 +6721,7 @@
       "FrmPaymentMethod": {
         "type": "object",
         "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
-        "required": [
-          "payment_method",
-          "payment_method_types"
-        ],
+        "required": ["payment_method", "payment_method_types"],
         "properties": {
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -7166,12 +6738,7 @@
       "FrmPaymentMethodType": {
         "type": "object",
         "description": "Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
-        "required": [
-          "payment_method_type",
-          "card_networks",
-          "flow",
-          "action"
-        ],
+        "required": ["payment_method_type", "card_networks", "flow", "action"],
         "properties": {
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -7189,17 +6756,11 @@
       },
       "FrmPreferredFlowTypes": {
         "type": "string",
-        "enum": [
-          "pre",
-          "post"
-        ]
+        "enum": ["pre", "post"]
       },
       "FutureUsage": {
         "type": "string",
-        "enum": [
-          "off_session",
-          "on_session"
-        ]
+        "enum": ["off_session", "on_session"]
       },
       "GcashRedirection": {
         "type": "object"
@@ -7208,9 +6769,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "givex"
-            ],
+            "required": ["givex"],
             "properties": {
               "givex": {
                 "$ref": "#/components/schemas/GiftCardDetails"
@@ -7219,9 +6778,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "pay_safe_card"
-            ],
+            "required": ["pay_safe_card"],
             "properties": {
               "pay_safe_card": {
                 "type": "object"
@@ -7232,10 +6789,7 @@
       },
       "GiftCardDetails": {
         "type": "object",
-        "required": [
-          "number",
-          "cvc"
-        ],
+        "required": ["number", "cvc"],
         "properties": {
           "number": {
             "type": "string",
@@ -7252,10 +6806,7 @@
       },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
-        "required": [
-          "card_network",
-          "card_details"
-        ],
+        "required": ["card_network", "card_details"],
         "properties": {
           "card_network": {
             "type": "string",
@@ -7317,11 +6868,7 @@
       },
       "GooglePayThirdPartySdk": {
         "type": "object",
-        "required": [
-          "delayed_session_token",
-          "connector",
-          "sdk_next_action"
-        ],
+        "required": ["delayed_session_token", "connector", "sdk_next_action"],
         "properties": {
           "delayed_session_token": {
             "type": "boolean",
@@ -7341,12 +6888,7 @@
       },
       "GooglePayWalletData": {
         "type": "object",
-        "required": [
-          "type",
-          "description",
-          "info",
-          "tokenization_data"
-        ],
+        "required": ["type", "description", "info", "tokenization_data"],
         "properties": {
           "type": {
             "type": "string",
@@ -7366,10 +6908,7 @@
       },
       "GpayAllowedMethodsParameters": {
         "type": "object",
-        "required": [
-          "allowed_auth_methods",
-          "allowed_card_networks"
-        ],
+        "required": ["allowed_auth_methods", "allowed_card_networks"],
         "properties": {
           "allowed_auth_methods": {
             "type": "array",
@@ -7389,11 +6928,7 @@
       },
       "GpayAllowedPaymentMethods": {
         "type": "object",
-        "required": [
-          "type",
-          "parameters",
-          "tokenization_specification"
-        ],
+        "required": ["type", "parameters", "tokenization_specification"],
         "properties": {
           "type": {
             "type": "string",
@@ -7409,9 +6944,7 @@
       },
       "GpayMerchantInfo": {
         "type": "object",
-        "required": [
-          "merchant_name"
-        ],
+        "required": ["merchant_name"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -7436,9 +6969,7 @@
       },
       "GpayTokenParameters": {
         "type": "object",
-        "required": [
-          "gateway"
-        ],
+        "required": ["gateway"],
         "properties": {
           "gateway": {
             "type": "string",
@@ -7461,10 +6992,7 @@
       },
       "GpayTokenizationData": {
         "type": "object",
-        "required": [
-          "type",
-          "token"
-        ],
+        "required": ["type", "token"],
         "properties": {
           "type": {
             "type": "string",
@@ -7478,10 +7006,7 @@
       },
       "GpayTokenizationSpecification": {
         "type": "object",
-        "required": [
-          "type",
-          "parameters"
-        ],
+        "required": ["type", "parameters"],
         "properties": {
           "type": {
             "type": "string",
@@ -7579,21 +7104,11 @@
       },
       "GsmDecision": {
         "type": "string",
-        "enum": [
-          "retry",
-          "requeue",
-          "do_default"
-        ]
+        "enum": ["retry", "requeue", "do_default"]
       },
       "GsmDeleteRequest": {
         "type": "object",
-        "required": [
-          "connector",
-          "flow",
-          "sub_flow",
-          "code",
-          "message"
-        ],
+        "required": ["connector", "flow", "sub_flow", "code", "message"],
         "properties": {
           "connector": {
             "type": "string",
@@ -7712,13 +7227,7 @@
       },
       "GsmRetrieveRequest": {
         "type": "object",
-        "required": [
-          "connector",
-          "flow",
-          "sub_flow",
-          "code",
-          "message"
-        ],
+        "required": ["connector", "flow", "sub_flow", "code", "message"],
         "properties": {
           "connector": {
             "$ref": "#/components/schemas/Connector"
@@ -7743,13 +7252,7 @@
       },
       "GsmUpdateRequest": {
         "type": "object",
-        "required": [
-          "connector",
-          "flow",
-          "sub_flow",
-          "code",
-          "message"
-        ],
+        "required": ["connector", "flow", "sub_flow", "code", "message"],
         "properties": {
           "connector": {
             "type": "string",
@@ -7809,9 +7312,7 @@
       "IfStatement": {
         "type": "object",
         "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
-        "required": [
-          "condition"
-        ],
+        "required": ["condition"],
         "properties": {
           "condition": {
             "type": "array",
@@ -7868,11 +7369,7 @@
       },
       "IndomaretVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email"
-        ],
+        "required": ["first_name", "last_name", "email"],
         "properties": {
           "first_name": {
             "type": "string",
@@ -7909,12 +7406,7 @@
       },
       "JCSVoucherData": {
         "type": "object",
-        "required": [
-          "first_name",
-          "last_name",
-          "email",
-          "phone_number"
-        ],
+        "required": ["first_name", "last_name", "email", "phone_number"],
         "properties": {
           "first_name": {
             "type": "string",
@@ -7943,10 +7435,7 @@
       },
       "KlarnaSessionTokenResponse": {
         "type": "object",
-        "required": [
-          "session_token",
-          "session_id"
-        ],
+        "required": ["session_token", "session_id"],
         "properties": {
           "session_token": {
             "type": "string",
@@ -7973,10 +7462,7 @@
       },
       "MandateAmountData": {
         "type": "object",
-        "required": [
-          "amount",
-          "currency"
-        ],
+        "required": ["amount", "currency"],
         "properties": {
           "amount": {
             "type": "integer",
@@ -8118,10 +7604,7 @@
       },
       "MandateRevokedResponse": {
         "type": "object",
-        "required": [
-          "mandate_id",
-          "status"
-        ],
+        "required": ["mandate_id", "status"],
         "properties": {
           "mandate_id": {
             "type": "string",
@@ -8135,20 +7618,13 @@
       "MandateStatus": {
         "type": "string",
         "description": "The status of the mandate, which indicates whether it can be used to initiate a payment.",
-        "enum": [
-          "active",
-          "inactive",
-          "pending",
-          "revoked"
-        ]
+        "enum": ["active", "inactive", "pending", "revoked"]
       },
       "MandateType": {
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "single_use"
-            ],
+            "required": ["single_use"],
             "properties": {
               "single_use": {
                 "$ref": "#/components/schemas/MandateAmountData"
@@ -8157,9 +7633,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "multi_use"
-            ],
+            "required": ["multi_use"],
             "properties": {
               "multi_use": {
                 "allOf": [
@@ -8175,9 +7649,7 @@
       },
       "MaskedBankDetails": {
         "type": "object",
-        "required": [
-          "mask"
-        ],
+        "required": ["mask"],
         "properties": {
           "mask": {
             "type": "string"
@@ -8186,9 +7658,7 @@
       },
       "MbWayRedirection": {
         "type": "object",
-        "required": [
-          "telephone_number"
-        ],
+        "required": ["telephone_number"],
         "properties": {
           "telephone_number": {
             "type": "string",
@@ -8198,9 +7668,7 @@
       },
       "MerchantAccountCreate": {
         "type": "object",
-        "required": [
-          "merchant_id"
-        ],
+        "required": ["merchant_id"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -8333,10 +7801,7 @@
       },
       "MerchantAccountDeleteResponse": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "deleted"
-        ],
+        "required": ["merchant_id", "deleted"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -8502,9 +7967,7 @@
       },
       "MerchantAccountUpdate": {
         "type": "object",
-        "required": [
-          "merchant_id"
-        ],
+        "required": ["merchant_id"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -8634,10 +8097,7 @@
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
-        "required": [
-          "connector_type",
-          "connector_name"
-        ],
+        "required": ["connector_type", "connector_name"],
         "properties": {
           "connector_type": {
             "$ref": "#/components/schemas/ConnectorType"
@@ -8673,36 +8133,20 @@
             "example": [
               {
                 "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
+                  "list": ["FR", "DE", "IN"],
                   "type": "disable_only"
                 },
                 "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
+                  "list": ["USD", "EUR"],
                   "type": "enable_only"
                 },
                 "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
                 "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
+                "payment_method_issuers": ["labore magna ipsum", "aute"],
+                "payment_method_types": ["upi_collect", "upi_intent"],
+                "payment_schemes": ["Discover", "Discover"],
                 "recurring_enabled": true
               }
             ],
@@ -8784,11 +8228,7 @@
       },
       "MerchantConnectorDeleteResponse": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "merchant_connector_id",
-          "deleted"
-        ],
+        "required": ["merchant_id", "merchant_connector_id", "deleted"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -8825,9 +8265,7 @@
       },
       "MerchantConnectorDetailsWrap": {
         "type": "object",
-        "required": [
-          "creds_identifier"
-        ],
+        "required": ["creds_identifier"],
         "properties": {
           "creds_identifier": {
             "type": "string",
@@ -8845,10 +8283,7 @@
       },
       "MerchantConnectorId": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "merchant_connector_id"
-        ],
+        "required": ["merchant_id", "merchant_connector_id"],
         "properties": {
           "merchant_id": {
             "type": "string"
@@ -8908,36 +8343,20 @@
             "example": [
               {
                 "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
+                  "list": ["FR", "DE", "IN"],
                   "type": "disable_only"
                 },
                 "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
+                  "list": ["USD", "EUR"],
                   "type": "enable_only"
                 },
                 "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
                 "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
+                "payment_method_issuers": ["labore magna ipsum", "aute"],
+                "payment_method_types": ["upi_collect", "upi_intent"],
+                "payment_schemes": ["Discover", "Discover"],
                 "recurring_enabled": true
               }
             ],
@@ -9018,10 +8437,7 @@
       "MerchantConnectorUpdate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
-        "required": [
-          "connector_type",
-          "status"
-        ],
+        "required": ["connector_type", "status"],
         "properties": {
           "connector_type": {
             "$ref": "#/components/schemas/ConnectorType"
@@ -9049,36 +8465,20 @@
             "example": [
               {
                 "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
+                  "list": ["FR", "DE", "IN"],
                   "type": "disable_only"
                 },
                 "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
+                  "list": ["USD", "EUR"],
                   "type": "enable_only"
                 },
                 "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
                 "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
+                "payment_method_issuers": ["labore magna ipsum", "aute"],
+                "payment_method_types": ["upi_collect", "upi_intent"],
+                "payment_schemes": ["Discover", "Discover"],
                 "recurring_enabled": true
               }
             ],
@@ -9130,10 +8530,7 @@
       },
       "MerchantConnectorWebhookDetails": {
         "type": "object",
-        "required": [
-          "merchant_secret",
-          "additional_secret"
-        ],
+        "required": ["merchant_secret", "additional_secret"],
         "properties": {
           "merchant_secret": {
             "type": "string",
@@ -9216,6 +8613,7 @@
       },
       "MerchantRoutingAlgorithm": {
         "type": "object",
+        "description": "Merchant Routing Algorithm",
         "required": [
           "id",
           "name",
@@ -9249,10 +8647,7 @@
       },
       "MetadataValue": {
         "type": "object",
-        "required": [
-          "key",
-          "value"
-        ],
+        "required": ["key", "value"],
         "properties": {
           "key": {
             "type": "string"
@@ -9270,9 +8665,7 @@
       },
       "MultibancoBillingDetails": {
         "type": "object",
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "properties": {
           "email": {
             "type": "string",
@@ -9282,10 +8675,7 @@
       },
       "MultibancoTransferInstructions": {
         "type": "object",
-        "required": [
-          "reference",
-          "entity"
-        ],
+        "required": ["reference", "entity"],
         "properties": {
           "reference": {
             "type": "string",
@@ -9299,57 +8689,42 @@
       },
       "NextActionCall": {
         "type": "string",
-        "enum": [
-          "confirm",
-          "sync"
-        ]
+        "enum": ["confirm", "sync"]
       },
       "NextActionData": {
         "oneOf": [
           {
             "type": "object",
             "description": "Contains the url for redirection flow",
-            "required": [
-              "redirect_to_url",
-              "type"
-            ],
+            "required": ["redirect_to_url", "type"],
             "properties": {
               "redirect_to_url": {
                 "type": "string"
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "redirect_to_url"
-                ]
+                "enum": ["redirect_to_url"]
               }
             }
           },
           {
             "type": "object",
             "description": "Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)",
-            "required": [
-              "bank_transfer_steps_and_charges_details",
-              "type"
-            ],
+            "required": ["bank_transfer_steps_and_charges_details", "type"],
             "properties": {
               "bank_transfer_steps_and_charges_details": {
                 "$ref": "#/components/schemas/BankTransferNextStepsData"
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "display_bank_transfer_information"
-                ]
+                "enum": ["display_bank_transfer_information"]
               }
             }
           },
           {
             "type": "object",
             "description": "Contains third party sdk session token response",
-            "required": [
-              "type"
-            ],
+            "required": ["type"],
             "properties": {
               "session_token": {
                 "allOf": [
@@ -9361,19 +8736,14 @@
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "third_party_sdk_session_token"
-                ]
+                "enum": ["third_party_sdk_session_token"]
               }
             }
           },
           {
             "type": "object",
             "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
-            "required": [
-              "image_data_url",
-              "type"
-            ],
+            "required": ["image_data_url", "type"],
             "properties": {
               "image_data_url": {
                 "type": "string"
@@ -9385,38 +8755,28 @@
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "qr_code_information"
-                ]
+                "enum": ["qr_code_information"]
               }
             }
           },
           {
             "type": "object",
             "description": "Contains the download url and the reference number for transaction",
-            "required": [
-              "voucher_details",
-              "type"
-            ],
+            "required": ["voucher_details", "type"],
             "properties": {
               "voucher_details": {
                 "type": "string"
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "display_voucher_information"
-                ]
+                "enum": ["display_voucher_information"]
               }
             }
           },
           {
             "type": "object",
             "description": "Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk",
-            "required": [
-              "display_from_timestamp",
-              "type"
-            ],
+            "required": ["display_from_timestamp", "type"],
             "properties": {
               "display_from_timestamp": {
                 "type": "integer"
@@ -9427,9 +8787,7 @@
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "wait_screen_information"
-                ]
+                "enum": ["wait_screen_information"]
               }
             }
           }
@@ -9530,10 +8888,7 @@
       "NumberComparison": {
         "type": "object",
         "description": "Represents a number comparison for \"NumberComparisonArrayValue\"",
-        "required": [
-          "comparisonType",
-          "number"
-        ],
+        "required": ["comparisonType", "number"],
         "properties": {
           "comparisonType": {
             "$ref": "#/components/schemas/ComparisonType"
@@ -9546,10 +8901,7 @@
       },
       "OnlineMandate": {
         "type": "object",
-        "required": [
-          "ip_address",
-          "user_agent"
-        ],
+        "required": ["ip_address", "user_agent"],
         "properties": {
           "ip_address": {
             "type": "string",
@@ -9564,10 +8916,7 @@
       },
       "OrderDetails": {
         "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
+        "required": ["product_name", "quantity"],
         "properties": {
           "product_name": {
             "type": "string",
@@ -9618,11 +8967,7 @@
       },
       "OrderDetailsWithAmount": {
         "type": "object",
-        "required": [
-          "product_name",
-          "quantity",
-          "amount"
-        ],
+        "required": ["product_name", "quantity", "amount"],
         "properties": {
           "product_name": {
             "type": "string",
@@ -9678,12 +9023,7 @@
       },
       "OutgoingWebhook": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "event_id",
-          "event_type",
-          "content"
-        ],
+        "required": ["merchant_id", "event_id", "event_type", "content"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -9710,16 +9050,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "object"
-            ],
+            "required": ["type", "object"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "payment_details"
-                ]
+                "enum": ["payment_details"]
               },
               "object": {
                 "$ref": "#/components/schemas/PaymentsResponse"
@@ -9728,16 +9063,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "object"
-            ],
+            "required": ["type", "object"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "refund_details"
-                ]
+                "enum": ["refund_details"]
               },
               "object": {
                 "$ref": "#/components/schemas/RefundResponse"
@@ -9746,16 +9076,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "object"
-            ],
+            "required": ["type", "object"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "dispute_details"
-                ]
+                "enum": ["dispute_details"]
               },
               "object": {
                 "$ref": "#/components/schemas/DisputeResponse"
@@ -9764,16 +9089,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "object"
-            ],
+            "required": ["type", "object"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "mandate_details"
-                ]
+                "enum": ["mandate_details"]
               },
               "object": {
                 "$ref": "#/components/schemas/MandateResponse"
@@ -9789,17 +9109,12 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "klarna_redirect"
-            ],
+            "required": ["klarna_redirect"],
             "properties": {
               "klarna_redirect": {
                 "type": "object",
                 "description": "For KlarnaRedirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_country"
-                ],
+                "required": ["billing_email", "billing_country"],
                 "properties": {
                   "billing_email": {
                     "type": "string",
@@ -9814,16 +9129,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "klarna_sdk"
-            ],
+            "required": ["klarna_sdk"],
             "properties": {
               "klarna_sdk": {
                 "type": "object",
                 "description": "For Klarna Sdk as PayLater Option",
-                "required": [
-                  "token"
-                ],
+                "required": ["token"],
                 "properties": {
                   "token": {
                     "type": "string",
@@ -9835,9 +9146,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "affirm_redirect"
-            ],
+            "required": ["affirm_redirect"],
             "properties": {
               "affirm_redirect": {
                 "type": "object",
@@ -9847,17 +9156,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "afterpay_clearpay_redirect"
-            ],
+            "required": ["afterpay_clearpay_redirect"],
             "properties": {
               "afterpay_clearpay_redirect": {
                 "type": "object",
                 "description": "For AfterpayClearpay redirect as PayLater Option",
-                "required": [
-                  "billing_email",
-                  "billing_name"
-                ],
+                "required": ["billing_email", "billing_name"],
                 "properties": {
                   "billing_email": {
                     "type": "string",
@@ -9873,9 +9177,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "pay_bright_redirect"
-            ],
+            "required": ["pay_bright_redirect"],
             "properties": {
               "pay_bright_redirect": {
                 "type": "object",
@@ -9885,9 +9187,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "walley_redirect"
-            ],
+            "required": ["walley_redirect"],
             "properties": {
               "walley_redirect": {
                 "type": "object",
@@ -9897,9 +9197,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "alma_redirect"
-            ],
+            "required": ["alma_redirect"],
             "properties": {
               "alma_redirect": {
                 "type": "object",
@@ -9909,9 +9207,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "atome_redirect"
-            ],
+            "required": ["atome_redirect"],
             "properties": {
               "atome_redirect": {
                 "type": "object"
@@ -9922,9 +9218,7 @@
       },
       "PayPalWalletData": {
         "type": "object",
-        "required": [
-          "token"
-        ],
+        "required": ["token"],
         "properties": {
           "token": {
             "type": "string",
@@ -9934,11 +9228,7 @@
       },
       "PaymentAttemptResponse": {
         "type": "object",
-        "required": [
-          "attempt_id",
-          "status",
-          "amount"
-        ],
+        "required": ["attempt_id", "status", "amount"],
         "properties": {
           "attempt_id": {
             "type": "string",
@@ -10075,9 +9365,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "PaymentIntentId"
-            ],
+            "required": ["PaymentIntentId"],
             "properties": {
               "PaymentIntentId": {
                 "type": "string",
@@ -10087,9 +9375,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "ConnectorTransactionId"
-            ],
+            "required": ["ConnectorTransactionId"],
             "properties": {
               "ConnectorTransactionId": {
                 "type": "string",
@@ -10099,9 +9385,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "PaymentAttemptId"
-            ],
+            "required": ["PaymentAttemptId"],
             "properties": {
               "PaymentAttemptId": {
                 "type": "string",
@@ -10111,9 +9395,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "PreprocessingId"
-            ],
+            "required": ["PreprocessingId"],
             "properties": {
               "PreprocessingId": {
                 "type": "string",
@@ -10157,10 +9439,7 @@
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "payment_id"
-        ],
+        "required": ["merchant_id", "payment_id"],
         "properties": {
           "merchant_id": {
             "type": "string"
@@ -10172,9 +9451,7 @@
       },
       "PaymentLinkObject": {
         "type": "object",
-        "required": [
-          "payment_link_config"
-        ],
+        "required": ["payment_link_config"],
         "properties": {
           "link_expiry": {
             "type": "string",
@@ -10197,10 +9474,7 @@
       },
       "PaymentLinkResponse": {
         "type": "object",
-        "required": [
-          "link",
-          "payment_link_id"
-        ],
+        "required": ["link", "payment_link_id"],
         "properties": {
           "link": {
             "type": "string"
@@ -10278,10 +9552,7 @@
       },
       "PaymentListResponse": {
         "type": "object",
-        "required": [
-          "size",
-          "data"
-        ],
+        "required": ["size", "data"],
         "properties": {
           "size": {
             "type": "integer",
@@ -10316,9 +9587,7 @@
       },
       "PaymentMethodCreate": {
         "type": "object",
-        "required": [
-          "payment_method"
-        ],
+        "required": ["payment_method"],
         "properties": {
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -10376,9 +9645,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "card"
-            ],
+            "required": ["card"],
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
@@ -10387,9 +9654,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "card_redirect"
-            ],
+            "required": ["card_redirect"],
             "properties": {
               "card_redirect": {
                 "$ref": "#/components/schemas/CardRedirectData"
@@ -10398,9 +9663,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "wallet"
-            ],
+            "required": ["wallet"],
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletData"
@@ -10409,9 +9672,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "pay_later"
-            ],
+            "required": ["pay_later"],
             "properties": {
               "pay_later": {
                 "$ref": "#/components/schemas/PayLaterData"
@@ -10420,9 +9681,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bank_redirect"
-            ],
+            "required": ["bank_redirect"],
             "properties": {
               "bank_redirect": {
                 "$ref": "#/components/schemas/BankRedirectData"
@@ -10431,9 +9690,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bank_debit"
-            ],
+            "required": ["bank_debit"],
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitData"
@@ -10442,9 +9699,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bank_transfer"
-            ],
+            "required": ["bank_transfer"],
             "properties": {
               "bank_transfer": {
                 "$ref": "#/components/schemas/BankTransferData"
@@ -10453,9 +9708,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "crypto"
-            ],
+            "required": ["crypto"],
             "properties": {
               "crypto": {
                 "$ref": "#/components/schemas/CryptoData"
@@ -10464,21 +9717,15 @@
           },
           {
             "type": "string",
-            "enum": [
-              "mandate_payment"
-            ]
+            "enum": ["mandate_payment"]
           },
           {
             "type": "string",
-            "enum": [
-              "reward"
-            ]
+            "enum": ["reward"]
           },
           {
             "type": "object",
-            "required": [
-              "upi"
-            ],
+            "required": ["upi"],
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
@@ -10487,9 +9734,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "voucher"
-            ],
+            "required": ["voucher"],
             "properties": {
               "voucher": {
                 "$ref": "#/components/schemas/VoucherData"
@@ -10498,9 +9743,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "gift_card"
-            ],
+            "required": ["gift_card"],
             "properties": {
               "gift_card": {
                 "$ref": "#/components/schemas/GiftCardData"
@@ -10509,9 +9752,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "card_token"
-            ],
+            "required": ["card_token"],
             "properties": {
               "card_token": {
                 "$ref": "#/components/schemas/CardToken"
@@ -10522,10 +9763,7 @@
       },
       "PaymentMethodDeleteResponse": {
         "type": "object",
-        "required": [
-          "payment_method_id",
-          "deleted"
-        ],
+        "required": ["payment_method_id", "deleted"],
         "properties": {
           "payment_method_id": {
             "type": "string",
@@ -10556,9 +9794,7 @@
       },
       "PaymentMethodList": {
         "type": "object",
-        "required": [
-          "payment_method"
-        ],
+        "required": ["payment_method"],
         "properties": {
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -10569,9 +9805,7 @@
               "$ref": "#/components/schemas/PaymentMethodType"
             },
             "description": "This is a sub-category of payment method.",
-            "example": [
-              "credit"
-            ],
+            "example": ["credit"],
             "nullable": true
           }
         }
@@ -10600,10 +9834,7 @@
               {
                 "payment_experience": null,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ]
+                "payment_method_issuers": ["labore magna ipsum", "aute"]
               }
             ]
           },
@@ -10689,9 +9920,7 @@
               "$ref": "#/components/schemas/PaymentExperience"
             },
             "description": "Type of payment experience enabled with the connector",
-            "example": [
-              "redirect_to_url"
-            ],
+            "example": ["redirect_to_url"],
             "nullable": true
           },
           "metadata": {
@@ -10826,9 +10055,7 @@
       "PaymentMethodsEnabled": {
         "type": "object",
         "description": "Details of all the payment methods enabled for the connector for the given merchant account",
-        "required": [
-          "payment_method"
-        ],
+        "required": ["payment_method"],
         "properties": {
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -10839,9 +10066,7 @@
               "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
             "description": "Subtype of payment method",
-            "example": [
-              "credit"
-            ],
+            "example": ["credit"],
             "nullable": true
           }
         }
@@ -10879,12 +10104,7 @@
       "PaymentType": {
         "type": "string",
         "description": "To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.",
-        "enum": [
-          "normal",
-          "new_mandate",
-          "setup_mandate",
-          "recurring_mandate"
-        ]
+        "enum": ["normal", "new_mandate", "setup_mandate", "recurring_mandate"]
       },
       "PaymentsCancelRequest": {
         "type": "object",
@@ -10998,10 +10218,7 @@
               "$ref": "#/components/schemas/Connector"
             },
             "description": "This allows to manually select a connector with which the payment can go through",
-            "example": [
-              "stripe",
-              "adyen"
-            ],
+            "example": ["stripe", "adyen"],
             "nullable": true
           },
           "capture_method": {
@@ -11290,10 +10507,7 @@
       },
       "PaymentsCreateRequest": {
         "type": "object",
-        "required": [
-          "amount",
-          "currency"
-        ],
+        "required": ["amount", "currency"],
         "properties": {
           "amount": {
             "type": "integer",
@@ -11340,10 +10554,7 @@
               "$ref": "#/components/schemas/Connector"
             },
             "description": "This allows to manually select a connector with which the payment can go through",
-            "example": [
-              "stripe",
-              "adyen"
-            ],
+            "example": ["stripe", "adyen"],
             "nullable": true
           },
           "capture_method": {
@@ -11706,10 +10917,7 @@
               "$ref": "#/components/schemas/Connector"
             },
             "description": "This allows to manually select a connector with which the payment can go through",
-            "example": [
-              "stripe",
-              "adyen"
-            ],
+            "example": ["stripe", "adyen"],
             "nullable": true
           },
           "capture_method": {
@@ -12482,10 +11690,7 @@
       },
       "PaymentsRetrieveRequest": {
         "type": "object",
-        "required": [
-          "resource_id",
-          "force_sync"
-        ],
+        "required": ["resource_id", "force_sync"],
         "properties": {
           "resource_id": {
             "$ref": "#/components/schemas/PaymentIdType"
@@ -12536,11 +11741,7 @@
       },
       "PaymentsSessionRequest": {
         "type": "object",
-        "required": [
-          "payment_id",
-          "client_secret",
-          "wallets"
-        ],
+        "required": ["payment_id", "client_secret", "wallets"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -12569,11 +11770,7 @@
       },
       "PaymentsSessionResponse": {
         "type": "object",
-        "required": [
-          "payment_id",
-          "client_secret",
-          "session_token"
-        ],
+        "required": ["payment_id", "client_secret", "session_token"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -12594,11 +11791,7 @@
       },
       "PaymentsStartRequest": {
         "type": "object",
-        "required": [
-          "payment_id",
-          "merchant_id",
-          "attempt_id"
-        ],
+        "required": ["payment_id", "merchant_id", "attempt_id"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -12669,10 +11862,7 @@
               "$ref": "#/components/schemas/Connector"
             },
             "description": "This allows to manually select a connector with which the payment can go through",
-            "example": [
-              "stripe",
-              "adyen"
-            ],
+            "example": ["stripe", "adyen"],
             "nullable": true
           },
           "capture_method": {
@@ -12956,9 +12146,7 @@
       },
       "PayoutActionRequest": {
         "type": "object",
-        "required": [
-          "payout_id"
-        ],
+        "required": ["payout_id"],
         "properties": {
           "payout_id": {
             "type": "string",
@@ -12971,10 +12159,7 @@
       },
       "PayoutConnectors": {
         "type": "string",
-        "enum": [
-          "adyen",
-          "wise"
-        ]
+        "enum": ["adyen", "wise"]
       },
       "PayoutCreateRequest": {
         "type": "object",
@@ -13029,10 +12214,7 @@
               "$ref": "#/components/schemas/Connector"
             },
             "description": "This allows the merchant to manually select a connector with which the payout can go through",
-            "example": [
-              "wise",
-              "adyen"
-            ],
+            "example": ["wise", "adyen"],
             "nullable": true
           },
           "confirm": {
@@ -13317,9 +12499,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "card"
-            ],
+            "required": ["card"],
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
@@ -13328,9 +12508,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bank"
-            ],
+            "required": ["bank"],
             "properties": {
               "bank": {
                 "$ref": "#/components/schemas/Bank"
@@ -13343,9 +12521,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "PayoutActionRequest"
-            ],
+            "required": ["PayoutActionRequest"],
             "properties": {
               "PayoutActionRequest": {
                 "$ref": "#/components/schemas/PayoutActionRequest"
@@ -13354,9 +12530,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "PayoutCreateRequest"
-            ],
+            "required": ["PayoutCreateRequest"],
             "properties": {
               "PayoutCreateRequest": {
                 "$ref": "#/components/schemas/PayoutCreateRequest"
@@ -13365,9 +12539,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "PayoutRetrieveRequest"
-            ],
+            "required": ["PayoutRetrieveRequest"],
             "properties": {
               "PayoutRetrieveRequest": {
                 "$ref": "#/components/schemas/PayoutRetrieveRequest"
@@ -13387,9 +12559,7 @@
       },
       "PayoutRetrieveRequest": {
         "type": "object",
-        "required": [
-          "payout_id"
-        ],
+        "required": ["payout_id"],
         "properties": {
           "payout_id": {
             "type": "string",
@@ -13422,19 +12592,14 @@
       },
       "PayoutType": {
         "type": "string",
-        "enum": [
-          "card",
-          "bank"
-        ]
+        "enum": ["card", "bank"]
       },
       "PaypalRedirection": {
         "type": "object"
       },
       "PaypalSessionTokenResponse": {
         "type": "object",
-        "required": [
-          "session_token"
-        ],
+        "required": ["session_token"],
         "properties": {
           "session_token": {
             "type": "string",
@@ -13461,10 +12626,7 @@
       },
       "PrimaryBusinessDetails": {
         "type": "object",
-        "required": [
-          "country",
-          "business"
-        ],
+        "required": ["country", "business"],
         "properties": {
           "country": {
             "$ref": "#/components/schemas/CountryAlpha2"
@@ -13488,10 +12650,7 @@
       },
       "ProfileDefaultRoutingConfig": {
         "type": "object",
-        "required": [
-          "profile_id",
-          "connectors"
-        ],
+        "required": ["profile_id", "connectors"],
         "properties": {
           "profile_id": {
             "type": "string"
@@ -13507,11 +12666,7 @@
       "ProgramConnectorSelection": {
         "type": "object",
         "description": "The program, having a default connector selection and\na bunch of rules. Also can hold arbitrary metadata.",
-        "required": [
-          "defaultSelection",
-          "rules",
-          "metadata"
-        ],
+        "required": ["defaultSelection", "rules", "metadata"],
         "properties": {
           "defaultSelection": {
             "$ref": "#/components/schemas/ConnectorSelection"
@@ -13527,9 +12682,7 @@
       },
       "ReceiverDetails": {
         "type": "object",
-        "required": [
-          "amount_received"
-        ],
+        "required": ["amount_received"],
         "properties": {
           "amount_received": {
             "type": "integer",
@@ -13552,12 +12705,7 @@
       },
       "ReconStatus": {
         "type": "string",
-        "enum": [
-          "not_requested",
-          "requested",
-          "active",
-          "disabled"
-        ]
+        "enum": ["not_requested", "requested", "active", "disabled"]
       },
       "RedirectResponse": {
         "type": "object",
@@ -13642,11 +12790,7 @@
       },
       "RefundListResponse": {
         "type": "object",
-        "required": [
-          "count",
-          "total_count",
-          "data"
-        ],
+        "required": ["count", "total_count", "data"],
         "properties": {
           "count": {
             "type": "integer",
@@ -13669,9 +12813,7 @@
       },
       "RefundRequest": {
         "type": "object",
-        "required": [
-          "payment_id"
-        ],
+        "required": ["payment_id"],
         "properties": {
           "payment_id": {
             "type": "string",
@@ -13811,19 +12953,11 @@
       "RefundStatus": {
         "type": "string",
         "description": "The status for refunds",
-        "enum": [
-          "succeeded",
-          "failed",
-          "pending",
-          "review"
-        ]
+        "enum": ["succeeded", "failed", "pending", "review"]
       },
       "RefundType": {
         "type": "string",
-        "enum": [
-          "scheduled",
-          "instant"
-        ]
+        "enum": ["scheduled", "instant"]
       },
       "RefundUpdateRequest": {
         "type": "object",
@@ -13914,9 +13048,7 @@
       },
       "RequestSurchargeDetails": {
         "type": "object",
-        "required": [
-          "surcharge_amount"
-        ],
+        "required": ["surcharge_amount"],
         "properties": {
           "surcharge_amount": {
             "type": "integer",
@@ -13932,11 +13064,7 @@
       "RequiredFieldInfo": {
         "type": "object",
         "description": "Required fields info used while listing the payment_method_data",
-        "required": [
-          "required_field",
-          "display_name",
-          "field_type"
-        ],
+        "required": ["required_field", "display_name", "field_type"],
         "properties": {
           "required_field": {
             "type": "string",
@@ -14069,19 +13197,12 @@
       },
       "RetryAction": {
         "type": "string",
-        "enum": [
-          "manual_retry",
-          "requeue"
-        ]
+        "enum": ["manual_retry", "requeue"]
       },
       "RevokeApiKeyResponse": {
         "type": "object",
         "description": "The response body for revoking an API Key.",
-        "required": [
-          "merchant_id",
-          "key_id",
-          "revoked"
-        ],
+        "required": ["merchant_id", "key_id", "revoked"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -14104,9 +13225,7 @@
       },
       "RewardData": {
         "type": "object",
-        "required": [
-          "merchant_id"
-        ],
+        "required": ["merchant_id"],
         "properties": {
           "merchant_id": {
             "type": "string",
@@ -14116,17 +13235,12 @@
       },
       "RoutableChoiceKind": {
         "type": "string",
-        "enum": [
-          "OnlyConnector",
-          "FullStruct"
-        ]
+        "enum": ["OnlyConnector", "FullStruct"]
       },
       "RoutableConnectorChoice": {
         "type": "object",
-        "description": "Routable Connecter chosen for payments",
-        "required": [
-          "connector"
-        ],
+        "description": "Routable Connecter chosen for payment",
+        "required": ["connector"],
         "properties": {
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
@@ -14198,16 +13312,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "single"
-                ]
+                "enum": ["single"]
               },
               "data": {
                 "$ref": "#/components/schemas/RoutableConnectorChoice"
@@ -14216,16 +13325,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "priority"
-                ]
+                "enum": ["priority"]
               },
               "data": {
                 "type": "array",
@@ -14237,16 +13341,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
+                "enum": ["volume_split"]
               },
               "data": {
                 "type": "array",
@@ -14258,16 +13357,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "advanced"
-                ]
+                "enum": ["advanced"]
               },
               "data": {
                 "$ref": "#/components/schemas/ProgramConnectorSelection"
@@ -14282,12 +13376,7 @@
       },
       "RoutingAlgorithmKind": {
         "type": "string",
-        "enum": [
-          "single",
-          "priority",
-          "volume_split",
-          "advanced"
-        ]
+        "enum": ["single", "priority", "volume_split", "advanced"]
       },
       "RoutingConfigRequest": {
         "type": "object",
@@ -14316,10 +13405,7 @@
       },
       "RoutingDictionary": {
         "type": "object",
-        "required": [
-          "merchant_id",
-          "records"
-        ],
+        "required": ["merchant_id", "records"],
         "properties": {
           "merchant_id": {
             "type": "string"
@@ -14384,6 +13470,7 @@
       },
       "RoutingRetrieveResponse": {
         "type": "object",
+        "description": "Response of the retrieved routing configs",
         "properties": {
           "algorithm": {
             "allOf": [
@@ -14398,11 +13485,7 @@
       "RuleConnectorSelection": {
         "type": "object",
         "description": "Represents a rule\n\n```text\nrule_name: [stripe, adyen, checkout]\n{\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n\npayment.method.cardtype = credit\n}\n}\n```",
-        "required": [
-          "name",
-          "connectorSelection",
-          "statements"
-        ],
+        "required": ["name", "connectorSelection", "statements"],
         "properties": {
           "name": {
             "type": "string"
@@ -14420,9 +13503,7 @@
       },
       "SamsungPayWalletData": {
         "type": "object",
-        "required": [
-          "token"
-        ],
+        "required": ["token"],
         "properties": {
           "token": {
             "type": "string",
@@ -14432,9 +13513,7 @@
       },
       "SdkNextAction": {
         "type": "object",
-        "required": [
-          "next_action"
-        ],
+        "required": ["next_action"],
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
@@ -14443,10 +13522,7 @@
       },
       "SecretInfoToInitiateSdk": {
         "type": "object",
-        "required": [
-          "display",
-          "payment"
-        ],
+        "required": ["display", "payment"],
         "properties": {
           "display": {
             "type": "string"
@@ -14458,10 +13534,7 @@
       },
       "SepaAndBacsBillingDetails": {
         "type": "object",
-        "required": [
-          "email",
-          "name"
-        ],
+        "required": ["email", "name"],
         "properties": {
           "email": {
             "type": "string",
@@ -14512,12 +13585,7 @@
       },
       "SepaBankTransferInstructions": {
         "type": "object",
-        "required": [
-          "account_holder_name",
-          "bic",
-          "country",
-          "iban"
-        ],
+        "required": ["account_holder_name", "bic", "country", "iban"],
         "properties": {
           "account_holder_name": {
             "type": "string",
@@ -14545,15 +13613,11 @@
               },
               {
                 "type": "object",
-                "required": [
-                  "wallet_name"
-                ],
+                "required": ["wallet_name"],
                 "properties": {
                   "wallet_name": {
                     "type": "string",
-                    "enum": [
-                      "google_pay"
-                    ]
+                    "enum": ["google_pay"]
                   }
                 }
               }
@@ -14566,15 +13630,11 @@
               },
               {
                 "type": "object",
-                "required": [
-                  "wallet_name"
-                ],
+                "required": ["wallet_name"],
                 "properties": {
                   "wallet_name": {
                     "type": "string",
-                    "enum": [
-                      "klarna"
-                    ]
+                    "enum": ["klarna"]
                   }
                 }
               }
@@ -14587,15 +13647,11 @@
               },
               {
                 "type": "object",
-                "required": [
-                  "wallet_name"
-                ],
+                "required": ["wallet_name"],
                 "properties": {
                   "wallet_name": {
                     "type": "string",
-                    "enum": [
-                      "paypal"
-                    ]
+                    "enum": ["paypal"]
                   }
                 }
               }
@@ -14608,15 +13664,11 @@
               },
               {
                 "type": "object",
-                "required": [
-                  "wallet_name"
-                ],
+                "required": ["wallet_name"],
                 "properties": {
                   "wallet_name": {
                     "type": "string",
-                    "enum": [
-                      "apple_pay"
-                    ]
+                    "enum": ["apple_pay"]
                   }
                 }
               }
@@ -14624,15 +13676,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "wallet_name"
-            ],
+            "required": ["wallet_name"],
             "properties": {
               "wallet_name": {
                 "type": "string",
-                "enum": [
-                  "no_session_token_received"
-                ]
+                "enum": ["no_session_token_received"]
               }
             }
           }
@@ -14676,16 +13724,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "single"
-                ]
+                "enum": ["single"]
               },
               "data": {
                 "$ref": "#/components/schemas/RoutableConnectorChoice"
@@ -14694,16 +13737,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "priority"
-                ]
+                "enum": ["priority"]
               },
               "data": {
                 "type": "array",
@@ -14715,16 +13753,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
+            "required": ["type", "data"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
+                "enum": ["volume_split"]
               },
               "data": {
                 "type": "array",
@@ -14784,9 +13817,7 @@
       },
       "SurchargePercentage": {
         "type": "object",
-        "required": [
-          "percentage"
-        ],
+        "required": ["percentage"],
         "properties": {
           "percentage": {
             "type": "number",
@@ -14798,16 +13829,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "fixed"
-                ]
+                "enum": ["fixed"]
               },
               "value": {
                 "type": "integer",
@@ -14818,16 +13844,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "rate"
-                ]
+                "enum": ["rate"]
               },
               "value": {
                 "$ref": "#/components/schemas/SurchargePercentage"
@@ -14844,9 +13865,7 @@
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
-        "required": [
-          "secrets"
-        ],
+        "required": ["secrets"],
         "properties": {
           "secrets": {
             "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
@@ -14855,9 +13874,7 @@
       },
       "TimeRange": {
         "type": "object",
-        "required": [
-          "start_time"
-        ],
+        "required": ["start_time"],
         "properties": {
           "start_time": {
             "type": "string",
@@ -14917,16 +13934,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "number"
-                ]
+                "enum": ["number"]
               },
               "value": {
                 "type": "integer",
@@ -14937,16 +13949,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "enum_variant"
-                ]
+                "enum": ["enum_variant"]
               },
               "value": {
                 "type": "string",
@@ -14956,16 +13963,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "metadata_variant"
-                ]
+                "enum": ["metadata_variant"]
               },
               "value": {
                 "$ref": "#/components/schemas/MetadataValue"
@@ -14974,16 +13976,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "str_value"
-                ]
+                "enum": ["str_value"]
               },
               "value": {
                 "type": "string",
@@ -14993,16 +13990,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "number_array"
-                ]
+                "enum": ["number_array"]
               },
               "value": {
                 "type": "array",
@@ -15016,16 +14008,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "enum_variant_array"
-                ]
+                "enum": ["enum_variant_array"]
               },
               "value": {
                 "type": "array",
@@ -15038,16 +14025,11 @@
           },
           {
             "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
+            "required": ["type", "value"],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "number_comparison_array"
-                ]
+                "enum": ["number_comparison_array"]
               },
               "value": {
                 "type": "array",
@@ -15068,9 +14050,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "boleto"
-            ],
+            "required": ["boleto"],
             "properties": {
               "boleto": {
                 "$ref": "#/components/schemas/BoletoVoucherData"
@@ -15079,33 +14059,23 @@
           },
           {
             "type": "string",
-            "enum": [
-              "efecty"
-            ]
+            "enum": ["efecty"]
           },
           {
             "type": "string",
-            "enum": [
-              "pago_efectivo"
-            ]
+            "enum": ["pago_efectivo"]
           },
           {
             "type": "string",
-            "enum": [
-              "red_compra"
-            ]
+            "enum": ["red_compra"]
           },
           {
             "type": "string",
-            "enum": [
-              "red_pagos"
-            ]
+            "enum": ["red_pagos"]
           },
           {
             "type": "object",
-            "required": [
-              "alfamart"
-            ],
+            "required": ["alfamart"],
             "properties": {
               "alfamart": {
                 "$ref": "#/components/schemas/AlfamartVoucherData"
@@ -15114,9 +14084,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "indomaret"
-            ],
+            "required": ["indomaret"],
             "properties": {
               "indomaret": {
                 "$ref": "#/components/schemas/IndomaretVoucherData"
@@ -15125,15 +14093,11 @@
           },
           {
             "type": "string",
-            "enum": [
-              "oxxo"
-            ]
+            "enum": ["oxxo"]
           },
           {
             "type": "object",
-            "required": [
-              "seven_eleven"
-            ],
+            "required": ["seven_eleven"],
             "properties": {
               "seven_eleven": {
                 "$ref": "#/components/schemas/JCSVoucherData"
@@ -15142,9 +14106,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "lawson"
-            ],
+            "required": ["lawson"],
             "properties": {
               "lawson": {
                 "$ref": "#/components/schemas/JCSVoucherData"
@@ -15153,9 +14115,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "mini_stop"
-            ],
+            "required": ["mini_stop"],
             "properties": {
               "mini_stop": {
                 "$ref": "#/components/schemas/JCSVoucherData"
@@ -15164,9 +14124,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "family_mart"
-            ],
+            "required": ["family_mart"],
             "properties": {
               "family_mart": {
                 "$ref": "#/components/schemas/JCSVoucherData"
@@ -15175,9 +14133,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "seicomart"
-            ],
+            "required": ["seicomart"],
             "properties": {
               "seicomart": {
                 "$ref": "#/components/schemas/JCSVoucherData"
@@ -15186,9 +14142,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "pay_easy"
-            ],
+            "required": ["pay_easy"],
             "properties": {
               "pay_easy": {
                 "$ref": "#/components/schemas/JCSVoucherData"
@@ -15201,9 +14155,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ali_pay_qr"
-            ],
+            "required": ["ali_pay_qr"],
             "properties": {
               "ali_pay_qr": {
                 "$ref": "#/components/schemas/AliPayQr"
@@ -15212,9 +14164,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "ali_pay_redirect"
-            ],
+            "required": ["ali_pay_redirect"],
             "properties": {
               "ali_pay_redirect": {
                 "$ref": "#/components/schemas/AliPayRedirection"
@@ -15223,9 +14173,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "ali_pay_hk_redirect"
-            ],
+            "required": ["ali_pay_hk_redirect"],
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
@@ -15234,9 +14182,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "momo_redirect"
-            ],
+            "required": ["momo_redirect"],
             "properties": {
               "momo_redirect": {
                 "$ref": "#/components/schemas/MomoRedirection"
@@ -15245,9 +14191,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "kakao_pay_redirect"
-            ],
+            "required": ["kakao_pay_redirect"],
             "properties": {
               "kakao_pay_redirect": {
                 "$ref": "#/components/schemas/KakaoPayRedirection"
@@ -15256,9 +14200,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "go_pay_redirect"
-            ],
+            "required": ["go_pay_redirect"],
             "properties": {
               "go_pay_redirect": {
                 "$ref": "#/components/schemas/GoPayRedirection"
@@ -15267,9 +14209,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "gcash_redirect"
-            ],
+            "required": ["gcash_redirect"],
             "properties": {
               "gcash_redirect": {
                 "$ref": "#/components/schemas/GcashRedirection"
@@ -15278,9 +14218,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "apple_pay"
-            ],
+            "required": ["apple_pay"],
             "properties": {
               "apple_pay": {
                 "$ref": "#/components/schemas/ApplePayWalletData"
@@ -15289,9 +14227,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "apple_pay_redirect"
-            ],
+            "required": ["apple_pay_redirect"],
             "properties": {
               "apple_pay_redirect": {
                 "$ref": "#/components/schemas/ApplePayRedirectData"
@@ -15300,9 +14236,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "apple_pay_third_party_sdk"
-            ],
+            "required": ["apple_pay_third_party_sdk"],
             "properties": {
               "apple_pay_third_party_sdk": {
                 "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
@@ -15311,9 +14245,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "dana_redirect"
-            ],
+            "required": ["dana_redirect"],
             "properties": {
               "dana_redirect": {
                 "type": "object",
@@ -15323,9 +14255,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "google_pay"
-            ],
+            "required": ["google_pay"],
             "properties": {
               "google_pay": {
                 "$ref": "#/components/schemas/GooglePayWalletData"
@@ -15334,9 +14264,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "google_pay_redirect"
-            ],
+            "required": ["google_pay_redirect"],
             "properties": {
               "google_pay_redirect": {
                 "$ref": "#/components/schemas/GooglePayRedirectData"
@@ -15345,9 +14273,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "google_pay_third_party_sdk"
-            ],
+            "required": ["google_pay_third_party_sdk"],
             "properties": {
               "google_pay_third_party_sdk": {
                 "$ref": "#/components/schemas/GooglePayThirdPartySdkData"
@@ -15356,9 +14282,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "mb_way_redirect"
-            ],
+            "required": ["mb_way_redirect"],
             "properties": {
               "mb_way_redirect": {
                 "$ref": "#/components/schemas/MbWayRedirection"
@@ -15367,9 +14291,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "mobile_pay_redirect"
-            ],
+            "required": ["mobile_pay_redirect"],
             "properties": {
               "mobile_pay_redirect": {
                 "$ref": "#/components/schemas/MobilePayRedirection"
@@ -15378,9 +14300,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "paypal_redirect"
-            ],
+            "required": ["paypal_redirect"],
             "properties": {
               "paypal_redirect": {
                 "$ref": "#/components/schemas/PaypalRedirection"
@@ -15389,9 +14309,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "paypal_sdk"
-            ],
+            "required": ["paypal_sdk"],
             "properties": {
               "paypal_sdk": {
                 "$ref": "#/components/schemas/PayPalWalletData"
@@ -15400,9 +14318,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "samsung_pay"
-            ],
+            "required": ["samsung_pay"],
             "properties": {
               "samsung_pay": {
                 "$ref": "#/components/schemas/SamsungPayWalletData"
@@ -15411,9 +14327,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "twint_redirect"
-            ],
+            "required": ["twint_redirect"],
             "properties": {
               "twint_redirect": {
                 "type": "object",
@@ -15423,9 +14337,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "vipps_redirect"
-            ],
+            "required": ["vipps_redirect"],
             "properties": {
               "vipps_redirect": {
                 "type": "object",
@@ -15435,9 +14347,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "touch_n_go_redirect"
-            ],
+            "required": ["touch_n_go_redirect"],
             "properties": {
               "touch_n_go_redirect": {
                 "$ref": "#/components/schemas/TouchNGoRedirection"
@@ -15446,9 +14356,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "we_chat_pay_redirect"
-            ],
+            "required": ["we_chat_pay_redirect"],
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
@@ -15457,9 +14365,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "we_chat_pay_qr"
-            ],
+            "required": ["we_chat_pay_qr"],
             "properties": {
               "we_chat_pay_qr": {
                 "$ref": "#/components/schemas/WeChatPayQr"
@@ -15468,9 +14374,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "cashapp_qr"
-            ],
+            "required": ["cashapp_qr"],
             "properties": {
               "cashapp_qr": {
                 "$ref": "#/components/schemas/CashappQr"
@@ -15479,9 +14383,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "swish_qr"
-            ],
+            "required": ["swish_qr"],
             "properties": {
               "swish_qr": {
                 "$ref": "#/components/schemas/SwishQrData"

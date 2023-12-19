@@ -62,6 +62,7 @@ pub struct RoutingRetrieveLinkQuery {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+/// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
@@ -74,6 +75,7 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+/// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
     pub id: String,
     #[cfg(feature = "business_profile_routing")]
@@ -189,7 +191,7 @@ pub enum RoutableChoiceSerde {
 )]
 #[cfg_attr(not(feature = "connector_choice_bcompat"), derive(PartialEq, Eq))]
 
-/// Routable Connecter chosen for payments
+/// Routable Connector chosen for a payment
 pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
     #[serde(skip)]

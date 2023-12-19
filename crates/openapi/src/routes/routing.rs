@@ -1,3 +1,6 @@
+/// Routing - Create
+///
+/// Create a routing config
 #[utoipa::path(
     post,
     path = "/routing",
@@ -16,6 +19,9 @@
 )]
 pub async fn routing_create_config() {}
 
+/// Routing - Activate config
+///
+/// Activate a routing config
 #[utoipa::path(
     post,
     path = "/routing/{algorithm_id}/activate",
@@ -32,8 +38,11 @@ pub async fn routing_create_config() {}
    operation_id = "Activate a routing config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-
 pub async fn routing_link_config() {}
+
+/// Routing - Retrieve
+///
+/// Retrieve a routing algorithm
 
 #[utoipa::path(
     get,
@@ -53,6 +62,9 @@ pub async fn routing_link_config() {}
 )]
 pub async fn routing_retrieve_config() {}
 
+/// Routing - List
+///
+/// List all routing configs
 #[utoipa::path(
     get,
     path = "/routing",
@@ -72,6 +84,9 @@ pub async fn routing_retrieve_config() {}
 )]
 pub async fn list_routing_configs() {}
 
+/// Routing - Deactivate
+///
+/// Deactivates a routing config
 #[utoipa::path(
     post,
     path = "/routing/deactivate",
@@ -89,6 +104,9 @@ pub async fn list_routing_configs() {}
 )]
 pub async fn routing_unlink_config() {}
 
+/// Routing - Update Default Config
+///
+/// Update default fallback config
 #[utoipa::path(
     post,
     path = "/routing/default",
@@ -105,6 +123,9 @@ pub async fn routing_unlink_config() {}
 )]
 pub async fn routing_update_default_config() {}
 
+/// Routing - Retrieve Default Config
+///
+/// Retrieve default fallback config
 #[utoipa::path(
     get,
     path = "/routing/default",
@@ -118,6 +139,9 @@ pub async fn routing_update_default_config() {}
 )]
 pub async fn routing_retrieve_default_config() {}
 
+/// Routing - Retrieve Config
+///
+/// Retrieve active config
 #[utoipa::path(
     get,
     path = "/routing/active",
@@ -136,6 +160,9 @@ pub async fn routing_retrieve_default_config() {}
 )]
 pub async fn routing_retrieve_linked_config() {}
 
+/// Routing - Retrieve Default For Profile
+///
+/// Retrieve default config for profiles
 #[utoipa::path(
     get,
     path = "/routing/default/profile",
@@ -150,6 +177,9 @@ pub async fn routing_retrieve_linked_config() {}
 )]
 pub async fn routing_retrieve_default_config_for_profiles() {}
 
+/// Routing - Update Default For Profile
+///
+/// Update default config for profiles
 #[utoipa::path(
     post,
     path = "/routing/default/profile/{profile_id}",
