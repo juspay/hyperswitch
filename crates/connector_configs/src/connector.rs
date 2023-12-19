@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
-    admin::ConnectorAuthType,
     enums::{CardNetwork, Connector, PaymentMethodType},
     payments,
 };
@@ -19,6 +20,33 @@ pub struct CurrencyAuthKeyType {
     pub password_evoucher: Option<String>,
     pub username_evoucher: Option<String>,
     pub merchant_id_evoucher: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum ConnectorAuthType {
+    HeaderKey {
+        api_key: String,
+    },
+    BodyKey {
+        api_key: String,
+        key1: String,
+    },
+    SignatureKey {
+        api_key: String,
+        key1: String,
+        api_secret: String,
+    },
+    MultiAuthKey {
+        api_key: String,
+        key1: String,
+        api_secret: String,
+        key2: String,
+    },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<String, CurrencyAuthKeyType>,
+    },
+    #[default]
+    NoKey,
 }
 
 #[serde_with::skip_serializing_none]
