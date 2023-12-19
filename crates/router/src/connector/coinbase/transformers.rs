@@ -431,6 +431,8 @@ pub struct TimelinePayment {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use std::{marker::PhantomData, str::FromStr};
 
     use common_utils::pii;
