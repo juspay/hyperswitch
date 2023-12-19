@@ -73,10 +73,12 @@ pub enum AttemptStatus {
     strum::EnumString,
     strum::EnumIter,
     strum::EnumVariantNames,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Connectors eligible for payments routing
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]

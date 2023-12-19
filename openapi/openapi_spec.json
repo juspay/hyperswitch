@@ -2781,6 +2781,528 @@
           }
         ]
       }
+    },
+    "/routing": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - List",
+        "description": "Routing - List\n\nList all routing configs",
+        "operationId": "List routing configs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of records to be returned",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The record offset from which to start gathering of results",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "query",
+            "description": "The unique identifier for a merchant profile",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully fetched routing configs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingKind"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Create",
+        "description": "Routing - Create\n\nCreate a routing config",
+        "operationId": "Create a routing config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing config created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/active": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Retrieve Config",
+        "description": "Routing - Retrieve Config\n\nRetrieve active config",
+        "operationId": "Retrieve active config",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "query",
+            "description": "The unique identifier for a merchant profile",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved active config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedRoutingConfigRetrieveResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/deactivate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Deactivate",
+        "description": "Routing - Deactivate\n\nDeactivates a routing config",
+        "operationId": "Deactivate a routing config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully deactivated routing config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "403": {
+            "description": "Malformed request"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/default": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Retrieve Default Config",
+        "description": "Routing - Retrieve Default Config\n\nRetrieve default fallback config",
+        "operationId": "Retrieve default fallback config",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved default config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutableConnectorChoice"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update Default Config",
+        "description": "Routing - Update Default Config\n\nUpdate default fallback config",
+        "operationId": "Update default fallback config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated default config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutableConnectorChoice"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/default/profile": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Retrieve Default For Profile",
+        "description": "Routing - Retrieve Default For Profile\n\nRetrieve default config for profiles",
+        "operationId": "Retrieve default configs for all profiles",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved default config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDefaultRoutingConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/default/profile/{profile_id}": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update Default For Profile",
+        "description": "Routing - Update Default For Profile\n\nUpdate default config for profiles",
+        "operationId": "Update default configs for all profiles",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for a profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated default config for profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDefaultRoutingConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/{algorithm_id}": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Retrieve",
+        "description": "Routing - Retrieve\n\nRetrieve a routing algorithm",
+        "operationId": "Retrieve a routing config",
+        "parameters": [
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "The unique identifier for a config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully fetched routing config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantRoutingAlgorithm"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/{algorithm_id}/activate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Activate config",
+        "description": "Routing - Activate config\n\nActivate a routing config",
+        "operationId": "Activate a routing config",
+        "parameters": [
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "The unique identifier for a config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing config activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -5060,6 +5582,45 @@
       "CashappQr": {
         "type": "object"
       },
+      "Comparison": {
+        "type": "object",
+        "description": "Represents a single comparison condition.",
+        "required": [
+          "lhs",
+          "comparison",
+          "value",
+          "metadata"
+        ],
+        "properties": {
+          "lhs": {
+            "type": "string",
+            "description": "The left hand side which will always be a domain input identifier like \"payment.method.cardtype\""
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/ComparisonType"
+          },
+          "value": {
+            "$ref": "#/components/schemas/ValueType"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata that the Static Analyzer and Backend does not touch.\nThis can be used to store useful information for the frontend and is required for communication\nbetween the static analyzer and the frontend.",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "ComparisonType": {
+        "type": "string",
+        "description": "Conditional comparison type",
+        "enum": [
+          "equal",
+          "not_equal",
+          "less_than",
+          "less_than_equal",
+          "greater_than",
+          "greater_than_equal"
+        ]
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -5146,6 +5707,55 @@
           }
         }
       },
+      "ConnectorSelection": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "ConnectorStatus": {
         "type": "string",
         "enum": [
@@ -5166,6 +5776,23 @@
           "payout_processor",
           "payment_method_auth"
         ]
+      },
+      "ConnectorVolumeSplit": {
+        "type": "object",
+        "required": [
+          "connector",
+          "split"
+        ],
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/RoutableConnectorChoice"
+          },
+          "split": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
       },
       "CountryAlpha2": {
         "type": "string",
@@ -7199,6 +7826,28 @@
           }
         }
       },
+      "IfStatement": {
+        "type": "object",
+        "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
+        "required": [
+          "condition"
+        ],
+        "properties": {
+          "condition": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comparison"
+            }
+          },
+          "nested": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            },
+            "nullable": true
+          }
+        }
+      },
       "IncrementalAuthorizationResponse": {
         "type": "object",
         "required": [
@@ -7328,6 +7977,19 @@
             "description": "The identifier for the session"
           }
         }
+      },
+      "LinkedRoutingConfigRetrieveResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RoutingRetrieveResponse"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingDictionaryRecord"
+            }
+          }
+        ]
       },
       "MandateAmountData": {
         "type": "object",
@@ -7595,11 +8257,6 @@
             ],
             "nullable": true
           },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
           "payout_routing_algorithm": {
             "allOf": [
               {
@@ -7780,14 +8437,6 @@
             ],
             "nullable": true
           },
-          "routing_algorithm": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
-              }
-            ],
-            "nullable": true
-          },
           "payout_routing_algorithm": {
             "allOf": [
               {
@@ -7910,11 +8559,6 @@
                 "$ref": "#/components/schemas/WebhookDetails"
               }
             ],
-            "nullable": true
-          },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
             "nullable": true
           },
           "payout_routing_algorithm": {
@@ -8590,6 +9234,55 @@
           }
         }
       },
+      "MerchantRoutingAlgorithm": {
+        "type": "object",
+        "description": "Routing Algorithm specific to merchants",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "algorithm",
+          "created_at",
+          "modified_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "algorithm": {
+            "$ref": "#/components/schemas/RoutingAlgorithm"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "modified_at": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "MetadataValue": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -8852,6 +9545,23 @@
             "type": "string",
             "description": "Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like \"pay\", \"food\", or any other custom string set by the merchant in Noon's Dashboard)",
             "nullable": true
+          }
+        }
+      },
+      "NumberComparison": {
+        "type": "object",
+        "description": "Represents a number comparison for \"NumberComparisonArrayValue\"",
+        "required": [
+          "comparisonType",
+          "number"
+        ],
+        "properties": {
+          "comparisonType": {
+            "$ref": "#/components/schemas/ComparisonType"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -10298,7 +11008,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -10640,7 +11350,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -11006,7 +11716,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -11969,7 +12679,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -12797,6 +13507,45 @@
           "accommodation"
         ]
       },
+      "ProfileDefaultRoutingConfig": {
+        "type": "object",
+        "required": [
+          "profile_id",
+          "connectors"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
+          }
+        }
+      },
+      "ProgramConnectorSelection": {
+        "type": "object",
+        "description": "The program, having a default connector selection and\na bunch of rules. Also can hold arbitrary metadata.",
+        "required": [
+          "defaultSelection",
+          "rules",
+          "metadata"
+        ],
+        "properties": {
+          "defaultSelection": {
+            "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/RuleConnectorSelection"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
@@ -13386,16 +14135,310 @@
           }
         }
       },
-      "RoutingAlgorithm": {
+      "RoutableChoiceKind": {
         "type": "string",
-        "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
         "enum": [
-          "round_robin",
-          "max_conversion",
-          "min_cost",
-          "custom"
+          "OnlyConnector",
+          "FullStruct"
+        ]
+      },
+      "RoutableConnectorChoice": {
+        "type": "object",
+        "description": "Routable Connector chosen for a payment",
+        "required": [
+          "connector"
         ],
-        "example": "custom"
+        "properties": {
+          "connector": {
+            "$ref": "#/components/schemas/RoutableConnectors"
+          },
+          "sub_label": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RoutableConnectors": {
+        "type": "string",
+        "description": "Connectors eligible for payments routing",
+        "enum": [
+          "aci",
+          "adyen",
+          "airwallex",
+          "authorizedotnet",
+          "bankofamerica",
+          "bitpay",
+          "bambora",
+          "bluesnap",
+          "boku",
+          "braintree",
+          "cashtocode",
+          "checkout",
+          "coinbase",
+          "cryptopay",
+          "cybersource",
+          "dlocal",
+          "fiserv",
+          "forte",
+          "globalpay",
+          "globepay",
+          "gocardless",
+          "helcim",
+          "iatapay",
+          "klarna",
+          "mollie",
+          "multisafepay",
+          "nexinets",
+          "nmi",
+          "noon",
+          "nuvei",
+          "opennode",
+          "payme",
+          "paypal",
+          "payu",
+          "placetopay",
+          "powertranz",
+          "prophetpay",
+          "rapyd",
+          "riskified",
+          "shift4",
+          "signifyd",
+          "square",
+          "stax",
+          "stripe",
+          "trustpay",
+          "tsys",
+          "volt",
+          "wise",
+          "worldline",
+          "worldpay",
+          "zen"
+        ]
+      },
+      "RoutingAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "advanced"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramConnectorSelection"
+              }
+            }
+          }
+        ],
+        "description": "Routing Algorithm kind",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "RoutingAlgorithmKind": {
+        "type": "string",
+        "enum": [
+          "single",
+          "priority",
+          "volume_split",
+          "advanced"
+        ]
+      },
+      "RoutingConfigRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RoutingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RoutingDictionary": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "records"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "active_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingDictionaryRecord"
+            }
+          }
+        }
+      },
+      "RoutingDictionaryRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "description",
+          "created_at",
+          "modified_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RoutingAlgorithmKind"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "modified_at": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RoutingKind": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RoutingDictionary"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingDictionaryRecord"
+            }
+          }
+        ]
+      },
+      "RoutingRetrieveResponse": {
+        "type": "object",
+        "description": "Response of the retrieved routing configs for a merchant account",
+        "properties": {
+          "algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantRoutingAlgorithm"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RuleConnectorSelection": {
+        "type": "object",
+        "description": "Represents a rule\n\n```text\nrule_name: [stripe, adyen, checkout]\n{\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n\npayment.method.cardtype = credit\n}\n}\n```",
+        "required": [
+          "name",
+          "connectorSelection",
+          "statements"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectorSelection": {
+            "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            }
+          }
+        }
       },
       "SamsungPayWalletData": {
         "type": "object",
@@ -13651,6 +14694,73 @@
           }
         }
       },
+      "StraightThroughAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "SurchargeDetailsResponse": {
         "type": "object",
         "required": [
@@ -13823,6 +14933,157 @@
             "example": "successtest@iata",
             "nullable": true
           }
+        }
+      },
+      "ValueType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number"
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Represents a number literal"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "enum_variant"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents an enum variant"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "metadata_variant"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/MetadataValue"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "str_value"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents a arbitrary String value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "enum_variant_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Similar to NumberArray but for enum variants\neg: payment.method.cardtype = (debit, credit)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "number_comparison_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/NumberComparison"
+                },
+                "description": "Like a number array but can include comparisons. Useful for\nconditions like \"500 < amount < 1000\"\neg: payment.amount = (> 500, < 1000)"
+              }
+            }
+          }
+        ],
+        "description": "Represents a value in the DSL",
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "VoucherData": {
@@ -14382,6 +15643,10 @@
     {
       "name": "payment link",
       "description": "Create payment link"
+    },
+    {
+      "name": "Routing",
+      "description": "Create and manage routing configurations"
     }
   ]
 }

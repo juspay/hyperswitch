@@ -119,9 +119,9 @@ pub struct PaymentsRequest {
     #[schema(max_length = 255, example = "merchant_1668273825")]
     pub merchant_id: Option<String>,
 
-    #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
+    #[schema(value_type = Option<StraightThroughAlgorithm>, example = json!({
         "type": "single",
-        "data": "stripe"
+        "data": {"connector": "stripe", "merchant_connector_id": "mca_123"}
     }))]
     pub routing: Option<serde_json::Value>,
 

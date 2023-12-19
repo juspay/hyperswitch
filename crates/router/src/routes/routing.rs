@@ -113,7 +113,7 @@ pub async fn routing_retrieve_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
-pub async fn routing_retrieve_dictionary(
+pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
     #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveQuery>,
