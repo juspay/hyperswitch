@@ -7,8 +7,8 @@ use std::{
 };
 
 use api_models::{
-    admin as admin_api, conditional_configs::ConditionalConfigs, routing::ConnectorSelection,
-    surcharge_decision_configs::SurchargeDecisionConfigs, enums as api_model_enums
+    admin as admin_api, conditional_configs::ConditionalConfigs, enums as api_model_enums,
+    routing::ConnectorSelection, surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
 use connector_configs::{
