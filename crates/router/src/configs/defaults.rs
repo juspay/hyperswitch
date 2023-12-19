@@ -4620,7 +4620,7 @@ impl Default for super::settings::RequiredFields {
                                                     display_name: "country".to_string(),
                                                     field_type: enums::FieldType::UserAddressCountry{
                                                         options: vec![
-                                                            "ALL".to_string(),
+                                                            "AT".to_string(),
                                                         ]
                                                     },
                                                     value: None,
@@ -4677,7 +4677,7 @@ impl Default for super::settings::RequiredFields {
                                                     display_name: "country".to_string(),
                                                     field_type: enums::FieldType::UserAddressCountry{
                                                         options: vec![
-                                                            "ALL".to_string(),
+                                                            "AT".to_string(),
                                                         ]
                                                     },
                                                     value: None,
