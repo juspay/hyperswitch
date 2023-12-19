@@ -10397,6 +10397,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "Card",
             "required": [
               "card"
             ],
@@ -10408,6 +10409,7 @@
           },
           {
             "type": "object",
+            "title": "CardRedirect",
             "required": [
               "card_redirect"
             ],
@@ -10419,6 +10421,7 @@
           },
           {
             "type": "object",
+            "title": "Wallet",
             "required": [
               "wallet"
             ],
@@ -10430,6 +10433,7 @@
           },
           {
             "type": "object",
+            "title": "PayLater",
             "required": [
               "pay_later"
             ],
@@ -10441,6 +10445,7 @@
           },
           {
             "type": "object",
+            "title": "BankRedirect",
             "required": [
               "bank_redirect"
             ],
@@ -10452,6 +10457,7 @@
           },
           {
             "type": "object",
+            "title": "BankDebit",
             "required": [
               "bank_debit"
             ],
@@ -10463,6 +10469,7 @@
           },
           {
             "type": "object",
+            "title": "BankTransfer",
             "required": [
               "bank_transfer"
             ],
@@ -10474,6 +10481,7 @@
           },
           {
             "type": "object",
+            "title": "Crypto",
             "required": [
               "crypto"
             ],
@@ -10485,18 +10493,21 @@
           },
           {
             "type": "string",
+            "title": "MandatePayment",
             "enum": [
               "mandate_payment"
             ]
           },
           {
             "type": "string",
+            "title": "Reward",
             "enum": [
               "reward"
             ]
           },
           {
             "type": "object",
+            "title": "Upi",
             "required": [
               "upi"
             ],
@@ -10508,6 +10519,7 @@
           },
           {
             "type": "object",
+            "title": "Voucher",
             "required": [
               "voucher"
             ],
@@ -10519,6 +10531,7 @@
           },
           {
             "type": "object",
+            "title": "GiftCard",
             "required": [
               "gift_card"
             ],
@@ -10530,6 +10543,7 @@
           },
           {
             "type": "object",
+            "title": "CardToken",
             "required": [
               "card_token"
             ],

@@ -157,7 +157,7 @@ pub struct PaymentsRequest {
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<String>,
 
-    /// TThe customer's email address This field will be deprecated soon, use the customer object instead
+    /// The customer's email address This field will be deprecated soon, use the customer object instead
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Email>,
 
@@ -906,6 +906,9 @@ pub enum BankDebitData {
     },
 }
 
+// The order of macro derivation matters here. `openapi_derive_title` produces tokens which
+// are consumed by the `ToSchema` macro
+#[router_derive::openapi_derive_title]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {

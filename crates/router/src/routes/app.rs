@@ -312,7 +312,7 @@ impl Payments {
             route = route
                 .service(
                     web::resource("/list")
-                        .route(web::get().to(payments_list))
+                        .route(web::get().to(openapi_route!(payments_list)))
                         .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))

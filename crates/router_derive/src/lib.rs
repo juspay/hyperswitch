@@ -149,6 +149,26 @@ pub fn diesel_enum(
         .into()
 }
 
+/// This macro adds the `#[schema(title = "")]`` for enums. This will be consumed by the `ToSchema` macro
+/// to display appropriate titles for the enum
+#[proc_macro_attribute]
+pub fn openapi_derive_title(
+    _: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let mut item = syn::parse_macro_input!(item as syn::ItemEnum);
+
+    item.variants.iter_mut().for_each(|variant| {
+        let variant_ident = &variant.ident.to_string();
+        let variant_ident_quote = quote::quote!(#variant_ident);
+
+        let schema_attribute = syn::parse_quote!(#[schema(title = #variant_ident_quote)]);
+        variant.attrs.push(schema_attribute);
+    });
+
+    quote::quote!(#item).into()
+}
+
 /// A derive macro which generates the setter functions for any struct with fields
 /// # Example
 /// ```
