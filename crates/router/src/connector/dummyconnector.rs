@@ -153,6 +153,20 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for DummyConnector<T>
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for DummyConnector".to_string(),
+        )
+        .into())
+    }
 }
 
 impl<const T: u8>

@@ -130,6 +130,20 @@ impl
         types::PaymentsResponseData,
     > for Multisafepay
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Multisafepay".to_string(),
+        )
+        .into())
+    }
 }
 
 impl api::PaymentVoid for Multisafepay {}
