@@ -8755,6 +8755,13 @@
           }
         }
       },
+      "PaymentLinkStatus": {
+        "type": "string",
+        "enum": [
+          "Active",
+          "Expired"
+        ]
+      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -11913,7 +11920,7 @@
             "nullable": true
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/PaymentLinkStatus"
           },
           "currency": {
             "allOf": [

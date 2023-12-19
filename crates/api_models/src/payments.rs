@@ -3446,7 +3446,7 @@ pub struct OrderDetailsWithStringAmount {
     pub product_img_link: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum PaymentLinkStatus {
     Active,
     Expired,
