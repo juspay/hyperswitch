@@ -129,7 +129,7 @@ fn get_card_details(
 pub struct NmiVaultResponse {
     pub response: Response,
     pub responsetext: String,
-    pub customer_vault_id: String,
+    pub customer_vault_id: Option<String>,
     pub response_code: String,
 }
 
@@ -178,7 +178,11 @@ impl
                         )?
                         .to_string(),
                         currency: currency_data,
-                        customer_vault_id: item.response.customer_vault_id,
+                        customer_vault_id: item.response.customer_vault_id.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "customer_vault_id",
+                            },
+                        )?,
                         public_key: auth_type.public_key.ok_or(
                             errors::ConnectorError::InvalidConnectorConfig {
                                 config: "public_key",
