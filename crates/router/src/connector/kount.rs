@@ -1,4 +1,6 @@
 pub mod transformers;
+use error_stack::IntoReport;
+
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -8,7 +10,6 @@ use crate::{
         api::{self, ConnectorCommon},
     },
 };
-use error_stack::IntoReport;
 
 #[derive(Debug, Clone)]
 pub struct Kount;

@@ -25,7 +25,6 @@ use self::{
     },
 };
 use super::errors::{ConnectorErrorExt, RouterResponse};
-
 use crate::{
     core::{
         errors::{self, RouterResult},
