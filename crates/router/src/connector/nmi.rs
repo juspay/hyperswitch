@@ -149,19 +149,21 @@ impl
 
     fn build_request(
         &self,
-        req: &types::SetupMandateRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
-                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(types::SetupMandateType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::NotImplemented("Setup Mandate flow for Nmi".to_string()).into())
+
+        // Ok(Some(
+        //     services::RequestBuilder::new()
+        //         .method(services::Method::Post)
+        //         .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+        //         .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+        //         .set_body(types::SetupMandateType::get_request_body(
+        //             self, req, connectors,
+        //         )?)
+        //         .build(),
+        // ))
     }
 
     fn handle_response(
