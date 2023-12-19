@@ -1016,32 +1016,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmericaErrorResponse {
+pub struct BankOfAmericaStandardErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: Option<String>,
     pub message: Option<String>,
-    pub reason: Option<Reason>,
+    pub reason: Option<String>,
     pub details: Option<Vec<Details>>,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Reason {
-    MissingField,
-    InvalidData,
-    DuplicateRequest,
-    InvalidCard,
-    AuthAlreadyReversed,
-    CardTypeNotAccepted,
-    InvalidMerchantConfiguration,
-    ProcessorUnavailable,
-    InvalidAmount,
-    InvalidCardType,
-    InvalidPaymentId,
-    NotSupported,
-    SystemError,
-    ServerTimeout,
-    ServiceTimeout,
+#[derive(Debug, Deserialize)]
+pub struct BankOfAmericaAuthenticationErrorResponse {
+    pub response: AuthenticationErrorInformation,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum BankOfAmericaErrorResponse {
+    StandardError(BankOfAmericaStandardErrorResponse),
+    AuthenticationError(BankOfAmericaAuthenticationErrorResponse),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -1055,4 +1047,9 @@ pub struct Details {
 pub struct ErrorInformation {
     pub message: String,
     pub reason: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct AuthenticationErrorInformation {
+    pub rmsg: String,
 }
