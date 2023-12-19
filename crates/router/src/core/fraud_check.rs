@@ -1,6 +1,14 @@
+pub mod flows;
+pub mod operation;
+pub mod types;
+
 use std::fmt::Debug;
 
-use api_models::{admin::FrmConfigs, enums as api_enums, payments::AdditionalPaymentData};
+use api_models::{
+    admin::FrmConfigs,
+    enums as api_enums,
+    payments::{self as payments_api_model, AdditionalPaymentData},
+};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{
@@ -10,12 +18,14 @@ use router_env::{
 
 use self::{
     flows::{self as frm_flows, FeatureFrm},
+    operation as fraud_check_operations,
     types::{
         self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData, FrmInfo,
         PaymentDetails, PaymentToFrmData,
     },
 };
 use super::errors::{ConnectorErrorExt, RouterResponse};
+
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -41,11 +51,8 @@ use crate::{
             PaymentIntent,
         },
     },
-    utils::ValueExt,
+    utils::{self, ValueExt},
 };
-pub mod flows;
-pub mod operation;
-pub mod types;
 
 #[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req>(
@@ -111,7 +118,7 @@ where
 
 pub async fn should_call_frm<F>(
     merchant_account: &domain::MerchantAccount,
-    payment_data: &payments::PaymentData<F>,
+    payment_data: &mut payments::PaymentData<F>,
     db: &dyn StorageInterface,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
@@ -182,25 +189,80 @@ where
                             let mut is_frm_connector_enabled = false;
                             let mut is_frm_pm_enabled = false;
                             let mut is_frm_pmt_enabled = false;
-                            let filtered_frm_config = frm_configs_struct
-                                .iter()
-                                .filter(|frm_config| {
-                                    match (
-                                        &payment_data.clone().payment_attempt.connector,
-                                        &frm_config.gateway,
-                                    ) {
-                                        (Some(current_connector), Some(configured_connector)) => {
-                                            let is_enabled = *current_connector
-                                                == configured_connector.to_string();
-                                            if is_enabled {
+                            let mut invoke_sdk_for_frm = false;
+
+                            let mut filtered_frm_config = Vec::new();
+                            for frm_config in frm_configs_struct {
+                                match (&payment_data.payment_attempt.connector, &frm_config.gateway)
+                                {
+                                    (Some(current_connector), Some(configured_connector)) => {
+                                        let is_enabled =
+                                            *current_connector == configured_connector.to_string();
+
+                                        if is_enabled {
+                                            if frm_config.is_frm_sdk_invoke.unwrap_or(false) {
+                                                if let Some(pmd) =
+                                                    payment_data.payment_method_data.as_ref()
+                                                {
+                                                    let redis_conn = db
+                                                    .get_redis_conn()
+                                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                                    .attach_printable("Failed to get redis connection")?;
+                                                    let key = format!(
+                                                        "frm_pmd_for_payment_id_{}_merchant_id_{}",
+                                                        payment_data.payment_attempt.payment_id,
+                                                        payment_data.payment_attempt.merchant_id,
+                                                    );
+
+                                                    let redis_value = utils::Encode::<
+                                                        payments_api_model::PaymentMethodData,
+                                                    >::encode_to_string_of_json(
+                                                        &pmd
+                                                    )
+                                                    .change_context(
+                                                        errors::ApiErrorResponse::InternalServerError,
+                                                    ).attach_printable("Failed to get redis connection")?;
+
+                                                    redis_conn
+                                                    .set_key_with_expiry(
+                                                         &key,
+                                                         redis_value,
+                                                900,
+                                                      )
+                                                     .await
+                                                     .change_context(errors::StorageError::KVError)
+                                                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                                                     .attach_printable("Failed to add data in redis")?;
+
+                                                    let ddc_next_step =
+                                                        payments_api_model::DdcNextStepsData {
+                                                            ddc_connector:
+                                                                merchant_connector_account_from_db
+                                                                    .connector_name
+                                                                    .clone(),
+                                                        };
+
+                                                    payment_data
+                                                        .payment_attempt
+                                                        .connector_metadata =
+                                                        Some(common_utils::ext_traits::Encode::<
+                                                            payments_api_model::DdcNextStepsData,
+                                                        >::encode_to_value(
+                                                            &ddc_next_step
+                                                        ).change_context(errors::ApiErrorResponse::InternalServerError)?);
+                                                    is_frm_pm_enabled = false;
+                                                    invoke_sdk_for_frm = true;
+                                                }
+                                            } else {
                                                 is_frm_connector_enabled = true;
+                                                filtered_frm_config.push(frm_config);
                                             }
-                                            is_enabled
                                         }
-                                        (None, _) | (_, None) => true,
                                     }
-                                })
-                                .collect::<Vec<_>>();
+                                    (None, _) | (_, None) => filtered_frm_config.push(frm_config),
+                                }
+                            }
+
                             let filtered_payment_methods = filtered_frm_config
                                 .iter()
                                 .map(|frm_config| {
@@ -323,6 +385,7 @@ where
                                     .get(0)
                                     .map(|pmt| pmt.flow.clone())
                                     .unwrap_or(api_enums::FrmPreferredFlowTypes::Pre),
+                                invoke_sdk_for_frm: Some(invoke_sdk_for_frm),
                             };
                             logger::debug!(
                                 "frm_routing_configs: {:?} {:?} {:?} {:?}",
@@ -409,8 +472,12 @@ where
 
     let fraud_check_operation: operation::BoxedFraudCheckOperation<F> =
         match frm_configs.frm_preferred_flow_type {
-            api_enums::FrmPreferredFlowTypes::Pre => Box::new(operation::FraudCheckPre),
-            api_enums::FrmPreferredFlowTypes::Post => Box::new(operation::FraudCheckPost),
+            api_enums::FrmPreferredFlowTypes::Pre => {
+                Box::new(operation::fraud_check_pre::FraudCheckPre)
+            }
+            api_enums::FrmPreferredFlowTypes::Post => {
+                Box::new(operation::fraud_check_post::FraudCheckPost)
+            }
         };
     let frm_data = fraud_check_operation
         .to_get_tracker()?
@@ -595,43 +662,77 @@ where
             frm_routing_algorithm.zip(frm_connector_label)
         {
             if let Some(frm_configs) = frm_configs.clone() {
-                let mut updated_frm_info = make_frm_data_and_fraud_check_operation(
-                    db,
-                    state,
-                    merchant_account,
-                    payment_data.to_owned(),
-                    frm_routing_algorithm_val,
-                    profile_id,
-                    frm_configs.clone(),
-                    customer,
-                )
-                .await?;
-
-                if is_frm_enabled {
-                    pre_payment_frm_core(
+                if !frm_configs.invoke_sdk_for_frm.unwrap_or(false) {
+                    let mut updated_frm_info = make_frm_data_and_fraud_check_operation(
+                        db,
                         state,
                         merchant_account,
-                        payment_data,
-                        &mut updated_frm_info,
-                        frm_configs,
+                        payment_data.to_owned(),
+                        frm_routing_algorithm_val,
+                        profile_id,
+                        frm_configs.clone(),
                         customer,
-                        should_continue_transaction,
-                        key_store,
                     )
                     .await?;
+
+                    if is_frm_enabled {
+                        pre_payment_frm_core(
+                            state,
+                            merchant_account,
+                            payment_data,
+                            &mut updated_frm_info,
+                            frm_configs,
+                            customer,
+                            should_continue_transaction,
+                            key_store,
+                        )
+                        .await?;
+                    }
+                    *frm_info = Some(updated_frm_info);
+                } else {
+                    let fraud_check_operation: fraud_check_operations::BoxedFraudCheckOperation<F> =
+                        match frm_configs.frm_preferred_flow_type {
+                            api_enums::FrmPreferredFlowTypes::Pre => {
+                                Box::new(fraud_check_operations::fraud_check_pre::FraudCheckPre)
+                            }
+                            api_enums::FrmPreferredFlowTypes::Post => {
+                                Box::new(fraud_check_operations::fraud_check_post::FraudCheckPost)
+                            }
+                        };
+                    *frm_info = Some(FrmInfo {
+                        fraud_check_operation,
+                        frm_data: None,
+                        suggested_action: Some(FrmSuggestion::FrmDDC),
+                    });
+                    *should_continue_transaction = false;
                 }
-                *frm_info = Some(updated_frm_info);
             }
         }
         logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
         return Ok(frm_configs);
     }
+    // If the operation is DDC, then we need not to call connector, only thing is to load the form.
+    if is_operation_ddc(operation) {
+        *should_continue_transaction = false;
+    }
     Ok(None)
 }
 
 pub fn is_operation_allowed<Op: Debug>(operation: &Op) -> bool {
-    !["PaymentSession", "PaymentApprove", "PaymentReject"]
-        .contains(&format!("{operation:?}").as_str())
+    ![
+        "PaymentSession",
+        "PaymentApprove",
+        "PaymentReject",
+        "PaymentsDeviceDataCollection",
+    ]
+    .contains(&format!("{operation:?}").as_str())
+}
+
+pub fn is_operation_ddc<Op: Debug>(operation: &Op) -> bool {
+    matches!(
+        format!("{operation:?}").as_str(),
+        "PaymentsDeviceDataCollection"
+    )
 }
 
 impl From<PaymentToFrmData> for PaymentDetails {

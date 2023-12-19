@@ -203,6 +203,7 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+    Kount,
 }
 
 #[cfg(feature = "frm")]
@@ -211,6 +212,7 @@ impl From<FrmConnectors> for RoutableConnectors {
         match value {
             FrmConnectors::Signifyd => Self::Signifyd,
             FrmConnectors::Riskified => Self::Riskified,
+            FrmConnectors::Kount => Self::Kount,
         }
     }
 }

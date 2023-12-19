@@ -24,6 +24,7 @@ pub mod gocardless;
 pub mod helcim;
 pub mod iatapay;
 pub mod klarna;
+pub mod kount;
 pub mod mollie;
 pub mod multisafepay;
 pub mod nexinets;
@@ -63,7 +64,7 @@ pub use self::{
     braintree::Braintree, cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase,
     cryptopay::Cryptopay, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv, forte::Forte,
     globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, helcim::Helcim,
-    iatapay::Iatapay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay,
+    iatapay::Iatapay, klarna::Klarna, kount::Kount, mollie::Mollie, multisafepay::Multisafepay,
     nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
     payeezy::Payeezy, payme::Payme, paypal::Paypal, payu::Payu, placetopay::Placetopay,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, riskified::Riskified,

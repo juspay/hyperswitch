@@ -90,6 +90,7 @@ pub struct FrmConfigsObject {
     pub frm_enabled_gateway: Option<api_models::enums::Connector>,
     pub frm_action: api_enums::FrmAction,
     pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+    pub invoke_sdk_for_frm: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]

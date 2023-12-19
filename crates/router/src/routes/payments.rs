@@ -1433,6 +1433,7 @@ pub async fn payments_ddc(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Avoid,
+                None,
                 HeaderPayload::default(),
             )
         },
@@ -1480,6 +1481,7 @@ pub async fn payments_complete_ddc(
                 },
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                None,
                 HeaderPayload::default(),
             )
         },

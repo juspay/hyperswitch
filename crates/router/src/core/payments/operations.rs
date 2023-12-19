@@ -21,13 +21,9 @@ use router_env::{instrument, tracing};
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_create::PaymentCreate,
-    payment_method_validate::PaymentMethodValidate, payment_reject::PaymentReject,
-    payment_reject::PaymentReject, payment_response::PaymentResponse,
+    payment_create::PaymentCreate, payment_reject::PaymentReject,
     payment_response::PaymentResponse, payment_session::PaymentSession,
-    payment_session::PaymentSession, payment_start::PaymentStart, payment_start::PaymentStart,
-    payment_status::PaymentStatus, payment_status::PaymentStatus, payment_update::PaymentUpdate,
-    payment_update::PaymentUpdate, payments_device_data_collection::PaymentDeviceDataCollection,
+    payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_device_data_collection::PaymentDeviceDataCollection,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
 };

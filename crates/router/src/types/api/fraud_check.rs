@@ -87,6 +87,7 @@ impl FraudCheckConnectorData {
         match connector_name {
             enums::FrmConnectors::Signifyd => Ok(Box::new(&connector::Signifyd)),
             enums::FrmConnectors::Riskified => Ok(Box::new(&connector::Riskified)),
+            enums::FrmConnectors::Kount => Ok(Box::new(&connector::Kount)),
         }
     }
 }
