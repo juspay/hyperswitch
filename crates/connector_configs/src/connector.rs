@@ -170,8 +170,8 @@ impl ConnectorConfig {
 
         #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
         return Err(String::from(
-             "Atleast one features has to be enabled for connectorconfig",
-         ));
+            "Atleast one features has to be enabled for connectorconfig",
+        ));
 
         #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
         match config {
