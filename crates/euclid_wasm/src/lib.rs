@@ -11,13 +11,12 @@ use api_models::{
     surcharge_decision_configs::SurchargeDecisionConfigs, enums as api_model_enums
 };
 use common_enums::RoutableConnectors;
-use currency_conversion::{
-    conversion::convert as convert_currency, types as currency_conversion_types,
-};
-
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
     connector,
+};
+use currency_conversion::{
+    conversion::convert as convert_currency, types as currency_conversion_types,
 };
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
