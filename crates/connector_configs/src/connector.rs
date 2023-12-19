@@ -13,10 +13,13 @@ use toml;
 use crate::common_config::{GooglePayData, ZenApplePay};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CurrentAuthKeyType {
+pub struct CurrencyAuthKeyType {
     pub password_classic: Option<String>,
     pub username_classic: Option<String>,
     pub merchant_id_classic: Option<String>,
+    pub password_evoucher: Option<String>,
+    pub username_evoucher: Option<String>,
+    pub merchant_id_evoucher: Option<String>,
 }
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 // ConnectorAuthType is currently in OSS crates/router/src/types.rs which need to be moved to crates/api_models/src/enums.rs
@@ -40,7 +43,7 @@ pub enum ConnectorAuthType {
         key2: String,
     },
     CurrencyAuthKey {
-        auth_key_map: HashMap<String, CurrentAuthKeyType>,
+        auth_key_map: HashMap<String, CurrencyAuthKeyType>,
     },
     #[default]
     NoKey,
@@ -126,9 +129,11 @@ pub struct ConnectorConfig {
     pub payme: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
+    pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
     pub prophetpay: Option<ConnectorTomlConfig>,
+    pub riskified: Option<ConnectorTomlConfig>,
     pub rapyd: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
@@ -226,11 +231,11 @@ impl ConnectorConfig {
             Connector::Payme => Ok(connector_data.payme),
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Payu => Ok(connector_data.payu),
-            Connector::Placetopay => Ok(connector_data.dummy_connector),
+            Connector::Placetopay => Ok(connector_data.placetopay),
             Connector::Plaid => Ok(connector_data.plaid),
             Connector::Powertranz => Ok(connector_data.powertranz),
             Connector::Rapyd => Ok(connector_data.rapyd),
-            Connector::Riskified => Ok(connector_data.dummy_connector),
+            Connector::Riskified => Ok(connector_data.riskified),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),
             Connector::Square => Ok(connector_data.square),

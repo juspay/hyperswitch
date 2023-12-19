@@ -21,7 +21,7 @@ impl DashboardRequestPayload {
         payment_methods::RequestPaymentMethodTypes {
             payment_method_type,
             card_networks: Some(card_provider),
-            minimum_amount: Some(1),
+            minimum_amount: Some(0),
             maximum_amount: Some(68607706),
             recurring_enabled: true,
             installment_payment_enabled: false,
@@ -71,7 +71,7 @@ impl DashboardRequestPayload {
             let data = payment_methods::RequestPaymentMethodTypes {
                 payment_method_type: method_type,
                 card_networks: None,
-                minimum_amount: Some(1),
+                minimum_amount: Some(0),
                 maximum_amount: Some(68607706),
                 recurring_enabled: true,
                 installment_payment_enabled: false,
@@ -110,7 +110,7 @@ impl DashboardRequestPayload {
                                     let data = payment_methods::RequestPaymentMethodTypes {
                                         payment_method_type: payment_type,
                                         card_networks: Some(vec![method]),
-                                        minimum_amount: Some(1),
+                                        minimum_amount: Some(0),
                                         maximum_amount: Some(68607706),
                                         recurring_enabled: true,
                                         installment_payment_enabled: false,
@@ -217,6 +217,7 @@ impl DashboardRequestPayload {
             Connector::Nuvei => String::from("nuveidigital"),
             Connector::Authorizedotnet => String::from("authorizenet"),
             Connector::Globalpay => String::from("globalpayments"),
+            Connector::Bankofamerica | Connector::Cybersource => String::from("cybersource"),
             _ => connector.to_string(),
         }
     }

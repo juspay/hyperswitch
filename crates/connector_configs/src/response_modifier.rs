@@ -189,6 +189,12 @@ impl ConnectorApiIntegrationPayload {
             card_provider: None,
         };
 
+        let card_redirect = DashboardPaymentMethodPayload {
+            payment_method: api_models::enums::PaymentMethod::CardRedirect,
+            payment_method_type: api_models::enums::PaymentMethod::CardRedirect.to_string(),
+            provider: Some(card_redirect_details),
+            card_provider: None,
+        };
         let pay_later = DashboardPaymentMethodPayload {
             payment_method: api_models::enums::PaymentMethod::PayLater,
             payment_method_type: api_models::enums::PaymentMethod::PayLater.to_string(),
@@ -261,6 +267,7 @@ impl ConnectorApiIntegrationPayload {
                 bank_debit,
                 bank_transfer,
                 crypto,
+                card_redirect,
                 pay_later,
                 debit_details,
                 credit_details,
