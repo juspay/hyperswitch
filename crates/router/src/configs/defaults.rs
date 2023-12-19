@@ -4528,6 +4528,41 @@ impl Default for super::settings::RequiredFields {
                                         common: HashMap::new(),
                                     }
                                 ),
+                                (
+                                    enums::Connector::Mollie,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate:HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Paypal,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.eps.billing_details.billing_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.eps.billing_details.billing_name".to_string(),
+                                                    display_name: "billing_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.bank_redirect.eps.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.eps.country".to_string(),
+                                                    display_name: "bank_account_country".to_string(),
+                                                    field_type: enums::FieldType::UserCountryCode,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
 
                                 ]),
                         },
