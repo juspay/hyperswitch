@@ -662,8 +662,7 @@ diesel::table! {
         customer_id -> Nullable<Varchar>,
         #[max_length = 255]
         description -> Nullable<Varchar>,
-        #[max_length = 255]
-        return_url -> Nullable<Varchar>,
+        return_url -> Nullable<Text>,
         metadata -> Nullable<Jsonb>,
         #[max_length = 64]
         connector_id -> Nullable<Varchar>,
