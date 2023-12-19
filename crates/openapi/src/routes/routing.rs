@@ -26,7 +26,7 @@ pub async fn routing_create_config() {}
     post,
     path = "/routing/{algorithm_id}/activate",
     params(
-        ("algorithm_id" = String, Path, description = "The unique identifier for an algorithm"),
+        ("algorithm_id" = String, Path, description = "The unique identifier for a config"),
     ),
     responses(
         (status = 200, description = "Routing config activated", body = RoutingDictionaryRecord),
@@ -48,16 +48,16 @@ pub async fn routing_link_config() {}
     get,
     path = "/routing/{algorithm_id}",
     params(
-        ("algorithm_id" = String, Path, description = "The unique identifier for an algorithm"),
+        ("algorithm_id" = String, Path, description = "The unique identifier for a config"),
     ),
     responses(
-        (status = 200, description = "Successfully fetched routing algorithm", body = MerchantRoutingAlgorithm),
+        (status = 200, description = "Successfully fetched routing config", body = MerchantRoutingAlgorithm),
         (status = 500, description = "Internal server error"),
         (status = 404, description = "Resource missing"),
         (status = 403, description = "Forbidden")
     ),
    tag = "Routing",
-   operation_id = "Retrieve a routing algorithm",
+   operation_id = "Retrieve a routing config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_retrieve_config() {}
@@ -172,7 +172,7 @@ pub async fn routing_retrieve_linked_config() {}
         (status = 404, description = "Resource missing")
     ),
    tag = "Routing",
-   operation_id = "Retrieve default config for profiles",
+   operation_id = "Retrieve default configs for all profiles",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_retrieve_default_config_for_profiles() {}
@@ -196,7 +196,7 @@ pub async fn routing_retrieve_default_config_for_profiles() {}
         (status = 403, description = "Forbidden"),
     ),
    tag = "Routing",
-   operation_id = "Update default config for profile",
+   operation_id = "Update default configs for all profiles",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_update_default_config_for_profile() {}
