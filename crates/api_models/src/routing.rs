@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::errors::ParsingError;
 use error_stack::IntoReport;
-use euclid::{
+pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
         ast,

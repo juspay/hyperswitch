@@ -10,6 +10,7 @@ pub mod merchant_connector_account;
 pub mod payment_method;
 pub mod payments;
 pub mod refunds;
+pub mod routing;
 
 pub use customers::*;
 pub use mandates::*;

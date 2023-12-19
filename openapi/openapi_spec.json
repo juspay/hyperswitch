@@ -10186,7 +10186,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -11830,7 +11830,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -12627,6 +12627,38 @@
           "accommodation"
         ]
       },
+      "ProfileDefaultRoutingConfig": {
+        "type": "object",
+        "required": ["profile_id", "connectors"],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
+          }
+        }
+      },
+      "ProgramConnectorSelection": {
+        "type": "object",
+        "description": "The program, having a default connector selection and\na bunch of rules. Also can hold arbitrary metadata.",
+        "required": ["defaultSelection", "rules", "metadata"],
+        "properties": {
+          "defaultSelection": {
+            "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/RuleConnectorSelection"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": ["amount_received"],
@@ -13200,13 +13232,6 @@
       "RoutableConnectors": {
         "type": "string",
         "enum": [
-          "phonypay",
-          "fauxpay",
-          "pretendpay",
-          "stripe_test",
-          "adyen_test",
-          "checkout_test",
-          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -13241,9 +13266,11 @@
           "payme",
           "paypal",
           "payu",
+          "placetopay",
           "powertranz",
           "prophetpay",
           "rapyd",
+          "riskified",
           "shift4",
           "signifyd",
           "square",
