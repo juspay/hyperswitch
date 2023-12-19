@@ -74,12 +74,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             })?
         }
 
-        if request.amount < payment_intent.amount {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Amount should be greater than original authorized amount".to_owned(),
-            })?
-        }
-
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -91,8 +85,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        if request.amount < payment_attempt.amount.get_authorize_amount() {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Amount should be greater than original authorized amount".to_owned(),
+            })?
+        }
+
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.get_total_amount();
+        let previously_amount = payment_attempt.amount.get_authorize_amount();
 
         let profile_id = payment_intent
             .profile_id
@@ -114,7 +114,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_intent,
             payment_attempt,
             currency,
-            amount: amount.into(),
+            amount: previously_amount.into(),
             email: None,
             mandate_id: None,
             mandate_connector: None,
@@ -143,7 +143,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: Some(IncrementalAuthorizationDetails {
-                additional_amount: request.amount - amount,
+                additional_amount: request.amount - previously_amount,
                 total_amount: request.amount,
                 reason: request.reason.clone(),
                 authorization_id: None,
@@ -213,7 +213,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             error_code: None,
             error_message: None,
             connector_authorization_id: None,
-            previously_authorized_amount: payment_data.payment_intent.amount,
+            previously_authorized_amount: payment_data
+                .payment_attempt
+                .amount
+                .get_authorize_amount(),
         };
         let authorization = db
             .store

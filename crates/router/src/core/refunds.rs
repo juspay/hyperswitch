@@ -167,7 +167,7 @@ pub async fn trigger_refund_to_gateway(
         &routed_through,
         merchant_account,
         key_store,
-        (payment_attempt.amount, currency),
+        (payment_attempt.amount.get_authorize_amount(), currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -436,7 +436,7 @@ pub async fn sync_refund_with_gateway(
         &connector_id,
         merchant_account,
         key_store,
-        (payment_attempt.amount, currency),
+        (payment_attempt.amount.get_authorize_amount(), currency),
         payment_intent,
         payment_attempt,
         refund,
@@ -612,7 +612,7 @@ pub async fn validate_and_create_refund(
 
     let total_amount_captured = payment_intent
         .amount_captured
-        .unwrap_or(payment_attempt.amount);
+        .unwrap_or(payment_attempt.amount.get_authorize_amount());
 
     validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
@@ -639,7 +639,7 @@ pub async fn validate_and_create_refund(
         .set_connector_transaction_id(connecter_transaction_id.to_string())
         .set_connector(connector)
         .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
-        .set_total_amount(payment_attempt.amount)
+        .set_total_amount(payment_attempt.amount.get_authorize_amount())
         .set_refund_amount(refund_amount)
         .set_currency(currency)
         .set_created_at(Some(common_utils::date_time::now()))

@@ -146,11 +146,6 @@ impl PaymentAttemptNew {
         self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
 
-    pub fn get_or_calculate_net_amount(&self) -> i64 {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
     pub fn populate_derived_fields(self) -> Self {
         let mut payment_attempt_new = self;
         payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());

@@ -3,7 +3,8 @@ use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
     payments::payment_attempt::{
-        PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
+        GetAttemptAmount, PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew,
+        PaymentAttemptUpdate,
     },
 };
 use diesel_models::enums as storage_enums;
@@ -100,19 +101,16 @@ impl PaymentAttemptInterface for MockDb {
         let payment_attempt = payment_attempt.populate_derived_fields();
         let payment_attempt = PaymentAttempt {
             id,
+            amount: payment_attempt.get_attempt_amount(),
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
-            amount: payment_attempt.amount,
-            net_amount: payment_attempt.net_amount,
             currency: payment_attempt.currency,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_message,
             offer_amount: payment_attempt.offer_amount,
-            surcharge_amount: payment_attempt.surcharge_amount,
-            tax_amount: payment_attempt.tax_amount,
             payment_method_id: payment_attempt.payment_method_id,
             payment_method: payment_attempt.payment_method,
             connector_transaction_id: None,

@@ -74,7 +74,7 @@ impl PaymentIntentInterface for MockDb {
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
             status: new.status,
-            amount: new.amount,
+            original_amount: new.amount,
             currency: new.currency,
             amount_captured: new.amount_captured,
             customer_id: new.customer_id,

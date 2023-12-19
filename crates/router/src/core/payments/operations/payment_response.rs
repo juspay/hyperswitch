@@ -100,6 +100,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                 report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("missing incremental_authorization_details in payment_data")
             })?;
+        let updated_original_amount = payment_data.payment_attempt.amount.get_original_amount()
+            + incremental_authorization_details.additional_amount;
         // Update payment_intent and payment_attempt 'amount' if incremental_authorization is successful
         let (option_payment_attempt_update, option_payment_intent_update) =
             match router_data.response.clone() {
@@ -111,12 +113,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     if status == AuthorizationStatus::Success {
                         (Some(
                         storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                            amount: incremental_authorization_details.total_amount,
+                            amount: updated_original_amount,
                             amount_capturable: incremental_authorization_details.total_amount,
                         },
                     ), Some(
                         storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-                            amount: incremental_authorization_details.total_amount,
+                            amount: updated_original_amount,
                         },
                     ))
                     } else {
@@ -700,7 +702,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 multiple_capture_data.update_capture(updated_capture);
             }
 
-            let authorized_amount = payment_data.payment_attempt.get_total_amount();
+            let authorized_amount = payment_data.payment_attempt.amount.get_authorize_amount();
 
             payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),

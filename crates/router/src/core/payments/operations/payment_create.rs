@@ -189,7 +189,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount,
+                payment_intent.original_amount,
             )?;
         }
 
@@ -297,7 +297,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
-        let amount = payment_attempt.get_total_amount().into();
+        let amount = payment_attempt.amount.get_authorize_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -457,7 +457,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .payment_attempt
             .straight_through_algorithm
             .clone();
-        let authorized_amount = payment_data.payment_attempt.amount;
+        let authorized_amount = payment_data.payment_attempt.amount.get_authorize_amount();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
         let surcharge_amount = payment_data

@@ -37,7 +37,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             payment_id: &intent.payment_id,
             merchant_id: &intent.merchant_id,
             status: intent.status,
-            amount: intent.amount,
+            amount: intent.original_amount,
             currency: intent.currency,
             amount_captured: intent.amount_captured,
             customer_id: intent.customer_id.as_ref(),

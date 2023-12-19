@@ -104,7 +104,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount,
+                payment_intent.original_amount,
             )?;
         }
 
@@ -377,7 +377,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.get_total_amount().into();
+        amount = payment_attempt.amount.get_authorize_amount().into();
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
@@ -705,7 +705,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.payment_attempt.amount);
+            .unwrap_or(payment_data.payment_attempt.amount.get_authorize_amount());
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
         let m_browser_info = browser_info.clone();
@@ -732,7 +732,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
-                        amount: payment_data.payment_attempt.amount,
+                        amount: payment_data.payment_attempt.amount.get_original_amount(),
                         currency: payment_data.currency,
                         status: attempt_status,
                         payment_method,
@@ -780,7 +780,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 m_db.update_payment_intent(
                     m_payment_data_payment_intent,
                     storage::PaymentIntentUpdate::Update {
-                        amount: payment_data.payment_intent.amount,
+                        amount: payment_data.payment_intent.original_amount,
                         currency: payment_data.currency,
                         setup_future_usage,
                         status: intent_status,

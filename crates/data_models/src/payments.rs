@@ -15,7 +15,9 @@ pub struct PaymentIntent {
     pub payment_id: String,
     pub merchant_id: String,
     pub status: storage_enums::IntentStatus,
-    pub amount: i64,
+    /// This amount may not be equal to authorized_amount due to surcharge<br>
+    /// Authorized amount can be fetched from PaymentAttempt
+    pub original_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i64>,
     pub customer_id: Option<String>,

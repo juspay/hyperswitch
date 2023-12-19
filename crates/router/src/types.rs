@@ -642,7 +642,7 @@ impl Capturable for PaymentsSyncData {
         payment_data
             .payment_attempt
             .amount_to_capture
-            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+            .or_else(|| Some(payment_data.payment_attempt.amount.get_authorize_amount()))
     }
 }
 

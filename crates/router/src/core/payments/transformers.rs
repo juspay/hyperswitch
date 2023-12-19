@@ -363,7 +363,7 @@ where
         .as_ref()
         .get_required_value("currency")?;
     let amount = currency
-        .to_currency_base_unit(payment_attempt.amount)
+        .to_currency_base_unit(payment_attempt.amount.get_authorize_amount())
         .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
@@ -439,13 +439,13 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-    let surcharge_details =
-        payment_attempt
-            .surcharge_amount
-            .map(|surcharge_amount| RequestSurchargeDetails {
-                surcharge_amount,
-                tax_amount: payment_attempt.tax_amount,
-            });
+    let surcharge_details = payment_attempt
+        .amount
+        .get_surcharge_amount()
+        .map(|surcharge_amount| RequestSurchargeDetails {
+            surcharge_amount,
+            tax_amount: payment_attempt.amount.get_tax_amount_on_surcharge(),
+        });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
@@ -565,11 +565,11 @@ where
                 });
                 services::ApplicationResponse::JsonWithHeaders((
                     response
-                        .set_net_amount(payment_attempt.net_amount)
+                        .set_net_amount(payment_attempt.amount.get_authorize_amount())
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
-                        .set_amount(payment_attempt.amount)
+                        .set_amount(payment_attempt.amount.get_original_amount())
                         .set_amount_capturable(Some(payment_attempt.amount_capturable))
                         .set_amount_received(payment_intent.amount_captured)
                         .set_surcharge_details(surcharge_details)
@@ -715,11 +715,11 @@ where
         }
         None => services::ApplicationResponse::JsonWithHeaders((
             api::PaymentsResponse {
-                net_amount: payment_attempt.net_amount,
+                net_amount: payment_attempt.amount.get_authorize_amount(),
                 payment_id: Some(payment_attempt.payment_id),
                 merchant_id: Some(payment_attempt.merchant_id),
                 status: payment_intent.status,
-                amount: payment_attempt.amount,
+                amount: payment_attempt.amount.get_original_amount(),
                 amount_capturable: None,
                 amount_received: payment_intent.amount_captured,
                 client_secret: payment_intent.client_secret.map(masking::Secret::new),
@@ -858,7 +858,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_id: Some(pi.payment_id),
             merchant_id: Some(pi.merchant_id),
             status: pi.status,
-            amount: pi.amount,
+            amount: pi.original_amount,
             amount_capturable: pi.amount_captured,
             client_secret: pi.client_secret.map(|s| s.into()),
             created: Some(pi.created_at),

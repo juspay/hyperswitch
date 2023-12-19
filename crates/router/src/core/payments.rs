@@ -497,7 +497,9 @@ where
         .surcharge_applicable
         .unwrap_or(false)
     {
-        if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
+        if let Some(surcharge_details) =
+            payment_data.payment_attempt.get_request_surcharge_details()
+        {
             // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
             let surcharge_details =
                 types::SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt));
@@ -540,16 +542,12 @@ where
 
         payment_data.surcharge_details = calculated_surcharge_details;
     } else {
-        let surcharge_details =
-            payment_data
-                .payment_attempt
-                .get_surcharge_details()
-                .map(|surcharge_details| {
-                    types::SurchargeDetails::from((
-                        &surcharge_details,
-                        &payment_data.payment_attempt,
-                    ))
-                });
+        let surcharge_details = payment_data
+            .payment_attempt
+            .get_request_surcharge_details()
+            .map(|surcharge_details| {
+                types::SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt))
+            });
         payment_data.surcharge_details = surcharge_details;
     }
     Ok(())
@@ -576,13 +574,17 @@ pub async fn call_surcharge_decision_management_for_session_flow<O>(
 where
     O: Send + Clone + Sync,
 {
-    if let Some(surcharge_amount) = payment_data.payment_attempt.surcharge_amount {
-        let tax_on_surcharge_amount = payment_data.payment_attempt.tax_amount.unwrap_or(0);
-        let final_amount =
-            payment_data.payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+    if let Some(surcharge_amount) = payment_data.payment_attempt.amount.get_surcharge_amount() {
+        let tax_on_surcharge_amount = payment_data
+            .payment_attempt
+            .amount
+            .get_tax_amount_on_surcharge()
+            .unwrap_or(0);
+        let original_amount = payment_data.payment_attempt.amount.get_original_amount();
+        let final_amount = original_amount + surcharge_amount + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
-                original_amount: payment_data.payment_attempt.amount,
+                original_amount,
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,

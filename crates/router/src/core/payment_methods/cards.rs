@@ -1040,7 +1040,7 @@ pub async fn list_payment_methods(
         .transpose()?;
 
     let payment_type = payment_attempt.as_ref().map(|pa| {
-        let amount = api::Amount::from(pa.amount);
+        let amount = api::Amount::from(pa.amount.get_authorize_amount());
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         } else if pa.mandate_details.is_some() {
@@ -1752,7 +1752,7 @@ pub async fn call_surcharge_decision_management(
     billing_address: Option<domain::Address>,
     response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
-    if payment_attempt.surcharge_amount.is_some() {
+    if payment_attempt.amount.get_surcharge_amount().is_some() {
         Ok(api_surcharge_decision_configs::MerchantSurchargeConfigs::default())
     } else {
         let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
@@ -1804,7 +1804,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> errors::RouterResult<()> {
-    if payment_attempt.surcharge_amount.is_some() {
+    if payment_attempt.amount.get_surcharge_amount().is_some() {
         Ok(())
     } else {
         let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
@@ -2295,10 +2295,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount;
+    let amount = payment_intent.original_amount;
     (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
         && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount == 0
+        || payment_intent.original_amount == 0
 }
 
 async fn filter_payment_mandate_based(
