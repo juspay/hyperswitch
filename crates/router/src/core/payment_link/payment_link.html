@@ -1090,6 +1090,31 @@
       boot();
 
       function initializeEventListeners() {
+        var primaryColor = window
+          .getComputedStyle(document.documentElement)
+          .getPropertyValue("--primary-color");
+        var hyperCheckoutNode = document.getElementById(
+          "hyper-checkout-payment"
+        );
+        var hyperCheckoutFooterNode = document.getElementById(
+          "hyper-checkout-payment-footer"
+        );
+        var statusRedirectTextNode = document.getElementById(
+          "hyper-checkout-status-redirect-message"
+        );
+
+        if (window.innerWidth <= 1200) {
+          var lighterColor = adjustLightness(primaryColor, 1.2);
+          var contrastColor = getContrastColor(primaryColor);
+          hyperCheckoutNode.style.color = contrastColor;
+          hyperCheckoutFooterNode.style.backgroundColor = lighterColor;
+          statusRedirectTextNode.style.color = contrastColor;
+        } else if (window.innerWidth > 1200) {
+          hyperCheckoutNode.style.color = "#333333";
+          hyperCheckoutFooterNode.style.backgroundColor = "#F5F5F5";
+          statusRedirectTextNode.style.color = "#333333";
+        }
+
         window.addEventListener("resize", function (event) {
           var currentHeight = window.innerHeight;
           var currentWidth = window.innerWidth;
@@ -1099,17 +1124,11 @@
               show("#hyper-footer");
             }
             try {
-              var primaryColor = window
-                .getComputedStyle(document.documentElement)
-                .getPropertyValue("--primary-color");
-              var darkerColor = adjustLightness(primaryColor, 0.8);
               var lighterColor = adjustLightness(primaryColor, 1.2);
               var contrastColor = getContrastColor(primaryColor);
-              document.getElementById("hyper-checkout-payment").style.color =
-                contrastColor;
-              document.getElementById(
-                "hyper-checkout-payment-footer"
-              ).style.backgroundColor = lighterColor;
+              hyperCheckoutNode.style.color = getContrastColor(primaryColor);
+              hyperCheckoutFooterNode.style.backgroundColor = lighterColor;
+              statusRedirectTextNode.style.color = "#333333";
             } catch (error) {
               console.error(
                 "Failed to fetch primary-color, using default",
@@ -1122,14 +1141,10 @@
             }
             show("#hyper-checkout-cart");
             try {
-              var primaryColor = window
-                .getComputedStyle(document.documentElement)
-                .getPropertyValue("--primary-color");
-              document.getElementById("hyper-checkout-payment").style.color =
-                "black";
-              document.getElementById(
-                "hyper-checkout-payment-footer"
-              ).style.backgroundColor = "#F5F5F5";
+              var contrastColor = getContrastColor(primaryColor);
+              hyperCheckoutNode.style.color = contrastColor;
+              hyperCheckoutFooterNode.style.backgroundColor = "#F5F5F5";
+              statusRedirectTextNode.style.color = contrastColor;
             } catch (error) {
               console.error("Failed to revert back to default colors", error);
             }
