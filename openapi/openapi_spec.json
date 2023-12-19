@@ -11095,7 +11095,7 @@
           },
           "email": {
             "type": "string",
-            "description": "TThe customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -11437,7 +11437,7 @@
           },
           "email": {
             "type": "string",
-            "description": "TThe customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -11803,7 +11803,7 @@
           },
           "email": {
             "type": "string",
-            "description": "TThe customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
@@ -12766,7 +12766,7 @@
           },
           "email": {
             "type": "string",
-            "description": "TThe customer's email address This field will be deprecated soon, use the customer object instead",
+            "description": "The customer's email address This field will be deprecated soon, use the customer object instead",
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
