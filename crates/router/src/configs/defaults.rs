@@ -4510,7 +4510,25 @@ impl Default for super::settings::RequiredFields {
                                         common: HashMap::new(),
                                     }
                                 ),
-                                
+                                (
+                                    enums::Connector::Globalpay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "billing.address.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserCountryCode,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+
                                 ]),
                         },
                     ),
