@@ -1094,7 +1094,8 @@
         var primaryColor = window
           .getComputedStyle(document.documentElement)
           .getPropertyValue("--primary-color");
-        var lighterColor = adjustLightness(primaryColor, 1.2);
+        var lighterColor = adjustLightness(primaryColor, 1.4);
+        var darkerColor = adjustLightness(primaryColor, 0.8);
         var contrastBWColor = invert(primaryColor, true);
         var hyperCheckoutNode = document.getElementById(
           "hyper-checkout-payment"
@@ -1109,7 +1110,9 @@
         if (window.innerWidth <= 1200) {
           statusRedirectTextNode.style.color = "#333333";
           hyperCheckoutNode.style.color = contrastBWColor;
-          hyperCheckoutFooterNode.style.backgroundColor = lighterColor;
+          var a = lighterColor.match(/[fF]/gi);
+          hyperCheckoutFooterNode.style.backgroundColor =
+            Array.isArray(a) && a.length > 4 ? darkerColor : lighterColor;
         } else if (window.innerWidth > 1200) {
           statusRedirectTextNode.style.color = contrastBWColor;
           hyperCheckoutNode.style.color = "#333333";
@@ -1125,9 +1128,9 @@
               show("#hyper-footer");
             }
             try {
+              statusRedirectTextNode.style.color = "#333333";
               hyperCheckoutNode.style.color = contrastBWColor;
               hyperCheckoutFooterNode.style.backgroundColor = lighterColor;
-              statusRedirectTextNode.style.color = "#333333";
             } catch (error) {
               console.error(
                 "Failed to fetch primary-color, using default",
@@ -2029,12 +2032,10 @@
       }
       function invertToBW(color, bw, asArr) {
         var DEFAULT_BW = {
-          black: "#000000",
-          white: "#ffffff",
-          threshold: DEFAULT_THRESHOLD,
+          black: "#090302",
+          white: "#FFFFFC",
+          threshold: Math.sqrt(1.05 * 0.05) - 0.05,
         };
-        var DEFAULT_THRESHOLD = Math.sqrt(1.05 * 0.05) - 0.05;
-
         var options =
           bw === true ? DEFAULT_BW : Object.assign({}, DEFAULT_BW, bw);
         return getLuminance(color) > options.threshold
