@@ -169,7 +169,9 @@ impl ConnectorConfig {
         let config = toml::from_str::<Self>(include_str!("../toml/development.toml"));
 
         #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
-        compile_error!("Atleast one features has to be enabled for connectorconfig");
+        return Err(String::from(
+             "Atleast one features has to be enabled for connectorconfig",
+         ));
 
         #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
         match config {
