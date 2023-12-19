@@ -188,6 +188,8 @@ pub enum RoutableChoiceSerde {
     serde(into = "RoutableChoiceSerde")
 )]
 #[cfg_attr(not(feature = "connector_choice_bcompat"), derive(PartialEq, Eq))]
+
+/// Routable Connecter chosen for payments
 pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
     #[serde(skip)]
@@ -348,6 +350,7 @@ pub struct RoutingPayloadWrapper {
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
+/// Routing Algorithm kind
 pub enum RoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),

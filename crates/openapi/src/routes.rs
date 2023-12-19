@@ -19,3 +19,4 @@ pub use merchant_connector_account::*;
 pub use payment_method::*;
 pub use payments::*;
 pub use refunds::*;
+pub use routing::*;
