@@ -506,69 +506,72 @@ pub async fn switch_merchant_id(
     request: user_api::SwitchMerchantIdRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::SwitchMerchantResponse> {
-    if !utils::user_role::is_internal_role(&user_from_token.role_id) {
-        let merchant_list =
-            utils::user_role::get_merchant_ids_for_user(state.clone(), &user_from_token.user_id)
-                .await?;
-        if !merchant_list.contains(&request.merchant_id) {
-            return Err(UserErrors::InvalidRoleOperation.into())
-                .attach_printable("User doesn't have access to switch");
-        }
-    }
-
     if user_from_token.merchant_id == request.merchant_id {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("User switch to same merchant id.");
     }
 
-    let user = state
+    let user_roles = state
         .store
-        .find_user_by_id(&user_from_token.user_id)
+        .list_user_roles_by_user_id(&user_from_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            request.merchant_id.as_str(),
-            &state.store.get_master_key().to_vec().into(),
+    let active_user_roles = user_roles
+        .into_iter()
+        .filter(|role| role.status == UserStatus::Active)
+        .collect::<Vec<_>>();
+
+    let user = user_from_token.get_user(state.clone()).await?.into();
+
+    let (token, role_id) = if utils::user_role::is_internal_role(&user_from_token.role_id) {
+        let key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                request.merchant_id.as_str(),
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(UserErrors::MerchantIdNotFound)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+
+        let org_id = state
+            .store
+            .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(UserErrors::MerchantIdNotFound)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?
+            .organization_id;
+
+        let token = utils::user::generate_jwt_auth_token_with_custom_role_attributes(
+            state,
+            &user,
+            request.merchant_id.clone(),
+            org_id,
+            user_from_token.role_id.clone(),
         )
-        .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::MerchantIdNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
+        .await?;
+        (token, user_from_token.role_id)
+    } else {
+        let user_role = active_user_roles
+            .iter()
+            .find(|role| role.merchant_id == request.merchant_id)
+            .ok_or(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("User doesn't have access to switch")?;
 
-    let _org_id = state
-        .store
-        .find_merchant_account_by_merchant_id(request.merchant_id.as_str(), &key_store)
-        .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::MerchantIdNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?
-        .organization_id;
-
-    let user = domain::UserFromStorage::from(user);
-    let user_role = state
-        .store
-        .find_user_role_by_user_id(user.get_user_id())
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let token = utils::user::generate_jwt_auth_token_with_custom_merchant_id(
-        state,
-        &user,
-        &user_role,
-        request.merchant_id.clone(),
-    )
-    .await?;
+        let token = utils::user::generate_jwt_auth_token(state, &user, user_role).await?;
+        (token, user_role.role_id.clone())
+    };
 
     Ok(ApplicationResponse::Json(
         user_api::SwitchMerchantResponse {
@@ -577,8 +580,8 @@ pub async fn switch_merchant_id(
             email: user.get_email(),
             user_id: user.get_user_id().to_string(),
             verification_days_left: None,
-            user_role: user_role.role_id,
-            merchant_id: user_role.merchant_id,
+            user_role: role_id,
+            merchant_id: request.merchant_id,
         },
     ))
 }
@@ -620,7 +623,7 @@ pub async fn list_merchant_ids_for_user(
     user: auth::UserFromToken,
 ) -> UserResponse<Vec<String>> {
     Ok(ApplicationResponse::Json(
-        utils::user::get_merchant_ids_for_user(state, &user.user_id).await?,
+        utils::user_role::get_merchant_ids_for_user(state, &user.user_id).await?,
     ))
 }
 
