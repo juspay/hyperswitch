@@ -390,6 +390,9 @@ pub async fn update_business_profile_cascade(
     merchant_account_update: api::MerchantAccountUpdate,
     merchant_id: String,
 ) -> RouterResult<()> {
+    if let Some(intent_fulfillment_time) = &merchant_account_update.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+    }
     if merchant_account_update.return_url.is_some()
         || merchant_account_update.webhook_details.is_some()
         || merchant_account_update

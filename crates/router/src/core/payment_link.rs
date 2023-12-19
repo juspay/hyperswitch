@@ -206,13 +206,15 @@ pub async fn list_payment_link(
     Ok(services::ApplicationResponse::Json(payment_link_list))
 }
 
-pub fn check_payment_link_status(max_age: Option<PrimitiveDateTime>) -> String {
+pub fn check_payment_link_status(
+    max_age: Option<PrimitiveDateTime>,
+) -> api_models::payments::PaymentLinkStatus {
     let curr_time = Some(common_utils::date_time::now());
 
     if curr_time > max_age {
-        "expired".to_string()
+        api_models::payments::PaymentLinkStatus::Expired
     } else {
-        "active".to_string()
+        api_models::payments::PaymentLinkStatus::Active
     }
 }
 

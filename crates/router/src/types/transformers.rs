@@ -943,10 +943,18 @@ impl
     }
 }
 
-impl ForeignFrom<(storage::PaymentLink, String)>
-    for api_models::payments::RetrievePaymentLinkResponse
+impl
+    ForeignFrom<(
+        storage::PaymentLink,
+        api_models::payments::PaymentLinkStatus,
+    )> for api_models::payments::RetrievePaymentLinkResponse
 {
-    fn foreign_from((payment_link_config, status): (storage::PaymentLink, String)) -> Self {
+    fn foreign_from(
+        (payment_link_config, status): (
+            storage::PaymentLink,
+            api_models::payments::PaymentLinkStatus,
+        ),
+    ) -> Self {
         Self {
             payment_link_id: payment_link_config.payment_link_id,
             merchant_id: payment_link_config.merchant_id,

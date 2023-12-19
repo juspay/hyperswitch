@@ -584,6 +584,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let expiry = payment_data.payment_intent.expiry;
 
         payment_data.payment_intent = state
             .store
@@ -607,7 +608,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
-                    expiry: payment_data.payment_intent.expiry,
+                    expiry,
                 },
                 storage_scheme,
             )

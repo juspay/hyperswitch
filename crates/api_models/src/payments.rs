@@ -3342,7 +3342,7 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
-    pub status: String,
+    pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
 }
@@ -3444,4 +3444,10 @@ pub struct OrderDetailsWithStringAmount {
     pub amount: String,
     /// Product Image link
     pub product_img_link: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum PaymentLinkStatus {
+    Active,
+    Expired,
 }

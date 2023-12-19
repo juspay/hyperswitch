@@ -2382,7 +2382,6 @@ pub fn authenticate_client_secret(
             if req_cs != pi_cs {
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
-                //This is done to check whether the merchant_account's intent fulfillment time has expired or not
                 let current_timestamp = common_utils::date_time::now();
 
                 let expiry = payment_intent.expiry.unwrap_or(
@@ -2390,8 +2389,6 @@ pub fn authenticate_client_secret(
                         .created_at
                         .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
                 );
-
-                // Rest of your code using `expiry` goes here
 
                 fp_utils::when(current_timestamp > expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
