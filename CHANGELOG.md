@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.84.0+hotfix.5 (2023-12-20)
+
+### Features
+
+- Feat(connector): [BOA] Add GPAY, ApplePay and other fixes ([#3174](https://github.com/juspay/hyperswitch/pull/3174)) ([`ceae91e`](https://github.com/juspay/hyperswitch/commit/ceae91e8a1c39c1ccecd13384165aabc7ad93172))
+
+**Full Changelog:** [`v1.84.0+hotfix.4...v1.84.0+hotfix.5`](https://github.com/juspay/hyperswitch/compare/v1.84.0+hotfix.4...v1.84.0+hotfix.5)
+
+- - -
+
 ## 1.84.0+hotfix.4 (2023-12-17)
 
 ### Features
