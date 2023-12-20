@@ -623,6 +623,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                 }),
+                status: enums::AttemptStatus::Failure,
                 ..item.data
             }),
         }
