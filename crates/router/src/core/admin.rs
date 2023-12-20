@@ -51,10 +51,6 @@ pub async fn create_merchant_account(
     state: AppState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    if let Some(intent_fulfillment_time) = &req.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
-    }
-
     let db = state.store.as_ref();
     let master_key = db.get_master_key();
 
@@ -192,8 +188,8 @@ pub async fn create_merchant_account(
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
+            intent_fulfillment_time: None,
             frm_routing_algorithm: req.frm_routing_algorithm,
-            intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id,
@@ -390,9 +386,6 @@ pub async fn update_business_profile_cascade(
     merchant_account_update: api::MerchantAccountUpdate,
     merchant_id: String,
 ) -> RouterResult<()> {
-    if let Some(intent_fulfillment_time) = &merchant_account_update.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
-    }
     if merchant_account_update.return_url.is_some()
         || merchant_account_update.webhook_details.is_some()
         || merchant_account_update
@@ -578,7 +571,7 @@ pub async fn merchant_account_update(
         publishable_key: None,
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
-        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        intent_fulfillment_time: None,
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
         payment_link_config: None,

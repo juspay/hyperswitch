@@ -50,3 +50,6 @@ pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/to
 
 /// Variable which store the card token for Prophetpay
 pub const PROPHETPAY_TOKEN: &str = "cctoken";
+
+///Payment intent fulfillment default timeout (in seconds)
+pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
