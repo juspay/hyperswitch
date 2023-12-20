@@ -1027,7 +1027,7 @@ pub struct BankOfAmericaStandardErrorResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankOfAmerica5XXErrorResponse {
+pub struct BankOfAmericaServerErrorResponse {
     pub status: Option<String>,
     pub message: Option<String>,
     pub reason: Option<Reason>,
