@@ -626,6 +626,7 @@ impl<F>
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
+                status: enums::AttemptStatus::Failure,
                 ..item.data
             }),
         }
@@ -1022,6 +1023,22 @@ pub struct BankOfAmericaStandardErrorResponse {
     pub message: Option<String>,
     pub reason: Option<String>,
     pub details: Option<Vec<Details>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaServerErrorResponse {
+    pub status: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<Reason>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Reason {
+    SystemError,
+    ServerTimeout,
+    ServiceTimeout,
 }
 
 #[derive(Debug, Deserialize)]
