@@ -159,7 +159,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 flow: PhantomData,
                 payment_intent,
                 payment_attempt,
-                /// currency and amount are irrelevant in this scenario
+                // currency and amount are irrelevant in this scenario
                 currency: storage_enums::Currency::default(),
                 amount: api::Amount::Zero,
                 email: None,
