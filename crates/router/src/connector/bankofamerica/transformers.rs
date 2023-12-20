@@ -1017,6 +1017,22 @@ pub struct BankOfAmericaStandardErrorResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmerica5XXErrorResponse {
+    pub status: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<Reason>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Reason {
+    SystemError,
+    ServerTimeout,
+    ServiceTimeout,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct BankOfAmericaAuthenticationErrorResponse {
     pub response: AuthenticationErrorInformation,
 }
