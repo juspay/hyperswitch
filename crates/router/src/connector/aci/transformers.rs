@@ -178,7 +178,11 @@ impl
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Ideal,
                     bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
-                    bank_account_bank_name: bank_name.to_owned(),
+                    bank_account_bank_name: Some(bank_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "ideal.bank_name",
+                        },
+                    )?),
                     bank_account_bic: None,
                     bank_account_iban: None,
                     billing_country: None,

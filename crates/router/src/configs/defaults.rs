@@ -4382,7 +4382,7 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
-                                        common:HashMap::from([
+                                        common: HashMap::from([
                                             (
                                                 "payment_method_data.bank_redirect.bancontact_card.card_number".to_string(),
                                                 RequiredFieldInfo {
@@ -4445,11 +4445,43 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
-                                    enums::Connector::Stripe,
+                                    enums::Connector::Aci,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
+                                                    display_name: "issuer".to_string(),
+                                                    field_type: enums::FieldType::UserBank,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(
+                                            
+                                        ),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
+                                                    display_name: "issuer".to_string(),
+                                                    field_type: enums::FieldType::UserBank,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(
+                                            
+                                        ),
                                     }
                                 ),
                             ]),
