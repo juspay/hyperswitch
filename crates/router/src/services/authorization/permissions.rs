@@ -58,7 +58,7 @@ impl Permission {
             Self::MandateRead => Some("View mandates"),
             Self::MandateWrite => Some("Create and update mandates"),
             Self::CustomerRead => Some("View customers"),
-            Self::CustomerWrite => Some("Create and update customers"),
+            Self::CustomerWrite => Some("Create, update and delete customers"),
             Self::FileRead => Some("View files"),
             Self::FileWrite => Some("Create, update and delete files"),
             Self::Analytics => Some("Access to analytics module"),
