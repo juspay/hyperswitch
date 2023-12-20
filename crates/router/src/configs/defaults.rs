@@ -4520,7 +4520,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.eps.country".to_string(),
                                                     display_name: "bank_account_country".to_string(),
-                                                    field_type: enums::FieldType::UserCountry{ 
+                                                    field_type: enums::FieldType::UserCountry {
                                                         options: vec![
                                                             "AT".to_string(),
                                                         ]
