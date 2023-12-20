@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HyperSwitch</title>
+    <title>Payments requested by HyperSwitch</title>
     <style>
       {{ css_color_scheme }}
 
@@ -1062,6 +1062,22 @@
 
       // Boot functions
       function boot() {
+        // Update HTML doc
+        var paymentDetails = window.__PAYMENT_DETAILS;
+
+        if (paymentDetails.merchant_name) {
+          document.title =
+            "Payment requested by " + paymentDetails.merchant_name;
+        }
+
+        if (paymentDetails.merchant_logo) {
+          var link = document.createElement("link");
+          link.rel = "icon";
+          link.href = paymentDetails.merchant_logo;
+          link.type = "image/x-icon";
+          document.head.appendChild(link);
+        }
+
         // Render UI
         renderPaymentDetails();
         renderSDKHeader();
