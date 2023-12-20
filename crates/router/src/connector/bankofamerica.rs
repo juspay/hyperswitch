@@ -205,35 +205,48 @@ impl ConnectorCommon for Bankofamerica {
             consts::NO_ERROR_MESSAGE
         };
 
-        let (code, message) = match response.error_information {
-            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-            None => (
-                response
-                    .reason
-                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                        reason.to_string()
-                    }),
-                response
-                    .message
-                    .map_or(error_message.to_string(), |message| message),
-            ),
-        };
-        let connector_reason = match response.details {
-            Some(details) => details
-                .iter()
-                .map(|det| format!("{} : {}", det.field, det.reason))
-                .collect::<Vec<_>>()
-                .join(", "),
-            None => message.clone(),
-        };
+        match response {
+            transformers::BankOfAmericaErrorResponse::StandardError(response) => {
+                let (code, message) = match response.error_information {
+                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+                    None => (
+                        response
+                            .reason
+                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                reason.to_string()
+                            }),
+                        response
+                            .message
+                            .map_or(error_message.to_string(), |message| message),
+                    ),
+                };
+                let connector_reason = match response.details {
+                    Some(details) => details
+                        .iter()
+                        .map(|det| format!("{} : {}", det.field, det.reason))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    None => message.clone(),
+                };
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: Some(connector_reason),
-            attempt_status: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason: Some(connector_reason),
+                    attempt_status: None,
+                })
+            }
+            transformers::BankOfAmericaErrorResponse::AuthenticationError(response) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: response.response.rmsg.clone(),
+                    reason: Some(response.response.rmsg),
+                    attempt_status: None,
+                })
+            }
+        }
     }
 }
 
