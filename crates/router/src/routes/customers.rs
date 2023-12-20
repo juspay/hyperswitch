@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::{api_locking, customers::*},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::customers,
 };
 
@@ -36,7 +36,11 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth, req| create_customer(state, auth.merchant_account, auth.key_store, req),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::CustomerWrite),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -80,7 +84,11 @@ pub async fn customers_retrieve(
         &req,
         payload,
         |state, auth, req| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
-        &*auth,
+        auth::auth_type(
+            &*auth,
+            &auth::JWTAuth(Permission::CustomerRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -110,7 +118,11 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
         &req,
         (),
         |state, auth, _| list_customers(state, auth.merchant_account.merchant_id, auth.key_store),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::CustomerRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -148,7 +160,11 @@ pub async fn customers_update(
         &req,
         json_payload.into_inner(),
         |state, auth, req| update_customer(state, auth.merchant_account, req, auth.key_store),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::CustomerWrite),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -185,7 +201,11 @@ pub async fn customers_delete(
         &req,
         payload,
         |state, auth, req| delete_customer(state, auth.merchant_account, req, auth.key_store),
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::CustomerWrite),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -209,7 +229,11 @@ pub async fn get_customer_mandates(
         |state, auth, req| {
             crate::core::mandate::get_customer_mandates(state, auth.merchant_account, req)
         },
-        &auth::ApiKeyAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MandateRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
