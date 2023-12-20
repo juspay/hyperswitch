@@ -1298,7 +1298,7 @@
                     hide("#hyper-checkout-sdk");
                     hide("#hyper-checkout-details");
                     show("#hyper-checkout-status-canvas");
-                    showStatus(paymentIntent);
+                    showStatus(paymentIntent, paymentDetails.amount);
                   }
                 })
                 .catch(function (error) {
@@ -1366,7 +1366,7 @@
                 case "requires_payment_method":
                   return resolve(res);
               }
-              showStatus(paymentIntent);
+              showStatus(paymentIntent, paymentDetails.amount);
               res.showSdk = false;
               resolve(res);
             })
@@ -1388,7 +1388,7 @@
         addText("#payment-message", msg);
       }
 
-      function showStatus(paymentDetails) {
+      function showStatus(paymentDetails, amount) {
         var status = paymentDetails.status;
         var statusDetails = {
           imageSource: "",
@@ -1481,7 +1481,7 @@
         var amountNode = document.createElement("div");
         amountNode.className = "hyper-checkout-status-amount";
         amountNode.innerText =
-          paymentDetails.currency + " " + paymentDetails.amount;
+          paymentDetails.currency + " " + amount;
         var merchantLogoNode = document.createElement("img");
         merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
         merchantLogoNode.src = window.__PAYMENT_DETAILS.merchant_logo;
