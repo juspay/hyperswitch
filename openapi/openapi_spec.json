@@ -7830,7 +7830,8 @@
         "type": "object",
         "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
         "required": [
-          "condition"
+          "condition",
+          "nested"
         ],
         "properties": {
           "condition": {
@@ -7842,9 +7843,8 @@
           "nested": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/IfStatement"
-            },
-            "nullable": true
+              "type": "object"
+            }
           }
         }
       },
@@ -14712,6 +14712,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "Single",
             "required": [
               "type",
               "data"
@@ -14730,6 +14731,7 @@
           },
           {
             "type": "object",
+            "title": "Priority",
             "required": [
               "type",
               "data"
@@ -14751,6 +14753,7 @@
           },
           {
             "type": "object",
+            "title": "VolumeSplit",
             "required": [
               "type",
               "data"

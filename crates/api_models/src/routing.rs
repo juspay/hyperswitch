@@ -407,8 +407,11 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
+    #[schema(title = "Single")]
     Single(Box<RoutableConnectorChoice>),
+    #[schema(title = "Priority")]
     Priority(Vec<RoutableConnectorChoice>),
+    #[schema(title = "VolumeSplit")]
     VolumeSplit(Vec<ConnectorVolumeSplit>),
 }
 

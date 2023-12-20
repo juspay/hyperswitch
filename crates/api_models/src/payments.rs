@@ -906,25 +906,36 @@ pub enum BankDebitData {
     },
 }
 
-// The order of macro derivation matters here. `openapi_derive_title` produces tokens which
-// are consumed by the `ToSchema` macro
-#[router_derive::openapi_derive_title]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
+    #[schema(title = "Card")]
     Card(Card),
+    #[schema(title = "CardRedirect")]
     CardRedirect(CardRedirectData),
+    #[schema(title = "Wallet")]
     Wallet(WalletData),
+    #[schema(title = "PayLater")]
     PayLater(PayLaterData),
+    #[schema(title = "BankRedirect")]
     BankRedirect(BankRedirectData),
+    #[schema(title = "BankDebit")]
     BankDebit(BankDebitData),
+    #[schema(title = "BankTransfer")]
     BankTransfer(Box<BankTransferData>),
+    #[schema(title = "Crypto")]
     Crypto(CryptoData),
+    #[schema(title = "MandatePayment")]
     MandatePayment,
+    #[schema(title = "Reward")]
     Reward,
+    #[schema(title = "Upi")]
     Upi(UpiData),
+    #[schema(title = "Voucher")]
     Voucher(VoucherData),
+    #[schema(title = "GiftCard")]
     GiftCard(Box<GiftCardData>),
+    #[schema(title = "CardToken")]
     CardToken(CardToken),
 }
 
