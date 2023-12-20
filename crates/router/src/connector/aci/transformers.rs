@@ -256,7 +256,7 @@ impl TryFrom<api_models::payments::Card> for PaymentDetails {
             card_number: card_data.card_number,
             card_holder: card_data
                 .card_holder_name
-                .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                .unwrap_or(Secret::new("".to_string())),
             card_expiry_month: card_data.card_exp_month,
             card_expiry_year: card_data.card_exp_year,
             card_cvv: card_data.card_cvc,
