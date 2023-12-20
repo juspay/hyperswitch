@@ -24,10 +24,7 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{
-            self, enums,
-            payment_attempt::{AttemptStatusExt, PaymentAttemptExt},
-        },
+        storage::{self, enums, payment_attempt::AttemptStatusExt},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse,
     },
