@@ -332,14 +332,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 }
                 None => {
                     let flow_name = core_utils::get_flow_name::<F>()?;
-                    let option_gsm = payments_helpers::get_gsm_record(
-                        state,
-                        Some(err.code.clone()),
-                        Some(err.message.clone()),
-                        connector_name,
-                        flow_name.clone(),
-                    )
-                    .await;
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
                         Some(status) => status,
