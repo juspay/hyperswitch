@@ -4459,9 +4459,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             )
                                         ]),
-                                        common: HashMap::new(
-                                            
-                                        ),
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
@@ -4479,9 +4477,7 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             )
                                         ]),
-                                        common: HashMap::new(
-                                            
-                                        ),
+                                        common: HashMap::new(),
                                     }
                                 ),
                             ]),
