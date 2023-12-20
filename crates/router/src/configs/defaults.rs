@@ -4607,15 +4607,6 @@ impl Default for super::settings::RequiredFields {
                                         non_mandate: HashMap::new(),
                                         common: HashMap::from([
                                             (
-                                                "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "billing_name".to_string(),
-                                                    field_type: enums::FieldType::UserBank,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
                                                 "payment_method_data.bank_redirect.ideal.billing_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.billing_name".to_string(),
