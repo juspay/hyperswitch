@@ -400,7 +400,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .message
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
-            connector_transaction_id: None,
         })
     }
 }
@@ -587,7 +586,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .message
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
-            connector_transaction_id: None,
         })
     }
 }
@@ -707,7 +705,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .message
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
-            connector_transaction_id: None,
         })
     }
 }
