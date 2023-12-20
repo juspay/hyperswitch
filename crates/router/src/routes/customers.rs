@@ -72,11 +72,14 @@ pub async fn customers_retrieve(
     })
     .into_inner();
 
-    let auth =
+    let auth = if auth::is_jwt_auth(req.headers()) {
+        Box::new(auth::JWTAuth(Permission::CustomerRead))
+    } else {
         match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
-        };
+        }
+    };
 
     api::server_wrap(
         flow,
@@ -84,11 +87,7 @@ pub async fn customers_retrieve(
         &req,
         payload,
         |state, auth, req| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
-        auth::auth_type(
-            &*auth,
-            &auth::JWTAuth(Permission::CustomerRead),
-            req.headers(),
-        ),
+        &*auth,
         api_locking::LockAction::NotApplicable,
     )
     .await
