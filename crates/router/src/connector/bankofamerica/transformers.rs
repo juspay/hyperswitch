@@ -626,6 +626,7 @@ impl<F>
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
+                status: enums::AttemptStatus::Failure,
                 ..item.data
             }),
         }
