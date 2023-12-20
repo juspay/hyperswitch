@@ -4475,6 +4475,24 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
+                                    enums::Connector::Adyen,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.eps.bank_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.eps.bank_name".to_string(),
+                                                    display_name: "bank_name".to_string(),
+                                                    field_type: enums::FieldType::UserBank,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
                                     enums::Connector::Stripe,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
