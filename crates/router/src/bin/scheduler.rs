@@ -79,6 +79,7 @@ pub enum PTRunner {
     PaymentsSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
+    ReportingWorkflow,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -102,6 +103,9 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             }
             Some(PTRunner::DeleteTokenizeDataWorkflow) => {
                 Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
+            }
+            Some(PTRunner::ReportingWorkflow) => {
+                Box::new(workflows::report_generation::ReportingWorkflow)
             }
             _ => Err(ProcessTrackerError::UnexpectedFlow)?,
         };
