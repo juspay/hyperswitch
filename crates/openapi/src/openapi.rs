@@ -439,8 +439,7 @@ impl utoipa::Modify for SecurityAddon {
                     "api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
-                        "API keys are the most common method of authentication and can be obtained \
-                        from the HyperSwitch dashboard."
+                        "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
                     ))),
                 ),
                 (

@@ -2591,7 +2591,7 @@
           "Refunds"
         ],
         "summary": "Refunds - Create",
-        "description": "Refunds - Create\n\nCreates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amounth has been refunded",
+        "description": "Refunds - Create\n\nCreates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amount has been refunded",
         "operationId": "Create a Refund",
         "requestBody": {
           "content": {
@@ -9731,6 +9731,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "PaymentsResponse",
             "required": [
               "type",
               "object"
@@ -9749,6 +9750,7 @@
           },
           {
             "type": "object",
+            "title": "RefundResponse",
             "required": [
               "type",
               "object"
@@ -9767,6 +9769,7 @@
           },
           {
             "type": "object",
+            "title": "DisputeResponse",
             "required": [
               "type",
               "object"
@@ -9785,6 +9788,7 @@
           },
           {
             "type": "object",
+            "title": "MandateResponse",
             "required": [
               "type",
               "object"
@@ -15600,7 +15604,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "api-key",
-        "description": "API keys are the most common method of authentication and can be obtained from the HyperSwitch dashboard."
+        "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
       },
       "ephemeral_key": {
         "type": "apiKey",
