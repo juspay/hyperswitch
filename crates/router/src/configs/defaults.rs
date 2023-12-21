@@ -4460,10 +4460,33 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
-                                    enums::Connector::Stripe,
+                                    enums::Connector::Aci,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
+                                        non_mandate: (
+                                            "payment_method_data.bank_redirect.sofort.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.bank_redirect.sofort.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserCountry {
+                                                    options: vec![
+                                                            "ES".to_string() ,
+                                                            "GB".to_string(),
+                                                            "SE".to_string(),
+                                                            "AT".to_string(),
+                                                            "NL".to_string(),
+                                                            "DE".to_string(),
+                                                            "CH".to_string(),
+                                                            "BE".to_string(),
+                                                            "FR".to_string(),
+                                                            "FI".to_string(),
+                                                            "IT".to_string(),
+                                                            "PL".to_string(),
+                                                        ]
+                                                },
+                                                value: None,
+                                            }
+                                        ),
                                         common: HashMap::new(),
                                     }
                                 ),

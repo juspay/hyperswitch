@@ -1262,7 +1262,7 @@ pub enum BankRedirectData {
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        country: Option<api_enums::CountryAlpha2>,
 
         /// The preferred language
         #[schema(example = "en")]

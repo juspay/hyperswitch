@@ -1635,7 +1635,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
                 Box::new(StripeSofort {
                     payment_method_data_type,
-                    country: country.to_owned(),
+                    country: country.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "country",
+                    })?.to_owned(),
                     preferred_language: preferred_language
                         .clone()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
