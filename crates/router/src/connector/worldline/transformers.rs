@@ -383,13 +383,16 @@ fn make_bank_redirect_request(
             {
                 PaymentMethodSpecificData::PaymentProduct816SpecificInput(Box::new(Giropay {
                     bank_account_iban: BankAccountIban {
-                        account_holder_name: billing_details.clone().ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "giropay.billing_details",
-                        })?.billing_name.clone().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
+                        account_holder_name: billing_details
+                            .clone()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "giropay.billing_details",
+                            })?
+                            .billing_name
+                            .clone()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "billing_details.billing_name",
-                            },
-                        )?,
+                            })?,
                         iban: bank_account_iban.clone(),
                     },
                 }))

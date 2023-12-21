@@ -1096,9 +1096,13 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: billing_details.clone().ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "giropay.billing_details",
-                })?.billing_name.clone(),
+                name: billing_details
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "giropay.billing_details",
+                    })?
+                    .billing_name
+                    .clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
@@ -1637,9 +1641,11 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
                 Box::new(StripeSofort {
                     payment_method_data_type,
-                    country: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
-                    })?.to_owned(),
+                    country: country
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "country",
+                        })?
+                        .to_owned(),
                     preferred_language: preferred_language
                         .clone()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
