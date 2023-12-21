@@ -2535,6 +2535,8 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed execution of straight through routing")?;
 
+        logger::debug!(routable_connector_choice=?connectors, "Routing: Initiating Straight through routing (from request) with list of connectors: ");
+
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
@@ -2593,6 +2595,8 @@ where
             routing::perform_straight_through_routing(routing_algorithm, payment_data)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed execution of straight through routing")?;
+
+        logger::debug!(routable_connector_choice=?connectors, "Routing: Initiating Straight through routing (fallback to DB) with list of connectors: ");
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2794,6 +2798,8 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
+    logger::debug!("Routing: Initiating routing via merchant config");
+
     let routing_algorithm = if cfg!(feature = "business_profile_routing") {
         business_profile.routing_algorithm.clone()
     } else {
