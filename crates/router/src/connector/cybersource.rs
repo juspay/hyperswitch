@@ -54,10 +54,17 @@ impl Cybersource {
             api_secret,
         } = auth;
         let is_post_method = matches!(http_method, services::Method::Post);
-        let digest_str = if is_post_method { "digest " } else { "" };
+        let is_patch_method = matches!(http_method, services::Method::Patch);
+        let digest_str = if is_post_method || is_patch_method {
+            "digest "
+        } else {
+            ""
+        };
         let headers = format!("host date (request-target) {digest_str}v-c-merchant-id");
         let request_target = if is_post_method {
             format!("(request-target): post {resource}\ndigest: SHA-256={payload}\n")
+        } else if is_patch_method {
+            format!("(request-target): patch {resource}\ndigest: SHA-256={payload}\n")
         } else {
             format!("(request-target): get {resource}\n")
         };
@@ -102,44 +109,60 @@ impl ConnectorCommon for Cybersource {
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::ErrorResponse = res
+        let response: cybersource::CybersourceErrorResponse = res
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let details = response.details.unwrap_or_default();
-        let connector_reason = details
-            .iter()
-            .map(|det| format!("{} : {}", det.field, det.reason))
-            .collect::<Vec<_>>()
-            .join(", ");
 
         let error_message = if res.status_code == 401 {
             consts::CONNECTOR_UNAUTHORIZED_ERROR
         } else {
             consts::NO_ERROR_MESSAGE
         };
+        match response {
+            transformers::CybersourceErrorResponse::StandardError(response) => {
+                let (code, message) = match response.error_information {
+                    Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+                    None => (
+                        response
+                            .reason
+                            .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                                reason.to_string()
+                            }),
+                        response
+                            .message
+                            .map_or(error_message.to_string(), |message| message),
+                    ),
+                };
+                let connector_reason = match response.details {
+                    Some(details) => details
+                        .iter()
+                        .map(|det| format!("{} : {}", det.field, det.reason))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    None => message.clone(),
+                };
 
-        let (code, message) = match response.error_information {
-            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
-            None => (
-                response
-                    .reason
-                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
-                        reason.to_string()
-                    }),
-                response
-                    .message
-                    .map_or(error_message.to_string(), |message| message),
-            ),
-        };
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: Some(connector_reason),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+                Ok(types::ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason: Some(connector_reason),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            transformers::CybersourceErrorResponse::AuthenticationError(response) => {
+                Ok(types::ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: response.response.rmsg.clone(),
+                    reason: Some(response.response.rmsg),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+        }
     }
 }
 
@@ -411,15 +434,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            true,
-        ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
     fn get_error_response(
         &self,
@@ -489,17 +508,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_auto_capture =
-            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            is_auto_capture,
-        ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
     fn get_error_response(
         &self,
@@ -580,17 +593,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_auto_capture =
-            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            is_auto_capture,
-        ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -662,15 +669,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            false,
-        ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -752,16 +755,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundExecuteRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefundExecuteRouterData, errors::ConnectorError> {
-        let response: cybersource::CybersourcePaymentsResponse = res
+        let response: cybersource::CybersourceRefundResponse = res
             .response
-            .parse_struct("Cybersource PaymentResponse")
+            .parse_struct("Cybersource RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
         &self,
@@ -819,17 +821,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: cybersource::CybersourceTransactionResponse = res
+        let response: cybersource::CybersourceRsyncResponse = res
             .response
-            .parse_struct("Cybersource RefundsSyncResponse")
+            .parse_struct("Cybersource RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
     fn get_error_response(
         &self,
@@ -852,6 +852,10 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Patch
     }
 
     fn get_content_type(&self) -> &'static str {
