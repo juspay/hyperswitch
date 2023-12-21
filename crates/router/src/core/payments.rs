@@ -2106,6 +2106,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
+        "PaymentReject" => true,
         "PaymentSession" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.payment_intent.status,

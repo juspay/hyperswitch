@@ -990,7 +990,7 @@ pub async fn payments_reject(
         payload.clone(),
         |state, auth, req| {
             payments::payments_core::<
-                api_types::Reject,
+                api_types::Void,
                 payment_types::PaymentsResponse,
                 _,
                 _,
@@ -1001,7 +1001,11 @@ pub async fn payments_reject(
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentReject,
-                req,
+                payment_types::PaymentsCancelRequest {
+                    payment_id: req.payment_id,
+                    cancellation_reason: Some("Rejected by merchant".to_string()),
+                    ..Default::default()
+                },
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
