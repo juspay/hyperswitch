@@ -51,7 +51,7 @@ where
                 if domains.contains(&domain_id) {
                     final_list.push(edge);
                 }
-            } else {
+            } else if edge.domain.is_none() {
                 final_list.push(edge);
             }
         }
@@ -68,7 +68,7 @@ where
         strength: Strength,
         memo: &mut Memoization<V>,
         cycle_map: &mut CycleCheck,
-        domains: Option<&[DomainIdentifier<'_>]>,
+        domains: Option<&[&str]>,
     ) -> Result<(), GraphError<V>>
     where
         C: CheckingContext<Value = V>,
@@ -79,7 +79,7 @@ where
                     .iter()
                     .map(|domain_ident| {
                         self.domain_identifier_map
-                            .get(domain_ident)
+                            .get(&DomainIdentifier::new(domain_ident))
                             .copied()
                             .ok_or(GraphError::DomainNotFound)
                     })

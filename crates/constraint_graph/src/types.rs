@@ -143,6 +143,12 @@ impl<'a> DomainIdentifier<'a> {
     }
 }
 
+impl<'a> From<&'a str> for DomainIdentifier<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DomainInfo<'a> {
     pub domain_identifier: DomainIdentifier<'a>,
