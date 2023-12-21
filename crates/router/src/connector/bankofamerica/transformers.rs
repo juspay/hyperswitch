@@ -113,6 +113,19 @@ pub struct GooglePayPaymentInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenPaymentInformation {
+    fluid_data: FluidData,
+    tokenized_card: ApplePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApplePayPaymentInformation {
     tokenized_card: TokenizedCard,
 }
@@ -123,6 +136,7 @@ pub enum PaymentInformation {
     Cards(CardPaymentInformation),
     GooglePay(GooglePayPaymentInformation),
     ApplePay(ApplePayPaymentInformation),
+    ApplePayToken(ApplePayTokenPaymentInformation),
 }
 
 #[derive(Debug, Serialize)]
@@ -440,8 +454,33 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             Self::try_from((item, decrypt_data))
                         }
-                        types::PaymentMethodToken::Token(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        types::PaymentMethodToken::Token(apple_pay_payment_token) => {
+                            let email = item.router_data.request.get_email()?;
+                            let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+                            let order_information = OrderInformationWithBill::from((item, bill_to));
+                            let processing_information = ProcessingInformation::from((
+                                item,
+                                Some(PaymentSolution::ApplePay),
+                            ));
+                            let client_reference_information =
+                                ClientReferenceInformation::from(item);
+
+                            let payment_information = PaymentInformation::ApplePayToken(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_payment_token),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard {
+                                        transaction_type: TransactionType::ApplePay,
+                                    },
+                                },
+                            );
+                            Ok(Self {
+                                processing_information,
+                                payment_information,
+                                order_information,
+                                client_reference_information,
+                            })
                         }
                     }
                 }
