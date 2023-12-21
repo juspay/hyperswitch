@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums as storage_enums},
 };
 
 const PASSWORD: &str = "password";

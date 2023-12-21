@@ -20,7 +20,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
