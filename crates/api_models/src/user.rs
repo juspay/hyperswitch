@@ -1,5 +1,7 @@
+use common_enums::Currency;
 use common_utils::pii;
 use masking::Secret;
+use time::PrimitiveDateTime;
 
 use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
@@ -119,7 +121,7 @@ pub struct UserDetails {
     pub role_name: String,
     pub status: UserStatus,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: time::PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -132,4 +134,30 @@ pub type VerifyEmailResponse = DashboardEntryResponse;
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct TestPaymentRequest {
+    pub token: String,
+    pub payment_create: Option<TestPaymentCreateRequest>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TestCreateApiKeyResponse {
+    pub api_key: String,
+    pub merchant_id: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TestPaymentCreateRequest {
+    pub amount: i64,
+    pub merchant_id: String,
+    pub currency: Currency,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct TestCreateApiKeyRequest {
+    pub name: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiration: PrimitiveDateTime,
 }

@@ -4,6 +4,8 @@ use crate::services::ApplicationResponse;
 
 pub type UserResult<T> = CustomResult<T, UserErrors>;
 pub type UserResponse<T> = CustomResult<ApplicationResponse<T>, UserErrors>;
+pub type TestPaymentApiResponse<T> = TestPaymentResult<ApplicationResponse<T>>;
+pub type TestPaymentResult<T> = CustomResult<T, TestPaymentError>;
 pub mod sample_data;
 
 #[derive(Debug, thiserror::Error)]
@@ -157,6 +159,42 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "Old and new password cannot be same",
                 None,
             )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, thiserror::Error)]
+pub enum TestPaymentError {
+    #[error("Error from CreateApiKey Api")]
+    CreateApiKeyFailed,
+    #[error("Error while parsing CreateApiKey response")]
+    CreateApiKeyResponseParseFailed,
+    #[error("Error while parsing PaymentCreate response")]
+    PaymentCreateResponseParseFailed,
+    #[error("Error from PaymentCreate Api")]
+    PaymentCreateFailed,
+}
+impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse>
+    for TestPaymentError
+{
+    fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
+        use api_models::errors::types::{ApiError, ApiErrorResponse};
+        match self {
+            Self::CreateApiKeyFailed => ApiErrorResponse::InternalServerError(ApiError::new(
+                "HE",
+                0,
+                "Generate Api Key Failure",
+                None,
+            )),
+            Self::CreateApiKeyResponseParseFailed => ApiErrorResponse::InternalServerError(
+                ApiError::new("HE", 1, "CreateApiKeyResponse JSON Parsing Failure", None),
+            ),
+            Self::PaymentCreateResponseParseFailed => ApiErrorResponse::InternalServerError(
+                ApiError::new("HE", 2, "PaymentCreateResponse JSON Parsing Failure", None),
+            ),
+            Self::PaymentCreateFailed => {
+                ApiErrorResponse::BadRequest(ApiError::new("HE", 3, "PaymentCreate Failure", None))
+            }
         }
     }
 }

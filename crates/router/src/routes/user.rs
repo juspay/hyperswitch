@@ -389,3 +389,23 @@ pub async fn verify_email_request(
     ))
     .await
 }
+
+pub async fn test_payment(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    payload: web::Json<user_api::TestPaymentRequest>,
+) -> HttpResponse {
+    let flow = Flow::TestPayment;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payload.into_inner(),
+        |state, auth: auth::AuthenticationData, test_payment_request| {
+            user_core::test_payment(state, auth.merchant_account, test_payment_request)
+        },
+        &auth::JWTAuth(Permission::PaymentWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

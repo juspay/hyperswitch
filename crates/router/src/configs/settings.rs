@@ -121,6 +121,7 @@ pub struct Settings {
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
     pub connector_onboarding: ConnectorOnboarding,
+    pub router_internal_ip: InternalConf,
 }
 
 #[cfg(feature = "frm")]
@@ -919,4 +920,18 @@ pub struct PayPalOnboarding {
     pub client_secret: masking::Secret<String>,
     pub partner_id: masking::Secret<String>,
     pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct InternalConf {
+    pub base_url: String,
+}
+
+impl Default for InternalConf {
+    fn default() -> Self {
+        Self {
+            base_url: "http://localhost:8080".into(),
+        }
+    }
 }

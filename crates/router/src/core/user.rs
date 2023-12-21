@@ -1,19 +1,27 @@
-use api_models::user as user_api;
+use api_models::user::{
+    self as user_api, TestCreateApiKeyRequest, TestCreateApiKeyResponse, TestPaymentCreateRequest,
+    TestPaymentRequest,
+};
+use common_enums::Currency;
+use common_utils::date_time::now;
 use diesel_models::{enums::UserStatus, user as storage_user};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
+use reqwest::Client;
 #[cfg(feature = "email")]
 use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
+use time::Duration;
 
-use super::errors::{UserErrors, UserResponse};
+use super::errors::{TestPaymentApiResponse, UserErrors, UserResponse};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 use crate::{
     consts,
+    core::errors::TestPaymentError,
     routes::AppState,
     services::{authentication as auth, ApplicationResponse},
     types::domain,
@@ -713,4 +721,66 @@ pub async fn send_verification_mail(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn test_payment(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    req: TestPaymentRequest,
+) -> TestPaymentApiResponse<serde_json::Value> {
+    let exp: time::PrimitiveDateTime = now() + Duration::minutes(3);
+    let api_key_request = TestCreateApiKeyRequest {
+        name: "api_key".to_owned(),
+        expiration: exp,
+    };
+    let client = Client::new();
+    println!("base URL: {}", state.conf.router_internal_ip.base_url);
+    let api_key_response: TestCreateApiKeyResponse = client
+        .post(format!(
+            "{}/api_keys/{}",
+            state.conf.router_internal_ip.base_url,
+            merchant_account.merchant_id.clone()
+        ))
+        .json(&api_key_request)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .header(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {}", req.token),
+        ) //todo: change it to function call
+        .send()
+        .await
+        .into_report()
+        .change_context(TestPaymentError::CreateApiKeyFailed)?
+        .json()
+        .await
+        .into_report()
+        .change_context(TestPaymentError::CreateApiKeyResponseParseFailed)?;
+    let payment_request = match req.payment_create {
+        Some(payment_req) => TestPaymentCreateRequest {
+            amount: 100,
+            merchant_id: merchant_account.merchant_id.clone(),
+            currency: payment_req.currency,
+        },
+        None => TestPaymentCreateRequest {
+            amount: 100,
+            merchant_id: merchant_account.merchant_id.clone(),
+            currency: Currency::USD,
+        },
+    };
+    let payments_response: serde_json::Value = client
+        .post(format!(
+            "{}/payments",
+            state.conf.router_internal_ip.base_url
+        ))
+        .json(&payment_request)
+        .header("api-key", api_key_response.api_key)
+        .send()
+        .await
+        .into_report()
+        .change_context(TestPaymentError::PaymentCreateFailed)?
+        .json()
+        .await
+        .into_report()
+        .change_context(TestPaymentError::PaymentCreateResponseParseFailed)?;
+    Ok(ApplicationResponse::Json(payments_response))
 }

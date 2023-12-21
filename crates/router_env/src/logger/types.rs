@@ -315,6 +315,8 @@ pub enum Flow {
     VerifyEmail,
     /// Send verify email
     VerifyEmailRequest,
+    /// Test payment
+    TestPayment,
 }
 
 ///
