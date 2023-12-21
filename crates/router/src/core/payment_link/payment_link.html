@@ -72,7 +72,7 @@
         flex-flow: column;
         justify-content: center;
         align-items: center;
-        min-width: 500px;
+        min-width: 600px;
         width: 50vw;
       }
 
@@ -81,7 +81,7 @@
       }
 
       .hyper-checkout-payment {
-        min-width: 500px;
+        min-width: 600px;
         box-shadow: 0px 0px 5px #d1d1d1;
         border-radius: 8px;
         background-color: #fefefe;
@@ -167,13 +167,12 @@
       #hyper-checkout-cart {
         display: flex;
         flex-flow: column;
-        min-width: 500px;
-        margin-top: 30px;
-        max-height: 600px;
+        min-width: 600px;
+        margin-top: 40px;
+        max-height: 60vh;
       }
 
       #hyper-checkout-cart-items {
-        margin: 10px 20px 0 0;
         max-height: 291px;
         overflow: scroll;
         transition: all 0.3s ease;
@@ -260,6 +259,7 @@
         gap: 3px;
         text-decoration: none;
         transition: text-decoration 0.3s;
+        margin-top: 10px;
       }
 
       .hyper-checkout-cart-button:hover {
@@ -605,11 +605,20 @@
         text-align: center;
       }
 
-      @media only screen and (max-width: 1200px) {
+      @media only screen and (max-width: 1400px) {
+        body {
+          overflow: scroll;
+        }
+
         .hyper-checkout {
           flex-flow: column;
           margin: 0;
           height: auto;
+          overflow: visible;
+        }
+
+        #hyper-checkout-payment-merchant-details {
+          margin-top: 20px;
         }
 
         .main {
@@ -618,7 +627,7 @@
         }
 
         .hyper-checkout-payment {
-          min-width: 100px;
+          min-width: 300px;
           width: calc(100vw - 50px);
           margin: 0;
           padding: 25px;
@@ -632,7 +641,7 @@
         }
 
         .hyper-checkout-payment-content-details {
-          max-width: 540px;
+          max-width: 520px;
           width: 100%;
           align-self: center;
           margin-bottom: 0;
@@ -1298,7 +1307,10 @@
                     hide("#hyper-checkout-sdk");
                     hide("#hyper-checkout-details");
                     show("#hyper-checkout-status-canvas");
-                    showStatus(paymentIntent, paymentDetails.amount);
+                    showStatus(
+                      Object.assign(paymentDetails, paymentIntent),
+                      paymentDetails.amount
+                    );
                   }
                 })
                 .catch(function (error) {
@@ -1332,13 +1344,14 @@
           if (!clientSecret) {
             res.showSdk = false;
             showStatus(
-              Object.assign({}, paymentDetails, {
+              Object.assign(paymentDetails, {
                 status: "",
                 error: {
                   code: "NO_CLIENT_SECRET",
                   message: "client_secret not found",
                 },
-              })
+              }),
+              paymentDetails.amount
             );
             return resolve(res);
           }
@@ -1350,13 +1363,14 @@
               if (!paymentIntent) {
                 res.showSdk = false;
                 showStatus(
-                  Object.assign({}, paymentDetails, {
+                  Object.assign(paymentDetails, {
                     status: "",
                     error: {
                       code: "NOT_FOUND",
                       message: "PaymentIntent was not found",
                     },
-                  })
+                  }),
+                  paymentDetails.amount
                 );
                 return resolve(res);
               }
@@ -1366,7 +1380,10 @@
                 case "requires_payment_method":
                   return resolve(res);
               }
-              showStatus(paymentIntent, paymentDetails.amount);
+              showStatus(
+                Object.assign(paymentDetails, paymentIntent),
+                paymentDetails.amount
+              );
               res.showSdk = false;
               resolve(res);
             })
@@ -1480,8 +1497,7 @@
         // Form header items
         var amountNode = document.createElement("div");
         amountNode.className = "hyper-checkout-status-amount";
-        amountNode.innerText =
-          paymentDetails.currency + " " + amount;
+        amountNode.innerText = paymentDetails.currency + " " + amount;
         var merchantLogoNode = document.createElement("img");
         merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
         merchantLogoNode.src = window.__PAYMENT_DETAILS.merchant_logo;
