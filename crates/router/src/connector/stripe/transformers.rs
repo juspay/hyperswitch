@@ -1145,8 +1145,12 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Sofort {
                 billing_details, ..
             } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                email: billing_details.email.clone(),
+                name: billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.billing_name.clone()),
+                email: billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.email.clone()),
                 ..Self::default()
             }),
             payments::BankRedirectData::Bizum {}
@@ -1632,7 +1636,12 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
                 Box::new(StripeSofort {
                     payment_method_data_type,
                     country: country.to_owned(),
-                    preferred_language: preferred_language.to_owned(),
+                    preferred_language: preferred_language
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "sofort.preferred_language",
+                        })?
+                        .to_owned(),
                 }),
             ))),
             payments::BankRedirectData::OnlineBankingFpx { .. } => {

@@ -1258,7 +1258,7 @@ pub enum BankRedirectData {
     },
     Sofort {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1266,7 +1266,7 @@ pub enum BankRedirectData {
 
         /// The preferred language
         #[schema(example = "en")]
-        preferred_language: String,
+        preferred_language: Option<String>,
     },
     Trustly {
         /// The country for bank payment
