@@ -734,9 +734,6 @@ impl
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
