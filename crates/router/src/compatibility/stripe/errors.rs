@@ -241,6 +241,8 @@ pub enum StripeErrorCode {
     LockTimeout,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert currency to minor unit")]
+    CurrencyConversionFailed,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -595,6 +597,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidConnectorConfiguration { config } => {
                 Self::InvalidConnectorConfiguration { config }
             }
+            errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
         }
     }
 }
@@ -662,7 +665,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CurrencyNotSupported { .. }
             | Self::DuplicateCustomer
             | Self::PaymentMethodUnactivated
-            | Self::InvalidConnectorConfiguration { .. } => StatusCode::BAD_REQUEST,
+            | Self::InvalidConnectorConfiguration { .. }
+            | Self::CurrencyConversionFailed => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

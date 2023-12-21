@@ -228,7 +228,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                         .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
                     person_name: card_data
                         .card_holder_name
-                        .ok_or_else(missing_field_err("card_holder_name"))?,
+                        .unwrap_or(Secret::new("".to_string())),
                     card_number: card_data.card_number,
                     card_cvv: card_data.card_cvc,
                     customer_id: Secret::new(customer_id),
