@@ -233,7 +233,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             status_code: res.status_code,
             code: response.code.to_string(),
             message: response.message.clone(),
-            reason: None,
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
         })
