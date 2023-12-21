@@ -4499,7 +4499,48 @@ impl Default for super::settings::RequiredFields {
                                         common: HashMap::new(),
                                     }
                                 ),
-                                ]),
+                                (
+                                    enums::Connector::Globalpay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
+                                            ("billing.address.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserAddressCountry {
+                                                    options: vec![
+                                                            "ES".to_string(),
+                                                            "GB".to_string(),
+                                                            "SE".to_string(),
+                                                            "AT".to_string(),
+                                                            "NL".to_string(),
+                                                            "DE".to_string(),
+                                                            "CH".to_string(),
+                                                            "BE".to_string(),
+                                                            "FR".to_string(),
+                                                            "FI".to_string(),
+                                                            "IT".to_string(),
+                                                            "PL".to_string(),
+                                                        ]
+                                                },
+                                                value: None,
+                                            }
+                                        )
+                                        ]),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Mollie,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                
+                            ]),
                         },
                     ),
                     (
