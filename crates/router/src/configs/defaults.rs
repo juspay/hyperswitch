@@ -4463,14 +4463,14 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Aci,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: (
-                                            "payment_method_data.bank_redirect.sofort.country".to_string(),
+                                        non_mandate: HashMap::from([
+                                            ("payment_method_data.bank_redirect.sofort.country".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_redirect.sofort.country".to_string(),
                                                 display_name: "country".to_string(),
                                                 field_type: enums::FieldType::UserCountry {
                                                     options: vec![
-                                                            "ES".to_string() ,
+                                                            "ES".to_string(),
                                                             "GB".to_string(),
                                                             "SE".to_string(),
                                                             "AT".to_string(),
@@ -4486,7 +4486,16 @@ impl Default for super::settings::RequiredFields {
                                                 },
                                                 value: None,
                                             }
-                                        ),
+                                        )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
                                         common: HashMap::new(),
                                     }
                                 ),
