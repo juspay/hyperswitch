@@ -299,7 +299,7 @@ impl<T>
             cardholder_name: card
                 .card_holder_name
                 .clone()
-                .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                .unwrap_or(Secret::new("".to_string())),
         };
         if item.is_three_ds() {
             Ok(Self::Cards3DSRequest(Box::new(Cards3DSRequest {
