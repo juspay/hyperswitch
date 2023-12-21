@@ -1010,7 +1010,7 @@ pub struct BusinessProfileCreate {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Default Payment Link config for all payment links
+    /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
 

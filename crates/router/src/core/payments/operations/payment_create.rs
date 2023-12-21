@@ -166,17 +166,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             utils::get_payment_attempt_id(payment_id.clone(), 1)
         };
 
-        // If profile id is not passed, get it from the business_country and business_label
-        let profile_id = core_utils::get_profile_id_from_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-            request.profile_id.as_ref(),
-            &*state.store,
-            true,
-        )
-        .await?;
-
         let intent_fulfillment_time = request.intent_fulfillment_time.map(i64::from).unwrap_or(
             business_profile
                 .intent_fulfillment_time

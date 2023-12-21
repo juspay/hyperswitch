@@ -3773,7 +3773,7 @@ pub fn validate_order_details_amount(
 pub fn validate_intent_fulfillment_time(
     intent_fulfillment_time: u32,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if intent_fulfillment_time < 60 || intent_fulfillment_time > 7890000 {
+    if !(60..=7890000).contains(&intent_fulfillment_time) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "intent_fulfillment_time should be between 60(1 min) to 7890000(3 months)."
                 .to_string(),
