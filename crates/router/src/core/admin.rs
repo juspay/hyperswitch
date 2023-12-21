@@ -1519,6 +1519,9 @@ pub async fn update_business_profile(
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
     let db = state.store.as_ref();
+    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+    }
     let business_profile = db
         .find_business_profile_by_profile_id(profile_id)
         .await
