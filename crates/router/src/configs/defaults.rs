@@ -4481,6 +4481,37 @@ impl Default for super::settings::RequiredFields {
                                     }
                                 ),
                                 (
+                                    enums::Connector::Globalpay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.ideal.billing_details.billing_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.ideal.billing_details.billing_name".to_string(),
+                                                    display_name: "billing_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                        options: vec![
+                                                            "NL".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                    }
+                                ),
+                                (
                                     enums::Connector::Mollie,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
