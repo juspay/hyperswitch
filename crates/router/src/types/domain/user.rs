@@ -346,7 +346,6 @@ impl NewUserMerchant {
                 parent_merchant_id: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
-                intent_fulfillment_time: None,
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,

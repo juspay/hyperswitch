@@ -6926,14 +6926,6 @@
             "description": "The frm routing algorithm to be used for routing payments to desired FRM's",
             "nullable": true
           },
-          "intent_fulfillment_time": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
-          },
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
@@ -7230,13 +7222,6 @@
             "type": "object",
             "description": "The frm routing algorithm to be used for routing payments to desired FRM's",
             "nullable": true
-          },
-          "intent_fulfillment_time": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
-            "nullable": true,
-            "minimum": 0
           },
           "default_profile": {
             "type": "string",
@@ -8680,17 +8665,11 @@
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
-          "max_age",
           "theme",
           "logo",
           "seller_name"
         ],
         "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry"
-          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link"
@@ -8708,13 +8687,6 @@
       "PaymentLinkConfigRequest": {
         "type": "object",
         "properties": {
-          "max_age": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Custom Payment link expiry",
-            "example": 900,
-            "nullable": true
-          },
           "theme": {
             "type": "string",
             "description": "custom theme for the payment link",
@@ -8767,6 +8739,13 @@
             "type": "string"
           }
         }
+      },
+      "PaymentLinkStatus": {
+        "type": "string",
+        "enum": [
+          "Active",
+          "Expired"
+        ]
       },
       "PaymentListConstraints": {
         "type": "object",
@@ -9875,6 +9854,14 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
+          "intent_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
             "nullable": true
@@ -10255,6 +10242,14 @@
             "type": "boolean",
             "description": "Request for an incremental authorization",
             "nullable": true
+          },
+          "intent_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
@@ -11900,7 +11895,7 @@
             "type": "string",
             "format": "date-time"
           },
-          "max_age": {
+          "expiry": {
             "type": "string",
             "format": "date-time",
             "nullable": true
@@ -11910,7 +11905,7 @@
             "nullable": true
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/PaymentLinkStatus"
           },
           "currency": {
             "allOf": [

@@ -320,6 +320,11 @@ pub struct PaymentsRequest {
     ///Request for an incremental authorization
     pub request_incremental_authorization: Option<bool>,
 
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
+
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
 }
@@ -3335,9 +3340,9 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub max_age: Option<PrimitiveDateTime>,
+    pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
-    pub status: String,
+    pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
 }
@@ -3439,4 +3444,10 @@ pub struct OrderDetailsWithStringAmount {
     pub amount: String,
     /// Product Image link
     pub product_img_link: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum PaymentLinkStatus {
+    Active,
+    Expired,
 }

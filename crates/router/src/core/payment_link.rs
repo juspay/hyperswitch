@@ -1,7 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PAYMENT_LINK_EXPIRY,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_FULFILLMENT_TIME, DEFAULT_MERCHANT_LOGO,
         DEFAULT_PRODUCT_IMG,
     },
     ext_traits::{OptionExt, ValueExt},
@@ -33,7 +33,7 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_config.max_age);
+    let status = check_payment_link_status(payment_link_config.fulfilment_time);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
         payment_link_config,
@@ -90,7 +90,6 @@ pub async fn intiate_payment_link_flow(
         extract_payment_link_config(pl_config_value)?
     } else {
         admin_types::PaymentLinkConfig {
-            max_age: DEFAULT_PAYMENT_LINK_EXPIRY,
             theme: DEFAULT_BACKGROUND_COLOR.to_string(),
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
             seller_name: merchant_name,
@@ -116,8 +115,8 @@ pub async fn intiate_payment_link_flow(
 
     let curr_time = common_utils::date_time::now();
     let expiry = payment_link
-        .max_age
-        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY)));
+        .fulfilment_time
+        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME)));
 
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: currency
@@ -210,13 +209,15 @@ pub async fn list_payment_link(
     Ok(services::ApplicationResponse::Json(payment_link_list))
 }
 
-pub fn check_payment_link_status(max_age: Option<PrimitiveDateTime>) -> String {
+pub fn check_payment_link_status(
+    max_age: Option<PrimitiveDateTime>,
+) -> api_models::payments::PaymentLinkStatus {
     let curr_time = Some(common_utils::date_time::now());
 
     if curr_time > max_age {
-        "expired".to_string()
+        api_models::payments::PaymentLinkStatus::Expired
     } else {
-        "active".to_string()
+        api_models::payments::PaymentLinkStatus::Active
     }
 }
 
@@ -344,18 +345,7 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(merchant_name.clone());
 
-    let max_age = pc_config
-        .clone()
-        .and_then(|pc_config| pc_config.max_age)
-        .or_else(|| {
-            business_config
-                .clone()
-                .and_then(|business_config| business_config.max_age)
-        })
-        .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
-
     let payment_link_config = admin_types::PaymentLinkConfig {
-        max_age,
         theme,
         logo,
         seller_name,
