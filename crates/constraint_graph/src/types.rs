@@ -141,11 +141,23 @@ impl<'a> DomainIdentifier<'a> {
     pub fn new(identifier: &'a str) -> Self {
         Self(identifier)
     }
+
+    pub fn into_inner(&self) -> &'a str {
+        self.0
+    }
 }
 
 impl<'a> From<&'a str> for DomainIdentifier<'a> {
     fn from(value: &'a str) -> Self {
         Self(value)
+    }
+}
+
+impl<'a> Deref for DomainIdentifier<'a> {
+    type Target = str;
+
+    fn deref(&self) -> &'a Self::Target {
+        self.0
     }
 }
 

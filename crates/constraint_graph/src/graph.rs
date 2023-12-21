@@ -493,7 +493,10 @@ where
         let add_domain = |node_builder: &mut builder::ConstraintGraphBuilder<'a, V>,
                           domain: DomainInfo<'a>|
          -> Result<DomainId, GraphError<V>> {
-            node_builder.make_domain(domain.domain_identifier, domain.domain_description)
+            node_builder.make_domain(
+                domain.domain_identifier.into_inner(),
+                domain.domain_description,
+            )
         };
 
         let add_node = |node_builder: &mut builder::ConstraintGraphBuilder<'a, V>,
@@ -558,7 +561,7 @@ where
                 *new_succ_id,
                 edge.strength,
                 edge.relation,
-                domain_ident,
+                domain_ident.as_deref(),
             )?;
         }
 
@@ -580,7 +583,7 @@ where
                 *new_succ_id,
                 edge.strength,
                 edge.relation,
-                domain_ident,
+                domain_ident.as_deref(),
             )?;
         }
 

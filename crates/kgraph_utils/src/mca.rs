@@ -160,7 +160,7 @@ fn compile_request_pm_types(
                     &nodes,
                     Some("amount_constraint_aggregator"),
                     None::<()>,
-                    Some(cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)),
+                    Some(DOMAIN_IDENTIFIER),
                 )
                 .map_err(KgraphError::GraphConstructionError)?
         };
@@ -173,7 +173,7 @@ fn compile_request_pm_types(
                 ],
                 Some("zero_plus_limits_amount_aggregator"),
                 None::<()>,
-                Some(cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER)),
+                Some(DOMAIN_IDENTIFIER),
             )
             .map_err(KgraphError::GraphConstructionError)?;
 
@@ -297,7 +297,7 @@ pub fn make_mca_graph<'a>(
 ) -> Result<cgraph::ConstraintGraph<'a, dir::DirValue>, KgraphError> {
     let mut builder = cgraph::ConstraintGraphBuilder::new();
     let _domain = builder.make_domain(
-        cgraph::DomainIdentifier::new(DOMAIN_IDENTIFIER),
+        DOMAIN_IDENTIFIER,
         "Payment methods enabled for MerchantConnectorAccount".to_string(),
     );
     for acct in accts {

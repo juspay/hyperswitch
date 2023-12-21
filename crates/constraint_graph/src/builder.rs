@@ -65,9 +65,10 @@ where
 
     pub fn make_domain(
         &mut self,
-        domain_identifier: DomainIdentifier<'a>,
+        domain_identifier: &'a str,
         domain_description: String,
     ) -> Result<DomainId, GraphError<V>> {
+        let domain_identifier = DomainIdentifier::new(domain_identifier);
         Ok(self
             .domain_identifier_map
             .clone()
@@ -111,12 +112,12 @@ where
         succ_id: NodeId,
         strength: Strength,
         relation: Relation,
-        domain: Option<DomainIdentifier<'_>>,
+        domain: Option<&str>,
     ) -> Result<EdgeId, GraphError<V>> {
         self.ensure_node_exists(pred_id)?;
         self.ensure_node_exists(succ_id)?;
         let domain_id = domain
-            .map(|d| self.retrieve_domain_from_identifier(d))
+            .map(|d| self.retrieve_domain_from_identifier(DomainIdentifier::new(d)))
             .transpose()?;
         self.edges_map
             .get(&(pred_id, succ_id, domain_id))
@@ -163,7 +164,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<DomainIdentifier<'_>>,
+        domain: Option<&str>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
@@ -188,7 +189,7 @@ where
         nodes: &[(NodeId, Relation)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<DomainIdentifier<'_>>,
+        domain: Option<&str>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
