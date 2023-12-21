@@ -649,6 +649,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::Unresolved,
                 (None, None),
             ),
+            Some(FrmSuggestion::FrmDDC) => (
+                storage_enums::IntentStatus::RequiresCustomerAction,
+                storage_enums::AttemptStatus::DeviceDataCollectionPending,
+                (None, None),
+            ),
             _ => (
                 storage_enums::IntentStatus::Processing,
                 storage_enums::AttemptStatus::Pending,
@@ -717,6 +722,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_db = state.clone().store;
+        let m_connector_metadata = payment_data.payment_attempt.connector_metadata.clone();
 
         let surcharge_amount = payment_data
             .surcharge_details
@@ -752,6 +758,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
+                        connector_metadata: m_connector_metadata,
                     },
                     storage_scheme,
                 )

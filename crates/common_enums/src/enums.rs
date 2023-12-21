@@ -130,6 +130,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Klarna,
+    Kount,
     Mollie,
     Multisafepay,
     Nexinets,
@@ -1976,6 +1977,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
+    FrmDDC,
     FrmAutoRefund,
 }
 

@@ -281,6 +281,7 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        connector_metadata: Option<serde_json::Value>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,

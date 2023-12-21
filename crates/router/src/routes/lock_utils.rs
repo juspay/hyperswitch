@@ -99,6 +99,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsReject
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
+            | Flow::PaymentsDeviceDataCollection
             | Flow::PaymentsList
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization => Self::Payments,

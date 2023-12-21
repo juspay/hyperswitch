@@ -125,19 +125,53 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
+        let pmd = if merchant_account.frm_routing_algorithm.is_some() {
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+            let key = format!(
+                "frm_pmd_for_payment_id_{}_merchant_id_{}",
+                payment_id, merchant_id
+            );
+
+            let redis_value = redis_conn
+                .get_key::<Option<String>>(&key)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|value| {
+                    let pmd: Option<api_models::payments::PaymentMethodData> =
+                        serde_json::from_str(value.as_str()).ok();
+                    pmd
+                });
+
+            match &request.payment_method_data {
+                Some(pmd) => Some(pmd.clone()),
+                None => redis_value,
+            }
+        } else {
+            request.payment_method_data.clone()
+        };
+
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
-            &request.payment_method_data,
-            &request.payment_method_type,
+            &request.payment_method.or(payment_attempt.payment_method),
+            &request.payment_method_data.clone().or(pmd.clone()),
+            &request
+                .payment_method_type
+                .or(payment_attempt.payment_method_type),
             &mandate_type,
             &token,
         )?;
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
-        payment_attempt.browser_info = browser_info;
+        payment_attempt.browser_info = browser_info.or(payment_attempt.browser_info);
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        payment_attempt.payment_experience = request.payment_experience;
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .or(payment_attempt.payment_experience);
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
@@ -238,7 +272,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: pmd,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],

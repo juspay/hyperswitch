@@ -10,6 +10,7 @@ pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
+pub mod payments_device_data_collection;
 pub mod payments_incremental_authorization;
 
 use api_models::enums::FrmSuggestion;
@@ -23,6 +24,7 @@ pub use self::{
     payment_create::PaymentCreate, payment_reject::PaymentReject,
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
+    payments_device_data_collection::PaymentDeviceDataCollection,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
 };
 use super::{helpers, CustomerDetails, PaymentData};

@@ -235,6 +235,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })
                 .into_report()?
             }
+            api_enums::Connector::Kount => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Kount is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,

@@ -693,6 +693,10 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }
 
+fn is_ddc_operation<Op: Debug>(operation: &Op) -> bool {
+    format!("{operation:?}").eq("PaymentDeviceDataCollection")
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentsRedirectResponseData {
     pub connector: Option<String>,

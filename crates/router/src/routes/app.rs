@@ -369,6 +369,8 @@ impl Payments {
                         .route(web::get().to(payments_complete_authorize))
                         .route(web::post().to(payments_complete_authorize)),
                 )
+                .service(web::resource("/ddc/{payment_id}/{merchant_id}").route(web::get().to(payments_ddc)))
+                .service(web::resource("/complete_ddc/{payment_id}/{merchant_id}").route(web::post().to(payments_complete_ddc)))
                 .service(
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments_incremental_authorization)),
                 );

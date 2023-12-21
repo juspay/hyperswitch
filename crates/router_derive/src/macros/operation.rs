@@ -24,6 +24,7 @@ pub enum Derives {
     RejectData,
     SetupMandateData,
     Start,
+    Ddc,
     Verify,
     Session,
     SessionData,
@@ -91,6 +92,9 @@ impl Conversion {
                 syn::Ident::new("CompleteAuthorizeData", Span::call_site())
             }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
+            Derives::Ddc => {
+                syn::Ident::new("PaymentsDeviceDataCollectionRequest", Span::call_site())
+            }
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
             Derives::SetupMandateData => {
                 syn::Ident::new("SetupMandateRequestData", Span::call_site())
@@ -434,6 +438,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         PaymentsStartRequest,
                         PaymentsSessionRequest,
                         VerifyRequest,
+                        PaymentsDeviceDataCollectionRequest,
                         PaymentsIncrementalAuthorizationRequest
                     }
                 };
