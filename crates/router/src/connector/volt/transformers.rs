@@ -261,14 +261,6 @@ pub struct VoltPaymentsResponse {
     id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[serde(untagged)]
-pub enum VoltPaymentsResponseData {
-    WebhookResponse(VoltWebhookObjectResource),
-    PaymentsResponse(VoltPaymentsResponse),
-}
-
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, VoltPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -299,7 +291,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum VoltPaymentStatus {
     NewPayment,
@@ -317,7 +309,15 @@ pub enum VoltPaymentStatus {
     Failed,
     Settled,
 }
-#[derive(Debug, Deserialize)]
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum VoltPaymentsResponseData {
+    WebhookResponse(VoltWebhookObjectResource),
+    PsyncResponse(VoltPsyncResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
@@ -325,29 +325,63 @@ pub struct VoltPsyncResponse {
     merchant_internal_reference: Option<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, VoltPsyncResponse, T, types::PaymentsResponseData>>
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, VoltPaymentsResponseData, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, VoltPsyncResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            VoltPaymentsResponseData,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: item
-                    .response
-                    .merchant_internal_reference
-                    .or(Some(item.response.id)),
-                incremental_authorization_allowed: None,
+        match item.response {
+            VoltPaymentsResponseData::PsyncResponse(payment_response) => Ok(Self {
+                status: enums::AttemptStatus::from(payment_response.status),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        payment_response.id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: payment_response
+                        .merchant_internal_reference
+                        .or(Some(payment_response.id)),
+                    incremental_authorization_allowed: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            VoltPaymentsResponseData::WebhookResponse(webhook_response) => Ok(Self {
+                status: enums::AttemptStatus::from(webhook_response.status),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        webhook_response.payments,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(webhook_response.reference),
+                    incremental_authorization_allowed: None,
+                }),
+                ..item.data
+            }),
+        }
+    }
+}
+
+impl From<VoltWebhookStatus> for enums::AttemptStatus {
+    fn from(status: VoltWebhookStatus) -> Self {
+        match status {
+            VoltWebhookStatus::Completed => Self::Charged,
+            VoltWebhookStatus::Failed => Self::Failure,
+            VoltWebhookStatus::Pending => Self::AuthenticationPending,
+        }
     }
 }
 
@@ -425,9 +459,12 @@ pub struct VoltWebhookBodyEventType {
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VoltWebhookObjectResource {
     pub reference: String,
+    pub payments: String,
     pub status: VoltWebhookStatus,
+    pub detailed_status: Option<VoltDetailedStatus>,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -449,33 +486,12 @@ pub enum VoltDetailedStatus {
     Failed,
 }
 
-impl ForeignFrom<(VoltWebhookStatus, Option<VoltDetailedStatus>)> for api::IncomingWebhookEvent {
-    fn foreign_from(
-        (status, detailed_status): (VoltWebhookStatus, Option<VoltDetailedStatus>),
-    ) -> Self {
+impl From<VoltWebhookStatus> for api::IncomingWebhookEvent {
+    fn from(status: VoltWebhookStatus) -> Self {
         match status {
             VoltWebhookStatus::Completed => Self::PaymentIntentSuccess,
-            VoltWebhookStatus::Failed => {
-                if let Some(volt_detailed_status) = detailed_status {
-                    Self::from(volt_detailed_status)
-                } else {
-                    Self::EventNotSupported
-                }
-            }
+            VoltWebhookStatus::Failed => Self::PaymentIntentFailure,
             VoltWebhookStatus::Pending => Self::PaymentIntentProcessing,
-        }
-    }
-}
-
-impl From<VoltDetailedStatus> for api::IncomingWebhookEvent {
-    fn from(detail_status: VoltDetailedStatus) -> Self {
-        match detail_status {
-            VoltDetailedStatus::RefusedByRisk => Self::PaymentIntentFailure,
-            VoltDetailedStatus::RefusedByBank => Self::PaymentIntentFailure,
-            VoltDetailedStatus::ErrorAtBank => Self::PaymentIntentFailure,
-            VoltDetailedStatus::CancelledByUser => Self::PaymentIntentCancelled,
-            VoltDetailedStatus::AbandonedByUser => Self::PaymentIntentCancelled,
-            VoltDetailedStatus::Failed => Self::PaymentIntentFailure,
         }
     }
 }

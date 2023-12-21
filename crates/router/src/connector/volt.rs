@@ -387,7 +387,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: volt::VoltPsyncResponse = res
+        let response: volt::VoltPaymentsResponseData = res
             .response
             .parse_struct("volt PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -633,14 +633,15 @@ impl api::IncomingWebhook for Volt {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let payload: volt::VoltWebhookBodyEventType =
-            serde_urlencoded::from_bytes::<volt::VoltWebhookBodyEventType>(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(api::IncomingWebhookEvent::foreign_from((
-            payload.status,
-            payload.detailed_status,
-        )))
+        if request.body.is_empty() {
+            Ok(api::IncomingWebhookEvent::EndpointVerification)
+        } else {
+            let payload: volt::VoltWebhookBodyEventType =
+                serde_urlencoded::from_bytes::<volt::VoltWebhookBodyEventType>(request.body)
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            Ok(api::IncomingWebhookEvent::from(payload.status))
+        }
     }
 
     fn get_webhook_resource_object(
