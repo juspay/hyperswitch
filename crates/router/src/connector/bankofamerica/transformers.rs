@@ -448,13 +448,17 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
             payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                payments::WalletData::ApplePay(_) => {
-                    let payment_method_token = item.router_data.get_payment_method_token()?;
-                    match payment_method_token {
-                        types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            Self::try_from((item, decrypt_data))
-                        }
-                        types::PaymentMethodToken::Token(apple_pay_payment_token) => {
+                payments::WalletData::ApplePay(apple_pay_data) => {
+                    match item.router_data.payment_method_token.clone() {
+                        Some(payment_method_token) => match payment_method_token {
+                            types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                Self::try_from((item, decrypt_data))
+                            }
+                            types::PaymentMethodToken::Token(_) => {
+                                Err(errors::ConnectorError::InvalidWalletToken)?
+                            }
+                        },
+                        None => {
                             let email = item.router_data.request.get_email()?;
                             let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
                             let order_information = OrderInformationWithBill::from((item, bill_to));
@@ -464,11 +468,11 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             ));
                             let client_reference_information =
                                 ClientReferenceInformation::from(item);
-
+                            println!("ssss {:?}", apple_pay_data.payment_data.clone());
                             let payment_information = PaymentInformation::ApplePayToken(
                                 ApplePayTokenPaymentInformation {
                                     fluid_data: FluidData {
-                                        value: Secret::from(apple_pay_payment_token),
+                                        value: Secret::from(apple_pay_data.payment_data),
                                     },
                                     tokenized_card: ApplePayTokenizedCard {
                                         transaction_type: TransactionType::ApplePay,
