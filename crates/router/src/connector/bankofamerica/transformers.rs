@@ -309,7 +309,7 @@ impl From<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
     code: Option<String>,
@@ -541,7 +541,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaPaymentStatus {
     Authorized,
@@ -594,12 +594,13 @@ pub enum BankOfAmericaPaymentsResponse {
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaClientReferenceResponse {
     id: String,
     status: BankofamericaPaymentStatus,
     client_reference_information: ClientReferenceInformation,
+    error_information: Option<BankOfAmericaErrorInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -609,10 +610,99 @@ pub struct BankOfAmericaErrorInformationResponse {
     error_information: BankOfAmericaErrorInformation,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct BankOfAmericaErrorInformation {
     reason: Option<String>,
     message: Option<String>,
+}
+
+fn get_error_response_if_failure(
+    (info_response, status, http_code): (
+        &BankOfAmericaClientReferenceResponse,
+        enums::AttemptStatus,
+        u16,
+    ),
+) -> Option<types::ErrorResponse> {
+    if is_payment_failure(status) {
+        let (message, reason) = match info_response.error_information.as_ref() {
+            Some(error_info) => (
+                error_info
+                    .message
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                error_info.reason.clone(),
+            ),
+            None => (consts::NO_ERROR_MESSAGE.to_string(), None),
+        };
+
+        Some(types::ErrorResponse {
+            code: consts::NO_ERROR_CODE.to_string(),
+            message,
+            reason,
+            status_code: http_code,
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            connector_transaction_id: Some(info_response.id.clone()),
+        })
+    } else {
+        None
+    }
+}
+
+fn is_payment_failure(status: enums::AttemptStatus) -> bool {
+    match status {
+        common_enums::AttemptStatus::AuthenticationFailed
+        | common_enums::AttemptStatus::AuthorizationFailed
+        | common_enums::AttemptStatus::CaptureFailed
+        | common_enums::AttemptStatus::VoidFailed
+        | common_enums::AttemptStatus::Failure => true,
+        common_enums::AttemptStatus::Started
+        | common_enums::AttemptStatus::RouterDeclined
+        | common_enums::AttemptStatus::AuthenticationPending
+        | common_enums::AttemptStatus::AuthenticationSuccessful
+        | common_enums::AttemptStatus::Authorized
+        | common_enums::AttemptStatus::Charged
+        | common_enums::AttemptStatus::Authorizing
+        | common_enums::AttemptStatus::CodInitiated
+        | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidInitiated
+        | common_enums::AttemptStatus::CaptureInitiated
+        | common_enums::AttemptStatus::AutoRefunded
+        | common_enums::AttemptStatus::PartialCharged
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::PaymentMethodAwaited
+        | common_enums::AttemptStatus::ConfirmationAwaited
+        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+    }
+}
+
+fn get_payment_response(
+    (info_response, status, http_code): (
+        &BankOfAmericaClientReferenceResponse,
+        enums::AttemptStatus,
+        u16,
+    ),
+) -> Result<types::PaymentsResponseData, types::ErrorResponse> {
+    let error_response = get_error_response_if_failure((info_response, status, http_code));
+    match error_response {
+        Some(error) => Err(error),
+        None => Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                info_response
+                    .client_reference_information
+                    .code
+                    .clone()
+                    .unwrap_or(info_response.id.clone()),
+            ),
+            incremental_authorization_allowed: None,
+        }),
+    }
 }
 
 impl<F>
@@ -635,29 +725,18 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
-                status: enums::AttemptStatus::foreign_from((
-                    info_response.status,
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
+                let status = enums::AttemptStatus::foreign_from((
+                    info_response.status.clone(),
                     item.data.request.is_auto_capture()?,
-                )),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        info_response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(
-                        info_response
-                            .client_reference_information
-                            .code
-                            .unwrap_or(info_response.id),
-                    ),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
+                ));
+                let response = get_payment_response((&info_response, status, item.http_code));
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -697,26 +776,16 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
-                status: enums::AttemptStatus::foreign_from((info_response.status, true)),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        info_response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(
-                        info_response
-                            .client_reference_information
-                            .code
-                            .unwrap_or(info_response.id),
-                    ),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
+                let status =
+                    enums::AttemptStatus::foreign_from((info_response.status.clone(), true));
+                let response = get_payment_response((&info_response, status, item.http_code));
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -755,26 +824,16 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
-                status: enums::AttemptStatus::foreign_from((info_response.status, false)),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        info_response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(
-                        info_response
-                            .client_reference_information
-                            .code
-                            .unwrap_or(info_response.id),
-                    ),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
+                let status =
+                    enums::AttemptStatus::foreign_from((info_response.status.clone(), false));
+                let response = get_payment_response((&info_response, status, item.http_code));
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -806,6 +865,7 @@ pub struct BankOfAmericaApplicationInfoResponse {
     id: String,
     application_information: ApplicationInformation,
     client_reference_information: Option<ClientReferenceInformation>,
+    error_information: Option<BankOfAmericaErrorInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -834,25 +894,54 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            BankOfAmericaTransactionResponse::ApplicationInformation(app_response) => Ok(Self {
-                status: enums::AttemptStatus::foreign_from((
+            BankOfAmericaTransactionResponse::ApplicationInformation(app_response) => {
+                let status = enums::AttemptStatus::foreign_from((
                     app_response.application_information.status,
                     item.data.request.is_auto_capture()?,
-                )),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(app_response.id.clone()),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: app_response
-                        .client_reference_information
-                        .map(|cref| cref.code)
-                        .unwrap_or(Some(app_response.id)),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
+                ));
+                if is_payment_failure(status) {
+                    let (message, reason) = match app_response.error_information {
+                        Some(error_info) => (
+                            error_info
+                                .message
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                            error_info.reason,
+                        ),
+                        None => (consts::NO_ERROR_MESSAGE.to_string(), None),
+                    };
+                    Ok(Self {
+                        response: Err(types::ErrorResponse {
+                            code: consts::NO_ERROR_CODE.to_string(),
+                            message,
+                            reason,
+                            status_code: item.http_code,
+                            attempt_status: Some(enums::AttemptStatus::Failure),
+                            connector_transaction_id: Some(app_response.id),
+                        }),
+                        status: enums::AttemptStatus::Failure,
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                app_response.id.clone(),
+                            ),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: app_response
+                                .client_reference_information
+                                .map(|cref| cref.code)
+                                .unwrap_or(Some(app_response.id)),
+                            incremental_authorization_allowed: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
             BankOfAmericaTransactionResponse::ErrorInformation(error_response) => Ok(Self {
                 status: item.data.status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
