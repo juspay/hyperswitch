@@ -954,60 +954,34 @@ impl<F>
                     info_response.status,
                     item.data.request.is_auto_capture()?,
                 ));
-                if status == enums::AttemptStatus::Failure {
-                    let (message, reason) = match info_response.error_information {
-                        Some(error_info) => (
-                            error_info
-                                .message
-                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                            error_info.reason,
-                        ),
-                        None => (consts::NO_ERROR_MESSAGE.to_string(), None),
-                    };
-                    Ok(Self {
-                        response: Err(types::ErrorResponse {
-                            code: consts::NO_ERROR_CODE.to_string(),
-                            message,
-                            reason,
-                            status_code: item.http_code,
-                            attempt_status: Some(enums::AttemptStatus::Failure),
-                            connector_transaction_id: Some(info_response.id),
-                        }),
-                        status: enums::AttemptStatus::Failure,
-                        ..item.data
-                    })
-                } else {
-                    let incremental_authorization_allowed =
-                        Some(status == enums::AttemptStatus::Authorized);
-                    let mandate_reference =
-                        info_response
-                            .token_information
-                            .map(|token_info| types::MandateReference {
-                                connector_mandate_id: Some(token_info.instrument_identifier.id),
-                                payment_method_id: None,
-                            });
-                    let connector_response_reference_id = Some(
-                        info_response
-                            .client_reference_information
-                            .code
-                            .unwrap_or(info_response.id.clone()),
-                    );
-                    Ok(Self {
-                        status,
-                        response: Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                info_response.id,
-                            ),
-                            redirection_data: None,
-                            mandate_reference,
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id,
-                            incremental_authorization_allowed,
-                        }),
-                        ..item.data
-                    })
-                }
+                let incremental_authorization_allowed =
+                    Some(status == enums::AttemptStatus::Authorized);
+                let mandate_reference =
+                    info_response
+                        .token_information
+                        .map(|token_info| types::MandateReference {
+                            connector_mandate_id: Some(token_info.instrument_identifier.id),
+                            payment_method_id: None,
+                        });
+                let connector_response_reference_id = Some(
+                    info_response
+                        .client_reference_information
+                        .code
+                        .unwrap_or(info_response.id.clone()),
+                );
+                Ok(Self {
+                    status,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(info_response.id),
+                        redirection_data: None,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed,
+                    }),
+                    ..item.data
+                })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(Self::from((&error_response.clone(), item)))
