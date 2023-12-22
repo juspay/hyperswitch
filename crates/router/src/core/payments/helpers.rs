@@ -987,14 +987,14 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    // scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
-                    // scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
