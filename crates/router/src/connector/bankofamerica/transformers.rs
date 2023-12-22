@@ -468,7 +468,6 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             ));
                             let client_reference_information =
                                 ClientReferenceInformation::from(item);
-                            println!("ssss {:?}", apple_pay_data.payment_data.clone());
                             let payment_information = PaymentInformation::ApplePayToken(
                                 ApplePayTokenPaymentInformation {
                                     fluid_data: FluidData {
