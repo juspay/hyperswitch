@@ -9,6 +9,10 @@ pub mod reject_flow;
 pub mod session_flow;
 pub mod setup_mandate_flow;
 
+use common_utils::request::RequestContent;
+use crate::core::errors;
+use crate::configs::settings::Connectors;
+
 use async_trait::async_trait;
 
 #[cfg(feature = "frm")]
@@ -127,7 +131,19 @@ macro_rules! default_imp_for_complete_authorize {
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+                api::CompleteAuthorize,
+                types::CompleteAuthorizeData,
+                types::PaymentsResponseData,>,
+                _connectors: &Connectors
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+        }
     )*
     };
 }
@@ -142,6 +158,12 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(&self,_req: &types::RouterData<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,> ,_connectors: &Connectors,) -> CustomResult<RequestContent,ConnectorError>  {
+        todo!()
+    }
 }
 
 default_imp_for_complete_authorize!(
@@ -196,7 +218,19 @@ macro_rules! default_imp_for_webhook_source_verification {
             types::VerifyWebhookSourceRequestData,
             types::VerifyWebhookSourceResponseData,
         > for $path::$connector
-        {}
+        {
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+                api::VerifyWebhookSource,
+                types::VerifyWebhookSourceRequestData,
+                types::VerifyWebhookSourceResponseData,>,
+                _connectors: &Connectors
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+        }
     )*
     };
 }
@@ -211,6 +245,12 @@ impl<const T: u8>
         types::VerifyWebhookSourceResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(&self,_req: &types::RouterData<
+        api::VerifyWebhookSource,
+        types::VerifyWebhookSourceRequestData,
+        types::VerifyWebhookSourceResponseData,> ,_connectors: &Connectors,) -> CustomResult<RequestContent,ConnectorError>  {
+        todo!()
+    }
 }
 default_imp_for_webhook_source_verification!(
     connector::Aci,
@@ -277,7 +317,21 @@ macro_rules! default_imp_for_create_customer {
             types::ConnectorCustomerData,
             types::PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+            api::CreateConnectorCustomer,
+            types::ConnectorCustomerData,
+            types::PaymentsResponseData,
+>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+        }
     )*
     };
 }
@@ -292,6 +346,15 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<api::CreateConnectorCustomer, types::ConnectorCustomerData, types::PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
 }
 
 default_imp_for_create_customer!(
@@ -493,7 +556,21 @@ macro_rules! default_imp_for_accept_dispute {
                 types::AcceptDisputeRequestData,
                 types::AcceptDisputeResponse,
             > for $path::$connector
-            {}
+            {
+
+                fn get_request_body(
+                    &self,
+                    _req: &types::RouterData<
+                api::Accept,
+                types::AcceptDisputeRequestData,
+                types::AcceptDisputeResponse,
+>,
+                    _connectors: &Connectors,
+                ) -> CustomResult<RequestContent, ConnectorError> 
+                {
+                    Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+                }
+                    }
     )*
     };
 }
@@ -510,6 +587,19 @@ impl<const T: u8>
         types::AcceptDisputeResponse,
     > for connector::DummyConnector<T>
 {
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Accept,
+        types::AcceptDisputeRequestData,
+        types::AcceptDisputeResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_accept_dispute!(
@@ -578,7 +668,21 @@ macro_rules! default_imp_for_file_upload {
                 types::UploadFileRequestData,
                 types::UploadFileResponse,
             > for $path::$connector
-            {}
+            {
+
+                fn get_request_body(
+                    &self,
+                    _req: &types::RouterData<
+                api::Upload,
+                types::UploadFileRequestData,
+                types::UploadFileResponse,
+>,
+                    _connectors: &Connectors,
+                ) -> CustomResult<RequestContent, ConnectorError> 
+                {
+                    Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+                }
+                    }
             impl api::RetrieveFile for $path::$connector {}
             impl
                 services::ConnectorIntegration<
@@ -586,7 +690,21 @@ macro_rules! default_imp_for_file_upload {
                 types::RetrieveFileRequestData,
                 types::RetrieveFileResponse,
             > for $path::$connector
-            {}
+            {
+
+                fn get_request_body(
+                    &self,
+                    _req: &types::RouterData<
+                api::Retrieve,
+                types::RetrieveFileRequestData,
+                types::RetrieveFileResponse,
+>,
+                    _connectors: &Connectors,
+                ) -> CustomResult<RequestContent, ConnectorError> 
+                {
+                    Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+                }
+                    }
     )*
     };
 }
@@ -603,6 +721,20 @@ impl<const T: u8>
         types::UploadFileResponse,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Upload,
+        types::UploadFileRequestData,
+        types::UploadFileResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RetrieveFile for connector::DummyConnector<T> {}
@@ -614,6 +746,20 @@ impl<const T: u8>
         types::RetrieveFileResponse,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Retrieve,
+        types::RetrieveFileRequestData,
+        types::RetrieveFileResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_file_upload!(
@@ -680,7 +826,21 @@ macro_rules! default_imp_for_submit_evidence {
                 types::SubmitEvidenceRequestData,
                 types::SubmitEvidenceResponse,
             > for $path::$connector
-            {}
+            {
+
+                fn get_request_body(
+                    &self,
+                    _req: &types::RouterData<
+                api::Evidence,
+                types::SubmitEvidenceRequestData,
+                types::SubmitEvidenceResponse,
+>,
+                    _connectors: &Connectors,
+                ) -> CustomResult<RequestContent, ConnectorError> 
+                {
+                    Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+                }
+                    }
     )*
     };
 }
@@ -695,6 +855,20 @@ impl<const T: u8>
         types::SubmitEvidenceResponse,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Evidence,
+        types::SubmitEvidenceRequestData,
+        types::SubmitEvidenceResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_submit_evidence!(
@@ -761,7 +935,21 @@ macro_rules! default_imp_for_defend_dispute {
                 types::DefendDisputeRequestData,
                 types::DefendDisputeResponse,
             > for $path::$connector
-            {}
+            {
+
+                fn get_request_body(
+                    &self,
+                    _req: &types::RouterData<
+                api::Defend,
+                types::DefendDisputeRequestData,
+                types::DefendDisputeResponse,
+>,
+                    _connectors: &Connectors,
+                ) -> CustomResult<RequestContent, ConnectorError> 
+                {
+                    Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+                }
+                    }
         )*
     };
 }
@@ -776,6 +964,20 @@ impl<const T: u8>
         types::DefendDisputeResponse,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Defend,
+        types::DefendDisputeRequestData,
+        types::DefendDisputeResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_defend_dispute!(
@@ -843,7 +1045,21 @@ macro_rules! default_imp_for_pre_processing_steps{
             types::PaymentsPreProcessingData,
             types::PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -858,6 +1074,20 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_pre_processing_steps!(
@@ -986,7 +1216,21 @@ macro_rules! default_imp_for_payouts_create {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::PoCreate,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1000,6 +1244,16 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<api::PoCreate, types::PayoutsData, types::PayoutsResponseData
+>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1068,7 +1322,21 @@ macro_rules! default_imp_for_payouts_eligibility {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::PoEligibility,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1085,6 +1353,18 @@ impl<const T: u8>
         types::PayoutsResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::PoEligibility,
+        types::PayoutsData,
+        types::PayoutsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 #[cfg(feature = "payouts")]
@@ -1153,7 +1433,21 @@ macro_rules! default_imp_for_payouts_fulfill {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::PoFulfill,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1167,6 +1461,9 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
+    fn get_request_body(&self,_req: &types::RouterData<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData> ,_connectors: &Connectors,) -> CustomResult<RequestContent,ConnectorError>  {
+        todo!()
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1235,7 +1532,21 @@ macro_rules! default_imp_for_payouts_cancel {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::PoCancel,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1249,6 +1560,9 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
+    fn get_request_body(&self,_req: &types::RouterData<api::PoCancel, types::PayoutsData, types::PayoutsResponseData> ,_connectors: &Connectors,) -> CustomResult<RequestContent,ConnectorError>  {
+        todo!()
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1317,7 +1631,21 @@ macro_rules! default_imp_for_payouts_quote {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::PoQuote,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1331,6 +1659,9 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
+    fn get_request_body(&self,_req: &types::RouterData<api::PoQuote, types::PayoutsData, types::PayoutsResponseData> ,_connectors: &Connectors,) -> CustomResult<RequestContent,ConnectorError>  {
+        todo!()
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1400,7 +1731,22 @@ macro_rules! default_imp_for_payouts_recipient {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+            api::PoRecipient,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
+        }
     )*
     };
 }
@@ -1414,6 +1760,9 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
+    fn get_request_body(&self,_req: &types::RouterData<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData> ,_connectors: &Connectors,) -> CustomResult<RequestContent,ConnectorError>  {
+        todo!()
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1482,7 +1831,21 @@ macro_rules! default_imp_for_approve {
             types::PaymentsApproveData,
             types::PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::Approve,
+            types::PaymentsApproveData,
+            types::PaymentsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1497,6 +1860,18 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Approve,
+        types::PaymentsApproveData,
+        types::PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_approve!(
@@ -1565,7 +1940,21 @@ macro_rules! default_imp_for_reject {
             types::PaymentsRejectData,
             types::PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::Reject,
+            types::PaymentsRejectData,
+            types::PaymentsResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1580,6 +1969,18 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Reject,
+        types::PaymentsRejectData,
+        types::PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_reject!(
@@ -1714,7 +2115,20 @@ macro_rules! default_imp_for_frm_sale {
             frm_types::FraudCheckSaleData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {
+                
+                fn get_request_body(
+                    &self,
+                    _req: &types::RouterData<
+                api::Sale,
+                frm_types::FraudCheckSaleData,
+                frm_types::FraudCheckResponseData,>,
+                    _connectors: &Connectors,
+                ) -> CustomResult<RequestContent, ConnectorError> 
+                {
+                    Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+                }
+        }
     )*
     };
 }
@@ -1729,6 +2143,18 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Sale,
+        frm_types::FraudCheckSaleData,
+        frm_types::FraudCheckResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 #[cfg(feature = "frm")]
@@ -1797,7 +2223,21 @@ macro_rules! default_imp_for_frm_checkout {
             frm_types::FraudCheckCheckoutData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::Checkout,
+            frm_types::FraudCheckCheckoutData,
+            frm_types::FraudCheckResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1812,6 +2252,18 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Checkout,
+        frm_types::FraudCheckCheckoutData,
+        frm_types::FraudCheckResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 #[cfg(feature = "frm")]
@@ -1880,7 +2332,21 @@ macro_rules! default_imp_for_frm_transaction {
             frm_types::FraudCheckTransactionData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::Transaction,
+            frm_types::FraudCheckTransactionData,
+            frm_types::FraudCheckResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1895,6 +2361,18 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Transaction,
+        frm_types::FraudCheckTransactionData,
+        frm_types::FraudCheckResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 #[cfg(feature = "frm")]
@@ -1963,7 +2441,21 @@ macro_rules! default_imp_for_frm_fulfillment {
             frm_types::FraudCheckFulfillmentData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::Fulfillment,
+            frm_types::FraudCheckFulfillmentData,
+            frm_types::FraudCheckResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -1978,6 +2470,19 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::Fulfillment,
+        frm_types::FraudCheckFulfillmentData,
+        frm_types::FraudCheckResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 #[cfg(feature = "frm")]
@@ -2046,7 +2551,21 @@ macro_rules! default_imp_for_frm_record_return {
             frm_types::FraudCheckRecordReturnData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {
+
+            fn get_request_body(
+                &self,
+                _req: &types::RouterData<
+            api::RecordReturn,
+            frm_types::FraudCheckRecordReturnData,
+            frm_types::FraudCheckResponseData,
+>,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, ConnectorError> 
+            {
+                Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+            }
+                }
     )*
     };
 }
@@ -2061,6 +2580,20 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::RecordReturn,
+        frm_types::FraudCheckRecordReturnData,
+        frm_types::FraudCheckResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 #[cfg(feature = "frm")]
@@ -2128,7 +2661,23 @@ macro_rules! default_imp_for_incremental_authorization {
             types::PaymentsIncrementalAuthorizationData,
             types::PaymentsResponseData,
         > for $path::$connector
-        {}
+        {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+            api::IncrementalAuthorization,
+            types::PaymentsIncrementalAuthorizationData,
+            types::PaymentsResponseData,
+>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
+        }
     )*
     };
 }
@@ -2143,6 +2692,21 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
+
+
+    fn get_request_body(
+        &self,
+        _req: &types::RouterData<
+        api::IncrementalAuthorization,
+        types::PaymentsIncrementalAuthorizationData,
+        types::PaymentsResponseData,
+>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> 
+    {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
 }
 
 default_imp_for_incremental_authorization!(

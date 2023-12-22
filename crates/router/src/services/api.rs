@@ -133,9 +133,10 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
-    }
+    ) -> CustomResult<RequestContent, crate::core::errors::ConnectorError> ;
+    // {
+    //     Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
+    // }
 
     fn get_request_form_data(
         &self,
