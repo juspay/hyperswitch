@@ -600,6 +600,7 @@ pub struct BankOfAmericaClientReferenceResponse {
     id: String,
     status: BankofamericaPaymentStatus,
     client_reference_information: ClientReferenceInformation,
+    error_information: Option<BankOfAmericaErrorInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -635,29 +636,56 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => Ok(Self {
-                status: enums::AttemptStatus::foreign_from((
+            BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
+                let status = enums::AttemptStatus::foreign_from((
                     info_response.status,
                     item.data.request.is_auto_capture()?,
-                )),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        info_response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(
-                        info_response
-                            .client_reference_information
-                            .code
-                            .unwrap_or(info_response.id),
-                    ),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
+                ));
+                if status == enums::AttemptStatus::Failure {
+                    let (message, reason) = match info_response.error_information {
+                        Some(error_info) => (
+                            error_info
+                                .message
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                            error_info.reason,
+                        ),
+                        None => (consts::NO_ERROR_MESSAGE.to_string(), None),
+                    };
+                    Ok(Self {
+                        response: Err(types::ErrorResponse {
+                            code: consts::NO_ERROR_CODE.to_string(),
+                            message,
+                            reason,
+                            status_code: item.http_code,
+                            attempt_status: Some(enums::AttemptStatus::Failure),
+                            connector_transaction_id: Some(info_response.id),
+                        }),
+                        status: enums::AttemptStatus::Failure,
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                info_response.id.clone(),
+                            ),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                info_response
+                                    .client_reference_information
+                                    .code
+                                    .unwrap_or(info_response.id),
+                            ),
+                            incremental_authorization_allowed: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
