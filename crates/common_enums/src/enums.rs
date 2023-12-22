@@ -1103,7 +1103,6 @@ pub enum PaymentExperience {
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
     Ach,
-    AchBankTransfer,
     Affirm,
     AfterpayClearpay,
     Alfamart,
@@ -1113,7 +1112,6 @@ pub enum PaymentMethodType {
     ApplePay,
     Atome,
     Bacs,
-    BacsBankTransfer,
     BancontactCard,
     Becs,
     Benefit,
@@ -1173,7 +1171,6 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Sepa,
-    SepaBankTransfer,
     Sofort,
     Swish,
     TouchNGo,

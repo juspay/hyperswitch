@@ -302,7 +302,6 @@ impl
                     | storage_enums::PaymentExperience::OneClick
                     | storage_enums::PaymentExperience::RedirectToUrl,
                     api_models::enums::PaymentMethodType::Ach
-                    | api_models::enums::PaymentMethodType::AchBankTransfer
                     | api_models::enums::PaymentMethodType::Affirm
                     | api_models::enums::PaymentMethodType::AfterpayClearpay
                     | api_models::enums::PaymentMethodType::Alfamart
@@ -312,7 +311,6 @@ impl
                     | api_models::enums::PaymentMethodType::ApplePay
                     | api_models::enums::PaymentMethodType::Atome
                     | api_models::enums::PaymentMethodType::Bacs
-                    | api_models::enums::PaymentMethodType::BacsBankTransfer
                     | api_models::enums::PaymentMethodType::BancontactCard
                     | api_models::enums::PaymentMethodType::Becs
                     | api_models::enums::PaymentMethodType::Benefit
@@ -371,7 +369,6 @@ impl
                     | api_models::enums::PaymentMethodType::RedPagos
                     | api_models::enums::PaymentMethodType::SamsungPay
                     | api_models::enums::PaymentMethodType::Sepa
-                    | api_models::enums::PaymentMethodType::SepaBankTransfer
                     | api_models::enums::PaymentMethodType::Sofort
                     | api_models::enums::PaymentMethodType::Swish
                     | api_models::enums::PaymentMethodType::TouchNGo

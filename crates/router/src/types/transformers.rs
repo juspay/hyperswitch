@@ -441,9 +441,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::CimbVa
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
-            | api_enums::PaymentMethodType::AchBankTransfer
-            | api_enums::PaymentMethodType::BacsBankTransfer
-            | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
@@ -860,9 +857,9 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
-            api_models::payouts::Bank::Ach(_) => Self::AchBankTransfer,
-            api_models::payouts::Bank::Bacs(_) => Self::BacsBankTransfer,
-            api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
+            api_models::payouts::Bank::Ach(_) => Self::Ach,
+            api_models::payouts::Bank::Bacs(_) => Self::Bacs,
+            api_models::payouts::Bank::Sepa(_) => Self::Sepa,
         }
     }
 }
