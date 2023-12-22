@@ -848,7 +848,6 @@ pub struct CybersourceClientReferenceResponse {
     id: String,
     status: CybersourcePaymentStatus,
     client_reference_information: ClientReferenceInformation,
-    error_information: Option<CybersourceErrorInformation>,
     token_information: Option<CybersourceTokenInformation>,
 }
 
