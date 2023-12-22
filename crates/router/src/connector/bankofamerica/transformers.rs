@@ -1,7 +1,7 @@
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -202,12 +202,14 @@ fn build_bill_to(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
+    let mut state = address.to_state_code()?.peek().clone();
+    state.truncate(20);
     Ok(BillTo {
         first_name: address.get_first_name()?.to_owned(),
         last_name: address.get_last_name()?.to_owned(),
         address1: address.get_line1()?.to_owned(),
         locality: address.get_city()?.to_owned(),
-        administrative_area: address.to_state_code()?,
+        administrative_area: Secret::from(state),
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
         email,
