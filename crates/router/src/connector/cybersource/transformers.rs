@@ -1,7 +1,7 @@
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
-use masking::{Secret, PeekInterface};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
