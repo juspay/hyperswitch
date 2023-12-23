@@ -6,7 +6,10 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData},
+    connector::utils::{
+        self, AddressDetailsData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData,
+    },
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
@@ -83,6 +86,8 @@ pub struct NmiVaultRequest {
     security_key: Secret<String>,
     ccnumber: CardNumber,
     ccexp: Secret<String>,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
     customer_vault: CustomerAction,
 }
 
@@ -98,11 +103,14 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let (ccnumber, ccexp) = get_card_details(item.request.payment_method_data.clone())?;
+        let billing_details = item.get_billing_address()?;
 
         Ok(Self {
             security_key: auth_type.api_key,
             ccnumber,
             ccexp,
+            first_name: billing_details.get_first_name()?.to_owned(),
+            last_name: billing_details.get_last_name()?.to_owned(),
             customer_vault: CustomerAction::AddCustomer,
         })
     }
@@ -189,6 +197,7 @@ impl
                                 config: "public_key",
                             },
                         )?,
+                        order_id: item.data.connector_request_reference_id.clone(),
                     }),
                     mandate_reference: None,
                     connector_metadata: None,
@@ -220,13 +229,17 @@ impl
 
 #[derive(Debug, Serialize)]
 pub struct NmiCompleteRequest {
+    amount: f64,
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     security_key: Secret<String>,
+    orderid: String,
+    ccnumber: CardNumber,
+    ccexp: Secret<String>,
     cardholder_auth: CardHolderAuthType,
     cavv: String,
-    xid: String,
-    three_ds_version: ThreeDsVersion,
+    xid: Option<String>,
+    three_ds_version: Option<ThreeDsVersion>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -240,6 +253,8 @@ pub enum CardHolderAuthType {
 pub enum ThreeDsVersion {
     #[serde(rename = "2.0.0")]
     VersionTwo,
+    #[serde(rename = "2.1.0")]
+    VersionTwoPointOne,
     #[serde(rename = "2.2.0")]
     VersionTwoPointTwo,
 }
@@ -248,9 +263,10 @@ pub enum ThreeDsVersion {
 #[serde(rename_all = "camelCase")]
 pub struct NmiRedirectResponseData {
     cavv: String,
-    xid: String,
+    xid: Option<String>,
     card_holder_auth: CardHolderAuthType,
-    three_ds_version: ThreeDsVersion,
+    three_ds_version: Option<ThreeDsVersion>,
+    order_id: String,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
@@ -275,9 +291,16 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
                 field_name: "three_ds_data",
             })?;
 
+        let (ccnumber, ccexp) =
+            get_card_details(item.router_data.request.payment_method_data.clone())?;
+
         Ok(Self {
+            amount: item.amount,
             transaction_type,
             security_key: auth_type.api_key,
+            orderid: three_ds_data.order_id,
+            ccnumber,
+            ccexp,
             cardholder_auth: three_ds_data.card_holder_auth,
             cavv: three_ds_data.cavv,
             xid: three_ds_data.xid,
