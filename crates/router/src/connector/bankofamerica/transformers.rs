@@ -551,8 +551,16 @@ pub enum BankofamericaPaymentStatus {
     Reversed,
     Pending,
     Declined,
+    Rejected,
+    Challenge,
     AuthorizedPendingReview,
+    AuthorizedRiskDeclined,
     Transmitted,
+    InvalidRequest,
+    ServerError,
+    PendingAuthentication,
+    PendingReview,
+    //PartialAuthorized, not being consumed yet.
 }
 
 impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
@@ -580,8 +588,15 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             BankofamericaPaymentStatus::Voided | BankofamericaPaymentStatus::Reversed => {
                 Self::Voided
             }
-            BankofamericaPaymentStatus::Failed | BankofamericaPaymentStatus::Declined => {
-                Self::Failure
+            BankofamericaPaymentStatus::Failed
+            | BankofamericaPaymentStatus::Declined
+            | BankofamericaPaymentStatus::AuthorizedRiskDeclined
+            | BankofamericaPaymentStatus::InvalidRequest
+            | BankofamericaPaymentStatus::Rejected
+            | BankofamericaPaymentStatus::ServerError => Self::Failure,
+            BankofamericaPaymentStatus::PendingAuthentication => Self::AuthenticationPending,
+            BankofamericaPaymentStatus::PendingReview | BankofamericaPaymentStatus::Challenge => {
+                Self::Pending
             }
         }
     }
@@ -747,7 +762,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(error_response.id),
                 }),
                 status: enums::AttemptStatus::Failure,
                 ..item.data
@@ -796,7 +811,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(error_response.id),
                 }),
                 ..item.data
             }),
@@ -844,7 +859,7 @@ impl<F>
                     reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(error_response.id),
                 }),
                 ..item.data
             }),
