@@ -774,6 +774,7 @@ pub enum CybersourcePaymentStatus {
     Pending,
     Declined,
     AuthorizedPendingReview,
+    AuthorizedRiskDeclined,
     Transmitted,
 }
 
@@ -808,7 +809,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
                 Self::Charged
             }
             CybersourcePaymentStatus::Voided | CybersourcePaymentStatus::Reversed => Self::Voided,
-            CybersourcePaymentStatus::Failed | CybersourcePaymentStatus::Declined => Self::Failure,
+            CybersourcePaymentStatus::Failed
+            | CybersourcePaymentStatus::Declined
+            | CybersourcePaymentStatus::AuthorizedRiskDeclined => Self::Failure,
         }
     }
 }
@@ -922,7 +925,7 @@ impl<F, T>
                 reason: error_response.error_information.reason.clone(),
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(error_response.id.clone()),
             }),
             ..item.data
         }
