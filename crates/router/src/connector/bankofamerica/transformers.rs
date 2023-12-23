@@ -551,9 +551,16 @@ pub enum BankofamericaPaymentStatus {
     Reversed,
     Pending,
     Declined,
+    Rejected,
+    Challenge,
     AuthorizedPendingReview,
     AuthorizedRiskDeclined,
     Transmitted,
+    InvalidRequest,
+    ServerError,
+    PendingAuthentication,
+    PendingReview,
+    //PartialAuthorized, not being consumed yet.
 }
 
 impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
@@ -583,7 +590,14 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
             }
             BankofamericaPaymentStatus::Failed
             | BankofamericaPaymentStatus::Declined
-            | BankofamericaPaymentStatus::AuthorizedRiskDeclined => Self::Failure,
+            | BankofamericaPaymentStatus::AuthorizedRiskDeclined
+            | BankofamericaPaymentStatus::InvalidRequest
+            | BankofamericaPaymentStatus::Rejected
+            | BankofamericaPaymentStatus::ServerError => Self::Failure,
+            BankofamericaPaymentStatus::PendingAuthentication => Self::AuthenticationPending,
+            BankofamericaPaymentStatus::PendingReview | BankofamericaPaymentStatus::Challenge => {
+                Self::Pending
+            }
         }
     }
 }
