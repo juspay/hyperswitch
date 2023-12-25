@@ -1,7 +1,7 @@
 use scheduler::consumer::workflows::ProcessTrackerWorkflow;
 
 use crate::{
-    core::payment_methods::vault, errors, logger::error, routes::AppState, types::storage,
+   errors, logger::error, routes::AppState, types::storage,
 };
 
 pub struct ReportingWorkflow;
@@ -10,8 +10,8 @@ pub struct ReportingWorkflow;
 impl ProcessTrackerWorkflow<AppState> for ReportingWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
-        process: storage::ProcessTracker,
+        _state: &'a AppState,
+        _process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         //todo
         Ok(())
