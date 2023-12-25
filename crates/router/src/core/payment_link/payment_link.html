@@ -1308,8 +1308,8 @@
                     hide("#hyper-checkout-details");
                     show("#hyper-checkout-status-canvas");
                     showStatus(
-                      Object.assign(paymentDetails, paymentIntent),
-                      paymentDetails.amount
+                      paymentDetails.amount,
+                      Object.assign(paymentDetails, paymentIntent)
                     );
                   }
                 })
@@ -1344,14 +1344,14 @@
           if (!clientSecret) {
             res.showSdk = false;
             showStatus(
+              paymentDetails.amount,
               Object.assign(paymentDetails, {
                 status: "",
                 error: {
                   code: "NO_CLIENT_SECRET",
                   message: "client_secret not found",
                 },
-              }),
-              paymentDetails.amount
+              })
             );
             return resolve(res);
           }
@@ -1363,14 +1363,14 @@
               if (!paymentIntent) {
                 res.showSdk = false;
                 showStatus(
+                  paymentDetails.amount,
                   Object.assign(paymentDetails, {
                     status: "",
                     error: {
                       code: "NOT_FOUND",
                       message: "PaymentIntent was not found",
                     },
-                  }),
-                  paymentDetails.amount
+                  })
                 );
                 return resolve(res);
               }
@@ -1381,8 +1381,8 @@
                   return resolve(res);
               }
               showStatus(
-                Object.assign(paymentDetails, paymentIntent),
-                paymentDetails.amount
+                paymentDetails.amount,
+                Object.assign(paymentDetails, paymentIntent)
               );
               res.showSdk = false;
               resolve(res);
@@ -1405,7 +1405,7 @@
         addText("#payment-message", msg);
       }
 
-      function showStatus(paymentDetails, amount) {
+      function showStatus(amount, paymentDetails) {
         var status = paymentDetails.status;
         var statusDetails = {
           imageSource: "",
@@ -1563,7 +1563,7 @@
                   payment_id: paymentDetails.payment_id,
                   status: paymentDetails.status,
                   payment_intent_client_secret: paymentDetails.client_secret,
-                  amount: paymentDetails.amount,
+                  amount: amount,
                   manual_retry_allowed: paymentDetails.manual_retry_allowed,
                 };
                 var url = new URL(paymentDetails.return_url);
