@@ -86,6 +86,7 @@ pub struct NmiVaultRequest {
     security_key: Secret<String>,
     ccnumber: CardNumber,
     ccexp: Secret<String>,
+    cvv: Secret<String>,
     first_name: Secret<String>,
     last_name: Secret<String>,
     customer_vault: CustomerAction,
@@ -102,13 +103,14 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let (ccnumber, ccexp) = get_card_details(item.request.payment_method_data.clone())?;
+        let (ccnumber, ccexp, cvv) = get_card_details(item.request.payment_method_data.clone())?;
         let billing_details = item.get_billing_address()?;
 
         Ok(Self {
             security_key: auth_type.api_key,
             ccnumber,
             ccexp,
+            cvv,
             first_name: billing_details.get_first_name()?.to_owned(),
             last_name: billing_details.get_last_name()?.to_owned(),
             customer_vault: CustomerAction::AddCustomer,
@@ -118,7 +120,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
 
 fn get_card_details(
     payment_method_data: Option<api::PaymentMethodData>,
-) -> CustomResult<(CardNumber, Secret<String>), errors::ConnectorError> {
+) -> CustomResult<(CardNumber, Secret<String>, Secret<String>), errors::ConnectorError> {
     match payment_method_data {
         Some(api::PaymentMethodData::Card(ref card_details)) => Ok((
             card_details.card_number.clone(),
@@ -126,6 +128,7 @@ fn get_card_details(
                 card_details,
                 "".to_string(),
             ),
+            card_details.card_cvc.clone(),
         )),
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Nmi"),
@@ -291,7 +294,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
                 field_name: "three_ds_data",
             })?;
 
-        let (ccnumber, ccexp) =
+        let (ccnumber, ccexp, ..) =
             get_card_details(item.router_data.request.payment_method_data.clone())?;
 
         Ok(Self {
