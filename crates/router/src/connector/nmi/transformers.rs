@@ -241,7 +241,7 @@ pub struct NmiCompleteRequest {
     ccexp: Secret<String>,
     cardholder_auth: CardHolderAuthType,
     cavv: String,
-    xid: Option<String>,
+    xid: String,
     three_ds_version: Option<ThreeDsVersion>,
 }
 
@@ -266,7 +266,7 @@ pub enum ThreeDsVersion {
 #[serde(rename_all = "camelCase")]
 pub struct NmiRedirectResponseData {
     cavv: String,
-    xid: Option<String>,
+    xid: String,
     card_holder_auth: CardHolderAuthType,
     three_ds_version: Option<ThreeDsVersion>,
     order_id: String,
