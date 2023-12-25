@@ -75,7 +75,7 @@ pub async fn intiate_payment_link_flow(
         "use payment link for",
     )?;
 
-    let merchant_name = merchant_account
+    let merchant_name_from_merchant_account = merchant_account
         .merchant_name
         .clone()
         .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -92,7 +92,7 @@ pub async fn intiate_payment_link_flow(
         admin_types::PaymentLinkConfig {
             theme: DEFAULT_BACKGROUND_COLOR.to_string(),
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
-            seller_name: merchant_name,
+            seller_name: merchant_name_from_merchant_account,
         }
     };
 
@@ -118,6 +118,9 @@ pub async fn intiate_payment_link_flow(
         .fulfilment_time
         .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME)));
 
+    // converting first letter of merchant name to upperCase
+    let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
+
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: currency
             .to_currency_base_unit(payment_intent.amount)
@@ -125,7 +128,7 @@ pub async fn intiate_payment_link_flow(
             .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?,
         currency,
         payment_id: payment_intent.payment_id,
-        merchant_name: payment_link_config.clone().seller_name,
+        merchant_name,
         order_details,
         return_url,
         expiry,
@@ -261,7 +264,8 @@ fn validate_order_details(
                     .to_currency_base_unit(order.amount)
                     .into_report()
                     .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
-                order_details_amount_string.product_name = order.product_name.clone();
+                order_details_amount_string.product_name =
+                    capitalize_first_char(&order.product_name.clone());
                 order_details_amount_string.quantity = order.quantity;
                 order_details_amount_string_array.push(order_details_amount_string)
             }
@@ -352,4 +356,15 @@ pub fn get_payment_link_config_based_on_priority(
     };
 
     Ok((payment_link_config, domain_name))
+}
+
+fn capitalize_first_char(s: &str) -> String {
+    if let Some(first_char) = s.chars().next() {
+        let capitalized = first_char.to_uppercase();
+        let mut result = capitalized.to_string();
+        result.push_str(&s[1..]);
+        result
+    } else {
+        s.to_owned()
+    }
 }
