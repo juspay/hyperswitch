@@ -74,6 +74,21 @@ impl ConnectorValidation for Stripe {
             ),
         }
     }
+
+    fn validate_mandate_payment(
+            &self,
+            pm_type: Option<types::storage::enums::PaymentMethodType>,
+        ) -> CustomResult<(), errors::ConnectorError> {
+        match pm_type {
+            Some(types::storage::enums::PaymentMethodType::Credit) => Ok(()),
+            Some(payment_method) =>  Err(connector_utils::construct_mandate_not_supported_error_report(payment_method, self.id())),
+            _ =>  Err(errors::ConnectorError::NotSupported {
+                message: "mandate payment for".to_string(),
+                connector: self.id(),
+            }
+            .into())
+        }
+    }
 }
 
 impl api::Payment for Stripe {}
