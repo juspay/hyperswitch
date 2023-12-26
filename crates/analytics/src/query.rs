@@ -337,6 +337,42 @@ where
     table_engine: TableEngine,
 }
 
+#[derive(Debug)]
+pub enum JoinType {
+    InnerJoin, 
+    LeftJoin,
+    RightJoin,
+    FullJoin
+}
+
+#[derive(Debug)]
+pub struct JoinCondition {
+    join_column_lhs: String,
+    join_column_rhs: String
+}
+
+#[derive(Debug)]
+pub struct JoinRelation<T> 
+where
+    T: AnalyticsDataSource,
+    AnalyticsCollection: ToSql<T>,
+{
+    relation: QueryBuilder<T>,
+    alias: &'static str
+}
+
+#[derive(Debug)]
+pub struct Join<T>
+where
+    T: AnalyticsDataSource,
+    AnalyticsCollection: ToSql<T>,
+{
+    join_type: JoinType,
+    join_conditions: Vec<JoinCondition>,
+    join_lhs: Option<JoinRelation<T>>,
+    join_rhs: Option<JoinRelation<T>>
+}
+
 pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
 }
@@ -722,4 +758,48 @@ where
         logger::debug!(?query);
         Ok(store.load_results(query.as_str()).await)
     }
+}
+
+impl<T> Join<T>
+where
+    T: AnalyticsDataSource,
+    AnalyticsCollection: ToSql<T>,
+{
+    pub fn init_join(join_type: JoinType) -> Self {
+        Self {
+            join_type: join_type,
+            join_conditions: Default::default(),
+            join_lhs: Default::default(),
+            join_rhs: Default::default(),
+        }
+    }
+
+    pub fn add_join_lhs(&mut self, relation: QueryBuilder<T>, alias: &'static str) -> QueryResult<()> {
+        self.join_lhs = Some(JoinRelation {
+            relation,
+            alias
+        });
+        Ok(())
+    }
+
+    pub fn add_join_rhs(&mut self, relation: QueryBuilder<T>, alias: &'static str) -> QueryResult<()> {
+        self.join_rhs = Some(JoinRelation {
+            relation,
+            alias
+        });
+        Ok(())
+    }
+
+    pub fn add_join_conditions(&mut self, lhs: String, rhs: String) -> QueryResult<()> {
+        self.join_conditions.push(
+            JoinCondition{
+                join_column_lhs: lhs,
+                join_column_rhs: rhs
+            }
+        );
+        Ok(())
+    }
+
+
+
 }
