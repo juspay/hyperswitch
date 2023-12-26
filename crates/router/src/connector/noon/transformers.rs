@@ -1,5 +1,3 @@
-use core::error;
-
 use common_utils::pii;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -334,31 +332,51 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             });
 
         let (subscription, tokenize_c_c) =
-            match item.request.setup_future_usage.is_some().then_some(|| {
-                let mandate_data = item.request.get_setup_mandate_details().clone().ok_or(errors::ConnectorError::CaptureMethodNotSupported)?;
+        match item.request.setup_future_usage.is_some().then_some({
+            let mandate_data = item.request.get_setup_mandate_details().clone().ok_or(errors::ConnectorError::MissingRequiredField{field_name : "setup_mandate_details"})?;
+            let max_amount = match &mandate_data.mandate_type {
+                Some(data_models::mandates::MandateDataType::SingleUse(mandate)) =>   mandate.amount.to_string(),
+                Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => mandate.amount.to_string(),
+                _ => Err(errors::ConnectorError::NotImplemented(item.connector.clone()))?,
+            };
 
-                let max_amount = match mandate_data.mandate_type {
-                    Some(api::MandateType::SingleUse(mandate)) =>   mandate.amount,
-                     
-                    
-                    Some(api::MandateType::MultiUse(Some(mandate))) => mandate.amount.unwrap_or_default(),
-                    None => None,
-                }
-
-                (
-                
-                    NoonSubscriptionData {
-                        subscription_type: NoonSubscriptionType::Unscheduled,
-                        name: name.clone(),
-                    
-                        max_amount,
-                    },
-                    true,
-                )
-            }) {
-                Some((a, b)) => (Some(a), Some(b)),
+            (
+            NoonSubscriptionData {
+                subscription_type: NoonSubscriptionType::Unscheduled,
+                name: name.clone(),
+                max_amount
+            },
+            true,
+            )
+        }) {
+            Some((a, b)) => (Some(a), Some(b)),
                 None => (None, None),
             };
+            // match item.request.setup_future_usage.is_some().then_some(|| {
+            //     let mandate_data = item.request.get_setup_mandate_details().clone().ok_or(errors::ConnectorError::CaptureMethodNotSupported)?;
+
+            //     let max_amount = match mandate_data.mandate_type {
+            //         Some(api::MandateType::SingleUse(mandate)) =>   mandate.amount,
+                     
+                    
+            //         Some(api::MandateType::MultiUse(Some(mandate))) => mandate.amount.unwrap_or_default(),
+            //         None => None,
+            //     }
+
+            //     (
+                
+            //         NoonSubscriptionData {
+            //             subscription_type: NoonSubscriptionType::Unscheduled,
+            //             name: name.clone(),
+                    
+            //             max_amount,
+            //         },
+            //         true,
+            //     )
+            // }) {
+            //     Some((a, b)) => (Some(a), Some(b)),
+            //     None => (None, None),
+            // };
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
