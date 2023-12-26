@@ -113,10 +113,10 @@ pub async fn intiate_payment_link_flow(
     )?;
     let order_details = validate_order_details(payment_intent.order_details, currency)?;
 
-    let curr_time = common_utils::date_time::now();
-    let expiry = payment_link
-        .fulfilment_time
-        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME)));
+    let expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
+        common_utils::date_time::now()
+            .saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME))
+    });
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
@@ -276,16 +276,6 @@ fn validate_order_details(
     Ok(updated_order_details)
 }
 
-pub fn extract_business_payment_link_config(
-    pl_config: serde_json::Value,
-) -> Result<admin_types::BusinessPaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
-    serde_json::from_value::<admin_types::BusinessPaymentLinkConfig>(pl_config.clone())
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
-        })
-}
-
 pub fn extract_payment_link_config(
     pl_config: serde_json::Value,
 ) -> Result<api_models::admin::PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
@@ -304,7 +294,13 @@ pub fn get_payment_link_config_based_on_priority(
 ) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
 {
     let (domain_name, business_config) = if let Some(business_config) = business_link_config {
-        let extracted_value = extract_business_payment_link_config(business_config)?;
+        let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
+            .parse_value("BusinessPaymentLinkConfig")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_link_config",
+            })
+            .attach_printable("Invalid payment_link_config given in business config")?;
+
         (
             extracted_value
                 .domain_name
@@ -317,7 +313,7 @@ pub fn get_payment_link_config_based_on_priority(
         (default_domain_name, None)
     };
 
-    let pc_config = payment_create_link_config.map(|pc_config| pc_config.config);
+    let pc_config = payment_create_link_config.map(|pc_config| pc_config);
 
     let theme = pc_config
         .clone()
