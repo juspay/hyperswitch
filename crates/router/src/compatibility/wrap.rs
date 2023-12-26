@@ -133,18 +133,47 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match api::build_payment_link_html(*payment_link_data) {
-                Ok(rendered_html) => api::http_response_html_data(rendered_html),
-                Err(_) => api::http_response_err(
-                    r#"{
-                        "error": {
-                            "message": "Error while rendering payment link html page"
-                        }
-                    }"#,
-                ),
+        Ok(api::ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match api::build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Err(_) => api::http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                api::PaymentLinkAction::PaymentLink404NotFound => {
+                    match api::get_404_not_found_page() {
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Err(_) => api::http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Payment link not found"
+                                }
+                            }"#,
+                        )
+                    }
+                }
             }
-        }
+        } 
+
+        // Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+        //     match api::build_payment_link_html(*payment_link_data) {
+        //         Ok(rendered_html) => api::http_response_html_data(rendered_html),
+        //         Err(_) => api::http_response_err(
+        //             r#"{
+        //                 "error": {
+        //                     "message": "Error while rendering payment link html page"
+        //                 }
+        //             }"#,
+        //         ),
+        //     }
+        // }
 
         Err(error) => api::log_and_return_error_response(error),
     };

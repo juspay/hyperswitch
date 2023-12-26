@@ -723,9 +723,15 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
-    PaymenkLinkForm(Box<PaymentLinkFormData>),
+    PaymenkLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentLinkAction {
+    PaymentLinkFormData(PaymentLinkFormData),
+    PaymentLink404NotFound,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -1040,18 +1046,34 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match build_payment_link_html(*payment_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
-                Err(_) => http_response_err(
-                    r#"{
-                            "error": {
-                                "message": "Error while rendering payment link html page"
-                            }
-                        }"#,
-                ),
+        Ok(ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                PaymentLinkAction::PaymentLink404NotFound => {
+                    match get_404_not_found_page() {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Payment link not found"
+                                }
+                            }"#,
+                        )
+                    }
+                }
             }
-        }
+        }        
 
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
@@ -1614,4 +1636,18 @@ pub fn build_payment_link_html(
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+pub fn get_404_not_found_page() -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/404_not_found.html").to_string();
+    let mut tera = Tera::default();
+    let _ = tera.add_raw_template("payment_link_404_not_found", &html_template);
+
+    match tera.render("payment_link_404_not_found", &Context::new()) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
 }

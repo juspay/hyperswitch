@@ -13,7 +13,7 @@ use time::PrimitiveDateTime;
 
 use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
-    core::payments::helpers,
+    // core::payments::helpers,
     errors::RouterResponse,
     routes::AppState,
     services,
@@ -63,18 +63,6 @@ pub async fn intiate_payment_link_flow(
         .get_required_value("payment_link_id")
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    helpers::validate_payment_status_against_not_allowed_statuses(
-        &payment_intent.status,
-        &[
-            storage_enums::IntentStatus::Cancelled,
-            storage_enums::IntentStatus::Succeeded,
-            storage_enums::IntentStatus::Processing,
-            storage_enums::IntentStatus::RequiresCapture,
-            storage_enums::IntentStatus::RequiresMerchantAction,
-        ],
-        "use payment link for",
-    )?;
-
     let merchant_name_from_merchant_account = merchant_account
         .merchant_name
         .clone()
@@ -118,6 +106,24 @@ pub async fn intiate_payment_link_flow(
         .fulfilment_time
         .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME)));
 
+    if check_payment_link_invalid_conditions(
+        &payment_intent.status,
+        &[
+            storage_enums::IntentStatus::Cancelled,
+            storage_enums::IntentStatus::Succeeded,
+            storage_enums::IntentStatus::Processing,
+            storage_enums::IntentStatus::RequiresCapture,
+            storage_enums::IntentStatus::RequiresMerchantAction,
+        ],
+        curr_time,
+        expiry
+    ) {
+        return Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
+            services::api::PaymentLinkAction::PaymentLink404NotFound,
+        )))
+    };
+    
+
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
 
@@ -148,7 +154,7 @@ pub async fn intiate_payment_link_flow(
         css_script,
     };
     Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
-        payment_link_data,
+        services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
     )))
 }
 
@@ -367,4 +373,20 @@ fn capitalize_first_char(s: &str) -> String {
     } else {
         s.to_owned()
     }
+}
+
+
+fn check_payment_link_invalid_conditions(
+    intent_status: &storage_enums::IntentStatus,
+    not_allowed_statuses: &[storage_enums::IntentStatus],
+    curr_time: PrimitiveDateTime,
+    expiry: PrimitiveDateTime
+) -> bool {
+    if not_allowed_statuses.contains(intent_status) || curr_time > expiry {
+        return true
+    }
+    else {
+        return false
+    }
+
 }
