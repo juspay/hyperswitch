@@ -53,3 +53,6 @@ pub const PROPHETPAY_TOKEN: &str = "cctoken";
 
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
+
+/// Default SDK Layout
+pub const DEFAULT_SDK_LAYOUT: &str = "tabs";

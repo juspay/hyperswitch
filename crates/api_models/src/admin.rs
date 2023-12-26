@@ -1159,6 +1159,9 @@ pub struct PaymentLinkConfigRequest {
     /// Custom merchant name for payment link
     #[schema(value_type = Option<String>, max_length = 255, example = "hyperswitch")]
     pub seller_name: Option<String>,
+    /// Custom layout for sdk
+    #[schema(value_type = Option<String>, max_length = 255, example = "accordion")]
+    pub sdk_layout: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -1169,4 +1172,6 @@ pub struct PaymentLinkConfig {
     pub logo: String,
     /// Custom merchant name for payment link
     pub seller_name: String,
+    /// Custom layout for sdk
+    pub sdk_layout: String,
 }
