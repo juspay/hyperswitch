@@ -1,32 +1,184 @@
-<!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>404 Not Found</title>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
-            text-align: center;
-            padding: 50px;
+      {{ css_color_scheme }}
+
+      body,
+      body > div {
+        height: 100vh;
+        width: 100vw;
+      }
+
+      body {
+        font-family: "Montserrat";
+        background-color: var(--primary-color);
+        color: #333;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      body > div {
+        height: 100vh;
+        width: 100vw;
+        overflow: scroll;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .wrapper {
+        display: flex;
+        flex-flow: column;
+        background-color: #f2f2f2;
+        border-radius: 4px;
+        min-width: 350px;
+        max-width: 60vw;
+        border: 1px solid #eaeaea;
+      }
+
+      .header,
+      .main {
+        padding: 30px;
+      }
+
+      .header {
+        display: flex;
+        border-bottom: 1px solid #f2f2f2;
+      }
+
+      #merchant-logo {
+        height: 48px;
+      }
+
+      #merchant-name {
+        font-size: 32px;
+        font-weight: 600;
+        align-self: center;
+        margin-left: 20px;
+      }
+
+      .main {
+        display: flex;
+        flex-flow: column;
+      }
+
+      .main-header {
+        margin-bottom: 40px;
+        align-items: center;
+        text-align: start;
+      }
+
+      .info {
+        overflow: scroll;
+        display: flex;
+        flex-flow: row;
+        align-self: center;
+        margin-bottom: 15px;
+        min-width: 350px;
+      }
+
+      .info:last-child {
+        margin-bottom: 0;
+      }
+
+      .label {
+        font-size: 14px;
+        font-weight: 550;
+        min-width: 12ch;
+        text-align: start;
+      }
+
+      .value {
+        font-size: 15px;
+      }
+
+      @media only screen and (max-width: 1136px) {
+        .info {
+          flex-flow: column;
+          align-self: flex-start;
+          align-items: flex-start;
+          min-width: auto;
         }
 
-        h1 {
-            font-size: 3em;
-            color: #e74c3c;
+        .value {
+          margin: 0;
         }
-
-        p {
-            font-size: 1.2em;
-            margin-top: 20px;
-            color: #555;
-        }
+      }
     </style>
-</head>
-<body>
-    <h1>404 Not Found</h1>
-    <p>Oops! The page you are looking for might be in another castle.</p>
-</body>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
+    />
+    <script>
+      {{ payment_details_js_script }}
+
+      function boot() {
+        var paymentDetails = window.__PAYMENT_DETAILS;
+
+        // Attach document icon
+        if (paymentDetails.merchant_logo) {
+          var link = document.createElement("link");
+          link.rel = "icon";
+          link.href = paymentDetails.merchant_logo;
+          link.type = "image/x-icon";
+          document.head.appendChild(link);
+        }
+
+        // Inject information
+        injectContext(paymentDetails);
+      }
+
+      function injectContext(paymentDetails) {
+        // Logo
+        var merchantLogoImageNode = document.getElementById("merchant-logo");
+        if (merchantLogoImageNode instanceof HTMLImageElement) {
+          merchantLogoImageNode.src = paymentDetails.merchant_logo;
+        }
+
+        // Name
+        var merchantNameNode = document.getElementById("merchant-name");
+        if (merchantNameNode instanceof HTMLDivElement) {
+          merchantNameNode.innerHTML = paymentDetails.merchant_name;
+        }
+
+        // Payment ID
+        var paymentIdNode = document.getElementById("payment-id");
+        if (paymentIdNode instanceof HTMLSpanElement) {
+          paymentIdNode.innerHTML = paymentDetails.payment_id;
+        }
+
+        // Created at
+        var createdAtNode = document.getElementById("created-at");
+        if (createdAtNode instanceof HTMLSpanElement) {
+          createdAtNode.innerHTML = paymentDetails.created;
+        }
+      }
+    </script>
+  </head>
+
+  <body onload="boot()">
+    <div>
+      <div class="wrapper">
+        <div class="header">
+          <img id="merchant-logo" src="" alt="" />
+          <div id="merchant-name"></div>
+        </div>
+        <div class="main">
+          <div class="main-header">
+            Sorry, this page does not exist. Use below information for further
+            investigation
+          </div>
+          <div class="info">
+            <span class="label">Payment ID</span>
+            <span class="value" id="payment-id"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

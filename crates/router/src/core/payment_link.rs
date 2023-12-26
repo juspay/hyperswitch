@@ -105,6 +105,8 @@ pub async fn intiate_payment_link_flow(
     let expiry = payment_link
         .fulfilment_time
         .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME)));
+    let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
+    let css_script = get_color_scheme_css(payment_link_config.clone());
 
     if check_payment_link_invalid_conditions(
         &payment_intent.status,
@@ -116,16 +118,25 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresMerchantAction,
         ],
         curr_time,
-        expiry
+        expiry,
     ) {
+        let payment_details = api_models::payments::PaymentLinkErrorDetails {
+            payment_id: payment_intent.payment_id,
+            merchant_name,
+            merchant_logo: payment_link_config.clone().logo,
+            created: payment_link.created_at,
+        };
+        let js_script = get_js_script(
+            api_models::payments::PaymentLinkData::PaymentLinkErrorDetails(payment_details),
+        )?;
+        let payment_link_error_data = services::PaymentLinkErrorData {
+            js_script,
+            css_script,
+        };
         return Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
-            services::api::PaymentLinkAction::PaymentLink404NotFound,
-        )))
+            services::api::PaymentLinkAction::PaymentLink404NotFound(payment_link_error_data),
+        )));
     };
-    
-
-    // converting first letter of merchant name to upperCase
-    let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
 
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: currency
@@ -146,8 +157,9 @@ pub async fn intiate_payment_link_flow(
         merchant_description: payment_intent.description,
     };
 
-    let js_script = get_js_script(payment_details)?;
-    let css_script = get_color_scheme_css(payment_link_config.clone());
+    let js_script = get_js_script(api_models::payments::PaymentLinkData::PaymentLinkDetails(
+        payment_details,
+    ))?;
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
@@ -162,13 +174,11 @@ pub async fn intiate_payment_link_flow(
 The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
 */
 
-fn get_js_script(
-    payment_details: api_models::payments::PaymentLinkDetails,
-) -> RouterResult<String> {
+fn get_js_script(payment_details: api_models::payments::PaymentLinkData) -> RouterResult<String> {
     let payment_details_str = serde_json::to_string(&payment_details)
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize PaymentLinkDetails")?;
+        .attach_printable("Failed to serialize PaymentLinkData")?;
     Ok(format!("window.__PAYMENT_DETAILS = {payment_details_str};"))
 }
 
@@ -375,18 +385,11 @@ fn capitalize_first_char(s: &str) -> String {
     }
 }
 
-
 fn check_payment_link_invalid_conditions(
     intent_status: &storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
     curr_time: PrimitiveDateTime,
-    expiry: PrimitiveDateTime
+    expiry: PrimitiveDateTime,
 ) -> bool {
-    if not_allowed_statuses.contains(intent_status) || curr_time > expiry {
-        return true
-    }
-    else {
-        return false
-    }
-
+    not_allowed_statuses.contains(intent_status) || curr_time > expiry
 }

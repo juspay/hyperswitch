@@ -147,8 +147,8 @@ where
                         ),
                     }
                 }
-                api::PaymentLinkAction::PaymentLink404NotFound => {
-                    match api::get_404_not_found_page() {
+                api::PaymentLinkAction::PaymentLink404NotFound(payment_link_data) => {
+                    match api::get_404_not_found_page(payment_link_data) {
                         Ok(rendered_html) => api::http_response_html_data(rendered_html),
                         Err(_) => api::http_response_err(
                             r#"{

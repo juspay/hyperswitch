@@ -731,7 +731,7 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentLinkAction {
     PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLink404NotFound,
+    PaymentLink404NotFound(PaymentLinkErrorData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -739,6 +739,12 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkErrorData {
+    pub js_script: String,
+    pub css_script: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1060,8 +1066,8 @@ where
                         ),
                     }
                 }
-                PaymentLinkAction::PaymentLink404NotFound => {
-                    match get_404_not_found_page() {
+                PaymentLinkAction::PaymentLink404NotFound(payment_link_data) => {
+                    match get_404_not_found_page(payment_link_data) {
                         Ok(rendered_html) => http_response_html_data(rendered_html),
                         Err(_) => http_response_err(
                             r#"{
@@ -1069,11 +1075,11 @@ where
                                     "message": "Payment link not found"
                                 }
                             }"#,
-                        )
+                        ),
                     }
                 }
             }
-        }        
+        }
 
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
@@ -1638,12 +1644,18 @@ fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
 
-pub fn get_404_not_found_page() -> CustomResult<String, errors::ApiErrorResponse> {
+pub fn get_404_not_found_page(
+    payment_link_data: PaymentLinkErrorData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
     let html_template = include_str!("../core/payment_link/404_not_found.html").to_string();
     let mut tera = Tera::default();
     let _ = tera.add_raw_template("payment_link_404_not_found", &html_template);
 
-    match tera.render("payment_link_404_not_found", &Context::new()) {
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    match tera.render("payment_link_404_not_found", &context) {
         Ok(rendered_html) => Ok(rendered_html),
         Err(tera_error) => {
             crate::logger::warn!("{tera_error}");
