@@ -26,12 +26,14 @@ pub async fn block_payment_method(
                     &cards,
                     blocklist_type,
                 )
-                    .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError { 
-                        message: "Unable to block fingerprints".to_string() 
-                })?
+                .await
+                .change_context(
+                    errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Unable to block fingerprints".to_string(),
+                    },
+                )?,
             ))
-        },
+        }
         pm_blacklist::BlocklistType::ExtendedCardbin(extended_cardbins) => {
             blocklist_type = "extended_cardbin";
             Ok(services::api::ApplicationResponse::Json(
@@ -41,12 +43,14 @@ pub async fn block_payment_method(
                     &extended_cardbins,
                     blocklist_type,
                 )
-                    .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError { 
-                        message: "Unable to block extended cardbins".to_string() 
-                })?
+                .await
+                .change_context(
+                    errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Unable to block extended cardbins".to_string(),
+                    },
+                )?,
             ))
-        },
+        }
         pm_blacklist::BlocklistType::Fingerprint(fingerprints) => {
             blocklist_type = "fingerprint";
             Ok(services::api::ApplicationResponse::Json(
@@ -56,12 +60,14 @@ pub async fn block_payment_method(
                     &fingerprints,
                     blocklist_type,
                 )
-                    .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError { 
-                        message: "Unable to block fingerprints".to_string() 
-                })?
+                .await
+                .change_context(
+                    errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Unable to block fingerprints".to_string(),
+                    },
+                )?,
             ))
-        },
+        }
     }
 }
 
@@ -75,12 +81,11 @@ pub async fn unblock_payment_method(
     errors::ApiErrorResponse,
 > {
     Ok(services::api::ApplicationResponse::Json(
-        utils::delete_from_blocklist_lookup_db(
-            &state,
-            merchant_account.merchant_id,
-            &body.data,
-        ).await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError { message: "Unable to Unblock payment methods".to_string() })?
+        utils::delete_from_blocklist_lookup_db(&state, merchant_account.merchant_id, &body.data)
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Unable to Unblock payment methods".to_string(),
+            })?,
     ))
 }
 
@@ -93,7 +98,10 @@ pub async fn list_blocked_payment_methods(
     errors::ApiErrorResponse,
 > {
     Ok(services::api::ApplicationResponse::Json(
-        utils::list_blocked_pm_from_db(&state, merchant_account.merchant_id).await.change_context(errors::ApiErrorResponse::GenericNotFoundError { message: "Unable to list Blocked payment methods".to_string() })?
+        utils::list_blocked_pm_from_db(&state, merchant_account.merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Unable to list Blocked payment methods".to_string(),
+            })?,
     ))
 }
-
