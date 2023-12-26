@@ -1,6 +1,6 @@
-use std::{env, io::Write, path::Path, process::Command};
+use std::{collections::HashMap, env, io::Write, path::Path, process::Command};
 
-use clap::{arg, command, Parser};
+use clap::{arg, command, error::ErrorKind, Parser};
 use masking::PeekInterface;
 
 use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
@@ -13,9 +13,9 @@ struct Args {
     /// Base URL of the Hyperswitch environment
     #[arg(short, long)]
     base_url: String,
-    /// Name of the connector
-    #[arg(short, long)]
-    connector_name: String,
+
+    #[command(flatten)]
+    feature: Features,
     /// Custom headers
     #[arg(short = 'H', long = "header")]
     custom_headers: Option<Vec<String>>,
@@ -30,7 +30,15 @@ struct Args {
     #[arg(short, long)]
     verbose: bool,
 }
-
+#[derive(Clone, Debug, Default, Parser)]
+pub struct Features {
+    /// Name of the connector
+    #[arg(short, long)]
+    connector_name: Option<String>,
+    /// Feature name
+    #[arg(short, long)]
+    pub routing_feature: Option<bool>,
+}
 pub struct ReturnArgs {
     pub newman_command: Command,
     pub file_modified_flag: bool,
@@ -65,18 +73,165 @@ where
 
     Ok(())
 }
-
-pub fn generate_newman_command() -> ReturnArgs {
-    let args = Args::parse();
-
-    let connector_name = args.connector_name;
-    let base_url = args.base_url;
-    let admin_api_key = args.admin_api_key;
-
-    let collection_path = get_path(&connector_name);
+pub fn generate_newman_command() -> Result<ReturnArgs, ErrorKind> {
+    let args = &Args::parse();
     let auth_map = ConnectorAuthenticationMap::new();
 
     let inner_map = auth_map.inner();
+    if let Some(connector_name) = &args.feature.connector_name {
+        Ok(generate_newman_command_for_connectors(
+            args,
+            connector_name.to_string(),
+            inner_map,
+        ))
+    } else if args.feature.routing_feature.is_some() {
+        Ok(generate_newman_command_for_routing(args, inner_map))
+    } else {
+        Err(ErrorKind::MissingRequiredArgument)
+    }
+}
+
+fn get_connector_auth_type(
+    prefix: &str,
+    connector_name: &str,
+    inner_map: &HashMap<String, ConnectorAuthType>,
+    newman_command: &mut Command,
+) {
+    if let Some(auth_type) = inner_map.get(&connector_name.to_string()) {
+        match auth_type {
+            ConnectorAuthType::HeaderKey { api_key } => {
+                newman_command.args([
+                    "--env-var",
+                    &format!("{}_api_key={}", prefix, api_key.peek()),
+                ]);
+            }
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
+                newman_command.args([
+                    "--env-var",
+                    &format!("{}_api_key={}", prefix, api_key.peek()),
+                    "--env-var",
+                    &format!("{}_key1={}", prefix, key1.peek()),
+                ]);
+            }
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => {
+                newman_command.args([
+                    "--env-var",
+                    &format!("{}_api_key={}", prefix, api_key.peek()),
+                    "--env-var",
+                    &format!("{}_key1={}", prefix, key1.peek()),
+                    "--env-var",
+                    &format!("{}_api_secret={}", prefix, api_secret.peek()),
+                ]);
+            }
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                key2,
+                api_secret,
+            } => {
+                newman_command.args([
+                    "--env-var",
+                    &format!("connector_api_key={}", api_key.peek()),
+                    "--env-var",
+                    &format!("connector_key1={}", key1.peek()),
+                    "--env-var",
+                    &format!("connector_key2={}", key2.peek()),
+                    "--env-var",
+                    &format!("connector_api_secret={}", api_secret.peek()),
+                ]);
+            }
+            // Handle other ConnectorAuthType variants
+            _ => {
+                eprintln!("Invalid authentication type.");
+            }
+        }
+    } else {
+        eprintln!("Connector not found.");
+    }
+}
+
+fn generate_newman_command_for_routing(
+    args: &Args,
+    inner_map: &HashMap<String, ConnectorAuthType>,
+) -> ReturnArgs {
+    let base_url = &args.base_url;
+    let admin_api_key = &args.admin_api_key;
+    let collection_path = get_path("routing");
+    let mut newman_command = Command::new("newman");
+    newman_command.args(["dir-run", &collection_path]);
+    newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
+    newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
+
+    get_connector_auth_type("adyen", "adyen", inner_map, &mut newman_command);
+    get_connector_auth_type("stripe", "stripe", inner_map, &mut newman_command);
+    get_connector_auth_type("checkout", "checkout", inner_map, &mut newman_command);
+
+    if let Ok(gateway_merchant_id) = env::var("GATEWAY_MERCHANT_ID") {
+        newman_command.args([
+            "--env-var",
+            &format!("gateway_merchant_id={gateway_merchant_id}"),
+        ]);
+    }
+
+    newman_command.args([
+        "--delay-request",
+        format!("{}", &args.delay_request).as_str(),
+    ]);
+
+    newman_command.arg("--color").arg("on");
+
+    if let Some(folders) = &args.folders {
+        let folder_names: Vec<String> = folders.split(',').map(|s| s.trim().to_string()).collect();
+
+        for folder_name in folder_names {
+            if !folder_name.contains("QuickStart") {
+                // This is a quick fix, "QuickStart" is intentional to have merchant account and API keys set up
+                // This will be replaced by a more robust and efficient account creation or reuse existing old account
+                newman_command.args(["--folder", "QuickStart"]);
+            }
+            newman_command.args(["--folder", &folder_name]);
+        }
+    }
+
+    if args.verbose {
+        newman_command.arg("--verbose");
+    }
+
+    let mut modified = false;
+    if let Some(headers) = &args.custom_headers {
+        for header in headers {
+            if let Some((key, value)) = header.split_once(':') {
+                let content_to_insert =
+                    format!(r#"pm.request.headers.add({{key: "{key}", value: "{value}"}});"#);
+                if insert_content(&collection_path, &content_to_insert).is_ok() {
+                    modified = true;
+                }
+            } else {
+                eprintln!("Invalid header format: {}", header);
+            }
+        }
+    }
+
+    ReturnArgs {
+        newman_command,
+        file_modified_flag: modified,
+        collection_path,
+    }
+}
+
+fn generate_newman_command_for_connectors(
+    args: &Args,
+    connector_name: String,
+    inner_map: &HashMap<String, ConnectorAuthType>,
+) -> ReturnArgs {
+    let base_url = &args.base_url;
+    let admin_api_key = &args.admin_api_key;
+
+    let collection_path = get_path(&connector_name);
 
     // Newman runner
     // Depending on the conditions satisfied, variables are added. Since certificates of stripe have already
