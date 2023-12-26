@@ -1,4 +1,3 @@
-// use api_models::enums as api_enums;
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
@@ -21,8 +20,6 @@ pub(crate) trait PaymentMethodCreateExt {
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
-        // let payment_method: Option<api_enums::PaymentMethod> =
-        //     self.payment_method_type.map(ForeignFrom::foreign_from);
         if let Some(payment_method_type) = self.payment_method_type {
             if !utils::validate_payment_method_type_against_payment_method(
                 self.payment_method,
