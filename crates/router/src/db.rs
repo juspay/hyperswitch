@@ -1,8 +1,8 @@
 pub mod address;
 pub mod api_keys;
 pub mod authorization;
-pub mod business_profile;
 pub mod blocklist_lookup;
+pub mod business_profile;
 pub mod cache;
 pub mod capture;
 pub mod cards_info;
