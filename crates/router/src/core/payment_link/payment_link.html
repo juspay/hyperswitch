@@ -1636,8 +1636,8 @@
         var suffix = hours > 11 ? "PM" : "AM";
         hours = hours % 12;
         hours = hours ? hours : 12;
-        var day = date.getDay();
-        var month = months[date.getMonth() - 1];
+        var day = date.getDate();
+        var month = months[date.getMonth()];
         var year = date.getUTCFullYear();
 
         var locale = navigator.language || navigator.userLanguage;
