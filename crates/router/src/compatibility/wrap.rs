@@ -156,11 +156,11 @@ where
                                     "message": "Payment link not found"
                                 }
                             }"#,
-                        )
+                        ),
                     }
                 }
             }
-        } 
+        }
 
         // Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
         //     match api::build_payment_link_html(*payment_link_data) {
@@ -174,7 +174,6 @@ where
         //         ),
         //     }
         // }
-
         Err(error) => api::log_and_return_error_response(error),
     };
 
