@@ -4520,6 +4520,14 @@ impl Default for super::settings::RequiredFields {
                                     }
                                 ),
                                 (
+                                    enums::Connector::Nexinets,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
                                     enums::Connector::Nuvei,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
