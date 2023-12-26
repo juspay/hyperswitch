@@ -1,3 +1,5 @@
+use core::error;
+
 use common_utils::pii;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -7,7 +9,7 @@ use crate::{
     connector::utils::{
         self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
-    core::errors,
+    core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
     utils,
@@ -35,6 +37,7 @@ pub struct NoonSubscriptionData {
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
+    max_amount: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -331,13 +334,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             });
 
         let (subscription, tokenize_c_c) =
-            match item.request.setup_future_usage.is_some().then_some((
-                NoonSubscriptionData {
-                    subscription_type: NoonSubscriptionType::Unscheduled,
-                    name: name.clone(),
-                },
-                true,
-            )) {
+            match item.request.setup_future_usage.is_some().then_some(|| {
+                let mandate_data = item.request.get_setup_mandate_details().clone().ok_or(errors::ConnectorError::CaptureMethodNotSupported)?;
+
+                let max_amount = match mandate_data.mandate_type {
+                    Some(api::MandateType::SingleUse(mandate)) =>   mandate.amount,
+                     
+                    
+                    Some(api::MandateType::MultiUse(Some(mandate))) => mandate.amount.unwrap_or_default(),
+                    None => None,
+                }
+
+                (
+                
+                    NoonSubscriptionData {
+                        subscription_type: NoonSubscriptionType::Unscheduled,
+                        name: name.clone(),
+                    
+                        max_amount,
+                    },
+                    true,
+                )
+            }) {
                 Some((a, b)) => (Some(a), Some(b)),
                 None => (None, None),
             };
