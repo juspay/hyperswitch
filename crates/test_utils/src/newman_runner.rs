@@ -135,13 +135,13 @@ fn get_connector_auth_type(
             } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={}", api_key.peek()),
+                    &format!("{}_api_key={}", prefix, api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={}", key1.peek()),
+                    &format!("{}_key1={}", prefix, key1.peek()),
                     "--env-var",
-                    &format!("connector_key2={}", key2.peek()),
+                    &format!("{}_key2={}", prefix, key2.peek()),
                     "--env-var",
-                    &format!("connector_api_secret={}", api_secret.peek()),
+                    &format!("{}_api_secret={}", prefix, api_secret.peek()),
                 ]);
             }
             // Handle other ConnectorAuthType variants
