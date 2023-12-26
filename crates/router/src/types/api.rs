@@ -225,6 +225,7 @@ pub struct PayoutSessionConnectorData {
 #[derive(Clone)]
 pub struct SessionConnectorData {
     pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
     pub connector: ConnectorData,
     pub business_sub_label: Option<String>,
 }

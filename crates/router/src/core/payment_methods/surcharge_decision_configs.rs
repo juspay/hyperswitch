@@ -166,7 +166,8 @@ pub async fn perform_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     payment_data: &mut PaymentData<O>,
-    payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
+    payment_method_type_list: &[common_enums::PaymentMethodType],
+    payment_method_list: &[common_enums::PaymentMethod],
 ) -> ConditionalConfigResult<types::SurchargeMetadata>
 where
     O: Send + Clone,
@@ -198,10 +199,12 @@ where
     )
     .change_context(ConfigError::InputConstructionError)?;
     let interpreter = &cached_algo.cached_alogorith;
-    for payment_method_type in payment_method_type_list {
+    for (payment_method_type, payment_method) in
+        payment_method_type_list.iter().zip(payment_method_list)
+    {
         backend_input.payment_method.payment_method_type = Some(*payment_method_type);
         // in case of session flow, payment_method will always be wallet
-        backend_input.payment_method.payment_method = Some(payment_method_type.to_owned().into());
+        backend_input.payment_method.payment_method = Some(*payment_method);
         let surcharge_output =
             execute_dsl_and_get_conditional_config(backend_input.clone(), interpreter)?;
         if let Some(surcharge_details) = surcharge_output.surcharge_details {
@@ -210,11 +213,7 @@ where
                 &payment_data.payment_attempt,
             )?;
             surcharge_metadata.insert_surcharge_details(
-                types::SurchargeKey::PaymentMethodData(
-                    payment_method_type.to_owned().into(),
-                    *payment_method_type,
-                    None,
-                ),
+                types::SurchargeKey::PaymentMethodData(*payment_method, *payment_method_type, None),
                 surcharge_details,
             );
         }

@@ -720,8 +720,10 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
-    let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
-        FxHashMap::default();
+    let mut pm_type_map: FxHashMap<
+        (api_enums::PaymentMethodType, api_enums::PaymentMethod),
+        FxHashMap<String, api::GetToken>,
+    > = FxHashMap::default();
     let merchant_last_modified = session_input
         .merchant_account
         .modified_at
@@ -823,7 +825,10 @@ pub async fn perform_session_flow_routing(
 
     for connector_data in session_input.chosen.iter() {
         pm_type_map
-            .entry(connector_data.payment_method_type)
+            .entry((
+                connector_data.payment_method_type,
+                connector_data.payment_method,
+            ))
             .or_default()
             .insert(
                 connector_data.connector.connector_name.to_string(),
@@ -834,9 +839,9 @@ pub async fn perform_session_flow_routing(
     let mut result: FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice> =
         FxHashMap::default();
 
-    for (pm_type, allowed_connectors) in pm_type_map {
+    for ((pm_type, pm), allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
-        let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
+        let euclid_pm: euclid_enums::PaymentMethod = pm;
 
         backend_input.payment_method.payment_method = Some(euclid_pm);
         backend_input.payment_method.payment_method_type = Some(euclid_pmt);

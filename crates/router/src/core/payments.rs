@@ -594,7 +594,11 @@ where
         let payment_method_type_list = session_connector_data
             .iter()
             .map(|session_connector_data| session_connector_data.payment_method_type)
-            .collect();
+            .collect::<Vec<_>>();
+        let payment_method_list = session_connector_data
+            .iter()
+            .map(|session_connector_data| session_connector_data.payment_method)
+            .collect::<Vec<_>>();
         let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
             .routing_algorithm
             .clone()
@@ -609,6 +613,7 @@ where
                 algorithm_ref,
                 payment_data,
                 &payment_method_type_list,
+                &payment_method_list,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1253,7 +1258,7 @@ where
                 .as_ref()
                 .and_then(|session_surcharge_details| {
                     session_surcharge_details.fetch_surcharge_details(
-                        &session_connector_data.payment_method_type.into(),
+                        &session_connector_data.payment_method,
                         &session_connector_data.payment_method_type,
                         None,
                     )

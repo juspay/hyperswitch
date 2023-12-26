@@ -1137,6 +1137,7 @@ pub async fn list_payment_methods(
                 .attach_printable("invalid connector name received")?;
 
                 chosen.push(api::SessionConnectorData {
+                    payment_method: intermediate.payment_method,
                     payment_method_type: intermediate.payment_method_type,
                     connector: connector_data,
                     business_sub_label: None,
