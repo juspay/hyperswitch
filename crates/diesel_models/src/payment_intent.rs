@@ -166,6 +166,7 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
+        fingerprint_id: Option<String>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -297,7 +298,7 @@ impl PaymentIntentUpdate {
 
             incremental_authorization_allowed,
             authorization_count,
-            fingerprint_id,
+            fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             ..source
         }
     }
@@ -324,6 +325,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -343,6 +345,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

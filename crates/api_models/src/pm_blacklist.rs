@@ -4,7 +4,7 @@ use common_utils::events::ApiEventMetric;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlacklistPmRequest {
-    pub pm_to_block: Vec<String>,
+    pub blocklist_pm: BlocklistType,
 }
 
 /// The request body for unblocking pm
@@ -18,21 +18,32 @@ pub struct UnblockPmRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct BlacklistPmResponse {
-    pub fingerprints_blocked: Vec<String>,
+    pub blocked: BlocklistType,
 }
 
 /// Response to be sent for the list blocked PaymentMethods api
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ListBlockedPmResponse {
-    pub fingerprints_blocked: Vec<String>,
+    pub blocked_fingerprints: Vec<String>,
+    pub blocked_cardbins: Vec<(String, Option<String>)>,
+    pub blocked_extended_cardbins: Vec<(String, Option<String>)>,
 }
 
 /// Response to be sent for the pm/unblock api
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UnblockPmResponse {
-    pub data: Vec<String>,
+    pub unblocked_pm: Vec<String>,
+    pub not_unblocked_pm: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
+pub enum BlocklistType {
+    Cardbin(Vec<String>),
+    Fingerprint(Vec<String>),
+    ExtendedCardbin(Vec<String>),
 }
 
 impl ApiEventMetric for BlacklistPmRequest {}

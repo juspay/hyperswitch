@@ -990,6 +990,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -1008,6 +1009,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,

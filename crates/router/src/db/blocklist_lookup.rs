@@ -76,33 +76,25 @@ impl BlocklistLookupInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_blocklist_lookup_entry(
         &self,
-        blocklist_lookup_entry: storage::BlocklistLookupNew,
+        _blocklist_lookup_entry: storage::BlocklistLookupNew,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        Ok(storage::BlocklistLookup {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            kms_decrypted_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
         &self,
-        merchant_id: String,
-        kms_decrypted_hash: String,
+        _merchant_id: String,
+        _kms_decrypted_hash: String,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        Ok(storage::BlocklistLookup {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            kms_decrypted_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
         &self,
-        merchant_id: String,
-        kms_decrypted_hash: String,
+        _merchant_id: String,
+        _kms_decrypted_hash: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        Ok(true)
+        Err(errors::StorageError::MockDbError)?
     }
 }
 
@@ -111,32 +103,24 @@ impl BlocklistLookupInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_blocklist_lookup_entry(
         &self,
-        blocklist_lookup_entry: storage::BlocklistLookupNew,
+        _blocklist_lookup_entry: storage::BlocklistLookupNew,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        Ok(storage::BlocklistLookup {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            kms_decrypted_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::KafkaError)?
     }
 
     async fn find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
         &self,
-        merchant_id: String,
-        kms_decrypted_hash: String,
+        _merchant_id: String,
+        _kms_decrypted_hash: String,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        Ok(storage::BlocklistLookup {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            kms_decrypted_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::KafkaError)?
     }
 
     async fn delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash (
         &self,
-        merchant_id: String,
-        kms_decrypted_hash: String,
+        _merchant_id: String,
+        _kms_decrypted_hash: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        Ok(true)
+        Err(errors::StorageError::KafkaError)?
     }
 }

@@ -72,30 +72,22 @@ impl PmFingerprintInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_pm_fingerprint_entry(
         &self,
-        pm_fingerprint_new: storage::PmFingerprintNew,
+        _pm_fingerprint_new: storage::PmFingerprintNew,
     ) -> CustomResult<storage::PmFingerprint, errors::StorageError> {
-        Ok(storage::PmFingerprint {
-            id: 4,
-            fingerprint_id: "1234".to_string(),
-            kms_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::MockDbError)?
     }
 
     async fn find_pm_fingerprint_entry(
         &self,
-        fingerprint: String,
+        _fingerprint: String,
     ) -> CustomResult<storage::PmFingerprint, errors::StorageError> {
-        Ok(storage::PmFingerprint {
-            id: 4,
-            fingerprint_id: "1234".to_string(),
-            kms_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::MockDbError)?
     }
     async fn delete_pm_fingerprint_entry(
         &self,
-        fingerprint: String,
+        _fingerprint: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        Ok(true)
+        Err(errors::StorageError::MockDbError)?
     }
 }
 
@@ -104,29 +96,22 @@ impl PmFingerprintInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_pm_fingerprint_entry(
         &self,
-        pm_fingerprint_new: storage::PmFingerprintNew,
+        _pm_fingerprint_new: storage::PmFingerprintNew,
     ) -> CustomResult<storage::PmFingerprint, errors::StorageError> {
-        Ok(storage::PmFingerprint {
-            id: 4,
-            fingerprint_id: "1234".to_string(),
-            kms_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::KafkaError)?
     }
 
     async fn find_pm_fingerprint_entry(
         &self,
-        fingerprint: String,
+        _fingerprint: String,
     ) -> CustomResult<storage::PmFingerprint, errors::StorageError> {
-        Ok(storage::PmFingerprint {
-            id: 4,
-            fingerprint_id: "1234".to_string(),
-            kms_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::KafkaError)?
     }
     async fn delete_pm_fingerprint_entry(
         &self,
-        fingerprint: String,
+        _fingerprint: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        Ok(true)
+        Err(errors::StorageError::KafkaError)?
     }
 }
+

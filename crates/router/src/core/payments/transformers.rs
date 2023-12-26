@@ -542,10 +542,6 @@ where
                             }
                         }));
                 };
-                // Fingerprint for Blocking Payment Method in future
-                // if payments::is_pay_confirm(&operation) {
-                //     let card_no = payment_data.payment_method_data.
-                // }
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
                 if third_party_sdk_session_next_action(&payment_attempt, operation) {
@@ -709,6 +705,7 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .to_owned(),

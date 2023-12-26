@@ -8,6 +8,8 @@ use crate::schema::pm_blocklist;
 pub struct PmBlocklistNew {
     pub merchant_id: String,
     pub pm_hash: String,
+    pub pm_type: String,
+    pub metadata: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Deserialize, Serialize)]
@@ -17,4 +19,6 @@ pub struct PmBlocklist {
     pub id: i32,
     pub merchant_id: String,
     pub pm_hash: String,
+    pub pm_type: String,
+    pub metadata: Option<String>,
 }

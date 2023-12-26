@@ -718,8 +718,7 @@ diesel::table! {
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
-        #[max_length = 64]
-        fingerprint_id -> Nullable<Varchar>,
+        fingerprint_id -> Nullable<Text>,
     }
 }
 
@@ -871,6 +870,9 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         pm_hash -> Text,
+        #[max_length = 64]
+        pm_type -> Varchar,
+        metadata -> Nullable<Text>,
     }
 }
 

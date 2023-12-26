@@ -618,6 +618,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
+                    fingerprint_id: None,
                 },
                 storage_scheme,
             )

@@ -17,7 +17,7 @@ pub trait PmBlocklistInterface {
         pm_blocklist_new: storage::PmBlocklistNew,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError>;
 
-    async fn find_pm_blocklist_entry_by_merchant_id_hash(
+    async fn find_pm_blocklist_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: String,
         hash: String,
@@ -32,6 +32,12 @@ pub trait PmBlocklistInterface {
     async fn list_all_blocked_pm_for_merchant(
         &self,
         merchant_id: String,
+    ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError>;
+
+    async fn list_all_blocked_pm_for_merchant_by_type(
+        &self,
+        merchant_id: String,
+        pm_type: String,
     ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError>;
 }
 
@@ -50,7 +56,7 @@ impl PmBlocklistInterface for Store {
             .into_report()
     }
 
-    async fn find_pm_blocklist_entry_by_merchant_id_hash(
+    async fn find_pm_blocklist_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: String,
         hash: String,
@@ -68,6 +74,18 @@ impl PmBlocklistInterface for Store {
     ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::PmBlocklist::find_by_merchant_id(&conn, merchant_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn list_all_blocked_pm_for_merchant_by_type(
+        &self,
+        merchant_id: String,
+        pm_type: String,
+    ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::PmBlocklist::find_by_merchant_id_type(&conn, merchant_id, pm_type)
             .await
             .map_err(Into::into)
             .into_report()
@@ -92,41 +110,36 @@ impl PmBlocklistInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_pm_blocklist_item(
         &self,
-        pm_blocklist: storage::PmBlocklistNew,
+        _pm_blocklist: storage::PmBlocklistNew,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError> {
-        Ok(storage::PmBlocklist {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            pm_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::MockDbError)?
     }
-    async fn find_pm_blocklist_entry_by_merchant_id_hash(
+    async fn find_pm_blocklist_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: String,
-        hash: String,
+        _merchant_id: String,
+        _hash: String,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError> {
-        Ok(storage::PmBlocklist {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            pm_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::MockDbError)?
     }
     async fn list_all_blocked_pm_for_merchant(
         &self,
-        merchant_id: String,
+        _merchant_id: String,
     ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError> {
-        Ok(vec![storage::PmBlocklist {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            pm_hash: "hash".to_string(),
-        }])
+        Err(errors::StorageError::MockDbError)?
+    }
+    async fn list_all_blocked_pm_for_merchant_by_type(
+        &self,
+        _merchant_id: String,
+        _pm_type: String,
+    ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
     }
     async fn delete_pm_blocklist_entry_by_merchant_id_hash(
         &self,
-        merchant_id: String,
-        hash: String,
+        _merchant_id: String,
+        _hash: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        Ok(true)
+        Err(errors::StorageError::MockDbError)?
     }
 }
 
@@ -135,40 +148,36 @@ impl PmBlocklistInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_pm_blocklist_item(
         &self,
-        pm_blocklist: storage::PmBlocklistNew,
+        _pm_blocklist: storage::PmBlocklistNew,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError> {
-        Ok(storage::PmBlocklist {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            pm_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::KafkaError)?
     }
-    async fn find_pm_blocklist_entry_by_merchant_id_hash(
+    async fn find_pm_blocklist_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: String,
-        hash: String,
+        _merchant_id: String,
+        _hash: String,
     ) -> CustomResult<storage::PmBlocklist, errors::StorageError> {
-        Ok(storage::PmBlocklist {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            pm_hash: "hash".to_string(),
-        })
+        Err(errors::StorageError::KafkaError)?
     }
     async fn delete_pm_blocklist_entry_by_merchant_id_hash(
         &self,
-        merchant_id: String,
-        hash: String,
+        _merchant_id: String,
+        _hash: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        Ok(true)
+        Err(errors::StorageError::KafkaError)?
+    }
+    async fn list_all_blocked_pm_for_merchant_by_type(
+        &self,
+        _merchant_id: String,
+        _pm_type: String,
+    ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError> {
+        Err(errors::StorageError::KafkaError)?
     }
     async fn list_all_blocked_pm_for_merchant(
         &self,
-        merchant_id: String,
+        _merchant_id: String,
     ) -> CustomResult<Vec<storage::PmBlocklist>, errors::StorageError> {
-        Ok(vec![storage::PmBlocklist {
-            id: 4,
-            merchant_id: "1234".to_string(),
-            pm_hash: "hash".to_string(),
-        }])
+        Err(errors::StorageError::KafkaError)?
     }
 }
+
