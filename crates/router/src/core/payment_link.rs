@@ -313,9 +313,7 @@ pub fn get_payment_link_config_based_on_priority(
         (default_domain_name, None)
     };
 
-    let pc_config = payment_create_link_config.map(|pc_config| pc_config);
-
-    let theme = pc_config
+    let theme = payment_create_link_config
         .clone()
         .and_then(|pc_config| pc_config.theme)
         .or_else(|| {
@@ -325,7 +323,7 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
 
-    let logo = pc_config
+    let logo = payment_create_link_config
         .clone()
         .and_then(|pc_config| pc_config.logo)
         .or_else(|| {
@@ -335,7 +333,7 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
 
-    let seller_name = pc_config
+    let seller_name = payment_create_link_config
         .clone()
         .and_then(|pc_config| pc_config.seller_name)
         .or_else(|| {
