@@ -34,7 +34,7 @@ pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
 /// Default Payment Link Background color
-pub const DEFAULT_BACKGROUND_COLOR: &str = "#B9C7C8";
+pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 
 /// Default product Img Link
 pub const DEFAULT_PRODUCT_IMG: &str = "https://i.imgur.com/On3VtKF.png";

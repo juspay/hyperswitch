@@ -8583,21 +8583,6 @@
           }
         }
       },
-      "PaymentCreatePaymentLinkConfig": {
-        "allOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          {
-            "type": "object"
-          }
-        ]
-      },
       "PaymentExperience": {
         "type": "string",
         "enum": [
