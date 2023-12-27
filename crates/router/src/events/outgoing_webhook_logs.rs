@@ -1,8 +1,6 @@
-use api_models::{
-    disputes, enums::EventType as OutgoingWebhookEventType, mandates, payments, refunds,
-    webhooks::OutgoingWebhookContent,
-};
+use api_models::{enums::EventType as OutgoingWebhookEventType, webhooks::OutgoingWebhookContent};
 use serde::Serialize;
+use serde_json::Value;
 use time::OffsetDateTime;
 
 use super::{EventType, RawEvent};
@@ -16,7 +14,7 @@ pub struct OutgoingWebhookEvent {
     #[serde(flatten)]
     content: Option<OutgoingWebhookEventContent>,
     is_error: bool,
-    error: Option<serde_json::Value>,
+    error: Option<Value>,
     created_at_timestamp: i128,
 }
 
@@ -25,23 +23,23 @@ pub struct OutgoingWebhookEvent {
 pub enum OutgoingWebhookEventContent {
     Payment {
         payment_id: Option<String>,
-        content: payments::PaymentsResponse,
+        content: Value,
     },
     Refund {
         payment_id: String,
         refund_id: String,
-        content: refunds::RefundResponse,
+        content: Value,
     },
     Dispute {
         payment_id: String,
         attempt_id: String,
         dispute_id: String,
-        content: disputes::DisputeResponse,
+        content: Value,
     },
     Mandate {
         payment_method_id: String,
         mandate_id: String,
-        content: mandates::MandateResponse,
+        content: Value,
     },
 }
 pub trait OutgoingWebhookEventMetric {
@@ -54,23 +52,23 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
         match self {
             Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
                 payment_id: payment_payload.payment_id.clone(),
-                content: payment_payload.clone(),
+                content: masking::masked_serialize(&payment_payload).unwrap_or_default(),
             }),
             Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: refund_payload.payment_id.clone(),
                 refund_id: refund_payload.refund_id.clone(),
-                content: refund_payload.clone(),
+                content: masking::masked_serialize(&refund_payload).unwrap_or_default(),
             }),
             Self::DisputeDetails(dispute_payload) => Some(OutgoingWebhookEventContent::Dispute {
                 payment_id: dispute_payload.payment_id.clone(),
                 attempt_id: dispute_payload.attempt_id.clone(),
                 dispute_id: dispute_payload.dispute_id.clone(),
-                content: *dispute_payload.clone(),
+                content: masking::masked_serialize(&dispute_payload).unwrap_or_default(),
             }),
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
-                content: *mandate_payload.clone(),
+                content: masking::masked_serialize(&mandate_payload).unwrap_or_default(),
             }),
         }
     }
@@ -83,7 +81,7 @@ impl OutgoingWebhookEvent {
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
         is_error: bool,
-        error: Option<serde_json::Value>,
+        error: Option<Value>,
     ) -> Self {
         Self {
             merchant_id,
