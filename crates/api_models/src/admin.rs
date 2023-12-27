@@ -1010,6 +1010,10 @@ pub struct BusinessProfileCreate {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry : Option<u32>,
+
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
@@ -1077,6 +1081,10 @@ pub struct BusinessProfileResponse {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry : Option<i64>,
+
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
 }
@@ -1136,6 +1144,10 @@ pub struct BusinessProfileUpdate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry : Option<u32>,
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,

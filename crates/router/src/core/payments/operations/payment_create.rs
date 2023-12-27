@@ -166,14 +166,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             utils::get_payment_attempt_id(payment_id.clone(), 1)
         };
 
-        let intent_fulfillment_time = request.intent_fulfillment_time.map(i64::from).unwrap_or(
-            business_profile
-                .intent_fulfillment_time
-                .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
-        );
-
-        let expiry = common_utils::date_time::now()
-            .saturating_add(time::Duration::seconds(intent_fulfillment_time));
+        let session_expiry = common_utils::date_time::now()
+            .saturating_add(time::Duration::seconds(request.session_expiry.map(i64::from).unwrap_or(
+                business_profile
+                    .session_expiry
+                    .unwrap_or(consts::DEFAULT_SESSION_EXPIRY),
+            )));
 
         let payment_link_data = if let Some(payment_link_create) = request.payment_link {
             if payment_link_create {
@@ -202,7 +200,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     request.description.clone(),
                     profile_id.clone(),
                     domain_name,
-                    expiry,
+                    session_expiry,
                 )
                 .await?
             } else {
@@ -222,7 +220,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             billing_address.clone().map(|x| x.address_id),
             attempt_id,
             profile_id,
-            expiry,
+            session_expiry,
         )
         .await?;
 
@@ -576,8 +574,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-            helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+        if let Some(session_expiry) = &request.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
         if let Some(payment_link) = &request.payment_link {
@@ -744,7 +742,7 @@ impl PaymentCreate {
         billing_address_id: Option<String>,
         active_attempt_id: String,
         profile_id: String,
-        expiry: PrimitiveDateTime,
+        session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -820,7 +818,7 @@ impl PaymentCreate {
             request_incremental_authorization,
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(expiry),
+            session_expiry: Some(session_expiry),
         })
     }
 
@@ -870,7 +868,7 @@ async fn create_payment_link(
     description: Option<String>,
     profile_id: String,
     domain_name: String,
-    expiry: PrimitiveDateTime,
+    session_expiry: PrimitiveDateTime,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
@@ -897,7 +895,7 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        fulfilment_time: Some(expiry),
+        fulfilment_time: Some(session_expiry),
         custom_merchant_name: Some(payment_link_config.seller_name),
         description,
         payment_link_config: Some(payment_link_config_encoded_value),

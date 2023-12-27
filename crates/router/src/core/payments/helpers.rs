@@ -2384,13 +2384,13 @@ pub fn authenticate_client_secret(
             } else {
                 let current_timestamp = common_utils::date_time::now();
 
-                let expiry = payment_intent.expiry.unwrap_or(
+                let session_expiry = payment_intent.session_expiry.unwrap_or(
                     payment_intent
                         .created_at
                         .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
                 );
 
-                fp_utils::when(current_timestamp > expiry, || {
+                fp_utils::when(current_timestamp > session_expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
                 })
             }
@@ -3770,12 +3770,12 @@ pub fn validate_order_details_amount(
     }
 }
 
-pub fn validate_intent_fulfillment_time(
-    intent_fulfillment_time: u32,
+pub fn validate_session_expiry(
+    session_expiry: u32,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if !(60..=7890000).contains(&intent_fulfillment_time) {
+    if !(60..=7890000).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "intent_fulfillment_time should be between 60(1 min) to 7890000(3 months)."
+            message: "session_expiry should be between 60(1 min) to 7890000(3 months)."
                 .to_string(),
         })
     } else {

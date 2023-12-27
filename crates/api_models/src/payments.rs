@@ -323,7 +323,7 @@ pub struct PaymentsRequest {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
+    pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
