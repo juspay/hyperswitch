@@ -5674,6 +5674,7 @@
       },
       "Connector": {
         "type": "string",
+        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "aci",
           "adyen",
@@ -5816,6 +5817,7 @@
       },
       "ConnectorType": {
         "type": "string",
+        "description": "Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.",
         "enum": [
           "payment_processor",
           "payment_vas",
@@ -13929,6 +13931,7 @@
       },
       "RefundType": {
         "type": "string",
+        "description": "To indicate whether to refund needs to be instant or scheduled",
         "enum": [
           "scheduled",
           "instant"
