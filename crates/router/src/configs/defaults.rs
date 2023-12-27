@@ -4911,6 +4911,122 @@ impl Default for super::settings::RequiredFields {
                                     }
                                 ),
                                 (
+                                    enums::Connector::Airwallex,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Authorizedotnet,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Checkout,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Globalpay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Multisafepay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                        (
+                                            "billing.address.first_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.first_name".to_string(),
+                                                display_name: "billing_first_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.last_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.last_name".to_string(),
+                                                display_name: "billing_last_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.city".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.city".to_string(),
+                                                display_name: "city".to_string(),
+                                                field_type: enums::FieldType::UserAddressCity,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.state".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.state".to_string(),
+                                                display_name: "state".to_string(),
+                                                field_type: enums::FieldType::UserAddressState,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.zip".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.zip".to_string(),
+                                                display_name: "zip".to_string(),
+                                                field_type: enums::FieldType::UserAddressPincode,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserAddressCountry{
+                                                    options: vec![
+                                                        "ALL".to_string(),
+                                                    ]
+                                                },
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.line1".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.line1".to_string(),
+                                                display_name: "line1".to_string(),
+                                                field_type: enums::FieldType::UserAddressLine1,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.line2".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.line2".to_string(),
+                                                display_name: "line2".to_string(),
+                                                field_type: enums::FieldType::UserAddressLine1,
+                                                value: None,
+                                            }
+                                        )]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
                                     enums::Connector::Cybersource,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
@@ -4994,6 +5110,14 @@ impl Default for super::settings::RequiredFields {
                                                 ),
                                             ]
                                         ),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Payu,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
                                         common: HashMap::new(),
                                     }
                                 )
