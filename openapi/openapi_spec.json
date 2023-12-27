@@ -7228,9 +7228,6 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
-          },
-          "payment_link_config": {
-            "nullable": true
           }
         }
       },
@@ -8582,6 +8579,16 @@
             "nullable": true
           }
         }
+      },
+      "PaymentCreatePaymentLinkConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin.PaymentLinkConfigRequest"
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "PaymentExperience": {
         "type": "string",

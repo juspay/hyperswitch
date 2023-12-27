@@ -315,7 +315,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let theme = payment_create_link_config
         .clone()
-        .and_then(|pc_config| pc_config.theme)
+        .and_then(|pc_config| pc_config.config.theme)
         .or_else(|| {
             business_config
                 .clone()
@@ -325,7 +325,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let logo = payment_create_link_config
         .clone()
-        .and_then(|pc_config| pc_config.logo)
+        .and_then(|pc_config| pc_config.config.logo)
         .or_else(|| {
             business_config
                 .clone()
@@ -335,7 +335,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let seller_name = payment_create_link_config
         .clone()
-        .and_then(|pc_config| pc_config.seller_name)
+        .and_then(|pc_config| pc_config.config.seller_name)
         .or_else(|| {
             business_config
                 .clone()

@@ -302,6 +302,7 @@ pub struct PaymentsRequest {
     pub payment_link: Option<bool>,
 
     /// custom payment link config for the particular payment
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     /// The business profile to use for this payment, if not passed the default business profile
@@ -3424,8 +3425,11 @@ pub struct PaymentLinkListResponse {
     pub data: Vec<PaymentLinkResponse>,
 }
 
-/// Type for payment Create payment link request
-pub type PaymentCreatePaymentLinkConfig = admin::PaymentLinkConfigRequest;
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentCreatePaymentLinkConfig {
+    #[serde(flatten)]
+    pub config: admin::PaymentLinkConfigRequest,
+}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetailsWithStringAmount {
