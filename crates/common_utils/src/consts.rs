@@ -33,11 +33,8 @@ pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
-/// SDK Default Theme const
-pub const DEFAULT_SDK_THEME: &str = "#7EA8F6";
-
 /// Default Payment Link Background color
-pub const DEFAULT_BACKGROUND_COLOR: &str = "#E5E5E5";
+pub const DEFAULT_BACKGROUND_COLOR: &str = "#B9C7C8";
 
 /// Default product Img Link
 pub const DEFAULT_PRODUCT_IMG: &str = "https://i.imgur.com/On3VtKF.png";
