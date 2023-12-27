@@ -427,18 +427,18 @@ pub fn payments_list() {}
 ///
 /// Authorized amount for a payment can be incremented if it is in status: requires_capture
 #[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/incremental_authorization",
-    request_body=PaymentsIncrementalAuthorizationRequest,
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    responses(
-        (status = 200, description = "Payment authorized amount incremented"),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Increment authorized amount for a Payment",
-    security(("api_key" = []))
+  post,
+  path = "/payments/{payment_id}/incremental_authorization",
+  request_body=PaymentsIncrementalAuthorizationRequest,
+  params(
+      ("payment_id" = String, Path, description = "The identifier for payment")
+  ),
+  responses(
+      (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
+      (status = 400, description = "Missing mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Increment authorized amount for a Payment",
+  security(("api_key" = []))
 )]
 pub fn payments_incremental_authorization() {}

@@ -76,6 +76,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_connector_session,
         routes::payments::payments_cancel,
         routes::payments::payments_list,
+        routes::payments::payments_incremental_authorization,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -345,6 +346,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RequestSurchargeDetails,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
+        api_models::payments::PaymentsIncrementalAuthorizationRequest,
         api_models::payments::IncrementalAuthorizationResponse,
         api_models::payments::BrowserInformation,
         api_models::payment_methods::RequiredFieldInfo,

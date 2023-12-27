@@ -2585,6 +2585,57 @@
         ]
       }
     },
+    "/payments/{payment_id}/incremental_authorization": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Incremental Authorization",
+        "description": "Payments - Incremental Authorization\n\nAuthorized amount for a payment can be incremented if it is in status: requires_capture",
+        "operationId": "Increment authorized amount for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsIncrementalAuthorizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment authorized amount incremented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -11686,6 +11737,25 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsIncrementalAuthorizationRequest": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total amount including previously authorized amount and additional amount",
+            "example": 6540
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for incremental authorization",
             "nullable": true
           }
         }

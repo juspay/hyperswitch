@@ -1045,7 +1045,7 @@ where
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment authorized amount incremented"),
+        (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
