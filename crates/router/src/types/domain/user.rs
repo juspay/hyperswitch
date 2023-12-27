@@ -346,7 +346,6 @@ impl NewUserMerchant {
                 parent_merchant_id: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
-                intent_fulfillment_time: None,
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,
@@ -555,7 +554,7 @@ impl NewUser {
                 user_id,
                 role_id,
                 created_at: now,
-                last_modified_at: now,
+                last_modified: now,
                 org_id: self
                     .get_new_merchant()
                     .get_new_organization()
@@ -828,7 +827,7 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             role_id,
             status,
             role_name,
-            last_modified_at: user_and_role.1.last_modified_at,
+            last_modified_at: user_and_role.0.last_modified_at,
         })
     }
 }

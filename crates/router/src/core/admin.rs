@@ -188,14 +188,15 @@ pub async fn create_merchant_account(
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
+            intent_fulfillment_time: None,
             frm_routing_algorithm: req.frm_routing_algorithm,
-            intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id,
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
+            payment_link_config: None,
         })
     }
     .await
@@ -570,9 +571,10 @@ pub async fn merchant_account_update(
         publishable_key: None,
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
-        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        intent_fulfillment_time: None,
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
+        payment_link_config: None,
     };
 
     let response = db
@@ -1414,6 +1416,9 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+    }
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1514,6 +1519,9 @@ pub async fn update_business_profile(
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
     let db = state.store.as_ref();
+    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+    }
     let business_profile = db
         .find_business_profile_by_profile_id(profile_id)
         .await
@@ -1525,6 +1533,10 @@ pub async fn update_business_profile(
         Err(errors::ApiErrorResponse::AccessForbidden {
             resource: profile_id.to_string(),
         })?
+    }
+
+    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
     }
 
     let webhook_details = request

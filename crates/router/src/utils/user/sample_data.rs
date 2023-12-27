@@ -146,6 +146,8 @@ pub async fn generate_sample_data(
                         common_utils::date_time::now() - time::Duration::days(7)
                     }),
                 );
+        let expiry =
+            created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME));
 
         // After some set of payments sample data will have a failed attempt
         let is_failed_payment =
@@ -197,6 +199,7 @@ pub async fn generate_sample_data(
             request_incremental_authorization: Default::default(),
             incremental_authorization_allowed: Default::default(),
             authorization_count: Default::default(),
+            expiry: Some(expiry),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

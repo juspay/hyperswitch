@@ -23,7 +23,6 @@ use openssl::{
     symm::{decrypt_aead, Cipher},
 };
 use router_env::{instrument, logger, tracing};
-use time::Duration;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -2377,48 +2376,28 @@ pub fn generate_mandate(
 pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
-    merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
             if req_cs != pi_cs {
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
-                //This is done to check whether the merchant_account's intent fulfillment time has expired or not
-                let payment_intent_fulfillment_deadline =
-                    payment_intent.created_at.saturating_add(Duration::seconds(
-                        merchant_intent_fulfillment_time
-                            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
-                    ));
                 let current_timestamp = common_utils::date_time::now();
-                fp_utils::when(
-                    current_timestamp > payment_intent_fulfillment_deadline,
-                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                )
+
+                let expiry = payment_intent.expiry.unwrap_or(
+                    payment_intent
+                        .created_at
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                );
+
+                fp_utils::when(current_timestamp > expiry, || {
+                    Err(errors::ApiErrorResponse::ClientSecretExpired)
+                })
             }
         }
         // If there is no client in payment intent, then it has expired
         (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
-    }
-}
-
-pub async fn get_fullfillment_time(
-    payment_link_id: Option<String>,
-    intent_fulfillment_time: Option<i64>,
-    db: &dyn StorageInterface,
-) -> RouterResult<Option<i64>> {
-    if let Some(payment_link_id) = payment_link_id {
-        let payment_link_db = db
-            .find_payment_link_by_payment_link_id(&payment_link_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
-
-        let curr_time = common_utils::date_time::now();
-        let max_age = payment_link_db.max_age.unwrap_or(curr_time);
-        Ok(Some((max_age - curr_time).whole_seconds()))
-    } else {
-        Ok(intent_fulfillment_time)
     }
 }
 
@@ -2494,14 +2473,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let intent_fulfillment_time = get_fullfillment_time(
-                payment_intent.payment_link_id.clone(),
-                merchant_account.intent_fulfillment_time,
-                db,
-            )
-            .await?;
-
-            authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
+            authenticate_client_secret(Some(&cs), &payment_intent)?;
             Ok(payment_intent)
         })
         .await
@@ -2633,15 +2605,14 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            expiry: Some(
+                common_utils::date_time::now()
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+            ),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(900);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_ok()); // Check if the result is an Ok variant
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
+        // Check if the result is an Ok variant
     }
 
     #[test]
@@ -2663,7 +2634,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2688,15 +2659,13 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            expiry: Some(
+                common_utils::date_time::now()
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+            ),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
     }
 
     #[test]
@@ -2718,7 +2687,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2743,15 +2712,13 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            expiry: Some(
+                common_utils::date_time::now()
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+            ),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
     }
 }
 
@@ -3796,6 +3763,19 @@ pub fn validate_order_details_amount(
     if total_order_details_amount != amount {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Total sum of order details doesn't match amount in payment request"
+                .to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+pub fn validate_intent_fulfillment_time(
+    intent_fulfillment_time: u32,
+) -> Result<(), errors::ApiErrorResponse> {
+    if !(60..=7890000).contains(&intent_fulfillment_time) {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "intent_fulfillment_time should be between 60(1 min) to 7890000(3 months)."
                 .to_string(),
         })
     } else {

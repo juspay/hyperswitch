@@ -320,6 +320,11 @@ pub struct PaymentsRequest {
     ///Request for an incremental authorization
     pub request_incremental_authorization: Option<bool>,
 
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
+
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
 }
@@ -3335,9 +3340,9 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub max_age: Option<PrimitiveDateTime>,
+    pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
-    pub status: String,
+    pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
 }
@@ -3350,7 +3355,7 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
-    pub amount: i64,
+    pub amount: String,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
@@ -3360,7 +3365,7 @@ pub struct PaymentLinkDetails {
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithStringAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
     pub merchant_description: Option<String>,
@@ -3420,9 +3425,25 @@ pub struct PaymentLinkListResponse {
     pub data: Vec<PaymentLinkResponse>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentCreatePaymentLinkConfig {
-    #[serde(flatten)]
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
-    pub config: admin::PaymentLinkConfigRequest,
+/// Type for payment Create payment link request
+pub type PaymentCreatePaymentLinkConfig = admin::PaymentLinkConfigRequest;
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithStringAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: String,
+    /// Product Image link
+    pub product_img_link: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum PaymentLinkStatus {
+    Active,
+    Expired,
 }

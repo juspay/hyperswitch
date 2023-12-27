@@ -1,7 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PAYMENT_LINK_EXPIRY,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_FULFILLMENT_TIME, DEFAULT_MERCHANT_LOGO,
         DEFAULT_PRODUCT_IMG,
     },
     ext_traits::{OptionExt, ValueExt},
@@ -33,7 +33,7 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_config.max_age);
+    let status = check_payment_link_status(payment_link_config.fulfilment_time);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
         payment_link_config,
@@ -75,7 +75,7 @@ pub async fn intiate_payment_link_flow(
         "use payment link for",
     )?;
 
-    let merchant_name = merchant_account
+    let merchant_name_from_merchant_account = merchant_account
         .merchant_name
         .clone()
         .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -90,14 +90,12 @@ pub async fn intiate_payment_link_flow(
         extract_payment_link_config(pl_config_value)?
     } else {
         admin_types::PaymentLinkConfig {
-            max_age: DEFAULT_PAYMENT_LINK_EXPIRY,
             theme: DEFAULT_BACKGROUND_COLOR.to_string(),
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
-            seller_name: merchant_name,
+            seller_name: merchant_name_from_merchant_account,
         }
     };
 
-    let order_details = validate_order_details(payment_intent.order_details)?;
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url {
         payment_create_return_url
     } else {
@@ -113,17 +111,24 @@ pub async fn intiate_payment_link_flow(
         payment_intent.currency,
         payment_intent.client_secret,
     )?;
+    let order_details = validate_order_details(payment_intent.order_details, currency)?;
 
-    let curr_time = common_utils::date_time::now();
-    let expiry = payment_link
-        .max_age
-        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_PAYMENT_LINK_EXPIRY)));
+    let expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
+        common_utils::date_time::now()
+            .saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME))
+    });
+
+    // converting first letter of merchant name to upperCase
+    let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
 
     let payment_details = api_models::payments::PaymentLinkDetails {
-        amount: payment_intent.amount,
+        amount: currency
+            .to_currency_base_unit(payment_intent.amount)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?,
         currency,
         payment_id: payment_intent.payment_id,
-        merchant_name: payment_link_config.clone().seller_name,
+        merchant_name,
         order_details,
         return_url,
         expiry,
@@ -207,20 +212,23 @@ pub async fn list_payment_link(
     Ok(services::ApplicationResponse::Json(payment_link_list))
 }
 
-pub fn check_payment_link_status(max_age: Option<PrimitiveDateTime>) -> String {
+pub fn check_payment_link_status(
+    max_age: Option<PrimitiveDateTime>,
+) -> api_models::payments::PaymentLinkStatus {
     let curr_time = Some(common_utils::date_time::now());
 
     if curr_time > max_age {
-        "expired".to_string()
+        api_models::payments::PaymentLinkStatus::Expired
     } else {
-        "active".to_string()
+        api_models::payments::PaymentLinkStatus::Active
     }
 }
 
 fn validate_order_details(
     order_details: Option<Vec<Secret<serde_json::Value>>>,
+    currency: api_models::enums::Currency,
 ) -> Result<
-    Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    Option<Vec<api_models::payments::OrderDetailsWithStringAmount>>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
     let order_details = order_details
@@ -239,25 +247,33 @@ fn validate_order_details(
         })
         .transpose()?;
 
-    let updated_order_details = order_details.map(|mut order_details| {
-        for order in order_details.iter_mut() {
-            if order.product_img_link.is_none() {
-                order.product_img_link = Some(DEFAULT_PRODUCT_IMG.to_string());
+    let updated_order_details = match order_details {
+        Some(mut order_details) => {
+            let mut order_details_amount_string_array: Vec<
+                api_models::payments::OrderDetailsWithStringAmount,
+            > = Vec::new();
+            for order in order_details.iter_mut() {
+                let mut order_details_amount_string : api_models::payments::OrderDetailsWithStringAmount = Default::default();
+                if order.product_img_link.is_none() {
+                    order_details_amount_string.product_img_link =
+                        Some(DEFAULT_PRODUCT_IMG.to_string())
+                } else {
+                    order_details_amount_string.product_img_link = order.product_img_link.clone()
+                };
+                order_details_amount_string.amount = currency
+                    .to_currency_base_unit(order.amount)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
+                order_details_amount_string.product_name =
+                    capitalize_first_char(&order.product_name.clone());
+                order_details_amount_string.quantity = order.quantity;
+                order_details_amount_string_array.push(order_details_amount_string)
             }
+            Some(order_details_amount_string_array)
         }
-        order_details
-    });
+        None => None,
+    };
     Ok(updated_order_details)
-}
-
-pub fn extract_business_payment_link_config(
-    pl_config: serde_json::Value,
-) -> Result<admin_types::BusinessPaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
-    serde_json::from_value::<admin_types::BusinessPaymentLinkConfig>(pl_config.clone())
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
-        })
 }
 
 pub fn extract_payment_link_config(
@@ -278,7 +294,13 @@ pub fn get_payment_link_config_based_on_priority(
 ) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
 {
     let (domain_name, business_config) = if let Some(business_config) = business_link_config {
-        let extracted_value = extract_business_payment_link_config(business_config)?;
+        let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
+            .parse_value("BusinessPaymentLinkConfig")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_link_config",
+            })
+            .attach_printable("Invalid payment_link_config given in business config")?;
+
         (
             extracted_value
                 .domain_name
@@ -291,9 +313,7 @@ pub fn get_payment_link_config_based_on_priority(
         (default_domain_name, None)
     };
 
-    let pc_config = payment_create_link_config.map(|pc_config| pc_config.config);
-
-    let theme = pc_config
+    let theme = payment_create_link_config
         .clone()
         .and_then(|pc_config| pc_config.theme)
         .or_else(|| {
@@ -303,7 +323,7 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
 
-    let logo = pc_config
+    let logo = payment_create_link_config
         .clone()
         .and_then(|pc_config| pc_config.logo)
         .or_else(|| {
@@ -313,7 +333,7 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
 
-    let seller_name = pc_config
+    let seller_name = payment_create_link_config
         .clone()
         .and_then(|pc_config| pc_config.seller_name)
         .or_else(|| {
@@ -323,22 +343,22 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(merchant_name.clone());
 
-    let max_age = pc_config
-        .clone()
-        .and_then(|pc_config| pc_config.max_age)
-        .or_else(|| {
-            business_config
-                .clone()
-                .and_then(|business_config| business_config.max_age)
-        })
-        .unwrap_or(DEFAULT_PAYMENT_LINK_EXPIRY);
-
     let payment_link_config = admin_types::PaymentLinkConfig {
-        max_age,
         theme,
         logo,
         seller_name,
     };
 
     Ok((payment_link_config, domain_name))
+}
+
+fn capitalize_first_char(s: &str) -> String {
+    if let Some(first_char) = s.chars().next() {
+        let capitalized = first_char.to_uppercase();
+        let mut result = capitalized.to_string();
+        result.push_str(&s[1..]);
+        result
+    } else {
+        s.to_owned()
+    }
 }

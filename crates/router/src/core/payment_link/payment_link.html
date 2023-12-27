@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payments requested by HyperSwitch</title>
     <style>
       {{ css_color_scheme }}
 
@@ -71,7 +72,7 @@
         flex-flow: column;
         justify-content: center;
         align-items: center;
-        min-width: 500px;
+        min-width: 600px;
         width: 50vw;
       }
 
@@ -80,7 +81,7 @@
       }
 
       .hyper-checkout-payment {
-        min-width: 582px;
+        min-width: 600px;
         box-shadow: 0px 0px 5px #d1d1d1;
         border-radius: 8px;
         background-color: #fefefe;
@@ -166,15 +167,13 @@
       #hyper-checkout-cart {
         display: flex;
         flex-flow: column;
-        min-width: 584px;
-        width: 400px;
-        margin-top: 30px;
-        max-height: 600px;
+        min-width: 600px;
+        margin-top: 40px;
+        max-height: 60vh;
       }
 
       #hyper-checkout-cart-items {
-        margin: 10px 20px 0 0;
-        max-height: 354px;
+        max-height: 291px;
         overflow: scroll;
         transition: all 0.3s ease;
       }
@@ -199,14 +198,14 @@
       .hyper-checkout-cart-item {
         display: flex;
         flex-flow: row;
-        padding: 20px 10px;
+        padding: 20px 0;
         font-size: 15px;
-        box-shadow: 0px 0px 10px #efefef;
       }
 
       .hyper-checkout-cart-product-image {
         height: 56px;
         width: 56px;
+        border-radius: 4px;
       }
 
       .hyper-checkout-card-item-name {
@@ -255,6 +254,16 @@
         font-weight: 500;
         cursor: pointer;
         align-self: flex-start;
+        display: flex;
+        align-content: flex-end;
+        gap: 3px;
+        text-decoration: none;
+        transition: text-decoration 0.3s;
+        margin-top: 10px;
+      }
+
+      .hyper-checkout-cart-button:hover {
+        text-decoration: underline;
       }
 
       #hyper-checkout-merchant-description {
@@ -477,7 +486,7 @@
       .hyper-checkout-status-merchant-logo {
         border: 1px solid #e6e6e6;
         border-radius: 5px;
-        padding: 3px;
+        padding: 9px;
         height: 48px;
         width: 48px;
       }
@@ -517,6 +526,7 @@
         margin-top: 20px;
         border-radius: 3px;
         border: 1px solid #e6e6e6;
+        max-width: calc(100vw - 40px);
       }
 
       .hyper-checkout-status-item {
@@ -524,6 +534,7 @@
         align-items: center;
         padding: 5px 10px;
         border-bottom: 1px solid #e6e6e6;
+        word-wrap: break-word;
       }
 
       .hyper-checkout-status-item:last-child {
@@ -540,6 +551,13 @@
         overflow-x: hidden;
         overflow-y: auto;
         word-wrap: break-word;
+        font-weight: 400;
+      }
+
+      #hyper-checkout-status-redirect-message {
+        margin-top: 20px;
+        font-family: "Montserrat";
+        font-size: 13px;
       }
 
       @keyframes loading {
@@ -587,11 +605,20 @@
         text-align: center;
       }
 
-      @media only screen and (max-width: 1200px) {
+      @media only screen and (max-width: 1400px) {
+        body {
+          overflow: scroll;
+        }
+
         .hyper-checkout {
           flex-flow: column;
           margin: 0;
           height: auto;
+          overflow: visible;
+        }
+
+        #hyper-checkout-payment-merchant-details {
+          margin-top: 20px;
         }
 
         .main {
@@ -600,7 +627,7 @@
         }
 
         .hyper-checkout-payment {
-          min-width: 100px;
+          min-width: 300px;
           width: calc(100vw - 50px);
           margin: 0;
           padding: 25px;
@@ -614,7 +641,7 @@
         }
 
         .hyper-checkout-payment-content-details {
-          max-width: 540px;
+          max-width: 520px;
           width: 100%;
           align-self: center;
           margin-bottom: 0;
@@ -678,7 +705,6 @@
         #hyper-checkout-cart-items {
           margin: 20px 20px 0 20px;
           padding: 0;
-          max-height: max-content;
         }
 
         .hyper-checkout-cart-button {
@@ -691,16 +717,16 @@
         }
 
         #hyper-checkout-sdk {
-          padding: 20px 0 0 0;
           background-color: transparent;
+          width: auto;
           min-width: 300px;
-          width: 100vw;
         }
 
         #payment-form-wrap {
           min-width: 300px;
-          padding: 0 10px 10px 10px;
-          width: calc(100vw - 20px);
+          width: calc(100vw - 40px);
+          margin: 0;
+          padding: 25px 20px;
         }
 
         #hyper-checkout-status-canvas {
@@ -709,6 +735,7 @@
 
         .hyper-checkout-status-wrap {
           min-width: 100vw;
+          width: 100vw;
         }
 
         #hyper-checkout-status-header {
@@ -759,7 +786,7 @@
         </symbol>
         <symbol id="cart-icon-big">
           <mask
-            id="mask0_1_13"
+            id="mask0_1_14"
             style="mask-type: luminance"
             maskUnits="userSpaceOnUse"
             x="0"
@@ -769,9 +796,9 @@
           >
             <path d="M30 0H0V30H30V0Z" fill="white"></path>
           </mask>
-          <g mask="url(#mask0_1_13)">
+          <g mask="url(#mask0_1_14)">
             <mask
-              id="mask1_1_13"
+              id="mask1_1_14"
               style="mask-type: alpha"
               maskUnits="userSpaceOnUse"
               x="0"
@@ -781,7 +808,7 @@
             >
               <path d="M30 0H0V30H30V0Z" fill="#D9D9D9"></path>
             </mask>
-            <g mask="url(#mask1_1_13)">
+            <g mask="url(#mask1_1_14)">
               <path
                 d="M6.63218 26.8746C6.0088 26.8746 5.47633 26.6537 5.03485 26.2121C4.59332 25.7708 4.37256 25.2383 4.37256 24.6148V10.3842C4.37256 9.76078 4.59332 9.22834 5.03485 8.78683C5.47633 8.34531 6.0088 8.12456 6.63218 8.12456H9.37257C9.37257 6.56368 9.91984 5.23597 11.0144 4.14142C12.1089 3.04689 13.4366 2.49962 14.9975 2.49962C16.5584 2.49962 17.8861 3.04689 18.9806 4.14142C20.0753 5.23597 20.6226 6.56368 20.6226 8.12456H23.3629C23.9863 8.12456 24.5186 8.34531 24.9602 8.78683C25.4018 9.22834 25.6224 9.76078 25.6224 10.3842V24.6148C25.6224 25.2383 25.4018 25.7708 24.9602 26.2121C24.5186 26.6537 23.9863 26.8746 23.3629 26.8746H6.63218ZM6.63218 24.9996H23.3629C23.4591 24.9996 23.5472 24.9594 23.6273 24.8794C23.7075 24.7991 23.7474 24.711 23.7474 24.6148V10.3842C23.7474 10.288 23.7075 10.1999 23.6273 10.1197C23.5472 10.0396 23.4591 9.99952 23.3629 9.99952H6.63218C6.53603 9.99952 6.44786 10.0396 6.36771 10.1197C6.28759 10.1999 6.24752 10.288 6.24752 10.3842V24.6148C6.24752 24.711 6.28759 24.7991 6.36771 24.8794C6.44786 24.9594 6.53603 24.9996 6.63218 24.9996ZM14.9975 16.8745C16.5584 16.8745 17.8861 16.3272 18.9806 15.2327C20.0753 14.1381 20.6226 12.8104 20.6226 11.2495H18.7475C18.7475 12.2912 18.383 13.1766 17.6538 13.9058C16.9246 14.6349 16.0392 14.9995 14.9975 14.9995C13.9559 14.9995 13.0704 14.6349 12.3413 13.9058C11.6121 13.1766 11.2475 12.2912 11.2475 11.2495H9.37257C9.37257 12.8104 9.91984 14.1381 11.0144 15.2327C12.1089 16.3272 13.4366 16.8745 14.9975 16.8745ZM11.2475 8.12456H18.7475C18.7475 7.08289 18.383 6.19747 17.6538 5.46831C16.9246 4.73914 16.0392 4.37456 14.9975 4.37456C13.9559 4.37456 13.0704 4.73914 12.3413 5.46831C11.6121 6.19747 11.2475 7.08289 11.2475 8.12456Z"
                 fill="#333333"
@@ -847,9 +874,37 @@
             ></path>
           </g>
         </symbol>
+        <symbol id="arrow-down">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M8.20573 11.0351C8.33593 11.0351 8.45573 10.9831 8.54948 10.8841L12.5911 6.75911C12.6797 6.66536 12.7266 6.55078 12.7266 6.41536C12.7266 6.14974 12.5234 5.94141 12.2526 5.94141C12.1224 5.94141 12.0026 5.99349 11.9141 6.07682L8.20573 9.86848L4.4974 6.07682C4.40887 5.99349 4.29429 5.94141 4.15882 5.94141C3.88798 5.94141 3.68486 6.14974 3.68486 6.41536C3.68486 6.55078 3.7318 6.66536 3.82549 6.75911L7.86198 10.8841C7.96094 10.9831 8.07551 11.0351 8.20573 11.0351Z"
+              fill="#333333"
+            ></path>
+          </svg>
+        </symbol>
+        <symbol id="arrow-up">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M7.79427 4.96485C7.66407 4.96485 7.54427 5.01694 7.45052 5.11587L3.40886 9.24089C3.32032 9.33464 3.27344 9.44922 3.27344 9.58464C3.27344 9.85026 3.47657 10.0586 3.7474 10.0586C3.87761 10.0586 3.9974 10.0065 4.08594 9.92318L7.79427 6.13152L11.5026 9.92318C11.5911 10.0065 11.7057 10.0586 11.8412 10.0586C12.112 10.0586 12.3151 9.85026 12.3151 9.58464C12.3151 9.44922 12.2682 9.33464 12.1745 9.24089L8.13802 5.11587C8.03906 5.01694 7.92449 4.96485 7.79427 4.96485Z"
+              fill="#333333"
+            ></path>
+          </svg>
+        </symbol>
       </defs>
     </svg>
-    <div id="page-spinner" class="page-spinner">
+    <div id="page-spinner" class="page-spinner hidden">
       <div class="spinner">
         <div></div>
         <div></div>
@@ -871,6 +926,7 @@
           <div id="hyper-checkout-status-header"></div>
           <div id="hyper-checkout-status-content"></div>
         </div>
+        <div id="hyper-checkout-status-redirect-message"></div>
       </div>
       <div class="main" id="hyper-checkout-details">
         <div id="hyper-checkout-payment" class="hyper-checkout-payment">
@@ -949,7 +1005,7 @@
           <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
           <div id="hyper-checkout-merchant-description"></div>
           <div class="powered-by-hyper">
-            <svg class="fill-current" height="18" width="130" transform="">
+            <svg class="fill-current" height="18" width="130">
               <use
                 xlink:href="#hyperswitch-brand"
                 x="0"
@@ -987,7 +1043,7 @@
       </div>
     </div>
     <div id="hyper-footer" class="hidden">
-      <svg class="fill-current" height="18" width="130" transform="">
+      <svg class="fill-current" height="18" width="130">
         <use
           xlink:href="#hyperswitch-brand"
           x="0"
@@ -1015,6 +1071,22 @@
 
       // Boot functions
       function boot() {
+        // Update HTML doc
+        var paymentDetails = window.__PAYMENT_DETAILS;
+
+        if (paymentDetails.merchant_name) {
+          document.title =
+            "Payment requested by " + paymentDetails.merchant_name;
+        }
+
+        if (paymentDetails.merchant_logo) {
+          var link = document.createElement("link");
+          link.rel = "icon";
+          link.href = paymentDetails.merchant_logo;
+          link.type = "image/x-icon";
+          document.head.appendChild(link);
+        }
+
         // Render UI
         renderPaymentDetails();
         renderSDKHeader();
@@ -1044,7 +1116,35 @@
       boot();
 
       function initializeEventListeners() {
-        window.addEventListener("resize", (event) => {
+        var primaryColor = window
+          .getComputedStyle(document.documentElement)
+          .getPropertyValue("--primary-color");
+        var lighterColor = adjustLightness(primaryColor, 1.4);
+        var darkerColor = adjustLightness(primaryColor, 0.8);
+        var contrastBWColor = invert(primaryColor, true);
+        var hyperCheckoutNode = document.getElementById(
+          "hyper-checkout-payment"
+        );
+        var hyperCheckoutFooterNode = document.getElementById(
+          "hyper-checkout-payment-footer"
+        );
+        var statusRedirectTextNode = document.getElementById(
+          "hyper-checkout-status-redirect-message"
+        );
+
+        if (window.innerWidth <= 1200) {
+          statusRedirectTextNode.style.color = "#333333";
+          hyperCheckoutNode.style.color = contrastBWColor;
+          var a = lighterColor.match(/[fF]/gi);
+          hyperCheckoutFooterNode.style.backgroundColor =
+            Array.isArray(a) && a.length > 4 ? darkerColor : lighterColor;
+        } else if (window.innerWidth > 1200) {
+          statusRedirectTextNode.style.color = contrastBWColor;
+          hyperCheckoutNode.style.color = "#333333";
+          hyperCheckoutFooterNode.style.backgroundColor = "#F5F5F5";
+        }
+
+        window.addEventListener("resize", function (event) {
           var currentHeight = window.innerHeight;
           var currentWidth = window.innerWidth;
           if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
@@ -1053,17 +1153,9 @@
               show("#hyper-footer");
             }
             try {
-              const primaryColor = window
-                .getComputedStyle(document.documentElement)
-                .getPropertyValue("--primary-color");
-              const darkerColor = adjustLightness(primaryColor, 0.8);
-              const lighterColor = adjustLightness(primaryColor, 1.2);
-              const contrastColor = getContrastColor(primaryColor);
-              document.getElementById("hyper-checkout-payment").style.color =
-                contrastColor;
-              document.getElementById(
-                "hyper-checkout-payment-footer"
-              ).style.backgroundColor = lighterColor;
+              statusRedirectTextNode.style.color = "#333333";
+              hyperCheckoutNode.style.color = contrastBWColor;
+              hyperCheckoutFooterNode.style.backgroundColor = lighterColor;
             } catch (error) {
               console.error(
                 "Failed to fetch primary-color, using default",
@@ -1076,14 +1168,9 @@
             }
             show("#hyper-checkout-cart");
             try {
-              const primaryColor = window
-                .getComputedStyle(document.documentElement)
-                .getPropertyValue("--primary-color");
-              document.getElementById("hyper-checkout-payment").style.color =
-                "black";
-              document.getElementById(
-                "hyper-checkout-payment-footer"
-              ).style.backgroundColor = "#F5F5F5";
+              statusRedirectTextNode.style.color = contrastBWColor;
+              hyperCheckoutNode.style.color = "#333333";
+              hyperCheckoutFooterNode.style.backgroundColor = "#F5F5F5";
             } catch (error) {
               console.error("Failed to revert back to default colors", error);
             }
@@ -1097,7 +1184,7 @@
 
       function showSDK() {
         checkStatus()
-          .then((res) => {
+          .then(function (res) {
             if (res.showSdk) {
               show("#hyper-checkout-sdk");
               show("#hyper-checkout-details");
@@ -1109,15 +1196,17 @@
               window.state.currentScreen = "status";
             }
           })
-          .catch((err) => {});
+          .catch(function (err) {
+            console.error("Failed to check status", err);
+          });
       }
 
-      async function initializeSDK() {
+      function initializeSDK() {
         var paymentDetails = window.__PAYMENT_DETAILS;
         var client_secret = paymentDetails.client_secret;
         var appearance = {
           variables: {
-            colorPrimary: paymentDetails.sdk_theme || "rgb(0, 109, 249)",
+            colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
             fontFamily: "Work Sans, sans-serif",
             fontSizeBase: "16px",
             colorText: "rgb(51, 65, 85)",
@@ -1128,9 +1217,9 @@
             colorBackground: "rgb(255, 255, 255)",
           },
         };
-        hyper = Hyper(pub_key);
+        hyper = window.Hyper(pub_key);
         widgets = hyper.widgets({
-          appearance,
+          appearance: appearance,
           clientSecret: client_secret,
         });
         var unifiedCheckoutOptions = {
@@ -1150,11 +1239,13 @@
         mountUnifiedCheckout("#unified-checkout");
 
         // Add event listener for SDK iframe mutations
-        const orcaIFrame = document.getElementById(
+        var orcaIFrame = document.getElementById(
           "orca-payment-element-iframeRef-unified-checkout"
         );
-        const callback = (mutationList, observer) => {
-          for (const mutation of mutationList) {
+        var callback = function (mutationList, observer) {
+          for (var i = 0; i < mutationList.length; i++) {
+            var mutation = mutationList[i];
+
             if (
               mutation.type === "attributes" &&
               mutation.attributeName === "style"
@@ -1164,7 +1255,7 @@
             }
           }
         };
-        const observer = new MutationObserver(callback);
+        var observer = new MutationObserver(callback);
         observer.observe(orcaIFrame, { attributes: true });
 
         // Handle button press callback
@@ -1184,107 +1275,122 @@
         }
       }
 
-      async function handleSubmit(e) {
+      function handleSubmit(e) {
         var paymentDetails = window.__PAYMENT_DETAILS;
-        var { error, data, status } = await hyper.confirmPayment({
-          widgets,
-          confirmParams: {
-            // Make sure to change this to your payment completion page
-            return_url: paymentDetails.return_url,
-          },
-        });
-        // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your 'return_url'.
-        // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the 'return_url'.
+        hyper
+          .confirmPayment({
+            widgets: widgets,
+            confirmParams: {
+              // Make sure to change this to your payment completion page
+              return_url: paymentDetails.return_url,
+            },
+          })
+          .then(function (result) {
+            var error = result.error;
+            if (error) {
+              if (error.type === "validation_error") {
+                showMessage(error.message);
+              } else {
+                showMessage("An unexpected error occurred.");
+              }
 
-        if (error) {
-          if (error.type === "validation_error") {
-            showMessage(error.message);
-          } else {
-            showMessage("An unexpected error occurred.");
-          }
-
-          // Re-initialize SDK
-          mountUnifiedCheckout("#unified-checkout");
-        } else {
-          var { paymentIntent } = await hyper.retrievePaymentIntent(
-            paymentDetails.client_secret
-          );
-          if (paymentIntent && paymentIntent.status) {
-            hide("#hyper-checkout-sdk");
-            hide("#hyper-checkout-details");
-            show("#hyper-checkout-status-canvas");
-            showStatus(paymentIntent);
-          }
-        }
+              // Re-initialize SDK
+              mountUnifiedCheckout("#unified-checkout");
+            } else {
+              // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your 'return_url'.
+              // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the 'return_url'.
+              hyper
+                .retrievePaymentIntent(paymentDetails.client_secret)
+                .then(function (result) {
+                  var paymentIntent = result.paymentIntent;
+                  if (paymentIntent && paymentIntent.status) {
+                    hide("#hyper-checkout-sdk");
+                    hide("#hyper-checkout-details");
+                    show("#hyper-checkout-status-canvas");
+                    showStatus(
+                      paymentDetails.amount,
+                      Object.assign(paymentDetails, paymentIntent)
+                    );
+                  }
+                })
+                .catch(function (error) {
+                  console.error("Error retrieving payment_intent", error);
+                });
+            }
+          })
+          .catch(function (error) {
+            console.error("Error confirming payment_intent", error);
+          });
       }
 
       // Fetches the payment status after payment submission
-      async function checkStatus() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
-        var res = {
-          showSdk: true,
-        };
+      function checkStatus() {
+        return new window.Promise(function (resolve, reject) {
+          var paymentDetails = window.__PAYMENT_DETAILS;
+          var res = {
+            showSdk: true,
+          };
 
-        let clientSecret = new URLSearchParams(window.location.search).get(
-          "payment_intent_client_secret"
-        );
-
-        // If clientSecret is not found in URL params, try to fetch from window context
-        if (!clientSecret) {
-          clientSecret = paymentDetails.client_secret;
-        }
-
-        // If clientSecret is not present, show status
-        if (!clientSecret) {
-          res.showSdk = false;
-          showStatus(
-            Object.assign({}, paymentDetails, {
-              status: "",
-              error: {
-                code: "NO_CLIENT_SECRET",
-                message: "client_secret not found",
-              },
-            })
+          var clientSecret = new URLSearchParams(window.location.search).get(
+            "payment_intent_client_secret"
           );
-          return res;
-        }
 
-        var { paymentIntent } = await hyper.retrievePaymentIntent(clientSecret);
+          // If clientSecret is not found in URL params, try to fetch from window context
+          if (!clientSecret) {
+            clientSecret = paymentDetails.client_secret;
+          }
 
-        // If paymentIntent was not found, show status
-        if (!paymentIntent) {
-          res.showSdk = false;
-          showStatus(
-            Object.assign({}, paymentDetails, {
-              status: "",
-              error: {
-                code: "NOT_FOUND",
-                message: "PaymentIntent was not found",
-              },
+          // If clientSecret is not present, show status
+          if (!clientSecret) {
+            res.showSdk = false;
+            showStatus(
+              paymentDetails.amount,
+              Object.assign(paymentDetails, {
+                status: "",
+                error: {
+                  code: "NO_CLIENT_SECRET",
+                  message: "client_secret not found",
+                },
+              })
+            );
+            return resolve(res);
+          }
+          hyper
+            .retrievePaymentIntent(clientSecret)
+            .then(function (response) {
+              var paymentIntent = response.paymentIntent;
+              // If paymentIntent was not found, show status
+              if (!paymentIntent) {
+                res.showSdk = false;
+                showStatus(
+                  paymentDetails.amount,
+                  Object.assign(paymentDetails, {
+                    status: "",
+                    error: {
+                      code: "NOT_FOUND",
+                      message: "PaymentIntent was not found",
+                    },
+                  })
+                );
+                return resolve(res);
+              }
+              // Show SDK only if paymentIntent status has not been initiated
+              switch (paymentIntent.status) {
+                case "requires_confirmation":
+                case "requires_payment_method":
+                  return resolve(res);
+              }
+              showStatus(
+                paymentDetails.amount,
+                Object.assign(paymentDetails, paymentIntent)
+              );
+              res.showSdk = false;
+              resolve(res);
             })
-          );
-          return res;
-        }
-
-        // Show SDK only if paymentIntent status has not been initiated
-        switch (paymentIntent.status) {
-          case "requires_confirmation":
-          case "requires_payment_method":
-            return res;
-        }
-
-        showStatus(paymentIntent);
-        res.showSdk = false;
-
-        return res;
-      }
-
-      function setPageLoading(showLoader) {
-        if (showLoader) {
-          show(".page-spinner");
-        } else {
-          hide(".page-spinner");
-        }
+            .catch(function (error) {
+              reject(error);
+            });
+        });
       }
 
       function show(id) {
@@ -1299,9 +1405,9 @@
         addText("#payment-message", msg);
       }
 
-      function showStatus(paymentDetails) {
+      function showStatus(amount, paymentDetails) {
         var status = paymentDetails.status;
-        let statusDetails = {
+        var statusDetails = {
           imageSource: "",
           message: null,
           status: status,
@@ -1391,8 +1497,7 @@
         // Form header items
         var amountNode = document.createElement("div");
         amountNode.className = "hyper-checkout-status-amount";
-        amountNode.innerText =
-          paymentDetails.currency + " " + paymentDetails.amount;
+        amountNode.innerText = paymentDetails.currency + " " + amount;
         var merchantLogoNode = document.createElement("img");
         merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
         merchantLogoNode.src = window.__PAYMENT_DETAILS.merchant_logo;
@@ -1412,22 +1517,71 @@
         statusDetailsNode.className = "hyper-checkout-status-details";
 
         // Append items
-        statusDetails.items.map((item) => statusDetailsNode?.append(item));
+        if (statusDetailsNode instanceof HTMLDivElement) {
+          statusDetails.items.map(function (item) {
+            statusDetailsNode.append(item);
+          });
+        }
         var statusHeaderNode = document.getElementById(
           "hyper-checkout-status-header"
         );
-        if (statusHeaderNode !== null) {
+        if (statusHeaderNode instanceof HTMLDivElement) {
           statusHeaderNode.append(amountNode, merchantLogoNode);
         }
         var statusContentNode = document.getElementById(
           "hyper-checkout-status-content"
         );
-        if (statusContentNode !== null) {
+        if (statusContentNode instanceof HTMLDivElement) {
           statusContentNode.append(statusImageNode, statusTextNode);
-          if (statusDetails.message !== null) {
+          if (statusDetails.message instanceof HTMLDivElement) {
             statusContentNode.append(statusMessageNode);
           }
           statusContentNode.append(statusDetailsNode);
+        }
+
+        // Form redirect text
+        var statusRedirectTextNode = document.getElementById(
+          "hyper-checkout-status-redirect-message"
+        );
+        if (
+          statusRedirectTextNode &&
+          typeof paymentDetails.return_url === "string"
+        ) {
+          var timeout = 5,
+            j = 0;
+          for (var i = 0; i <= timeout; i++) {
+            setTimeout(function () {
+              var secondsLeft = timeout - j++;
+              var innerText =
+                secondsLeft === 0
+                  ? "Redirecting ..."
+                  : "Redirecting in " + secondsLeft + " seconds ...";
+              statusRedirectTextNode.innerText = innerText;
+              if (secondsLeft === 0) {
+                // Form query params
+                var queryParams = {
+                  payment_id: paymentDetails.payment_id,
+                  status: paymentDetails.status,
+                  payment_intent_client_secret: paymentDetails.client_secret,
+                  amount: amount,
+                  manual_retry_allowed: paymentDetails.manual_retry_allowed,
+                };
+                var url = new URL(paymentDetails.return_url);
+                var params = new URLSearchParams(url.search);
+                // Attach query params to return_url
+                for (var key in queryParams) {
+                  if (queryParams.hasOwnProperty(key)) {
+                    params.set(key, queryParams[key]);
+                  }
+                }
+                url.search = params.toString();
+                setTimeout(function () {
+                  // Finally redirect
+                  window.location.href = url.toString();
+                }, 1000);
+              }
+            }, i * 1000);
+          }
         }
       }
 
@@ -1482,8 +1636,8 @@
         var suffix = hours > 11 ? "PM" : "AM";
         hours = hours % 12;
         hours = hours ? hours : 12;
-        var day = date.getDay();
-        var month = months[date.getMonth() - 1];
+        var day = date.getDate();
+        var month = months[date.getMonth()];
         var year = date.getUTCFullYear();
 
         var locale = navigator.language || navigator.userLanguage;
@@ -1494,7 +1648,9 @@
           })
           .substring(4)
           .split(" ")
-          .reduce((tz, c) => tz + c.charAt(0).toUpperCase(), "");
+          .reduce(function (tz, c) {
+            return tz + c.charAt(0).toUpperCase();
+          }, "");
 
         var formatted =
           hours +
@@ -1540,8 +1696,8 @@
         // Create expiry node
         var paymentExpiryNode = document.createElement("div");
         paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
-        const expiryDate = new Date(paymentDetails.expiry);
-        const formattedDate = formatDate(expiryDate);
+        var expiryDate = new Date(paymentDetails.expiry);
+        var formattedDate = formatDate(expiryDate);
         paymentExpiryNode.innerText = "Link expires on: " + formattedDate;
 
         // Append information to DOM
@@ -1577,7 +1733,7 @@
           var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
             paymentDetails.max_items_visible_after_collapse;
 
-          orderDetails.map((item, index) => {
+          orderDetails.map(function (item, index) {
             if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
               return;
             }
@@ -1594,7 +1750,10 @@
             var expandButtonNode = document.createElement("div");
             expandButtonNode.className = "hyper-checkout-cart-button";
             expandButtonNode.onclick = handleCartView;
-            var buttonImageNode = document.createElement("img");
+            var buttonImageNode = document.createElement("svg");
+            buttonImageNode.id = "hyper-checkout-cart-button-arrow";
+            buttonImageNode.innerHTML =
+              document.getElementById("arrow-down").innerHTML;
             var buttonTextNode = document.createElement("span");
             buttonTextNode.id = "hyper-checkout-cart-button-text";
             var hiddenItemsCount =
@@ -1612,7 +1771,7 @@
             paymentDetails.merchant_description.length > 0
           ) {
             show("#hyper-checkout-merchant-description");
-            const merchantDescription = paymentDetails.merchant_description;
+            var merchantDescription = paymentDetails.merchant_description;
             document.getElementById(
               "hyper-checkout-merchant-description"
             ).innerText = merchantDescription;
@@ -1683,9 +1842,12 @@
         var cartButtonTextNode = document.getElementById(
           "hyper-checkout-cart-button-text"
         );
+        var cartButtonImageNode = document.getElementById(
+          "hyper-checkout-cart-button-arrow"
+        );
         if (isHidden) {
           if (Array.isArray(orderDetails)) {
-            orderDetails.map((item, index) => {
+            orderDetails.map(function (item, index) {
               if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
                 return;
               }
@@ -1700,18 +1862,20 @@
           cartItemsNode.style.maxHeight = cartItemsNode.scrollHeight + "px";
           cartItemsNode.style.height = cartItemsNode.scrollHeight + "px";
           cartButtonTextNode.innerText = "Show Less";
+          cartButtonImageNode.innerHTML =
+            document.getElementById("arrow-up").innerHTML;
         } else {
-          cartItemsNode.style.maxHeight = "354px";
-          cartItemsNode.style.height = "auto";
+          cartItemsNode.style.maxHeight = "300px";
+          cartItemsNode.style.height = "290px";
           cartItemsNode.scrollTo({ top: 0, behavior: "smooth" });
           setTimeout(function () {
-            cartItems.map((item, index) => {
+            cartItems.map(function (item, index) {
               if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
                 return;
               }
               cartItemsNode.removeChild(item);
             });
-            dividerItems.map((item, index) => {
+            dividerItems.map(function (item, index) {
               if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE - 1) {
                 return;
               }
@@ -1723,6 +1887,8 @@
               orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
             cartButtonTextNode.innerText =
               "Show More (" + hiddenItemsCount + ")";
+            cartButtonImageNode.innerHTML =
+              document.getElementById("arrow-down").innerHTML;
           }, 250);
         }
       }
@@ -1766,58 +1932,46 @@
         var sdkHeaderNode = document.getElementById(
           "hyper-checkout-sdk-header"
         );
-        if (sdkHeaderNode !== null) {
+        if (sdkHeaderNode instanceof HTMLDivElement) {
           sdkHeaderNode.append(sdkHeaderLogoNode);
           sdkHeaderNode.append(sdkHeaderItemNode);
         }
       }
 
-      function getContrastColor(hexColor) {
-        // Convert hex to RGB
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
-
-        // Calculate luminance
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-        // Use white text for light backgrounds, black for dark backgrounds
-        return luminance > 0.5 ? "#333333" : "#F5F5F5";
-      }
-
       function adjustLightness(hexColor, factor) {
         // Convert hex to RGB
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
+        var r = parseInt(hexColor.slice(1, 3), 16);
+        var g = parseInt(hexColor.slice(3, 5), 16);
+        var b = parseInt(hexColor.slice(5, 7), 16);
 
         // Convert RGB to HSL
-        let hsl = rgbToHsl(r, g, b);
+        var hsl = rgbToHsl(r, g, b);
 
         // Adjust lightness
         hsl[2] = Math.max(0, Math.min(100, hsl[2] * factor));
 
         // Convert HSL back to RGB
-        let rgb = hslToRgb(hsl[0], hsl[1], hsl[2]);
+        var rgb = hslToRgb(hsl[0], hsl[1], hsl[2]);
 
         // Convert RGB to hex
-        const newHexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+        var newHexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
 
         return newHexColor;
       }
-
       function rgbToHsl(r, g, b) {
-        (r /= 255), (g /= 255), (b /= 255);
-        const max = Math.max(r, g, b),
+        r /= 255;
+        g /= 255;
+        b /= 255;
+        var max = Math.max(r, g, b),
           min = Math.min(r, g, b);
-        let h,
+        var h,
           s,
           l = (max + min) / 2;
 
         if (max === min) {
           h = s = 0;
         } else {
-          const d = max - min;
+          var d = max - min;
           s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
           switch (max) {
             case r:
@@ -1835,17 +1989,16 @@
 
         return [h * 360, s * 100, l * 100];
       }
-
       function hslToRgb(h, s, l) {
         h /= 360;
         s /= 100;
         l /= 100;
-        let r, g, b;
+        var r, g, b;
 
         if (s === 0) {
           r = g = b = l;
         } else {
-          const hue2rgb = (p, q, t) => {
+          var hue2rgb = function (p, q, t) {
             if (t < 0) t += 1;
             if (t > 1) t -= 1;
             if (t < 1 / 6) return p + (q - p) * 6 * t;
@@ -1854,8 +2007,8 @@
             return p;
           };
 
-          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-          const p = 2 * l - q;
+          var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          var p = 2 * l - q;
 
           r = hue2rgb(p, q, h + 1 / 3);
           g = hue2rgb(p, q, h);
@@ -1864,13 +2017,81 @@
 
         return [r * 255, g * 255, b * 255];
       }
-
       function rgbToHex(r, g, b) {
-        const toHex = (c) => {
-          const hex = Math.round(c).toString(16);
+        var toHex = function (c) {
+          var hex = Math.round(c).toString(16);
           return hex.length === 1 ? "0" + hex : hex;
         };
         return "#" + toHex(r) + toHex(g) + toHex(b);
+      }
+
+      /**
+       * Ref - https://github.com/onury/invert-color/blob/master/lib/cjs/invert.js
+       */
+      function padz(str, len) {
+        if (len === void 0) {
+          len = 2;
+        }
+        return (new Array(len).join("0") + str).slice(-len);
+      }
+      function hexToRgbArray(hex) {
+        if (hex.slice(0, 1) === "#") hex = hex.slice(1);
+        var RE_HEX = /^(?:[0-9a-f]{3}){1,2}$/i;
+        if (!RE_HEX.test(hex))
+          throw new Error('Invalid HEX color: "' + hex + '"');
+        if (hex.length === 3) {
+          hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+        }
+        return [
+          parseInt(hex.slice(0, 2), 16),
+          parseInt(hex.slice(2, 4), 16),
+          parseInt(hex.slice(4, 6), 16),
+        ];
+      }
+      function toRgbArray(c) {
+        if (!c) throw new Error("Invalid color value");
+        if (Array.isArray(c)) return c;
+        return typeof c === "string" ? hexToRgbArray(c) : [c.r, c.g, c.b];
+      }
+      function getLuminance(c) {
+        var i, x;
+        var a = [];
+        for (i = 0; i < c.length; i++) {
+          x = c[i] / 255;
+          a[i] = x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+      }
+      function invertToBW(color, bw, asArr) {
+        var DEFAULT_BW = {
+          black: "#090302",
+          white: "#FFFFFC",
+          threshold: Math.sqrt(1.05 * 0.05) - 0.05,
+        };
+        var options =
+          bw === true ? DEFAULT_BW : Object.assign({}, DEFAULT_BW, bw);
+        return getLuminance(color) > options.threshold
+          ? asArr
+            ? hexToRgbArray(options.black)
+            : options.black
+          : asArr
+          ? hexToRgbArray(options.white)
+          : options.white;
+      }
+      function invert(color, bw) {
+        if (bw === void 0) {
+          bw = false;
+        }
+        color = toRgbArray(color);
+        if (bw) return invertToBW(color, bw);
+        return (
+          "#" +
+          color
+            .map(function (c) {
+              return padz((255 - c).toString(16));
+            })
+            .join("")
+        );
       }
     </script>
     {{ hyperloader_sdk_link }}

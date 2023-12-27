@@ -95,11 +95,6 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
-
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
 }
@@ -182,10 +177,6 @@ pub struct MerchantAccountUpdate {
     /// The frm routing algorithm to be used for routing payments to desired FRM's
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
-
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    pub intent_fulfillment_time: Option<u32>,
 
     /// The default business profile that must be used for creating merchant accounts and payments
     /// To unset this field, pass an empty string
@@ -1019,7 +1010,7 @@ pub struct BusinessProfileCreate {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Default Payment Link config for all payment links
+    /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
 
@@ -1159,9 +1150,6 @@ pub struct BusinessPaymentLinkConfig {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfigRequest {
-    /// Custom Payment link expiry
-    #[schema(example = 900)]
-    pub max_age: Option<i64>,
     /// custom theme for the payment link
     #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
     pub theme: Option<String>,
@@ -1175,8 +1163,6 @@ pub struct PaymentLinkConfigRequest {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
-    /// Custom Payment link expiry
-    pub max_age: i64,
     /// custom theme for the payment link
     pub theme: String,
     /// merchant display logo
