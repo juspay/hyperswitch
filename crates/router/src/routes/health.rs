@@ -1,7 +1,7 @@
-use super::app;
 use actix_web::web;
 use router_env::{instrument, logger, tracing};
 
+use super::app;
 use crate::routes::metrics;
 
 /// .
