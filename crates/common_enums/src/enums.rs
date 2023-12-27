@@ -308,6 +308,7 @@ pub enum CaptureMethod {
     Scheduled,
 }
 
+/// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
 #[derive(
     Clone,
     Copy,

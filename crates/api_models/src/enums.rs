@@ -25,6 +25,7 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
+/// A connector is an integration to fulfill payments
 #[derive(
     Clone,
     Copy,
