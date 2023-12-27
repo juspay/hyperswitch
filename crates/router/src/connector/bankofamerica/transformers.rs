@@ -324,17 +324,17 @@ impl From<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
 
 impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
     fn foreign_from(metadata: Value) -> Self {
-        let m: HashMap<String, Value> =
+        let hashmap: HashMap<String, Value> =
             serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
-        let mut v: Self = Self::new();
-        for (key, value) in m {
-            let size = v.length() + 1;
-            v.push(MerchantDefinedInformation {
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            let size = vector.length() + 1;
+            vector.push(MerchantDefinedInformation {
                 key: size,
-                value: format!("{key} = {value}"),
+                value: format!("{key}={value}"),
             });
         }
-        v
+        vector
     }
 }
 
