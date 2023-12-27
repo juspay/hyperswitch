@@ -4816,7 +4816,7 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
-                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
