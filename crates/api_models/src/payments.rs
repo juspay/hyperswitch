@@ -3441,12 +3441,8 @@ pub struct PaymentLinkListResponse {
     pub data: Vec<PaymentLinkResponse>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentCreatePaymentLinkConfig {
-    #[serde(flatten)]
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
-    pub config: admin::PaymentLinkConfigRequest,
-}
+/// Type for payment Create payment link request
+pub type PaymentCreatePaymentLinkConfig = admin::PaymentLinkConfigRequest;
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetailsWithStringAmount {
