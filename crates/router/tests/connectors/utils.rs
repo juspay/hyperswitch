@@ -911,6 +911,7 @@ impl Default for PaymentAuthorizeType {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         };
         Self(data)
     }

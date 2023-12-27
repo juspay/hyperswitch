@@ -27,6 +27,7 @@ impl VerifyConnectorData {
             amount: 1000,
             confirm: true,
             currency: storage_enums::Currency::USD,
+            metadata: None,
             mandate_id: None,
             webhook_url: None,
             customer_id: None,
