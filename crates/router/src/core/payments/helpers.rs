@@ -2605,7 +2605,7 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
             ),
@@ -2659,7 +2659,7 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
             ),
@@ -2712,7 +2712,7 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
             ),
