@@ -1,8 +1,8 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_FULFILLMENT_TIME, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
+        DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -113,9 +113,9 @@ pub async fn intiate_payment_link_flow(
     )?;
     let order_details = validate_order_details(payment_intent.order_details, currency)?;
 
-    let expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
+    let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
         common_utils::date_time::now()
-            .saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME))
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
     });
 
     // converting first letter of merchant name to upperCase
@@ -131,7 +131,7 @@ pub async fn intiate_payment_link_flow(
         merchant_name,
         order_details,
         return_url,
-        expiry,
+        session_expiry,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config.clone().logo,

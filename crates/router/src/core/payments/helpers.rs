@@ -2387,7 +2387,7 @@ pub fn authenticate_client_secret(
                 let session_expiry = payment_intent.session_expiry.unwrap_or(
                     payment_intent
                         .created_at
-                        .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
                 );
 
                 fp_utils::when(current_timestamp > session_expiry, || {
@@ -2607,7 +2607,7 @@ mod tests {
             authorization_count: None,
             session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -2661,7 +2661,7 @@ mod tests {
             authorization_count: None,
             session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -2714,7 +2714,7 @@ mod tests {
             authorization_count: None,
             session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -3770,8 +3770,9 @@ pub fn validate_order_details_amount(
     }
 }
 
+// This function validates the client secret expiry set by the merchant in the request
 pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErrorResponse> {
-    if !(60..=7890000).contains(&session_expiry) {
+    if !(consts::MIN_SESSSION_EXPIRY..=consts::MAX_SESSSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
         })

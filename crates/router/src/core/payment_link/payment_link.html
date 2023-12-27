@@ -1696,7 +1696,7 @@
         // Create expiry node
         var paymentExpiryNode = document.createElement("div");
         paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
-        var expiryDate = new Date(paymentDetails.expiry);
+        var expiryDate = new Date(paymentDetails.session_expiry);
         var formattedDate = formatDate(expiryDate);
         paymentExpiryNode.innerText = "Link expires on: " + formattedDate;
 

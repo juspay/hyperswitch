@@ -73,3 +73,9 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";
+
+/// Max payment session expiry
+pub const MAX_SESSSION_EXPIRY: u32 = 7890000;
+
+/// Min payment session expiry
+pub const MIN_SESSSION_EXPIRY: u32 = 60;

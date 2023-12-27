@@ -9839,7 +9839,7 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
-          "intent_fulfillment_time": {
+          "session_expiry": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
@@ -10228,7 +10228,7 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
-          "intent_fulfillment_time": {
+          "session_expiry": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",

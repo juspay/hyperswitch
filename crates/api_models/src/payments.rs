@@ -3361,7 +3361,7 @@ pub struct PaymentLinkDetails {
     pub client_secret: String,
     pub payment_id: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    pub session_expiry: PrimitiveDateTime,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
