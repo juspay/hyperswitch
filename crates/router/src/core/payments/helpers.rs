@@ -3770,13 +3770,10 @@ pub fn validate_order_details_amount(
     }
 }
 
-pub fn validate_session_expiry(
-    session_expiry: u32,
-) -> Result<(), errors::ApiErrorResponse> {
+pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErrorResponse> {
     if !(60..=7890000).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "session_expiry should be between 60(1 min) to 7890000(3 months)."
-                .to_string(),
+            message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
         })
     } else {
         Ok(())

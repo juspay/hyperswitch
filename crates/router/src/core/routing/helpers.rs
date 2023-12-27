@@ -256,7 +256,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         modified_at: None,
         is_recon_enabled: None,
         payment_link_config: None,
-        session_expiry: None
+        session_expiry: None,
     };
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
         .await

@@ -166,12 +166,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             utils::get_payment_attempt_id(payment_id.clone(), 1)
         };
 
-        let session_expiry = common_utils::date_time::now()
-            .saturating_add(time::Duration::seconds(request.session_expiry.map(i64::from).unwrap_or(
-                business_profile
-                    .session_expiry
-                    .unwrap_or(consts::DEFAULT_SESSION_EXPIRY),
-            )));
+        let session_expiry =
+            common_utils::date_time::now().saturating_add(time::Duration::seconds(
+                request.session_expiry.map(i64::from).unwrap_or(
+                    business_profile
+                        .session_expiry
+                        .unwrap_or(consts::DEFAULT_SESSION_EXPIRY),
+                ),
+            ));
 
         let payment_link_data = if let Some(payment_link_create) = request.payment_link {
             if payment_link_create {
