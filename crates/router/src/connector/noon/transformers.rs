@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{
         self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
-    core::errors,
+    core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
     utils,
@@ -30,11 +30,13 @@ pub enum NoonSubscriptionType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
+    max_amount: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -330,17 +332,40 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let (subscription, tokenize_c_c) =
-            match item.request.setup_future_usage.is_some().then_some((
-                NoonSubscriptionData {
-                    subscription_type: NoonSubscriptionType::Unscheduled,
-                    name: name.clone(),
-                },
-                true,
-            )) {
-                Some((a, b)) => (Some(a), Some(b)),
-                None => (None, None),
-            };
+        let (subscription, tokenize_c_c) = match item.request.setup_future_usage.is_some() {
+            true => {
+                let mandate_data = item.request.get_setup_mandate_details().clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_mandate_details",
+                    },
+                )?;
+                let max_amount = match &mandate_data.mandate_type {
+                    Some(data_models::mandates::MandateDataType::SingleUse(mandate)) => {
+                        mandate.amount.to_string()
+                    }
+                    Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
+                        mandate.amount.to_string()
+                    }
+
+                    _ => {
+                        crate::logger::debug!("aaaaaaaaa{:?}", mandate_data.mandate_type.clone());
+                        Err(errors::ConnectorError::NotImplemented(
+                            item.connector.clone(),
+                        ))?
+                    }
+                };
+
+                (
+                    Some(NoonSubscriptionData {
+                        subscription_type: NoonSubscriptionType::Unscheduled,
+                        name: name.clone(),
+                        max_amount,
+                    }),
+                    Some(true),
+                )
+            }
+            false => (None, None),
+        };
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
