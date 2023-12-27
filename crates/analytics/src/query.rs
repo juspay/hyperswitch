@@ -345,6 +345,17 @@ pub enum JoinType {
     FullJoin
 }
 
+impl ToString for JoinType {
+    fn to_string(&self) -> String {
+        String::from(match self {
+            Self::InnerJoin => "INNER JOIN",
+            Self::LeftJoin => "LEFT JOIN",
+            Self::RightJoin => "RIGHT JOIN",
+            Self::FullJoin => "FULL JOIN",
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct JoinCondition {
     join_column_lhs: String,
@@ -800,6 +811,62 @@ where
         Ok(())
     }
 
+    fn get_join_clause(&self, lhs_alias: &'static str, rhs_alias: &'static str) -> String {
+        format!(" ON {}",
+            self.join_conditions
+            .iter()
+            .map(|JoinCondition { join_column_lhs, join_column_rhs }| format!("{}.{} = {}.{}", lhs_alias, join_column_lhs, rhs_alias, join_column_rhs))
+            .collect::<Vec<String>>()
+            .join(" AND ")
+        )
+    }
 
+    pub fn build_query(&mut self) -> QueryResult<String>
+    where
+        Aggregate<&'static str>: ToSql<T>,
+        Window<&'static str>: ToSql<T>,
+    {
+        let lhs_relation = self.join_lhs.as_mut().ok_or(QueryBuildingError::InvalidQuery(
+            "No LHS for join",
+        ))?;
+        let  query_lhs = lhs_relation.relation.build_query()?;
+        let lhs_alias =  lhs_relation.alias;
+
+        let rhs_relation = self.join_rhs.as_mut().ok_or(QueryBuildingError::InvalidQuery(
+            "No RHS for join",
+        ))?;
+        let query_rhs = rhs_relation.relation.build_query()?;
+        let rhs_alias =  rhs_relation.alias;
+
+        let mut query = String::from("SELECT * FROM (");
+        query.push_str(&query_lhs);
+
+        query.push_str(format!(") as {} {} (", lhs_alias, self.join_type.to_string()).as_str());
+
+        query.push_str(&query_rhs);
+
+        query.push_str(format!(") as {} {}", rhs_alias, self.get_join_clause(lhs_alias, rhs_alias)).as_str());
+
+        println!("{}", query);
+
+        Ok(query)
+    }
+
+    pub async fn execute_query<R, P: AnalyticsDataSource>(
+        &mut self,
+        store: &P,
+    ) -> CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>
+    where
+        P: LoadRow<R>,
+        Aggregate<&'static str>: ToSql<T>,
+        Window<&'static str>: ToSql<T>,
+    {
+        let query = self
+            .build_query()
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Failed to execute query")?;
+        logger::debug!(?query);
+        Ok(store.load_results(query.as_str()).await)
+    }
 
 }
