@@ -344,10 +344,6 @@
         font-size: 25px;
       }
 
-      .payNow {
-        margin-top: 10px;
-      }
-
       .page-spinner {
         position: absolute;
         width: 100vw;
@@ -603,6 +599,18 @@
         width: 100%;
         margin: 0 auto;
         text-align: center;
+      }
+
+      #submit {
+        cursor: pointer;
+        margin-top: 10px;
+        width: 98%;
+        height: 48px;
+        background-color: #fefefe;
+        border: 1px solid var(--primary-color);
+        border-radius: 8px;
+        font-size: 18px;
+        color: var(--primary-color);
       }
 
       @media only screen and (max-width: 1400px) {
@@ -1035,8 +1043,12 @@
               <div></div>
             </div>
           </div>
-          <form id="payment-form">
+          <form id="payment-form" onclick="handleSubmit(); return false;">
             <div id="unified-checkout"></div>
+            <button id="submit" class="hidden">
+              <div class="spinner hidden" id="spinner"></div>
+              <span id="button-text">Pay now</span>
+            </button>
             <div id="payment-message" class="hidden"></div>
           </form>
         </div>
@@ -1188,6 +1200,7 @@
             if (res.showSdk) {
               show("#hyper-checkout-sdk");
               show("#hyper-checkout-details");
+              show("#submit");
             } else {
               hide("#hyper-checkout-details");
               hide("#hyper-checkout-sdk");
@@ -1195,6 +1208,8 @@
               hide("#hyper-footer");
               window.state.currentScreen = "status";
             }
+            show("#unified-checkout");
+            hide("#sdk-spinner");
           })
           .catch(function (err) {
             console.error("Failed to check status", err);
@@ -1224,7 +1239,6 @@
         });
         var unifiedCheckoutOptions = {
           layout: "tabs",
-          sdkHandleConfirmPayment: true,
           branding: "never",
           wallets: {
             walletReturnUrl: paymentDetails.return_url,
@@ -1237,34 +1251,6 @@
         };
         unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
         mountUnifiedCheckout("#unified-checkout");
-
-        // Add event listener for SDK iframe mutations
-        var orcaIFrame = document.getElementById(
-          "orca-payment-element-iframeRef-unified-checkout"
-        );
-        var callback = function (mutationList, observer) {
-          for (var i = 0; i < mutationList.length; i++) {
-            var mutation = mutationList[i];
-
-            if (
-              mutation.type === "attributes" &&
-              mutation.attributeName === "style"
-            ) {
-              show("#unified-checkout");
-              hide("#sdk-spinner");
-            }
-          }
-        };
-        var observer = new MutationObserver(callback);
-        observer.observe(orcaIFrame, { attributes: true });
-
-        // Handle button press callback
-        var paymentElement = widgets.getElement("payment");
-        if (paymentElement) {
-          paymentElement.on("confirmTriggered", function (event) {
-            handleSubmit(event);
-          });
-        }
         showSDK();
       }
 
@@ -1293,9 +1279,6 @@
               } else {
                 showMessage("An unexpected error occurred.");
               }
-
-              // Re-initialize SDK
-              mountUnifiedCheckout("#unified-checkout");
             } else {
               // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your 'return_url'.
               // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the 'return_url'.
