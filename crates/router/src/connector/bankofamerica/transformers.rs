@@ -6,7 +6,6 @@ use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use validator::HasLen;
 
 use crate::{
     connector::utils::{
@@ -101,7 +100,7 @@ pub struct ProcessingInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDefinedInformation {
-    key: u64,
+    key: u8,
     value: String,
 }
 
@@ -327,12 +326,13 @@ impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
         let hashmap: HashMap<String, Value> =
             serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
         let mut vector: Self = Self::new();
+        let mut iter = 1;
         for (key, value) in hashmap {
-            let size = vector.length() + 1;
             vector.push(MerchantDefinedInformation {
-                key: size,
+                key: iter,
                 value: format!("{key}={value}"),
             });
+            iter += 1;
         }
         vector
     }
