@@ -434,6 +434,7 @@ stripe = {payment_method = "bank_transfer"}
 nuvei = {payment_method = "card"}
 shift4 = {payment_method = "card"}
 bluesnap = {payment_method = "card"}
+nmi = {payment_method = "card"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"

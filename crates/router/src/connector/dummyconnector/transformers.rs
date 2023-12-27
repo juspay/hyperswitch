@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -90,7 +89,7 @@ impl TryFrom<api_models::payments::Card> for DummyConnectorCard {
         Ok(Self {
             name: value
                 .card_holder_name
-                .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                .unwrap_or(Secret::new("".to_string())),
             number: value.card_number,
             expiry_month: value.card_exp_month,
             expiry_year: value.card_exp_year,
