@@ -3772,7 +3772,7 @@ pub fn validate_order_details_amount(
 
 // This function validates the client secret expiry set by the merchant in the request
 pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErrorResponse> {
-    if !(consts::MIN_SESSSION_EXPIRY..=consts::MAX_SESSSION_EXPIRY).contains(&session_expiry) {
+    if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
         })
