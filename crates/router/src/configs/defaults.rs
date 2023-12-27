@@ -4911,6 +4911,14 @@ impl Default for super::settings::RequiredFields {
                                     }
                                 ),
                                 (
+                                    enums::Connector::Bluesnap,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
                                     enums::Connector::Airwallex,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
