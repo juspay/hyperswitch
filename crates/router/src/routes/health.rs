@@ -1,10 +1,9 @@
-use super::app;
 use actix_web::web;
 use api_models::health_check::{HealthCheckResponse, KeyCustodianStatus, LockerHealthResponse};
 use router_env::{instrument, logger, tracing};
 
+use super::app;
 use crate::{routes::metrics, services};
-
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
 #[instrument(skip_all)]

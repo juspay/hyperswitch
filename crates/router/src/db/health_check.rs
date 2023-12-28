@@ -3,7 +3,7 @@ use diesel_models::ConfigNew;
 use error_stack::ResultExt;
 use router_env::logger;
 
-use super::{KafkaStore, MockDb, StorageInterface, Store};
+use super::{MockDb, StorageInterface, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
