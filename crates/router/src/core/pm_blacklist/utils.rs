@@ -32,24 +32,27 @@ pub async fn delete_from_blocklist_lookup_db (
     let fingerprint_lookup_futures = futures::future::join_all(fingerprint_lookup);
     let(unblocked_from_blocklist, fingerprint_lookup) = tokio::join!(blacklist_futures, fingerprint_lookup_futures);
 
-    let lookup_entries = fingerprint_lookup
-    .into_iter()
-        .map(|fingerprint|
-            state.store.delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(merchant_id.clone(), fingerprint.unwrap().kms_hash)
-                // match fingerprint_result {
-                //     Ok(fingerprint) => state.store.delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
-                //         merchant_id.clone(),
-                //         fingerprint.kms_hash,
-                //     ),
-                //     Err(e) => {
-                //         logger::error!("Unblocking pm failed {e:?}");
-                //         // Can we return a dummy PmFingerprint or handle the error accordingly
-                //         e.into()
-                //     }
-                // }
-        )
-            .collect::<Vec<_>>();
-    let unblocked_from_lookup = futures::future::join_all(lookup_entries).await;
+
+    // Delete entries from lookup based on fingerprint results
+    let mut lookup_entries = Vec::new();
+
+    for (fingerprint_result, pm_hash) in fingerprint_lookup.into_iter().zip(pm_hashes.iter()) {
+        match fingerprint_result {
+            Ok(fingerprint) => {
+                let query_future =
+                    state.store.delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
+                        merchant_id.clone(),
+                        fingerprint.kms_hash,
+                    );
+                lookup_entries.push((query_future, pm_hash.clone()));
+            }
+            Err(e) => {
+                logger::error!("Unblocking pm failed: {e:?}");
+            }
+        }
+    }
+
+    let unblocked_from_lookup = futures::future::join_all(lookup_entries.into_iter().map(|(future, _)| future)).await;
 
      let unblocked_from_blocklist = unblocked_from_blocklist
             .into_iter()
@@ -64,8 +67,8 @@ pub async fn delete_from_blocklist_lookup_db (
             .map(|result| result.unwrap_or_else(|e| {
                 logger::error!("Unblocking pm failed {e:?}");
                 false // Assume it's not unblocked in case of an error
-            }))
-            .collect::<Vec<_>>();
+        }))
+        .collect::<Vec<_>>();
 
     let mut unblocked_pm = Vec::new();
     let mut not_unblocked_pm = Vec::new();
@@ -77,9 +80,12 @@ pub async fn delete_from_blocklist_lookup_db (
         }
     }
 
+    if not_unblocked_pm.len() > 0 {
+        logger::error!("Unblocking pm failed for: {:?}", not_unblocked_pm);
+    }
+
     Ok(pm_blacklist::UnblockPmResponse {
         unblocked_pm,
-        not_unblocked_pm,
     })
 }
 

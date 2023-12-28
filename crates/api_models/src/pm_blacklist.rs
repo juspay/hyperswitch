@@ -35,7 +35,6 @@ pub struct ListBlockedPmResponse {
 #[serde(rename_all = "snake_case")]
 pub struct UnblockPmResponse {
     pub unblocked_pm: Vec<String>,
-    pub not_unblocked_pm: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

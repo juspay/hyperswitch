@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
