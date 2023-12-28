@@ -63,7 +63,6 @@
         width: 100vw;
         display: flex;
         justify-content: center;
-        background-color: white;
         padding: 20px 0;
       }
 
@@ -133,7 +132,6 @@
       #hyper-checkout-cart-image {
         height: 64px;
         width: 64px;
-        border: 1px solid #e6e6e6;
         border-radius: 4px;
         display: flex;
         align-self: flex-start;
@@ -603,14 +601,13 @@
 
       #submit {
         cursor: pointer;
-        margin-top: 10px;
-        width: 98%;
-        height: 48px;
-        background-color: #fefefe;
-        border: 1px solid var(--primary-color);
-        border-radius: 8px;
+        margin-top: 20px;
+        width: 100%;
+        height: 38px;
+        background-color: var(--primary-color);
+        border: 0;
+        border-radius: 4px;
         font-size: 18px;
-        color: var(--primary-color);
       }
 
       @media only screen and (max-width: 1400px) {
@@ -728,6 +725,7 @@
           background-color: transparent;
           width: auto;
           min-width: 300px;
+          box-shadow: none;
         }
 
         #payment-form-wrap {
@@ -1072,7 +1070,7 @@
       window.state = {
         prevHeight: window.innerHeight,
         prevWidth: window.innerWidth,
-        isMobileView: window.innerWidth <= 1200,
+        isMobileView: window.innerWidth <= 1400,
         currentScreen: "payment_link",
       };
 
@@ -1100,9 +1098,9 @@
         }
 
         // Render UI
-        renderPaymentDetails();
-        renderSDKHeader();
-        renderCart();
+        renderPaymentDetails(paymentDetails);
+        renderSDKHeader(paymentDetails);
+        renderCart(paymentDetails);
 
         // Deal w loaders
         show("#sdk-spinner");
@@ -1110,7 +1108,7 @@
         hide("#unified-checkout");
 
         // Add event listeners
-        initializeEventListeners();
+        initializeEventListeners(paymentDetails);
 
         // Initialize SDK
         if (window.Hyper) {
@@ -1127,15 +1125,18 @@
       }
       boot();
 
-      function initializeEventListeners() {
-        var primaryColor = window
-          .getComputedStyle(document.documentElement)
-          .getPropertyValue("--primary-color");
+      function initializeEventListeners(paymentDetails) {
+        var primaryColor = paymentDetails.theme;
         var lighterColor = adjustLightness(primaryColor, 1.4);
         var darkerColor = adjustLightness(primaryColor, 0.8);
         var contrastBWColor = invert(primaryColor, true);
+        var contrastingTone =
+          Array.isArray(a) && a.length > 4 ? darkerColor : lighterColor;
         var hyperCheckoutNode = document.getElementById(
           "hyper-checkout-payment"
+        );
+        var hyperCheckoutCartImageNode = document.getElementById(
+          "hyper-checkout-cart-image"
         );
         var hyperCheckoutFooterNode = document.getElementById(
           "hyper-checkout-payment-footer"
@@ -1143,14 +1144,16 @@
         var statusRedirectTextNode = document.getElementById(
           "hyper-checkout-status-redirect-message"
         );
+        var submitButtonNode = document.getElementById("submit");
+        submitButtonNode.style.color = contrastBWColor;
+        hyperCheckoutCartImageNode.style.backgroundColor = contrastingTone;
 
-        if (window.innerWidth <= 1200) {
+        if (window.innerWidth <= 1400) {
           statusRedirectTextNode.style.color = "#333333";
           hyperCheckoutNode.style.color = contrastBWColor;
           var a = lighterColor.match(/[fF]/gi);
-          hyperCheckoutFooterNode.style.backgroundColor =
-            Array.isArray(a) && a.length > 4 ? darkerColor : lighterColor;
-        } else if (window.innerWidth > 1200) {
+          hyperCheckoutFooterNode.style.backgroundColor = contrastingTone;
+        } else if (window.innerWidth > 1400) {
           statusRedirectTextNode.style.color = contrastBWColor;
           hyperCheckoutNode.style.color = "#333333";
           hyperCheckoutFooterNode.style.backgroundColor = "#F5F5F5";
@@ -1159,7 +1162,7 @@
         window.addEventListener("resize", function (event) {
           var currentHeight = window.innerHeight;
           var currentWidth = window.innerWidth;
-          if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
+          if (currentWidth <= 1400 && window.state.prevWidth > 1400) {
             hide("#hyper-checkout-cart");
             if (window.state.currentScreen === "payment_link") {
               show("#hyper-footer");
@@ -1174,7 +1177,7 @@
                 error
               );
             }
-          } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
+          } else if (currentWidth > 1400 && window.state.prevWidth <= 1400) {
             if (window.state.currentScreen === "payment_link") {
               hide("#hyper-footer");
             }
@@ -1190,12 +1193,12 @@
 
           window.state.prevHeight = currentHeight;
           window.state.prevWidth = currentWidth;
-          window.state.isMobileView = currentWidth <= 1200;
+          window.state.isMobileView = currentWidth <= 1400;
         });
       }
 
-      function showSDK() {
-        checkStatus()
+      function showSDK(paymentDetails) {
+        checkStatus(paymentDetails)
           .then(function (res) {
             if (res.showSdk) {
               show("#hyper-checkout-sdk");
@@ -1251,7 +1254,7 @@
         };
         unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
         mountUnifiedCheckout("#unified-checkout");
-        showSDK();
+        showSDK(paymentDetails);
       }
 
       // Util functions
@@ -1307,9 +1310,8 @@
       }
 
       // Fetches the payment status after payment submission
-      function checkStatus() {
+      function checkStatus(paymentDetails) {
         return new window.Promise(function (resolve, reject) {
-          var paymentDetails = window.__PAYMENT_DETAILS;
           var res = {
             showSdk: true,
           };
@@ -1652,9 +1654,7 @@
         return formatted;
       }
 
-      function renderPaymentDetails() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
-
+      function renderPaymentDetails(paymentDetails) {
         // Create price node
         var priceNode = document.createElement("div");
         priceNode.className = "hyper-checkout-payment-price";
@@ -1703,8 +1703,7 @@
         footerNode.append(paymentExpiryNode);
       }
 
-      function renderCart() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
+      function renderCart(paymentDetails) {
         var orderDetails = paymentDetails.order_details;
 
         // Cart items
@@ -1732,7 +1731,9 @@
           if (totalItems > MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
             var expandButtonNode = document.createElement("div");
             expandButtonNode.className = "hyper-checkout-cart-button";
-            expandButtonNode.onclick = handleCartView;
+            expandButtonNode.onclick = () => {
+              handleCartView(paymentDetails);
+            };
             var buttonImageNode = document.createElement("svg");
             buttonImageNode.id = "hyper-checkout-cart-button-arrow";
             buttonImageNode.innerHTML =
@@ -1805,8 +1806,7 @@
         cartItemsNode.append(itemWrapperNode);
       }
 
-      function handleCartView() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
+      function handleCartView(paymentDetails) {
         var orderDetails = paymentDetails.order_details;
         var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
           paymentDetails.max_items_visible_after_collapse;
@@ -1894,9 +1894,7 @@
         show("#hyper-checkout-cart");
       }
 
-      function renderSDKHeader() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
-
+      function renderSDKHeader(paymentDetails) {
         // SDK headers' items
         var sdkHeaderItemNode = document.createElement("div");
         sdkHeaderItemNode.className = "hyper-checkout-sdk-items";
