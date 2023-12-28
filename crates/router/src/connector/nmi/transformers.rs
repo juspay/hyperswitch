@@ -143,6 +143,7 @@ pub struct NmiVaultResponse {
     pub responsetext: String,
     pub customer_vault_id: Option<String>,
     pub response_code: String,
+    pub transactionid: String,
 }
 
 impl
@@ -213,11 +214,11 @@ impl
             Response::Declined | Response::Error => (
                 Err(types::ErrorResponse {
                     code: item.response.response_code,
-                    message: item.response.responsetext,
-                    reason: None,
+                    message: item.response.responsetext.to_owned(),
+                    reason: Some(item.response.responsetext),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(item.response.transactionid),
                 }),
                 enums::AttemptStatus::Failure,
             ),
@@ -382,11 +383,11 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
         Self {
             code: response.response_code,
-            message: response.responsetext,
-            reason: None,
+            message: response.responsetext.to_owned(),
+            reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.transactionid),
         }
     }
 }
@@ -756,11 +757,11 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (StandardResponse, u16)) -> Self {
         Self {
             code: response.response_code,
-            message: response.responsetext,
-            reason: None,
+            message: response.responsetext.to_owned(),
+            reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.transactionid),
         }
     }
 }
