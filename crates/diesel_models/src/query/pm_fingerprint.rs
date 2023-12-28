@@ -40,4 +40,3 @@ impl PmFingerprint {
         .await
     }
 }
-
