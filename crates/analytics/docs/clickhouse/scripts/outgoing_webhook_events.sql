@@ -14,7 +14,7 @@ CREATE TABLE
         `is_error` Bool,
         `error` Nullable(String),
         `created_at_timestamp` DateTime64(3)
-    ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:9092',
+    ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
     kafka_topic_list = 'hyperswitch-outgoing-webhook-events',
     kafka_group_name = 'hyper-c1',
     kafka_format = 'JSONEachRow',
