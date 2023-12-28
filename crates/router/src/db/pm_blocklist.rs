@@ -180,4 +180,3 @@ impl PmBlocklistInterface for KafkaStore {
         Err(errors::StorageError::KafkaError)?
     }
 }
-

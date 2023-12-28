@@ -114,4 +114,3 @@ impl PmFingerprintInterface for KafkaStore {
         Err(errors::StorageError::KafkaError)?
     }
 }
-

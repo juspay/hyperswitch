@@ -39,7 +39,9 @@ impl PmBlocklist {
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()).and(dsl::pm_type.eq(pm_type.to_owned())),
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::pm_type.eq(pm_type.to_owned())),
             None,
             None,
             Some(dsl::id.asc()),

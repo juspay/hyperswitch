@@ -10673,6 +10673,11 @@
             },
             "description": "List of incremental authorizations happened to the payment",
             "nullable": true
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Payment Fingerprint",
+            "nullable": true
           }
         }
       },
