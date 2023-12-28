@@ -10,10 +10,11 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
+use storage_impl::redis::cache as redis_cache;
 
 use crate::{
     core::errors::{self, RouterResult},
-    db::StorageInterface,
+    db::{cache, StorageInterface},
     types::{domain, storage},
     utils::{self, StringExt},
 };
@@ -240,6 +241,11 @@ pub async fn update_business_profile_active_algorithm_ref(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
 
+    let (merchant_id, profile_id) = (
+        current_business_profile.merchant_id.clone(),
+        current_business_profile.profile_id.clone(),
+    );
+
     let business_profile_update = BusinessProfileUpdateInternal {
         profile_name: None,
         return_url: None,
@@ -260,6 +266,14 @@ pub async fn update_business_profile_active_algorithm_ref(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
+
+    let routing_cache_key = redis_cache::CacheKind::Routing(
+        format!("routing_config_{merchant_id}_{profile_id}").into(),
+    );
+    cache::publish_into_redact_channel(db, [routing_cache_key])
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate routing cache")?;
     Ok(())
 }
 
