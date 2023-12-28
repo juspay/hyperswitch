@@ -43,32 +43,34 @@ pub enum OutgoingWebhookEventContent {
     },
 }
 pub trait OutgoingWebhookEventMetric {
-    fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
-        None
-    }
+    fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent>;
 }
 impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
     fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
             Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
                 payment_id: payment_payload.payment_id.clone(),
-                content: masking::masked_serialize(&payment_payload).unwrap_or_default(),
+                content: masking::masked_serialize(&payment_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
             Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: refund_payload.payment_id.clone(),
                 refund_id: refund_payload.refund_id.clone(),
-                content: masking::masked_serialize(&refund_payload).unwrap_or_default(),
+                content: masking::masked_serialize(&refund_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
             Self::DisputeDetails(dispute_payload) => Some(OutgoingWebhookEventContent::Dispute {
                 payment_id: dispute_payload.payment_id.clone(),
                 attempt_id: dispute_payload.attempt_id.clone(),
                 dispute_id: dispute_payload.dispute_id.clone(),
-                content: masking::masked_serialize(&dispute_payload).unwrap_or_default(),
+                content: masking::masked_serialize(&dispute_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
-                content: masking::masked_serialize(&mandate_payload).unwrap_or_default(),
+                content: masking::masked_serialize(&mandate_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
         }
     }
