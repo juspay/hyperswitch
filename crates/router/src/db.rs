@@ -14,6 +14,7 @@ pub mod events;
 pub mod file;
 pub mod fraud_check;
 pub mod gsm;
+#[cfg(feature = "kafka")]
 mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -43,14 +44,12 @@ use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
 
+#[cfg(feature = "kafka")]
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
 pub use crate::{
     errors::CustomResult,
-    services::{
-        kafka::{KafkaError, KafkaProducer, MQResult},
-        Store,
-    },
+    services::Store,
 };
 
 #[derive(PartialEq, Eq)]
@@ -179,12 +178,14 @@ where
 
 dyn_clone::clone_trait_object!(StorageInterface);
 
+#[cfg(feature = "kafka")]
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
         self.diesel_store.add_request_id(request_id)
     }
 }
 
+#[cfg(feature = "kafka")]
 #[async_trait::async_trait]
 impl FraudCheckInterface for KafkaStore {
     async fn insert_fraud_check_response(
@@ -222,6 +223,7 @@ impl FraudCheckInterface for KafkaStore {
     }
 }
 
+#[cfg(feature = "kafka")]
 #[async_trait::async_trait]
 impl OrganizationInterface for KafkaStore {
     async fn insert_organization(

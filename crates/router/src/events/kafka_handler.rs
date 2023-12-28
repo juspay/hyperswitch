@@ -2,10 +2,7 @@ use error_stack::{IntoReport, ResultExt};
 use router_env::tracing;
 
 use super::{EventHandler, RawEvent};
-use crate::{
-    db::MQResult,
-    services::kafka::{KafkaError, KafkaMessage, KafkaProducer},
-};
+use crate::services::kafka::{KafkaError, KafkaMessage, KafkaProducer, MQResult};
 impl EventHandler for KafkaProducer {
     fn log_event(&self, event: RawEvent) {
         let topic = self.get_topic(event.event_type);

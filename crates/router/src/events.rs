@@ -3,11 +3,13 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
 
-use crate::{db::KafkaProducer, services::kafka::KafkaSettings};
+#[cfg(feature = "kafka")] 
+use crate::services::kafka::{KafkaSettings, KafkaProducer};
 
 pub mod api_logs;
 pub mod connector_api_logs;
 pub mod event_logger;
+#[cfg(feature = "kafka")]
 pub mod kafka_handler;
 
 pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
@@ -37,6 +39,7 @@ pub enum EventType {
 #[serde(tag = "source")]
 #[serde(rename_all = "lowercase")]
 pub enum EventsConfig {
+    #[cfg(feature = "kafka")]
     Kafka {
         kafka: KafkaSettings,
     },
@@ -46,6 +49,7 @@ pub enum EventsConfig {
 
 #[derive(Debug, Clone)]
 pub enum EventsHandler {
+    #[cfg(feature = "kafka")]
     Kafka(KafkaProducer),
     Logs(event_logger::EventLogger),
 }
@@ -59,6 +63,7 @@ impl Default for EventsHandler {
 impl EventsConfig {
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
         Ok(match self {
+            #[cfg(feature = "kafka")]
             Self::Kafka { kafka } => EventsHandler::Kafka(
                 KafkaProducer::create(kafka)
                     .await
@@ -70,6 +75,7 @@ impl EventsConfig {
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
         match self {
+            #[cfg(feature = "kafka")]
             Self::Kafka { kafka } => kafka.validate(),
             Self::Logs => Ok(()),
         }
@@ -79,6 +85,7 @@ impl EventsConfig {
 impl EventsHandler {
     pub fn log_event(&self, event: RawEvent) {
         match self {
+            #[cfg(feature = "kafka")]
             Self::Kafka(kafka) => kafka.log_event(event),
             Self::Logs(logger) => logger.log_event(event),
         }

@@ -151,6 +151,7 @@ impl AppState {
                 .expect("Failed to create event handler");
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
+                    #[cfg(feature = "kafka")]
                     EventsHandler::Kafka(kafka_client) => Box::new(
                         crate::db::KafkaStore::new(
                             #[allow(clippy::expect_used)]
