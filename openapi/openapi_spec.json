@@ -230,6 +230,54 @@
       }
     },
     "/account/{account_id}/business_profile/{profile_id}": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve",
+        "description": "Business Profile - Retrieve\n\nRetrieve existing *business profile*",
+        "operationId": "Retrieve a Business Profile",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business Profile Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "Business Profile"

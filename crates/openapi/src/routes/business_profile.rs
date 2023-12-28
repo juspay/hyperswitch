@@ -102,3 +102,23 @@ pub async fn business_profiles_update() {}
     security(("api_key" = []))
 )]
 pub async fn business_profiles_delete() {}
+
+/// Business Profile - Retrieve
+///
+/// Retrieve existing *business profile*
+#[utoipa::path(
+    get,
+    path = "/account/{account_id}/business_profile/{profile_id}",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("profile_id" = String, Path, description = "The unique identifier for the business profile")
+    ),
+    responses(
+        (status = 200, description = "Business Profile Updated", body = BusinessProfileResponse),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Business Profile",
+    operation_id = "Retrieve a Business Profile",
+    security(("api_key" = []))
+)]
+pub async fn business_profiles_retrieve() {}

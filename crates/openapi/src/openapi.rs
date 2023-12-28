@@ -128,6 +128,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::business_profile::business_profiles_list,
         routes::business_profile::business_profiles_update,
         routes::business_profile::business_profiles_delete,
+        routes::business_profile::business_profiles_retrieve,
 
         // Routes for disputes
         routes::disputes::retrieve_dispute,
