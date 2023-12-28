@@ -674,9 +674,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}pts/v2/payments/{}/voids",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}pts/v2/payments/{connector_payment_id}/reversals",
+            self.base_url(connectors)
         ))
     }
 
@@ -686,10 +685,27 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCancelRouterData,
+        req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(serde_json::json!({}))))
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Currency",
+                })?,
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?,
+            req,
+        ))?;
+        let connector_req =
+            cybersource::CybersourceVoidRequest::try_from(&connector_router_data)?;
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

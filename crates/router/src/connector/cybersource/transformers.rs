@@ -828,6 +828,53 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceVoidRequest {
+    client_reference_information: ClientReferenceInformation,
+    reversal_information: ReversalInformation,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReversalInformation {
+    amount_details: Amount,
+    reason: String,
+}
+
+impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>>
+    for CybersourceVoidRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: &CybersourceRouterData<&types::PaymentsCancelRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.router_data.connector_request_reference_id.clone()),
+            },
+            reversal_information: ReversalInformation {
+                amount_details: Amount {
+                    total_amount: value.amount.to_owned(),
+                    currency: value.router_data.request.currency.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "Currency",
+                        },
+                    )?,
+                },
+                reason: value
+                    .router_data
+                    .request
+                    .cancellation_reason
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "Cancellation Reason",
+                    })?,
+            },
+        })
+    }
+}
+
 pub struct CybersourceAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_account: Secret<String>,
