@@ -1,8 +1,8 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_FULFILLMENT_TIME, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
+        DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -102,8 +102,8 @@ pub async fn intiate_payment_link_flow(
     let order_details = validate_order_details(payment_intent.order_details, currency)?;
 
     let curr_time = common_utils::date_time::now();
-    let expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
-        curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME))
+    let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
+        curr_time.saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
     });
 
     // converting first letter of merchant name to upperCase
@@ -120,7 +120,7 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresMerchantAction,
         ],
         curr_time,
-        expiry,
+        session_expiry,
     ) {
         let payment_details = api_models::payments::PaymentLinkErrorDetails {
             payment_id: payment_intent.payment_id,
@@ -150,7 +150,7 @@ pub async fn intiate_payment_link_flow(
         merchant_name,
         order_details,
         return_url,
-        expiry,
+        session_expiry,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config.clone().logo,
@@ -333,7 +333,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let theme = payment_create_link_config
         .clone()
-        .and_then(|pc_config| pc_config.theme)
+        .and_then(|pc_config| pc_config.config.theme)
         .or_else(|| {
             business_config
                 .clone()
@@ -343,7 +343,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let logo = payment_create_link_config
         .clone()
-        .and_then(|pc_config| pc_config.logo)
+        .and_then(|pc_config| pc_config.config.logo)
         .or_else(|| {
             business_config
                 .clone()
@@ -353,7 +353,7 @@ pub fn get_payment_link_config_based_on_priority(
 
     let seller_name = payment_create_link_config
         .clone()
-        .and_then(|pc_config| pc_config.seller_name)
+        .and_then(|pc_config| pc_config.config.seller_name)
         .or_else(|| {
             business_config
                 .clone()

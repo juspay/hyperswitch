@@ -763,7 +763,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_metadata = metadata.clone();
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
-        let expiry = m_payment_data_payment_intent.expiry;
+        let session_expiry = m_payment_data_payment_intent.session_expiry;
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -787,7 +787,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        expiry,
+                        session_expiry,
                     },
                     storage_scheme,
                 )

@@ -7228,9 +7228,6 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
-          },
-          "payment_link_config": {
-            "nullable": true
           }
         }
       },
@@ -8588,7 +8585,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
               }
             ],
             "nullable": true
@@ -9854,7 +9851,7 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
-          "intent_fulfillment_time": {
+          "session_expiry": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
@@ -10243,7 +10240,7 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
-          "intent_fulfillment_time": {
+          "session_expiry": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",

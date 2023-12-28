@@ -2384,13 +2384,13 @@ pub fn authenticate_client_secret(
             } else {
                 let current_timestamp = common_utils::date_time::now();
 
-                let expiry = payment_intent.expiry.unwrap_or(
+                let session_expiry = payment_intent.session_expiry.unwrap_or(
                     payment_intent
                         .created_at
-                        .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
                 );
 
-                fp_utils::when(current_timestamp > expiry, || {
+                fp_utils::when(current_timestamp > session_expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
                 })
             }
@@ -2605,9 +2605,9 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -2659,9 +2659,9 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -2712,9 +2712,9 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -3770,13 +3770,11 @@ pub fn validate_order_details_amount(
     }
 }
 
-pub fn validate_intent_fulfillment_time(
-    intent_fulfillment_time: u32,
-) -> Result<(), errors::ApiErrorResponse> {
-    if !(60..=7890000).contains(&intent_fulfillment_time) {
+// This function validates the client secret expiry set by the merchant in the request
+pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErrorResponse> {
+    if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "intent_fulfillment_time should be between 60(1 min) to 7890000(3 months)."
-                .to_string(),
+            message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
         })
     } else {
         Ok(())

@@ -323,7 +323,7 @@ pub struct PaymentsRequest {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
+    pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
@@ -3368,7 +3368,7 @@ pub struct PaymentLinkDetails {
     pub client_secret: String,
     pub payment_id: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    pub session_expiry: PrimitiveDateTime,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
@@ -3441,8 +3441,12 @@ pub struct PaymentLinkListResponse {
     pub data: Vec<PaymentLinkResponse>,
 }
 
-/// Type for payment Create payment link request
-pub type PaymentCreatePaymentLinkConfig = admin::PaymentLinkConfigRequest;
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentCreatePaymentLinkConfig {
+    #[serde(flatten)]
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub config: admin::PaymentLinkConfigRequest,
+}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetailsWithStringAmount {
