@@ -608,6 +608,24 @@
         border: 0;
         border-radius: 4px;
         font-size: 18px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #submit.disabled {
+        cursor: not-allowed;
+      }
+
+      #submit-spinner {
+        width: 28px;
+        height: 28px;
+        border: 4px solid #fff;
+        border-bottom-color: #ff3d00;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+        animation: loading 1s linear infinite;
       }
 
       @media only screen and (max-width: 1400px) {
@@ -1044,8 +1062,8 @@
           <form id="payment-form" onclick="handleSubmit(); return false;">
             <div id="unified-checkout"></div>
             <button id="submit" class="hidden">
-              <div class="spinner hidden" id="spinner"></div>
-              <span id="button-text">Pay now</span>
+              <span id="submit-spinner" class="hidden"></span>
+              <span id="submit-button-text">Pay now</span>
             </button>
             <div id="payment-message" class="hidden"></div>
           </form>
@@ -1145,8 +1163,19 @@
           "hyper-checkout-status-redirect-message"
         );
         var submitButtonNode = document.getElementById("submit");
-        submitButtonNode.style.color = contrastBWColor;
-        hyperCheckoutCartImageNode.style.backgroundColor = contrastingTone;
+        var submitButtonLoaderNode = document.getElementById("submit-spinner");
+
+        if (submitButtonLoaderNode instanceof HTMLSpanElement) {
+          submitButtonLoaderNode.style.borderBottomColor = contrastingTone;
+        }
+
+        if (submitButtonNode instanceof HTMLDivElement) {
+          submitButtonNode.style.color = contrastBWColor;
+        }
+
+        if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
+          hyperCheckoutCartImageNode.style.backgroundColor = contrastingTone;
+        }
 
         if (window.innerWidth <= 1400) {
           statusRedirectTextNode.style.color = "#333333";
@@ -1266,6 +1295,14 @@
 
       function handleSubmit(e) {
         var paymentDetails = window.__PAYMENT_DETAILS;
+
+        // Update button loader
+        hide("#submit-button-text");
+        show("#submit-spinner");
+        var submitButtonNode = document.getElementById("submit");
+        submitButtonNode.disabled = true;
+        submitButtonNode.classList.add("disabled");
+
         hyper
           .confirmPayment({
             widgets: widgets,
@@ -1306,6 +1343,12 @@
           })
           .catch(function (error) {
             console.error("Error confirming payment_intent", error);
+          })
+          .finally(() => {
+            hide("#submit-spinner");
+            show("#submit-button-text");
+            submitButtonNode.disabled = false;
+            submitButtonNode.classList.remove("disabled");
           });
       }
 
