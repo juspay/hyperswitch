@@ -869,7 +869,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         cvv: card_data.card_cvc,
                         cardholder_name: card_data
                             .card_holder_name
-                            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                            .unwrap_or(Secret::new("".to_string())),
                     },
                 };
                 Ok(Self {
