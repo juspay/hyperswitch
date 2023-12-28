@@ -238,6 +238,8 @@ pub enum ApiErrorResponse {
     CurrencyNotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_24", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
+    #[error(error_type = ErrorType::ValidationError, code = "HE_01", message = "Failed to convert currency to minor unit")]
+    CurrencyConversionFailed,
 }
 
 impl PTError for ApiErrorResponse {
