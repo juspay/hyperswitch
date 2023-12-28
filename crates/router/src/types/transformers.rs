@@ -352,11 +352,15 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::ActionRequired)
             }
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::PartiallyCaptured
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Some(storage_enums::EventType::PaymentCaptured)
+            }
+            api_enums::IntentStatus::RequiresCapture => {
+                Some(storage_enums::EventType::PaymentAuthorized)
+            }
             api_enums::IntentStatus::RequiresPaymentMethod
-            | api_enums::IntentStatus::RequiresConfirmation
-            | api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | api_enums::IntentStatus::RequiresConfirmation => None,
         }
     }
 }
