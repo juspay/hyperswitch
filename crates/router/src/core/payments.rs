@@ -89,7 +89,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
 )>
 where
     F: Send + Clone + Sync,
-    Req: Authenticate,
+    Req: Authenticate + Clone,
     Op: Operation<F, Req, Ctx> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -423,6 +423,23 @@ where
             .await?;
     }
 
+    let cloned_payment_data = payment_data.clone();
+    let cloned_customer = customer.clone();
+    let cloned_request = req.clone();
+
+    crate::utils::trigger_payments_webhook(
+        merchant_account,
+        business_profile,
+        cloned_payment_data,
+        Some(cloned_request),
+        cloned_customer,
+        state,
+        operation,
+    )
+    .await
+    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+    .ok();
+
     Ok((
         payment_data,
         req,
@@ -624,7 +641,7 @@ where
     F: Send + Clone + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req, Ctx> + Send + Sync + Clone,
-    Req: Debug + Authenticate,
+    Req: Debug + Authenticate + Clone,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -1462,6 +1479,13 @@ where
                 let is_error_in_response = router_data.response.is_err();
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
                 (router_data, !is_error_in_response)
+            } else if connector.connector_name == router_types::Connector::Nmi
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                (router_data, false)
             } else {
                 (router_data, should_continue_payment)
             }
