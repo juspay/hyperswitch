@@ -702,8 +702,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 })?,
             req,
         ))?;
-        let connector_req =
-            cybersource::CybersourceVoidRequest::try_from(&connector_router_data)?;
+        let connector_req = cybersource::CybersourceVoidRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

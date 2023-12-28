@@ -842,9 +842,7 @@ pub struct ReversalInformation {
     reason: String,
 }
 
-impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>>
-    for CybersourceVoidRequest
-{
+impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>> for CybersourceVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: &CybersourceRouterData<&types::PaymentsCancelRouterData>,
