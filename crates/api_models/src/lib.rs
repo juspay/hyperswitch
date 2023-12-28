@@ -15,6 +15,7 @@ pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
 pub mod files;
+pub mod health_check;
 pub mod gsm;
 pub mod locker_migration;
 pub mod mandates;

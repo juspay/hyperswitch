@@ -155,27 +155,3 @@ impl HealthCheckInterface for MockDb {
         Ok(0)
     }
 }
-
-#[async_trait::async_trait]
-impl HealthCheckInterface for KafkaStore {
-    async fn health_check_db(
-        &self,
-        _: &dyn StorageInterface,
-    ) -> CustomResult<(), errors::HealthCheckDBError> {
-        Ok(())
-    }
-
-    async fn health_check_redis(
-        &self,
-        _: &dyn StorageInterface,
-    ) -> CustomResult<(), errors::HealthCheckRedisError> {
-        Ok(())
-    }
-
-    async fn health_check_locker(
-        &self,
-        _: &routes::AppState,
-    ) -> CustomResult<u16, errors::HealthCheckLockerError> {
-        Ok(0)
-    }
-}

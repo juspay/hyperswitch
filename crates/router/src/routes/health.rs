@@ -1,8 +1,9 @@
 use super::app;
 use actix_web::web;
+use api_models::health_check::{HealthCheckResponse, KeyCustodianStatus, LockerHealthResponse};
 use router_env::{instrument, logger, tracing};
 
-use crate::routes::metrics;
+use crate::{routes::metrics, services};
 
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
@@ -39,21 +40,29 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
 
     logger::debug!("Locker health check begin");
 
-    let locker_status = match db.health_check_locker(&state).await {
+    let (locker_status, key_custodian_status) = match db.health_check_locker(&state).await {
         Ok(status_code) => {
-            let mut status_message = "Health is good".to_string();
-            if status_code == 403 {
-                status_message = format!("{}; Key custodian locked", status_message);
-            }
-            status_message
+            let status_message = "Health is good".to_string();
+            let key_custodian_status = if status_code == 403 {
+                KeyCustodianStatus::Locked
+            } else {
+                KeyCustodianStatus::Unlocked
+            };
+            (status_message, key_custodian_status)
         }
-        Err(err) => err.to_string(),
+        Err(err) => (err.to_string(), KeyCustodianStatus::Unavailable),
     };
 
     logger::debug!("Locker health check end");
 
-    actix_web::HttpResponse::Ok().body(format!(
-        "Database - {}\nRedis - {}\nLocker - {}",
-        db_status, redis_status, locker_status
-    ))
+    let response = HealthCheckResponse {
+        database: db_status,
+        redis: redis_status,
+        locker: LockerHealthResponse {
+            status: locker_status,
+            key_custodian_status,
+        },
+    };
+
+    services::http_response_json(serde_json::to_string(&response).unwrap_or_default())
 }
