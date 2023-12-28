@@ -206,7 +206,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
@@ -352,7 +352,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -632,13 +632,13 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
@@ -726,13 +726,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::Charged,
@@ -782,13 +782,13 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -832,13 +832,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
