@@ -14,7 +14,7 @@ CREATE TABLE
         `is_error` Bool,
         `error` Nullable(String),
         `created_at_timestamp` DateTime64(3)
-    ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
+    ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:9092',
     kafka_topic_list = 'hyperswitch-outgoing-webhook-events',
     kafka_group_name = 'hyper-c1',
     kafka_format = 'JSONEachRow',
@@ -23,7 +23,7 @@ CREATE TABLE
 CREATE TABLE
     outgoing_webhook_events_cluster (
         `merchant_id` String,
-        `event_id` Nullable(String),
+        `event_id` String,
         `event_type` LowCardinality(String),
         `outgoing_webhook_event_type` LowCardinality(String),
         `payment_id` Nullable(String),
@@ -39,14 +39,14 @@ CREATE TABLE
         `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
         INDEX eventIndex event_type TYPE bloom_filter GRANULARITY 1,
         INDEX webhookeventIndex outgoing_webhook_event_type TYPE bloom_filter GRANULARITY 1
-    ) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at)
+    ) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at_timestamp)
 ORDER BY (
-        created_at,
+        created_at_timestamp,
         merchant_id,
-        flow_type,
-        status_code,
-        api_flow
-    ) TTL created_at + toIntervalMonth(6);
+        event_id,
+        event_type,
+        outgoing_webhook_event_type
+    ) TTL inserted_at + toIntervalMonth(6);
 
 CREATE MATERIALIZED VIEW outgoing_webhook_events_mv TO outgoing_webhook_events_cluster (
     `merchant_id` String,
