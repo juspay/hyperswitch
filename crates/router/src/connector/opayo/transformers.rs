@@ -31,7 +31,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
                 let card = OpayoCard {
                     name: req_card
                         .card_holder_name
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                        .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,

@@ -5,7 +5,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
@@ -119,7 +119,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 let bambora_card = BamboraCard {
                     name: req_card
                         .card_holder_name
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                        .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,

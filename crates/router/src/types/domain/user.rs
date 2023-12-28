@@ -556,7 +556,7 @@ impl NewUser {
                 user_id,
                 role_id,
                 created_at: now,
-                last_modified_at: now,
+                last_modified: now,
                 org_id: self
                     .get_new_merchant()
                     .get_new_organization()
@@ -788,6 +788,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::Routing => Self::Routing,
             info::PermissionModule::Analytics => Self::Analytics,
             info::PermissionModule::Mandates => Self::Mandates,
+            info::PermissionModule::Customer => Self::Customer,
             info::PermissionModule::Disputes => Self::Disputes,
             info::PermissionModule::Files => Self::Files,
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
@@ -829,7 +830,7 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             role_id,
             status,
             role_name,
-            last_modified_at: user_and_role.1.last_modified_at,
+            last_modified_at: user_and_role.0.last_modified_at,
         })
     }
 }
