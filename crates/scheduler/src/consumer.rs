@@ -35,6 +35,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError> {
+    println!("HEllo");
     use std::time::Duration;
 
     use rand::distributions::{Distribution, Uniform};
@@ -61,9 +62,10 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     let handle = signal.handle();
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
-    loop {
+    'consumer: loop {
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
+                logger::error!("Empty");
                 interval.tick().await;
 
                 // A guard from env to disable the consumer
@@ -71,7 +73,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                     continue;
                 }
 
-                tokio::task::spawn(pt_utils::consumer_operation_handler(
+                pt_utils::consumer_operation_handler(
                     state.clone(),
                     settings.clone(),
                     |err| {
@@ -79,19 +81,23 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                     },
                     sync::Arc::clone(&consumer_operation_counter),
                     workflow_selector,
-                ));
+                ).await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
                 rx.close();
-                shutdown_interval.tick().await;
-                let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-                match active_tasks {
-                    0 => {
-                        logger::info!("Terminating consumer");
-                        break;
+                loop {
+                    logger::error!("DC");
+                    shutdown_interval.tick().await;
+                    let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
+                    logger::error!("{}", active_tasks);
+                    match active_tasks {
+                        0 => {
+                            logger::info!("Terminating consumer");
+                            break 'consumer;
+                        }
+                        _ => continue,
                     }
-                    _ => continue,
                 }
             }
         }
@@ -204,6 +210,7 @@ where
     T: SchedulerAppState,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
+    logger::info!("{:?}", process.name.as_ref());
     let res = workflow_selector
         .trigger_workflow(&state.clone(), process.clone())
         .await;
