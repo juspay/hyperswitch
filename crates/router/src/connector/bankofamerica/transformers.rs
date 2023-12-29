@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -83,6 +86,8 @@ pub struct BankOfAmericaPaymentsRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,6 +95,13 @@ pub struct BankOfAmericaPaymentsRequest {
 pub struct ProcessingInformation {
     capture: bool,
     payment_solution: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantDefinedInformation {
+    key: u8,
+    value: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -309,6 +321,23 @@ impl From<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
+impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
+    fn foreign_from(metadata: Value) -> Self {
+        let hashmap: HashMap<String, Value> =
+            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let mut vector: Self = Self::new();
+        let mut iter = 1;
+        for (key, value) in hashmap {
+            vector.push(MerchantDefinedInformation {
+                key: iter,
+                value: format!("{key}={value}"),
+            });
+            iter += 1;
+        }
+        vector
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
@@ -331,13 +360,11 @@ impl
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
-
         let card_issuer = ccard.get_card_issuer();
         let card_type = match card_issuer {
             Ok(issuer) => Some(String::from(issuer)),
             Err(_) => None,
         };
-
         let payment_information = PaymentInformation::Cards(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number,
@@ -347,15 +374,19 @@ impl
                 card_type,
             },
         });
-
         let processing_information = ProcessingInformation::from((item, None));
         let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
 
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
         })
     }
 }
@@ -379,10 +410,8 @@ impl
         let processing_information =
             ProcessingInformation::from((item, Some(PaymentSolution::ApplePay)));
         let client_reference_information = ClientReferenceInformation::from(item);
-
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
-
         let payment_information = PaymentInformation::ApplePay(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
                 number: apple_pay_data.application_primary_account_number,
@@ -392,12 +421,17 @@ impl
                 expiration_month,
             },
         });
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
 
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
         })
     }
 }
@@ -418,7 +452,6 @@ impl
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
-
         let payment_information = PaymentInformation::GooglePay(GooglePayPaymentInformation {
             fluid_data: FluidData {
                 value: Secret::from(
@@ -426,16 +459,20 @@ impl
                 ),
             },
         });
-
         let processing_information =
             ProcessingInformation::from((item, Some(PaymentSolution::GooglePay)));
         let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
 
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
         })
     }
 }
@@ -480,10 +517,17 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                     },
                                 },
                             );
+                            let merchant_defined_information =
+                                item.router_data.request.metadata.clone().map(|metadata| {
+                                    Vec::<MerchantDefinedInformation>::foreign_from(
+                                        metadata.peek().to_owned(),
+                                    )
+                                });
                             Ok(Self {
                                 processing_information,
                                 payment_information,
                                 order_information,
+                                merchant_defined_information,
                                 client_reference_information,
                             })
                         }

@@ -434,6 +434,7 @@ stripe = {payment_method = "bank_transfer"}
 nuvei = {payment_method = "card"}
 shift4 = {payment_method = "card"}
 bluesnap = {payment_method = "card"}
+nmi = {payment_method = "card"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -518,7 +519,7 @@ attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
-outgoing_webhook_logs_topic = "hyperswitch-connector-outgoing-webhook-events"
+outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 
 [analytics]
 source = "sqlx"
