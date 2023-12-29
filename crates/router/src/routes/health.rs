@@ -18,13 +18,17 @@ pub async fn health() -> impl actix_web::Responder {
 pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_web::Responder {
     metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
     let db = &*state.store;
+    let mut status_code = 200;
     logger::info!("Deep health check was called");
 
     logger::debug!("Database health check begin");
 
     let db_status = match db.health_check_db(db).await {
         Ok(_) => "Health is good".to_string(),
-        Err(err) => err.to_string(),
+        Err(err) => {
+            status_code = 500;
+            err.to_string()
+        }
     };
     logger::debug!("Database health check end");
 
@@ -32,7 +36,10 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
 
     let redis_status = match db.health_check_redis(db).await {
         Ok(_) => "Health is good".to_string(),
-        Err(err) => err.to_string(),
+        Err(err) => {
+            status_code = 500;
+            err.to_string()
+        }
     };
 
     logger::debug!("Redis health check end");
@@ -49,19 +56,27 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
             };
             (status_message, key_custodian_status)
         }
-        Err(err) => (err.to_string(), KeyCustodianStatus::Unavailable),
+        Err(err) => {
+            status_code = 500;
+            (err.to_string(), KeyCustodianStatus::Unavailable)
+        }
     };
 
     logger::debug!("Locker health check end");
 
-    let response = HealthCheckResponse {
+    let response = serde_json::to_string(&HealthCheckResponse {
         database: db_status,
         redis: redis_status,
         locker: LockerHealthResponse {
             status: locker_status,
             key_custodian_status,
         },
-    };
+    })
+    .unwrap_or_default();
 
-    services::http_response_json(serde_json::to_string(&response).unwrap_or_default())
+    if status_code == 200 {
+        services::http_response_json(response)
+    } else {
+        services::http_server_error_json_response(response)
+    }
 }
