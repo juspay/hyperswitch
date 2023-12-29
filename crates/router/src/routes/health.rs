@@ -1,5 +1,7 @@
 use actix_web::web;
-use api_models::health_check::{HealthCheckResponse, KeyCustodianStatus, LockerHealthResponse};
+use api_models::health_check::{
+    KeyCustodianStatus, LockerHealthResponse, RouterHealthCheckResponse,
+};
 use router_env::{instrument, logger, tracing};
 
 use super::app;
@@ -64,7 +66,7 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
 
     logger::debug!("Locker health check end");
 
-    let response = serde_json::to_string(&HealthCheckResponse {
+    let response = serde_json::to_string(&RouterHealthCheckResponse {
         database: db_status,
         redis: redis_status,
         locker: LockerHealthResponse {
