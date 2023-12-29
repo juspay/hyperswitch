@@ -153,7 +153,8 @@ impl EmailData for MagicLink {
             .await
             .change_context(EmailError::TokenGenerationFailure)?;
 
-        let magic_link_login = get_link_with_token(&self.settings.email.base_url, token, "verify_email");
+        let magic_link_login =
+            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
