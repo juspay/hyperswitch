@@ -778,6 +778,7 @@ pub enum RedirectForm {
         currency: Currency,
         public_key: Secret<String>,
         customer_vault_id: String,
+        order_id: String,
     },
 }
 
@@ -1507,6 +1508,7 @@ pub fn build_redirection_form(
             currency,
             public_key,
             customer_vault_id,
+            order_id,
         } => {
             let public_key_val = public_key.peek();
             maud::html! {
@@ -1562,6 +1564,12 @@ pub fn build_redirection_form(
                         item4.name='threeDsVersion';
                         item4.value=e.threeDsVersion;
                         responseForm.appendChild(item4);
+
+                        var item5=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='orderId';
+                        item4.value='{order_id}';
+                        responseForm.appendChild(item5);
 
                         document.body.appendChild(responseForm);
                         responseForm.submit();

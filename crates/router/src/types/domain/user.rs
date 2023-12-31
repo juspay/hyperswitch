@@ -788,6 +788,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::Routing => Self::Routing,
             info::PermissionModule::Analytics => Self::Analytics,
             info::PermissionModule::Mandates => Self::Mandates,
+            info::PermissionModule::Customer => Self::Customer,
             info::PermissionModule::Disputes => Self::Disputes,
             info::PermissionModule::Files => Self::Files,
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
