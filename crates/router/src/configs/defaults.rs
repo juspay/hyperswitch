@@ -4453,7 +4453,7 @@ impl Default for super::settings::RequiredFields {
                                                 "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "issuer".to_string(),
+                                                    display_name: "bank_name".to_string(),
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
@@ -4472,7 +4472,7 @@ impl Default for super::settings::RequiredFields {
                                                 "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "issuer".to_string(),
+                                                    display_name: "bank_name".to_string(),
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
@@ -4536,7 +4536,7 @@ impl Default for super::settings::RequiredFields {
                                                 "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "issuer".to_string(),
+                                                    display_name: "bank_name".to_string(),
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
@@ -4594,7 +4594,7 @@ impl Default for super::settings::RequiredFields {
                                                 "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "billing_name".to_string(),
+                                                    display_name: "bank_name".to_string(),
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
@@ -4604,7 +4604,11 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserCountryCode,
+                                                    field_type: enums::FieldType::UserCountry{
+                                                        options: vec![
+                                                            "NL".to_string(),
+                                                        ]
+                                                    },
                                                     value: None,
                                                 }
                                             )
@@ -4631,7 +4635,11 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.ideal.country".to_string(),
                                                     display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserCountryCode,
+                                                    field_type: enums::FieldType::UserCountry{
+                                                        options: vec![
+                                                            "NL".to_string(),
+                                                        ]
+                                                    },
                                                     value: None,
                                                 }
                                             )
