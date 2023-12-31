@@ -32,6 +32,12 @@ pub trait MerchantKeyStoreInterface {
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
+
+    async fn list_multiple_key_stores(
+        &self,
+        merchant_ids: Vec<String>,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -128,6 +134,31 @@ impl MerchantKeyStoreInterface for Store {
             .await
         }
     }
+
+    async fn list_multiple_key_stores(
+        &self,
+        merchant_ids: Vec<String>,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        let fetch_func = || async {
+            let conn = connection::pg_connection_read(self).await?;
+
+            diesel_models::merchant_key_store::MerchantKeyStore::list_multiple_key_stores(
+                &conn,
+                merchant_ids,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+
+        futures::future::try_join_all(fetch_func().await?.into_iter().map(|x| async {
+            x.convert(key)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }))
+        .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -193,6 +224,27 @@ impl MerchantKeyStoreInterface for MockDb {
             )))?;
         merchant_key_stores.remove(index);
         Ok(true)
+    }
+
+    async fn list_multiple_key_stores(
+        &self,
+        merchant_ids: Vec<String>,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        let merchant_key_stores = self.merchant_key_store.lock().await;
+        futures::future::try_join_all(
+            merchant_key_stores
+                .iter()
+                .filter(|merchant_key| merchant_ids.contains(&merchant_key.merchant_id))
+                .map(|merchant_key| async {
+                    merchant_key
+                        .to_owned()
+                        .convert(key)
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }),
+        )
+        .await
     }
 }
 

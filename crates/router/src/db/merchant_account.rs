@@ -65,6 +65,11 @@ where
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
+
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -294,6 +299,47 @@ impl MerchantAccountInterface for Store {
 
         Ok(is_deleted)
     }
+
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        let encrypted_merchant_accounts =
+            storage::MerchantAccount::list_multiple_merchant_accounts(&conn, merchant_ids)
+                .await
+                .map_err(Into::into)
+                .into_report()?;
+
+        let db_master_key = self.get_master_key().to_vec().into();
+
+        let merchant_key_stores = self
+            .list_multiple_key_stores(
+                encrypted_merchant_accounts
+                    .iter()
+                    .map(|merchant_account| &merchant_account.merchant_id)
+                    .cloned()
+                    .collect(),
+                &db_master_key,
+            )
+            .await?;
+
+        let merchant_accounts = futures::future::try_join_all(
+            encrypted_merchant_accounts
+                .into_iter()
+                .zip(merchant_key_stores.iter())
+                .map(|(merchant_account, key_store)| async {
+                    merchant_account
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+
+        Ok(merchant_accounts)
+    }
 }
 
 #[async_trait::async_trait]
@@ -389,6 +435,13 @@ impl MerchantAccountInterface for MockDb {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         _organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_multiple_merchant_accounts(
+        &self,
+        _merchant_ids: Vec<String>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

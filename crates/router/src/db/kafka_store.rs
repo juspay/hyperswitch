@@ -660,6 +660,15 @@ impl MerchantAccountInterface for KafkaStore {
             .delete_merchant_account_by_merchant_id(merchant_id)
             .await
     }
+
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        self.diesel_store
+            .list_multiple_merchant_accounts(merchant_ids)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -1611,6 +1620,16 @@ impl MerchantKeyStoreInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_key_store_by_merchant_id(merchant_id)
+            .await
+    }
+
+    async fn list_multiple_key_stores(
+        &self,
+        merchant_ids: Vec<String>,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        self.diesel_store
+            .list_multiple_key_stores(merchant_ids, key)
             .await
     }
 }
