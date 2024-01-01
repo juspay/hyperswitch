@@ -4648,7 +4648,26 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Stripe,
                                     RequiredFieldFinal {
-                                        mandate: HashMap::new(),
+                                        mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.sofort.billing_details.email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.sofort.billing_details.email".to_string(),
+                                                    display_name: "email".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.bank_redirect.sofort.billing_details.billing_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.sofort.billing_details.billing_name".to_string(),
+                                                    display_name: "billing_name".to_string(),
+                                                    field_type: enums::FieldType::UserBillingName,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
                                         non_mandate: HashMap::new(),
                                         common: HashMap::from([
                                             (
