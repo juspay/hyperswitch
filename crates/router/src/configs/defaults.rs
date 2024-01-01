@@ -4478,7 +4478,8 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Adyen,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
                                             (
                                                 "payment_method_data.bank_redirect.eps.bank_name".to_string(),
                                                 RequiredFieldInfo {
@@ -4489,7 +4490,6 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             )
                                         ]),
-                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
@@ -4536,7 +4536,8 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Globalpay,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common:  HashMap::from([
                                             (
                                                 "billing.address.country".to_string(),
                                                 RequiredFieldInfo {
@@ -4550,8 +4551,7 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             )
-                                        ]),
-                                        common: HashMap::new(),
+                                        ])
                                     }
                                 ),
                                 (
@@ -4672,7 +4672,7 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Nuvei,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate:HashMap::from([
+                                        non_mandate: HashMap::from([
                                             (
                                                 "email".to_string(),
                                                 RequiredFieldInfo {
