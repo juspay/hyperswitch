@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -134,6 +137,8 @@ pub struct CybersourcePaymentsRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -146,6 +151,13 @@ pub struct ProcessingInformation {
     capture: Option<bool>,
     capture_options: Option<CaptureOptions>,
     payment_solution: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantDefinedInformation {
+    key: u8,
+    value: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -220,6 +232,19 @@ pub struct TokenizedCard {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenPaymentInformation {
+    fluid_data: FluidData,
+    tokenized_card: ApplePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApplePayPaymentInformation {
     tokenized_card: TokenizedCard,
 }
@@ -242,6 +267,7 @@ pub enum PaymentInformation {
     Cards(CardPaymentInformation),
     GooglePay(GooglePayPaymentInformation),
     ApplePay(ApplePayPaymentInformation),
+    ApplePayToken(ApplePayTokenPaymentInformation),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -441,6 +467,23 @@ fn build_bill_to(
     })
 }
 
+impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
+    fn foreign_from(metadata: Value) -> Self {
+        let hashmap: HashMap<String, Value> =
+            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let mut vector: Self = Self::new();
+        let mut iter = 1;
+        for (key, value) in hashmap {
+            vector.push(MerchantDefinedInformation {
+                key: iter,
+                value: format!("{key}={value}"),
+            });
+            iter += 1;
+        }
+        vector
+    }
+}
+
 impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -491,15 +534,19 @@ impl
             card,
             instrument_identifier,
         });
-
         let processing_information = ProcessingInformation::from((item, None));
         let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
 
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
         })
     }
 }
@@ -525,7 +572,6 @@ impl
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
-
         let payment_information = PaymentInformation::ApplePay(ApplePayPaymentInformation {
             tokenized_card: TokenizedCard {
                 number: apple_pay_data.application_primary_account_number,
@@ -535,12 +581,17 @@ impl
                 expiration_month,
             },
         });
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
 
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
         })
     }
 }
@@ -569,16 +620,20 @@ impl
                 ),
             },
         });
-
         let processing_information =
             ProcessingInformation::from((item, Some(PaymentSolution::GooglePay)));
         let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
 
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            merchant_defined_information,
         })
     }
 }
@@ -593,14 +648,50 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             payments::PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
             payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                payments::WalletData::ApplePay(_) => {
-                    let payment_method_token = item.router_data.get_payment_method_token()?;
-                    match payment_method_token {
-                        types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            Self::try_from((item, decrypt_data))
-                        }
-                        types::PaymentMethodToken::Token(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
+                payments::WalletData::ApplePay(apple_pay_data) => {
+                    match item.router_data.payment_method_token.clone() {
+                        Some(payment_method_token) => match payment_method_token {
+                            types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                Self::try_from((item, decrypt_data))
+                            }
+                            types::PaymentMethodToken::Token(_) => {
+                                Err(errors::ConnectorError::InvalidWalletToken)?
+                            }
+                        },
+                        None => {
+                            let email = item.router_data.request.get_email()?;
+                            let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+                            let order_information = OrderInformationWithBill::from((item, bill_to));
+                            let processing_information = ProcessingInformation::from((
+                                item,
+                                Some(PaymentSolution::ApplePay),
+                            ));
+                            let client_reference_information =
+                                ClientReferenceInformation::from(item);
+                            let payment_information = PaymentInformation::ApplePayToken(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_data.payment_data),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard {
+                                        transaction_type: TransactionType::ApplePay,
+                                    },
+                                },
+                            );
+                            let merchant_defined_information =
+                                item.router_data.request.metadata.clone().map(|metadata| {
+                                    Vec::<MerchantDefinedInformation>::foreign_from(
+                                        metadata.peek().to_owned(),
+                                    )
+                                });
+
+                            Ok(Self {
+                                processing_information,
+                                payment_information,
+                                order_information,
+                                client_reference_information,
+                                merchant_defined_information,
+                            })
                         }
                     }
                 }
@@ -732,6 +823,51 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
                     additional_amount: item.amount.clone(),
                     currency: item.router_data.request.currency.to_string(),
                 },
+            },
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceVoidRequest {
+    client_reference_information: ClientReferenceInformation,
+    reversal_information: ReversalInformation,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReversalInformation {
+    amount_details: Amount,
+    reason: String,
+}
+
+impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>> for CybersourceVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: &CybersourceRouterData<&types::PaymentsCancelRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.router_data.connector_request_reference_id.clone()),
+            },
+            reversal_information: ReversalInformation {
+                amount_details: Amount {
+                    total_amount: value.amount.to_owned(),
+                    currency: value.router_data.request.currency.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "Currency",
+                        },
+                    )?,
+                },
+                reason: value
+                    .router_data
+                    .request
+                    .cancellation_reason
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "Cancellation Reason",
+                    })?,
             },
         })
     }
@@ -1079,9 +1215,21 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::from((&error_response.clone(), item)))
-            }
+            CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response
+                        .error_information
+                        .message
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: error_response.error_information.reason,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                }),
+                status: enums::AttemptStatus::Failure,
+                ..item.data
+            }),
         }
     }
 }
@@ -1494,6 +1642,22 @@ pub struct CybersourceStandardErrorResponse {
     pub message: Option<String>,
     pub reason: Option<String>,
     pub details: Option<Vec<Details>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceServerErrorResponse {
+    pub status: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<Reason>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Reason {
+    SystemError,
+    ServerTimeout,
+    ServiceTimeout,
 }
 
 #[derive(Debug, Deserialize)]
