@@ -43,16 +43,27 @@ where
     actix_web::dev::forward_ready!(service);
 
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let old_x_request_id = req.headers().get("x-request-id").cloned();
         let mut req = req;
         let request_id_fut = req.extract::<router_env::tracing_actix_web::RequestId>();
         let response_fut = self.service.call(req);
 
         Box::pin(async move {
             let request_id = request_id_fut.await?;
+            let request_id = request_id.as_hyphenated().to_string();
+            if let Some(old_request_id) = old_x_request_id {
+                router_env::logger::info!(?request_id, ?old_request_id);
+
+                // router_env::logger::info!(
+                //     "{:?} {:?}",
+                //     value,
+                //     request_id.as_hyphenated().to_string()
+                // );
+            }
             let mut response = response_fut.await?;
             response.headers_mut().append(
                 http::header::HeaderName::from_static("x-request-id"),
-                http::HeaderValue::from_str(&request_id.as_hyphenated().to_string())?,
+                http::HeaderValue::from_str(&request_id)?,
             );
 
             Ok(response)
