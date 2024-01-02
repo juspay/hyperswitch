@@ -81,7 +81,8 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                     },
                     sync::Arc::clone(&consumer_operation_counter),
                     workflow_selector,
-                ).await;
+                )
+                .await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
