@@ -1770,7 +1770,11 @@ where
         .unwrap_or(false);
 
     let payment_data_and_tokenization_action = match connector {
-        Some(connector) if !is_mandate && is_operation_confirm(&operation) => {
+        Some(_) if is_mandate => (
+            payment_data.to_owned(),
+            TokenizationAction::SkipConnectorTokenization,
+        ),
+        Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
                 .payment_method
@@ -1852,7 +1856,7 @@ where
             };
             (payment_data.to_owned(), connector_tokenization_action)
         }
-        Some(_) | None => (
+        _ => (
             payment_data.to_owned(),
             TokenizationAction::SkipConnectorTokenization,
         ),

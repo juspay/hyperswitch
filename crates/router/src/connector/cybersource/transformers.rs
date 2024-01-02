@@ -114,7 +114,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 });
                 PaymentInformation::Cards(CardPaymentInformation {
                     card,
-                    instrument_identifier: None,
+                    payment_instrument: None,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -217,7 +217,7 @@ pub struct CaptureOptions {
 #[serde(rename_all = "camelCase")]
 pub struct CardPaymentInformation {
     card: CardDetails,
-    instrument_identifier: Option<CybersoucreInstrumentIdentifier>,
+    payment_instrument: Option<CybersoucreInstrumentIdentifier>,
 }
 
 #[derive(Debug, Serialize)]
@@ -251,6 +251,12 @@ pub struct ApplePayPaymentInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MandatePaymentInformation {
+    payment_instrument: Option<CybersoucreInstrumentIdentifier>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FluidData {
     value: Secret<String>,
 }
@@ -268,6 +274,7 @@ pub enum PaymentInformation {
     GooglePay(GooglePayPaymentInformation),
     ApplePay(ApplePayPaymentInformation),
     ApplePayToken(ApplePayTokenPaymentInformation),
+    MandatePayment(MandatePaymentInformation),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -507,7 +514,7 @@ impl
             Err(_) => None,
         };
 
-        let instrument_identifier =
+        let payment_instrument =
             item.router_data
                 .request
                 .connector_mandate_id()
@@ -515,7 +522,7 @@ impl
                     id: mandate_token_id,
                 });
 
-        let card = if instrument_identifier.is_some() {
+        let card = if payment_instrument.is_some() {
             CardDetails::MandateCard(MandateCardDetails {
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
@@ -532,7 +539,7 @@ impl
 
         let payment_information = PaymentInformation::Cards(CardPaymentInformation {
             card,
-            instrument_identifier,
+            payment_instrument,
         });
         let processing_information = ProcessingInformation::from((item, None));
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -726,13 +733,42 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                 )
                 .into()),
             },
+            payments::PaymentMethodData::MandatePayment => {
+                let processing_information = ProcessingInformation::from((item, None));
+                let payment_instrument =
+                    item.router_data
+                        .request
+                        .connector_mandate_id()
+                        .map(|mandate_token_id| CybersoucreInstrumentIdentifier {
+                            id: mandate_token_id,
+                        });
+
+                let email = item.router_data.request.get_email()?;
+                let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
+                let order_information = OrderInformationWithBill::from((item, bill_to));
+                let payment_information =
+                    PaymentInformation::MandatePayment(MandatePaymentInformation {
+                        payment_instrument,
+                    });
+                let client_reference_information = ClientReferenceInformation::from(item);
+                let merchant_defined_information =
+                    item.router_data.request.metadata.clone().map(|metadata| {
+                        Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+                    });
+                Ok(Self {
+                    processing_information,
+                    payment_information,
+                    order_information,
+                    client_reference_information,
+                    merchant_defined_information,
+                })
+            }
             payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::PayLater(_)
             | payments::PaymentMethodData::BankRedirect(_)
             | payments::PaymentMethodData::BankDebit(_)
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
@@ -1038,7 +1074,7 @@ pub struct ClientReferenceInformation {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
-    instrument_identifier: CybersoucreInstrumentIdentifier,
+    payment_instrument: CybersoucreInstrumentIdentifier,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1161,7 +1197,7 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| types::MandateReference {
-                        connector_mandate_id: Some(token_info.instrument_identifier.id),
+                        connector_mandate_id: Some(token_info.payment_instrument.id),
                         payment_method_id: None,
                     });
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1331,7 +1367,7 @@ impl<F, T>
             item.response
                 .token_information
                 .map(|token_info| types::MandateReference {
-                    connector_mandate_id: Some(token_info.instrument_identifier.id),
+                    connector_mandate_id: Some(token_info.payment_instrument.id),
                     payment_method_id: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((item.response.status, false));
