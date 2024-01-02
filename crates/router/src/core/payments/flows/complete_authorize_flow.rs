@@ -204,13 +204,12 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         );
 
         let mut router_data_request = router_data.request.to_owned();
-        match &resp.response {
-            Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
-            }) => {
-                router_data_request.connector_meta = connector_metadata.to_owned();
-            }
-            _ => {}
+
+        if let Ok(types::PaymentsResponseData::TransactionResponse {
+            connector_metadata, ..
+        }) = &resp.response
+        {
+            router_data_request.connector_meta = connector_metadata.to_owned();
         };
 
         let authorize_router_data =
