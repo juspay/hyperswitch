@@ -1101,13 +1101,15 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
-            } => {
-                Ok(Self {
-                    name: billing_details.clone().and_then(|billing_data| billing_data.billing_name.clone()),
-                    email: billing_details.clone().and_then(|billing_data| billing_data.email.clone()),
-                    ..Self::default()
-                })
-            }
+            } => Ok(Self {
+                name: billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.billing_name.clone()),
+                email: billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.email.clone()),
+                ..Self::default()
+            }),
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
