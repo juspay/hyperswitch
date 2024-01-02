@@ -89,21 +89,11 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             }),
         );
 
-        let processing_information = ProcessingInformation {
-            capture: Some(false),
-            capture_options: None,
-            action_list,
-            action_token_types,
-            authorization_options,
-            commerce_indicator: CybersourceCommerceIndicator::Internet,
-            payment_solution: None,
-        };
-
         let client_reference_information = ClientReferenceInformation {
             code: Some(item.connector_request_reference_id.clone()),
         };
 
-        let payment_information = match item.request.payment_method_data.clone() {
+        let (payment_information, solution) = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let card = CardDetails::PaymentCard(Card {
                     number: ccard.card_number,
@@ -112,14 +102,102 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     security_code: ccard.card_cvc,
                     card_type: None,
                 });
-                PaymentInformation::Cards(CardPaymentInformation {
-                    card,
-                    payment_instrument: None,
-                })
+                (
+                    PaymentInformation::Cards(CardPaymentInformation { card }),
+                    None,
+                )
             }
+
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                payments::WalletData::ApplePay(apple_pay_data) => {
+                    match item.payment_method_token.clone() {
+                        Some(payment_method_token) => match payment_method_token {
+                            types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                let expiration_month = decrypt_data.get_expiry_month()?;
+                                let expiration_year = decrypt_data.get_four_digit_expiry_year()?;
+                                (
+                                    PaymentInformation::ApplePay(ApplePayPaymentInformation {
+                                        tokenized_card: TokenizedCard {
+                                            number: decrypt_data.application_primary_account_number,
+                                            cryptogram: decrypt_data
+                                                .payment_data
+                                                .online_payment_cryptogram,
+                                            transaction_type: TransactionType::ApplePay,
+                                            expiration_year,
+                                            expiration_month,
+                                        },
+                                    }),
+                                    Some(PaymentSolution::ApplePay),
+                                )
+                            }
+                            types::PaymentMethodToken::Token(_) => {
+                                Err(errors::ConnectorError::InvalidWalletToken)?
+                            }
+                        },
+                        None => (
+                            PaymentInformation::ApplePayToken(ApplePayTokenPaymentInformation {
+                                fluid_data: FluidData {
+                                    value: Secret::from(apple_pay_data.payment_data),
+                                },
+                                tokenized_card: ApplePayTokenizedCard {
+                                    transaction_type: TransactionType::ApplePay,
+                                },
+                            }),
+                            Some(PaymentSolution::ApplePay),
+                        ),
+                    }
+                }
+                payments::WalletData::GooglePay(google_pay_data) => (
+                    PaymentInformation::GooglePay(GooglePayPaymentInformation {
+                        fluid_data: FluidData {
+                            value: Secret::from(
+                                consts::BASE64_ENGINE
+                                    .encode(google_pay_data.tokenization_data.token),
+                            ),
+                        },
+                    }),
+                    Some(PaymentSolution::GooglePay),
+                ),
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::WeChatPayQr(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))?,
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Cybersource"),
             ))?,
+        };
+
+        let processing_information = ProcessingInformation {
+            capture: Some(false),
+            capture_options: None,
+            action_list,
+            action_token_types,
+            authorization_options,
+            commerce_indicator: CybersourceCommerceIndicator::Internet,
+            payment_solution: solution.map(String::from),
         };
         Ok(Self {
             processing_information,
@@ -217,7 +295,6 @@ pub struct CaptureOptions {
 #[serde(rename_all = "camelCase")]
 pub struct CardPaymentInformation {
     card: CardDetails,
-    payment_instrument: Option<CybersoucreInstrumentIdentifier>,
 }
 
 #[derive(Debug, Serialize)]
@@ -537,10 +614,7 @@ impl
             })
         };
 
-        let payment_information = PaymentInformation::Cards(CardPaymentInformation {
-            card,
-            payment_instrument,
-        });
+        let payment_information = PaymentInformation::Cards(CardPaymentInformation { card });
         let processing_information = ProcessingInformation::from((item, None));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
