@@ -47,8 +47,9 @@ pub async fn delete_from_blocklist_lookup_db(
     for (fingerprint_result, pm_hash) in fingerprint_lookup.into_iter().zip(pm_hashes.iter()) {
         match fingerprint_result {
             Ok(fingerprint) => {
-                let query_future =
-                    state.store.delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
+                let query_future = state
+                    .store
+                    .delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                         merchant_id.clone(),
                         fingerprint.kms_hash,
                     );
@@ -60,7 +61,8 @@ pub async fn delete_from_blocklist_lookup_db(
         }
     }
 
-    let unblocked_from_lookup = futures::future::join_all(lookup_entries.into_iter().map(|(future, _)| future)).await;
+    let unblocked_from_lookup =
+        futures::future::join_all(lookup_entries.into_iter().map(|(future, _)| future)).await;
 
     let unblocked_from_blocklist = unblocked_from_blocklist
         .into_iter()
@@ -78,9 +80,8 @@ pub async fn delete_from_blocklist_lookup_db(
             result.unwrap_or_else(|e| {
                 logger::error!("Unblocking pm failed {e:?}");
                 false // Assume it's not unblocked in case of an error
+            })
         })
-        }
-    )
         .collect::<Vec<_>>();
 
     let mut unblocked_pm = Vec::new();
@@ -101,9 +102,7 @@ pub async fn delete_from_blocklist_lookup_db(
         logger::error!("Unblocking pm failed for: {:?}", not_unblocked_pm);
     }
 
-    Ok(pm_blacklist::UnblockPmResponse {
-        unblocked_pm,
-    })
+    Ok(pm_blacklist::UnblockPmResponse { unblocked_pm })
 }
 
 pub async fn list_blocked_pm_from_db(
@@ -421,4 +420,3 @@ fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &Vec<T>) -> Vec<T> {
         })
         .collect()
 }
-
