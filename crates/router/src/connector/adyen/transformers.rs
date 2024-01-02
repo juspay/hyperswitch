@@ -2181,7 +2181,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     issuer: Some(
                         AdyenTestBankNames::try_from(&bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "ideal.bank_names",
+                                field_name: "ideal.bank_name",
                             },
                         )?)?
                         .0,
