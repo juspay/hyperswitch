@@ -329,6 +329,20 @@ impl
         types::PaymentsResponseData,
     > for Payme
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Payme".to_string())
+                .into(),
+        )
+    }
 }
 
 impl services::ConnectorRedirectResponse for Payme {

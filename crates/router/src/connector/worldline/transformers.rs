@@ -354,7 +354,7 @@ fn make_card_request(
         cardholder_name: ccard
             .card_holder_name
             .clone()
-            .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+            .unwrap_or(Secret::new("".to_string())),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
