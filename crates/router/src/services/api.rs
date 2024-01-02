@@ -292,8 +292,9 @@ where
     let thread_id = std::thread::current().id();
     eprintln!("[CONNECTOR_LOGS] 3 thread_id: {:?}", thread_id);
     logger::debug!(payment_id=?req.payment_id);
-    let mut router_data = req.clone();
     eprintln!("[CONNECTOR_LOGS] 4 {:?}", call_connector_action);
+    let mut router_data = req.clone();
+    eprintln!("[CONNECTOR_LOGS] 5");
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
             let response = types::Response {
