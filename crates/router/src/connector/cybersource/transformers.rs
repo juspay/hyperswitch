@@ -877,6 +877,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                 order_information,
                                 client_reference_information,
                                 merchant_defined_information,
+                                consumer_authentication_information: None,
                             })
                         }
                     }
@@ -1840,7 +1841,7 @@ impl<F>
             }
             _ => None,
         };
-        let three_ds_data: serde_json::Value = serde_json::to_value(
+        let three_ds_data = serde_json::to_value(
             item.response
                 .consumer_authentication_information
                 .validate_response,

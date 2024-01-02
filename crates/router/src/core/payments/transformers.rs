@@ -1466,6 +1466,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             complete_authorize_url,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
