@@ -53,12 +53,6 @@ where
             let request_id = request_id.as_hyphenated().to_string();
             if let Some(old_request_id) = old_x_request_id {
                 router_env::logger::info!(?request_id, ?old_request_id);
-
-                // router_env::logger::info!(
-                //     "{:?} {:?}",
-                //     value,
-                //     request_id.as_hyphenated().to_string()
-                // );
             }
             let mut response = response_fut.await?;
             response.headers_mut().append(
