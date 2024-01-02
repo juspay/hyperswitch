@@ -4457,6 +4457,19 @@ impl Default for super::settings::RequiredFields {
                                                     field_type: enums::FieldType::UserBank,
                                                     value: None,
                                                 }
+                                            ),
+                                            (
+                                                "payment_method_data.bank_redirect.ideal.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.ideal.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserCountry {
+                                                        options: vec![
+                                                            "NL".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
                                             )
                                         ]),
                                         common: HashMap::new(),
