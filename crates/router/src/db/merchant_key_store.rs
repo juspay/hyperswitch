@@ -154,8 +154,9 @@ impl MerchantKeyStoreInterface for Store {
             .into_report()
         };
 
-        futures::future::try_join_all(fetch_func().await?.into_iter().map(|x| async {
-            x.convert(key)
+        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+            key_store
+                .convert(key)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
