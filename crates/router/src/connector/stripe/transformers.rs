@@ -1102,15 +1102,9 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Ideal {
                 billing_details, ..
             } => {
-                let billing_data = billing_details.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "ideal.billing_details",
-                    },
-                )?;
-
                 Ok(Self {
-                    name: billing_data.billing_name.clone(),
-                    email: billing_data.email.clone(),
+                    name: billing_details.clone().and_then(|billing_data| billing_data.billing_name.clone()),
+                    email: billing_details.clone().and_then(|billing_data| billing_data.email.clone()),
                     ..Self::default()
                 })
             }

@@ -4485,30 +4485,7 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
-                                        common: HashMap::from([
-                                            (
-                                                "payment_method_data.bank_redirect.ideal.billing_details.billing_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.ideal.billing_details.billing_name".to_string(),
-                                                    display_name: "billing_name".to_string(),
-                                                    field_type: enums::FieldType::UserFullName,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
-                                                "billing.address.country".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "billing.address.country".to_string(),
-                                                    display_name: "country".to_string(),
-                                                    field_type: enums::FieldType::UserAddressCountry{
-                                                        options: vec![
-                                                            "NL".to_string(),
-                                                        ]
-                                                    },
-                                                    value: None,
-                                                }
-                                            )
-                                        ]),
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
@@ -4532,15 +4509,6 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::from([
-                                            (
-                                                "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "bank_name".to_string(),
-                                                    field_type: enums::FieldType::UserBank,
-                                                    value: None,
-                                                }
-                                            ),
                                             (
                                                 "email".to_string(),
                                                 RequiredFieldInfo {
@@ -4590,15 +4558,6 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::from([
-                                            (
-                                                "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
-                                                    display_name: "bank_name".to_string(),
-                                                    field_type: enums::FieldType::UserBank,
-                                                    value: None,
-                                                }
-                                            ),
                                             (
                                                 "payment_method_data.bank_redirect.ideal.country".to_string(),
                                                 RequiredFieldInfo {
@@ -4650,28 +4609,28 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Stripe,
                                     RequiredFieldFinal {
-                                        mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::from([
+                                        mandate: HashMap::from([
                                             (
-                                                "payment_method_data.bank_redirect.ideal.billing_name".to_string(),
+                                                "payment_method_data.bank_redirect.ideal.billing_details.billing_name".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.ideal.billing_name".to_string(),
+                                                    required_field: "payment_method_data.bank_redirect.ideal.billing_details.billing_name".to_string(),
                                                     display_name: "billing_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
                                                     value: None,
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_redirect.ideal.email".to_string(),
+                                                "payment_method_data.bank_redirect.ideal.billing_details.email".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.ideal.email".to_string(),
+                                                    required_field: "payment_method_data.bank_redirect.ideal.billing_details.email".to_string(),
                                                     display_name: "billing_email".to_string(),
                                                     field_type: enums::FieldType::UserEmailAddress,
                                                     value: None,
                                                 }
                                             )
                                         ]),
+                                        non_mandate: HashMap::new(),
+                                        common:  HashMap::new(),
                                     }
                                 ),
                                 (
