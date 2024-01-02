@@ -50,8 +50,6 @@ pub use self::app::DummyConnector;
 pub use self::app::Forex;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub use self::app::PmBlacklist;
 #[cfg(feature = "olap")]
 pub use self::app::Routing;
 #[cfg(all(feature = "olap", feature = "kms"))]

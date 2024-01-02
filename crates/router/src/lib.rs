@@ -121,7 +121,6 @@ pub fn mk_app(
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::Forex::server(state.clone()))
-            .service(routes::PmBlacklist::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
