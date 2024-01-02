@@ -2337,7 +2337,103 @@ api_key="Api Key"
   payment_method_type = "CartesBancaires"
 [[paypal_test.debit]]
   payment_method_type = "UnionPay"
+[[paypal_test.wallet]]
+  payment_method_type = "paypal"
 [paypal_test.connector_auth.HeaderKey]
+api_key="Api Key"
+
+[stripe_test]
+[[stripe_test.credit]]
+  payment_method_type = "Mastercard"
+[[stripe_test.credit]]
+  payment_method_type = "Visa"
+[[stripe_test.credit]]
+  payment_method_type = "Interac"
+[[stripe_test.credit]]
+  payment_method_type = "AmericanExpress"
+[[stripe_test.credit]]
+  payment_method_type = "JCB"
+[[stripe_test.credit]]
+  payment_method_type = "DinersClub"
+[[stripe_test.credit]]
+  payment_method_type = "Discover"
+[[stripe_test.credit]]
+  payment_method_type = "CartesBancaires"
+[[stripe_test.credit]]
+  payment_method_type = "UnionPay"
+[[stripe_test.debit]]
+  payment_method_type = "Mastercard"
+[[stripe_test.debit]]
+  payment_method_type = "Visa"
+[[stripe_test.debit]]
+  payment_method_type = "Interac"
+[[stripe_test.debit]]
+  payment_method_type = "AmericanExpress"
+[[stripe_test.debit]]
+  payment_method_type = "JCB"
+[[stripe_test.debit]]
+  payment_method_type = "DinersClub"
+[[stripe_test.debit]]
+  payment_method_type = "Discover"
+[[stripe_test.debit]]
+  payment_method_type = "CartesBancaires"
+[[stripe_test.debit]]
+  payment_method_type = "UnionPay"
+[[stripe_test.wallet]]
+  payment_method_type = "google_pay"
+[[stripe_test.wallet]]
+  payment_method_type = "ali_pay"
+[[stripe_test.wallet]]
+  payment_method_type = "we_chat_pay"
+[[stripe_test.pay_later]]
+  payment_method_type = "klarna"
+[[stripe_test.pay_later]]
+  payment_method_type = "affirm"
+[[stripe_test.pay_later]]
+  payment_method_type = "afterpay_clearpay"
+[[paypal_test.wallet]]
+  payment_method_type = "paypal"
+[stripe_test.connector_auth.HeaderKey]
+api_key="Api Key"
+
+[helcim]
+[[helcim.credit]]
+  payment_method_type = "Mastercard"
+[[helcim.credit]]
+  payment_method_type = "Visa"
+[[helcim.credit]]
+  payment_method_type = "Interac"
+[[helcim.credit]]
+  payment_method_type = "AmericanExpress"
+[[helcim.credit]]
+  payment_method_type = "JCB"
+[[helcim.credit]]
+  payment_method_type = "DinersClub"
+[[helcim.credit]]
+  payment_method_type = "Discover"
+[[helcim.credit]]
+  payment_method_type = "CartesBancaires"
+[[helcim.credit]]
+  payment_method_type = "UnionPay"
+[[helcim.debit]]
+  payment_method_type = "Mastercard"
+[[helcim.debit]]
+  payment_method_type = "Visa"
+[[helcim.debit]]
+  payment_method_type = "Interac"
+[[helcim.debit]]
+  payment_method_type = "AmericanExpress"
+[[helcim.debit]]
+  payment_method_type = "JCB"
+[[helcim.debit]]
+  payment_method_type = "DinersClub"
+[[helcim.debit]]
+  payment_method_type = "Discover"
+[[helcim.debit]]
+  payment_method_type = "CartesBancaires"
+[[helcim.debit]]
+  payment_method_type = "UnionPay"
+[helcim.connector_auth.HeaderKey]
 api_key="Api Key"
 
 
