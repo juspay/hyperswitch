@@ -4644,15 +4644,6 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "billing.address.last_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "billing.address.last_name".to_string(),
-                                                    display_name: "billing_last_name".to_string(),
-                                                    field_type: enums::FieldType::UserBillingName,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
                                                 "billing.address.line1".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line1".to_string(),
