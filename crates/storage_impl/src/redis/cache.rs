@@ -300,8 +300,7 @@ mod cache_tests {
         let from_cache = cache
             .get_val::<String>("key")
             .await
-            .map(|val| (*val).as_any().downcast_ref::<String>().cloned())
-            .flatten();
+            .and_then(|val| (*val).as_any().downcast_ref::<String>().cloned());
         assert_eq!(from_cache, Some(String::from("val")));
     }
 
