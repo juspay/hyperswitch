@@ -1419,6 +1419,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
@@ -1440,7 +1443,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
-
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -1457,6 +1464,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            complete_authorize_url,
         })
     }
 }
@@ -1535,6 +1543,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             browser_info,
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
+            redirect_response: None,
         })
     }
 }

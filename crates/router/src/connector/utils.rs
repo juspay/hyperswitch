@@ -273,6 +273,7 @@ pub trait PaymentsPreProcessingData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -316,6 +317,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
     }
 }
 
@@ -575,6 +581,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -598,6 +606,21 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 }
                 .into(),
             )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.connector_mandate_id.clone(),
+                _ => None,
+            })
     }
 }
 
