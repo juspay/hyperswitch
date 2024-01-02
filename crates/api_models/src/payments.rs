@@ -3063,7 +3063,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: api_enums::CountryAlpha2,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -3414,7 +3414,7 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
-    pub amount: i64,
+    pub amount: String,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
@@ -3424,7 +3424,7 @@ pub struct PaymentLinkDetails {
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithStringAmount>>,
     pub max_items_visible_after_collapse: i8,
     pub sdk_theme: Option<String>,
 }
@@ -3481,4 +3481,18 @@ pub struct PaymentLinkListResponse {
     pub size: usize,
     // The list of payment link response objects
     pub data: Vec<PaymentLinkResponse>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithStringAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: String,
+    /// Product Image link
+    pub product_img_link: Option<String>,
 }

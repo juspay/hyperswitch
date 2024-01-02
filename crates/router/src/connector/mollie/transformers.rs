@@ -289,7 +289,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let card_holder = ccard
                     .card_holder_name
                     .clone()
-                    .ok_or_else(utils::missing_field_err("card_holder_name"))?;
+                    .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
