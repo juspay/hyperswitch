@@ -1,5 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "olap")]
+use std::collections::HashMap;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
@@ -327,16 +329,20 @@ impl MerchantAccountInterface for Store {
             )
             .await?;
 
+        let key_stores_by_id: HashMap<_, _> = merchant_key_stores
+            .iter()
+            .map(|key_store| (key_store.merchant_id.to_owned(), key_store))
+            .collect();
+
         let merchant_accounts =
             futures::future::try_join_all(encrypted_merchant_accounts.into_iter().map(
                 |merchant_account| async {
-                    let key_store = merchant_key_stores
-                        .iter()
-                        .find(|key_store| key_store.merchant_id == merchant_account.merchant_id)
-                        .ok_or(errors::StorageError::ValueNotFound(format!(
+                    let key_store = key_stores_by_id.get(&merchant_account.merchant_id).ok_or(
+                        errors::StorageError::ValueNotFound(format!(
                             "merchant_key_store with merchant_id = {}",
                             merchant_account.merchant_id
-                        )))?;
+                        )),
+                    )?;
                     merchant_account
                         .convert(key_store.key.get_inner())
                         .await
