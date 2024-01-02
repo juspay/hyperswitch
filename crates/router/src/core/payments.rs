@@ -1479,6 +1479,13 @@ where
                 let is_error_in_response = router_data.response.is_err();
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
                 (router_data, !is_error_in_response)
+            } else if connector.connector_name == router_types::Connector::Nmi
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                (router_data, false)
             } else {
                 (router_data, should_continue_payment)
             }
