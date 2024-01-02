@@ -2138,9 +2138,8 @@ impl AuthorizationInterface for KafkaStore {
 impl HealthCheckInterface for KafkaStore {
     async fn health_check_db(
         &self,
-        db: &dyn StorageInterface,
     ) -> CustomResult<(), errors::HealthCheckDBError> {
-        self.diesel_store.health_check_db(db).await
+        self.diesel_store.health_check_db().await
     }
 
     async fn health_check_redis(
@@ -2153,7 +2152,7 @@ impl HealthCheckInterface for KafkaStore {
     async fn health_check_locker(
         &self,
         state: &routes::AppState,
-    ) -> CustomResult<u16, errors::HealthCheckLockerError> {
+    ) -> CustomResult<(), errors::HealthCheckLockerError> {
         self.diesel_store.health_check_locker(state).await
     }
 }

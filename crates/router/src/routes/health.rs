@@ -1,7 +1,5 @@
 use actix_web::web;
-use api_models::health_check::{
-    KeyCustodianStatus, LockerHealthResponse, RouterHealthCheckResponse,
-};
+use api_models::health_check::RouterHealthCheckResponse;
 use router_env::{instrument, logger, tracing};
 
 use super::app;
@@ -25,7 +23,7 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
 
     logger::debug!("Database health check begin");
 
-    let db_status = match db.health_check_db(db).await {
+    let db_status = match db.health_check_db().await {
         Ok(_) => "Health is good".to_string(),
         Err(err) => {
             status_code = 500;
@@ -48,19 +46,11 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
 
     logger::debug!("Locker health check begin");
 
-    let (locker_status, key_custodian_status) = match db.health_check_locker(&state).await {
-        Ok(status_code) => {
-            let status_message = "Health is good".to_string();
-            let key_custodian_status = if status_code == 403 {
-                KeyCustodianStatus::Locked
-            } else {
-                KeyCustodianStatus::Unlocked
-            };
-            (status_message, key_custodian_status)
-        }
+    let locker_status = match db.health_check_locker(&state).await {
+        Ok(_) => "Health is good".to_string(),
         Err(err) => {
             status_code = 500;
-            (err.to_string(), KeyCustodianStatus::Unavailable)
+            err.to_string()
         }
     };
 
@@ -69,10 +59,7 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
     let response = serde_json::to_string(&RouterHealthCheckResponse {
         database: db_status,
         redis: redis_status,
-        locker: LockerHealthResponse {
-            status: locker_status,
-            key_custodian_status,
-        },
+        locker: locker_status,
     })
     .unwrap_or_default();
 
