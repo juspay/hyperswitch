@@ -278,8 +278,6 @@ where
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
-    let thread_id = std::thread::current().id();
-    logger::debug!("Current thread: {:?}", thread_id);
     logger::debug!(connector_request=?connector_request);
     let masked_conn_req = connector_request.as_ref().map(|req| match &req.body {
         Some(RequestContent::Json(payload))
@@ -291,9 +289,11 @@ where
     eprintln!("[CONNECTOR_LOGS] 1 {:?}", masked_conn_req);
     logger::debug!(connector_request_body=?masked_conn_req);
     eprintln!("[CONNECTOR_LOGS] 2 {:?}", req.payment_id);
+    let thread_id = std::thread::current().id();
+    eprintln!("[CONNECTOR_LOGS] 3 thread_id: {:?}", thread_id);
     logger::debug!(payment_id=?req.payment_id);
     let mut router_data = req.clone();
-    eprintln!("[CONNECTOR_LOGS] 3 {:?}", call_connector_action);
+    eprintln!("[CONNECTOR_LOGS] 4 {:?}", call_connector_action);
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
             let response = types::Response {
