@@ -1090,17 +1090,18 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Eps {
                 billing_details, ..
             } => Ok({
-                let billing_data = billing_details
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_details",
-                })?;
+                let billing_data = billing_details.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_details",
+                    },
+                )?;
                 Self {
-                name: Some(
-                    connector_util::BankRedirectBillingData::get_billing_name(&billing_data)?,
-                ),
-                ..Self::default()
-            }}),
+                    name: Some(connector_util::BankRedirectBillingData::get_billing_name(
+                        &billing_data,
+                    )?),
+                    ..Self::default()
+                }
+            }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
