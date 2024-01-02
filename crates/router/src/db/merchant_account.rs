@@ -1,7 +1,8 @@
-use common_utils::ext_traits::AsyncExt;
-use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
+
+use common_utils::ext_traits::AsyncExt;
+use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
