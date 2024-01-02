@@ -816,7 +816,6 @@ impl
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
-                crate::logger::debug!("aaaaaaaaaaaaa{:?}", connector_req);
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
         }
