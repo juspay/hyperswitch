@@ -325,18 +325,23 @@ impl MerchantAccountInterface for Store {
             )
             .await?;
 
-        let merchant_accounts = futures::future::try_join_all(
-            encrypted_merchant_accounts
-                .into_iter()
-                .zip(merchant_key_stores.iter())
-                .map(|(merchant_account, key_store)| async {
+        let merchant_accounts =
+            futures::future::try_join_all(encrypted_merchant_accounts.into_iter().map(
+                |merchant_account| async {
+                    let key_store = merchant_key_stores
+                        .iter()
+                        .find(|key_store| key_store.merchant_id == merchant_account.merchant_id)
+                        .ok_or(errors::StorageError::ValueNotFound(format!(
+                            "merchant_key_store with merchant_id = {}",
+                            merchant_account.merchant_id
+                        )))?;
                     merchant_account
                         .convert(key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
-                }),
-        )
-        .await?;
+                },
+            ))
+            .await?;
 
         Ok(merchant_accounts)
     }
