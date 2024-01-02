@@ -33,6 +33,7 @@ pub trait MerchantKeyStoreInterface {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,
@@ -135,6 +136,7 @@ impl MerchantKeyStoreInterface for Store {
         }
     }
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,
@@ -226,6 +228,7 @@ impl MerchantKeyStoreInterface for MockDb {
         Ok(true)
     }
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,

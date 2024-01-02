@@ -66,6 +66,7 @@ where
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<String>,
@@ -300,6 +301,7 @@ impl MerchantAccountInterface for Store {
         Ok(is_deleted)
     }
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<String>,
@@ -444,6 +446,7 @@ impl MerchantAccountInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
         _merchant_ids: Vec<String>,

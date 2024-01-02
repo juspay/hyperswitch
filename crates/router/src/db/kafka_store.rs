@@ -661,6 +661,7 @@ impl MerchantAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<String>,
@@ -1623,6 +1624,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,
