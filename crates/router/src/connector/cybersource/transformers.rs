@@ -78,7 +78,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
         };
         let (action_list, action_token_types, authorization_options) = (
             Some(vec![CybersourceActionsList::TokenCreate]),
-            Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
+            Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
             Some(CybersourceAuthorizationOptions {
                 initiator: CybersourcePaymentInitiator {
                     initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
@@ -169,7 +169,7 @@ pub enum CybersourceActionsList {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CybersourceActionsTokenType {
-    InstrumentIdentifier,
+    PaymentInstrument,
 }
 
 #[derive(Debug, Serialize)]
@@ -394,7 +394,7 @@ impl
             if item.router_data.request.setup_future_usage.is_some() {
                 (
                     Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![CybersourceActionsTokenType::InstrumentIdentifier]),
+                    Some(vec![CybersourceActionsTokenType::PaymentInstrument]),
                     Some(CybersourceAuthorizationOptions {
                         initiator: CybersourcePaymentInitiator {
                             initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
