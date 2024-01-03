@@ -65,7 +65,6 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     'consumer: loop {
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
-                logger::error!("Empty");
                 interval.tick().await;
 
                 // A guard from env to disable the consumer
@@ -88,7 +87,6 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                 logger::debug!("Awaiting shutdown!");
                 rx.close();
                 loop {
-                    logger::error!("DC");
                     shutdown_interval.tick().await;
                     let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
                     logger::error!("{}", active_tasks);
