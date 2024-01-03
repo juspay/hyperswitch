@@ -12,6 +12,7 @@ use diesel::{
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy, WithType};
+#[cfg(feature = "logs")]
 use router_env::logger;
 
 use crate::{
@@ -46,7 +47,8 @@ where
             // masks everything but the last 4 digits
             write!(f, "{}{}", "*".repeat(val_str.len() - 4), val_str)
         } else {
-            logger::info!("Invalid PhoneNumberStrategy");
+            #[cfg(feature = "logs")]
+            logger::info!("Invalid PhoneNumberStrategy {:?}", val_str);
             WithType::fmt(val, f)
         }
     }
@@ -191,7 +193,8 @@ where
                 )
             )
         } else {
-            logger::info!("Invalid ClientSecret");
+            #[cfg(feature = "logs")]
+            logger::info!("Invalid ClientSecret {:?}", client_secret_segments);
             WithType::fmt(val, f)
         }
     }
@@ -338,7 +341,8 @@ where
         if let Some(segments) = segments.first() {
             write!(f, "{}.**.**.**", segments)
         } else {
-            logger::info!("Invalid IpAddress");
+            #[cfg(feature = "logs")]
+            logger::info!("Invalid IpAddress {:?}", segments);
             WithType::fmt(val, f)
         }
     }
