@@ -40,7 +40,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     use rand::distributions::{Distribution, Uniform};
 
     let mut rng = rand::thread_rng();
-    
+
     #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=settings.loop_interval)
         .into_report()
