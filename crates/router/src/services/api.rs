@@ -289,8 +289,14 @@ where
     eprintln!("[CONNECTOR_LOGS] 1 {:?}", masked_conn_req);
     logger::debug!(connector_request_body=?masked_conn_req);
     eprintln!("[CONNECTOR_LOGS] 2 {:?}", req.payment_id);
+    let thread_id = std::thread::current().id();
+    eprintln!("[CONNECTOR_LOGS] 3 thread_id: {:?}", thread_id);
+    logger::debug!(payment_id="test_payment_id");
+    eprintln!("[CONNECTOR_LOGS] 3.5");
+    logger::debug!(payment_id=?req.payment_id);
+    eprintln!("[CONNECTOR_LOGS] 4 {:?}", call_connector_action);
     let mut router_data = req.clone();
-    eprintln!("[CONNECTOR_LOGS] 3 {:?}", call_connector_action);
+    
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
             let response = types::Response {
