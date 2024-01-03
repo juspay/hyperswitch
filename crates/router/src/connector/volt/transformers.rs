@@ -50,7 +50,6 @@ pub struct VoltPaymentsRequest {
     transaction_type: TransactionType,
     merchant_internal_reference: String,
     shopper: ShopperDetails,
-    notification_url: Option<String>,
     payment_success_url: Option<String>,
     payment_failure_url: Option<String>,
     payment_pending_url: Option<String>,
@@ -91,7 +90,6 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                     let payment_failure_url = item.router_data.request.router_return_url.clone();
                     let payment_pending_url = item.router_data.request.router_return_url.clone();
                     let payment_cancel_url = item.router_data.request.router_return_url.clone();
-                    let notification_url = item.router_data.request.webhook_url.clone();
                     let address = item.router_data.get_billing_address()?;
                     let shopper = ShopperDetails {
                         email: item.router_data.request.email.clone(),
@@ -109,7 +107,6 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         payment_failure_url,
                         payment_pending_url,
                         payment_cancel_url,
-                        notification_url,
                         shopper,
                         transaction_type,
                     })
@@ -360,7 +357,7 @@ impl<F, T>
                 status: enums::AttemptStatus::from(webhook_response.status),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        webhook_response.payments,
+                        webhook_response.payment,
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -378,8 +375,8 @@ impl<F, T>
 impl From<VoltWebhookStatus> for enums::AttemptStatus {
     fn from(status: VoltWebhookStatus) -> Self {
         match status {
-            VoltWebhookStatus::Completed => Self::Charged,
-            VoltWebhookStatus::Failed => Self::Failure,
+            VoltWebhookStatus::Completed | VoltWebhookStatus::Received => Self::Charged,
+            VoltWebhookStatus::Failed | VoltWebhookStatus::NotReceived => Self::Failure,
             VoltWebhookStatus::Pending => Self::AuthenticationPending,
         }
     }
@@ -449,10 +446,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct VoltWebhookBodyReference {
-    pub reference: String,
+    pub payment: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VoltWebhookBodyEventType {
     pub status: VoltWebhookStatus,
     pub detailed_status: Option<VoltDetailedStatus>,
@@ -462,7 +460,7 @@ pub struct VoltWebhookBodyEventType {
 #[serde(rename_all = "camelCase")]
 pub struct VoltWebhookObjectResource {
     pub reference: String,
-    pub payments: String,
+    pub payment: String,
     pub status: VoltWebhookStatus,
     pub detailed_status: Option<VoltDetailedStatus>,
 }
@@ -473,6 +471,8 @@ pub enum VoltWebhookStatus {
     Completed,
     Failed,
     Pending,
+    Received,
+    NotReceived,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -484,13 +484,21 @@ pub enum VoltDetailedStatus {
     CancelledByUser,
     AbandonedByUser,
     Failed,
+    Completed,
+    BankRedirect,
+    DelayedAtBank,
+    AwaitingCheckoutAuthorisation,
 }
 
 impl From<VoltWebhookStatus> for api::IncomingWebhookEvent {
     fn from(status: VoltWebhookStatus) -> Self {
         match status {
-            VoltWebhookStatus::Completed => Self::PaymentIntentSuccess,
-            VoltWebhookStatus::Failed => Self::PaymentIntentFailure,
+            VoltWebhookStatus::Completed | VoltWebhookStatus::Received => {
+                Self::PaymentIntentSuccess
+            }
+            VoltWebhookStatus::Failed | VoltWebhookStatus::NotReceived => {
+                Self::PaymentIntentFailure
+            }
             VoltWebhookStatus::Pending => Self::PaymentIntentProcessing,
         }
     }

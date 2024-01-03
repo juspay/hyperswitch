@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, request::RequestContent};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use transformers as volt;
@@ -632,12 +632,12 @@ impl api::IncomingWebhook for Volt {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: volt::VoltWebhookBodyReference =
-            serde_urlencoded::from_bytes::<volt::VoltWebhookBodyReference>(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let webhook_body: volt::VoltWebhookBodyReference = request
+            .body
+            .parse_struct("VoltWebhookBodyReference")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.reference),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.payment),
         ))
     }
 
@@ -648,10 +648,10 @@ impl api::IncomingWebhook for Volt {
         if request.body.is_empty() {
             Ok(api::IncomingWebhookEvent::EndpointVerification)
         } else {
-            let payload: volt::VoltWebhookBodyEventType =
-                serde_urlencoded::from_bytes::<volt::VoltWebhookBodyEventType>(request.body)
-                    .into_report()
-                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            let payload: volt::VoltWebhookBodyEventType = request
+                .body
+                .parse_struct("VoltWebhookBodyEventType")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
             Ok(api::IncomingWebhookEvent::from(payload.status))
         }
     }
@@ -660,10 +660,10 @@ impl api::IncomingWebhook for Volt {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let details: volt::VoltWebhookObjectResource =
-            serde_urlencoded::from_bytes::<volt::VoltWebhookObjectResource>(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let details: volt::VoltWebhookObjectResource = request
+            .body
+            .parse_struct("VoltWebhookObjectResource")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(details))
     }
 }
