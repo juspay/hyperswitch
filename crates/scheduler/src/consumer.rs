@@ -35,7 +35,6 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    println!("HEllo");
     use std::time::Duration;
 
     use rand::distributions::{Distribution, Uniform};
