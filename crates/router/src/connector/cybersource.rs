@@ -347,6 +347,14 @@ impl
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::MandateRevoke,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    > for Cybersource
+{
+}
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Cybersource
 {

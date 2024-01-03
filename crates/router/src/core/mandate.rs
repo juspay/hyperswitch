@@ -1,3 +1,5 @@
+pub mod utils;
+
 use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
 use diesel_models::enums as storage_enums;
@@ -7,7 +9,10 @@ use router_env::{instrument, logger, tracing};
 
 use super::payments::helpers;
 use crate::{
-    core::errors::{self, RouterResponse, StorageErrorExt},
+    core::{
+        errors::{self, RouterResponse, StorageErrorExt},
+        payments::CallConnectorAction,
+    },
     db::StorageInterface,
     routes::{metrics, AppState},
     services,
@@ -16,6 +21,7 @@ use crate::{
         api::{
             customers,
             mandates::{self, MandateResponseExt},
+            ConnectorData, GetToken,
         },
         domain, storage,
         transformers::ForeignTryFrom,
@@ -44,26 +50,74 @@ pub async fn get_mandate(
 pub async fn revoke_mandate(
     state: AppState,
     merchant_account: domain::MerchantAccount,
+    merchant_connector_account: domain::MerchantConnectorAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let db = state.store.as_ref();
     let mandate = db
-        .update_mandate_by_merchant_id_mandate_id(
-            &merchant_account.merchant_id,
-            &req.mandate_id,
-            storage::MandateUpdate::StatusUpdate {
-                mandate_status: storage::enums::MandateStatus::Revoked,
-            },
-        )
+        .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
-    Ok(services::ApplicationResponse::Json(
-        mandates::MandateRevokedResponse {
-            mandate_id: mandate.mandate_id,
-            status: mandate.mandate_status,
-        },
-    ))
+    let connector_data = ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &mandate.connector,
+        GetToken::Connector,
+        mandate.merchant_connector_id,
+    )?;
+    let connector_integration: services::BoxedConnectorIntegration<
+        '_,
+        types::api::MandateRevoke,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data = utils::construct_mandate_revoke_router_data(
+        &mandate.connector,
+        req,
+        merchant_connector_account,
+        merchant_account,
+        mandate,
+    )
+    .await?;
+
+    let response = services::execute_connector_processing_step(
+        &state,
+        connector_integration,
+        &router_data,
+        CallConnectorAction::Trigger,
+        None,
+    )
+    .await;
+
+    match response {
+        Ok(_) => {
+            let update_mandate = db
+                .update_mandate_by_merchant_id_mandate_id(
+                    &merchant_account.merchant_id,
+                    &req.mandate_id,
+                    storage::MandateUpdate::StatusUpdate {
+                        mandate_status: storage::enums::MandateStatus::Revoked,
+                    },
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::MandateValidationFailed {
+                    reason: "Failed to construct the Mandate Revocation RouterData".to_string(),
+                })?;
+
+            Ok(services::ApplicationResponse::Json(
+                mandates::MandateRevokedResponse {
+                    mandate_id: update_mandate.mandate_id,
+                    status: update_mandate.mandate_status,
+                },
+            ))
+        }
+        Err(err) => Err(
+            err.change_context(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "Failed to revoke the mandate from connector's end".to_string(),
+            }),
+        ),
+    }
 }
 
 #[instrument(skip(db))]
