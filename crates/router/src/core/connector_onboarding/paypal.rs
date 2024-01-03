@@ -137,7 +137,7 @@ async fn find_paypal_merchant_by_tracking_id(
 
 pub async fn update_mca(
     state: &AppState,
-    merchant_account: &oss_types::domain::MerchantAccount,
+    merchant_id: String,
     connector_id: String,
     auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
@@ -159,13 +159,9 @@ pub async fn update_mca(
         connector_webhook_details: None,
         pm_auth_config: None,
     };
-    let mca_response = admin::update_payment_connector(
-        state.clone(),
-        &merchant_account.merchant_id,
-        &connector_id,
-        request,
-    )
-    .await?;
+    let mca_response =
+        admin::update_payment_connector(state.clone(), &merchant_id, &connector_id, request)
+            .await?;
 
     match mca_response {
         ApplicationResponse::Json(mca_data) => Ok(mca_data),

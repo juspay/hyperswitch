@@ -20,7 +20,7 @@ pub async fn get_action_url(
         state,
         &http_req,
         req_payload.clone(),
-        |state, _: auth::UserFromToken, req| core::get_action_url(state, req),
+        |state, user, req| core::get_action_url(state, user, req),
         &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))

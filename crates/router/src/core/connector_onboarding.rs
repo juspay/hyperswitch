@@ -1,5 +1,4 @@
 use api_models::{connector_onboarding as api, enums};
-use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
@@ -19,8 +18,12 @@ pub trait AccessToken {
 
 pub async fn get_action_url(
     state: AppState,
+    user_from_token: auth::UserFromToken,
     request: api::ActionUrlRequest,
 ) -> RouterResponse<api::ActionUrlResponse> {
+    utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
+        .await?;
+
     let connector_onboarding_conf = state.conf.connector_onboarding.clone();
     let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
 
@@ -49,10 +52,9 @@ pub async fn sync_onboarding_status(
     user_from_token: auth::UserFromToken,
     request: api::OnboardingSyncRequest,
 ) -> RouterResponse<api::OnboardingStatus> {
-    let merchant_account = user_from_token
-        .get_merchant_account(state.clone())
-        .await
-        .change_context(ApiErrorResponse::MerchantAccountNotFound)?;
+    utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
+        .await?;
+
     let connector_onboarding_conf = state.conf.connector_onboarding.clone();
     let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
 
@@ -64,25 +66,25 @@ pub async fn sync_onboarding_status(
             ))
             .await?;
             if let api::OnboardingStatus::PayPal(api::PayPalOnboardingStatus::Success(
-                ref inner_data,
+                ref paypal_onboarding_data,
             )) = status
             {
                 let connector_onboarding_conf = state.conf.connector_onboarding.clone();
                 let auth_details = oss_types::ConnectorAuthType::SignatureKey {
                     api_key: connector_onboarding_conf.paypal.client_secret,
                     key1: connector_onboarding_conf.paypal.client_id,
-                    api_secret: Secret::new(inner_data.payer_id.clone()),
+                    api_secret: Secret::new(paypal_onboarding_data.payer_id.clone()),
                 };
-                let some_data = paypal::update_mca(
+                let update_mca_data = paypal::update_mca(
                     &state,
-                    &merchant_account,
+                    user_from_token.merchant_id,
                     request.connector_id.to_owned(),
                     auth_details,
                 )
                 .await?;
 
                 return Ok(ApplicationResponse::Json(api::OnboardingStatus::PayPal(
-                    api::PayPalOnboardingStatus::ConnectorIntegrated(some_data),
+                    api::PayPalOnboardingStatus::ConnectorIntegrated(update_mca_data),
                 )));
             }
             Ok(ApplicationResponse::Json(status))
