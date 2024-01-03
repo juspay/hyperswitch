@@ -2326,9 +2326,7 @@ impl<F, T>
                     item.http_code,
                     item.response.id.clone(),
                 )
-            }
-            else 
-            {
+            } else {
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
@@ -2528,8 +2526,7 @@ impl<F, T>
                     item.http_code,
                     item.response.id.clone(),
                 )
-            }
-            else {
+            } else {
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
@@ -2541,7 +2538,7 @@ impl<F, T>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                 })
-        },
+            },
             ..item.data
         })
     }
@@ -3882,12 +3879,9 @@ fn build_last_payment_error_response<T>(
 ) -> Result<T, types::ErrorResponse> {
     let (code, error_message) = match response {
         Some(error_details) => (
-            error_details
-                .code
-                .to_owned(),
-            error_details
-                .message
-                .to_owned(),        ),
+            error_details.code.to_owned(),
+            error_details.message.to_owned(),
+        ),
         None => (
             consts::NO_ERROR_CODE.to_string(),
             consts::NO_ERROR_MESSAGE.to_string(),
@@ -3897,10 +3891,17 @@ fn build_last_payment_error_response<T>(
     Err(types::ErrorResponse {
         code,
         message: error_message.clone(),
-        reason: response.as_ref()
-        .and_then(|res| res.decline_code.clone()
-        .map(|decline_code| format!("message - {}, decline_code - {}", error_message, decline_code))
-        .or(Some(error_message.clone()))),
+        reason: response.as_ref().and_then(|res| {
+            res.decline_code
+                .clone()
+                .map(|decline_code| {
+                    format!(
+                        "message - {}, decline_code - {}",
+                        error_message, decline_code
+                    )
+                })
+                .or(Some(error_message.clone()))
+        }),
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response_id),
@@ -3932,10 +3933,17 @@ fn build_error_response<T>(
     Err(types::ErrorResponse {
         code,
         message: error_message.clone(),
-        reason: response.clone()
-            .and_then(|res| res.decline_code.clone()
-            .map(|decline_code| format!("message - {}, decline_code - {}", error_message, decline_code))
-            .or(Some(error_message.clone()))),
+        reason: response.clone().and_then(|res| {
+            res.decline_code
+                .clone()
+                .map(|decline_code| {
+                    format!(
+                        "message - {}, decline_code - {}",
+                        error_message, decline_code
+                    )
+                })
+                .or(Some(error_message.clone()))
+        }),
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response_id),
