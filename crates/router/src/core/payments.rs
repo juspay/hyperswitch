@@ -464,7 +464,7 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not decode the conditional config")?;
 
-    logger::debug!(ConditionalConfigs=?output, "Conditional Config after dsl execute");
+    logger::debug!(decision_manager_output=?output, "Decision Manager output after execution");
 
     payment_data.payment_attempt.authentication_type = payment_data
         .payment_attempt
@@ -2798,7 +2798,7 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    logger::debug!("Routing: Initiating routing via merchant config");
+    logger::debug!("Routing: Initiating routing via profile config");
 
     let routing_algorithm = if cfg!(feature = "business_profile_routing") {
         business_profile.routing_algorithm.clone()

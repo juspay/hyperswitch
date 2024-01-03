@@ -213,7 +213,9 @@ pub async fn perform_static_routing_v1<F: Clone>(
     let algorithm_id = if let Some(id) = algorithm_ref.algorithm_id {
         id
     } else {
-        logger::debug!("StaticRouting: fallback to merchant default config");
+        logger::debug!(
+            "StaticRouting: no active routing algorithm, fallback to profile default config"
+        );
         let fallback_config = routing_helpers::get_merchant_default_config(
             &*state.clone().store,
             #[cfg(not(feature = "profile_specific_fallback_routing"))]
@@ -297,7 +299,7 @@ async fn ensure_algorithm_cached_v1(
         .attach_printable("Error checking expiry of DSL in cache")?;
 
     if !present || expired {
-        logger::debug!("Routing: Routing cache not present or expired, initiating refresh...");
+        logger::debug!("Routing: Routing algorithm record not available in routing cache or expired, initiating refresh...");
         refresh_routing_cache_v1(
             state,
             key.clone(),
@@ -492,7 +494,7 @@ pub async fn get_merchant_kgraph<'a>(
         .attach_printable("when checking kgraph expiry")?;
 
     if !kgraph_present || kgraph_expired {
-        logger::debug!("Routing: kgraph cache not present or expired, initiating refresh");
+        logger::debug!("Routing: profile kgraph record not available in kgraph cache or expired, initiating refresh");
         refresh_kgraph_cache(
             state,
             key_store,
@@ -682,7 +684,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    logger::debug!("Routing: Initiating eligibility analysis");
+    logger::debug!("Routing: Initiating eligibility analysis for fallback connectors");
 
     let mut final_selection = perform_eligibility_analysis(
         state,
