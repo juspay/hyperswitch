@@ -1,8 +1,7 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
-use router_env::logger;
-
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+use router_env::logger;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 

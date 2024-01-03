@@ -677,7 +677,9 @@ fn get_applepay_details(
     })
 }
 
-fn get_card_details(req_card: &api_models::payments::Card) -> Result<CardDetails, errors::ConnectorError> {
+fn get_card_details(
+    req_card: &api_models::payments::Card,
+) -> Result<CardDetails, errors::ConnectorError> {
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
