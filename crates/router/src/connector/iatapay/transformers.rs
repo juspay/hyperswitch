@@ -165,7 +165,8 @@ impl
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => None,
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => None,
         };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
@@ -227,25 +228,21 @@ pub enum IatapayPaymentStatus {
     Blocked,
     Cleared,
     Failed,
-    Locked,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
-    #[serde(other)]
-    Unknown,
 }
 
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
     fn from(item: IatapayPaymentStatus) -> Self {
         match item {
-            IatapayPaymentStatus::Authorized | IatapayPaymentStatus::Settled => Self::Charged,
+            IatapayPaymentStatus::Authorized
+            | IatapayPaymentStatus::Settled
+            | IatapayPaymentStatus::Tobeinvestigated
+            | IatapayPaymentStatus::Blocked
+            | IatapayPaymentStatus::Cleared => Self::Charged,
             IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
-            IatapayPaymentStatus::Tobeinvestigated
-            | IatapayPaymentStatus::Blocked
-            | IatapayPaymentStatus::Cleared
-            | IatapayPaymentStatus::Locked
-            | IatapayPaymentStatus::Unknown => Self::Voided,
         }
     }
 }
