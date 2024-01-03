@@ -14,7 +14,7 @@ body = """
 {% set commit_base_url = "https://github.com/juspay/hyperswitch/commit/" -%}
 {% set compare_base_url = "https://github.com/juspay/hyperswitch/compare/" -%}
 {% if version -%}
-    ## {{ version | trim_start_matches(pat="v") }} ({{ timestamp | date(format="%Y-%m-%d") }})
+    ## {{ version }}
 {% else -%}
     ## [unreleased]
 {% endif -%}
@@ -79,7 +79,7 @@ protect_breaking_commits = false
 # filter out the commits that are not matched by commit parsers
 filter_commits = false
 # glob pattern for matching git tags
-tag_pattern = "v[0-9]*"
+tag_pattern = "[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?(-.+)?"
 # regex for skipping tags
 # skip_tags = "v0.1.0-beta.1"
 # regex for ignoring tags
