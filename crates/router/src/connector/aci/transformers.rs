@@ -254,7 +254,9 @@ impl TryFrom<api_models::payments::Card> for PaymentDetails {
     fn try_from(card_data: api_models::payments::Card) -> Result<Self, Self::Error> {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
-            card_holder: card_data.card_holder_name,
+            card_holder: card_data
+                .card_holder_name
+                .unwrap_or(Secret::new("".to_string())),
             card_expiry_month: card_data.card_exp_month,
             card_expiry_year: card_data.card_exp_year,
             card_cvv: card_data.card_cvc,
@@ -409,10 +411,10 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.router_data.payment_method),
-                connector: "Aci",
-            })?,
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Aci"),
+            ))?,
         }
     }
 }
@@ -732,6 +734,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

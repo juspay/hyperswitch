@@ -191,6 +191,7 @@ impl<F, T>
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -264,6 +265,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -291,6 +293,8 @@ fn get_error_response(
         message: consts::NO_ERROR_MESSAGE.to_string(),
         reason: return_msg,
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 

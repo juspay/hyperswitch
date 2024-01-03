@@ -213,8 +213,8 @@ pub struct AdyenBalanceRequest<'a> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBalanceResponse {
-    psp_reference: String,
-    balance: Amount,
+    pub psp_reference: String,
+    pub balance: Amount,
 }
 
 /// This implementation will be used only in Authorize, Automatic capture flow.
@@ -397,8 +397,8 @@ pub enum ActionType {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
-    currency: String,
-    value: i64,
+    pub currency: storage_enums::Currency,
+    pub value: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -879,7 +879,126 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
             api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
             api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            _ => Err(errors::ConnectorError::NotSupported {
+            enums::BankNames::AmericanExpress
+            | enums::BankNames::AffinBank
+            | enums::BankNames::AgroBank
+            | enums::BankNames::AllianceBank
+            | enums::BankNames::AmBank
+            | enums::BankNames::BankOfAmerica
+            | enums::BankNames::BankIslam
+            | enums::BankNames::BankMuamalat
+            | enums::BankNames::BankRakyat
+            | enums::BankNames::BankSimpananNasional
+            | enums::BankNames::BlikPSP
+            | enums::BankNames::CapitalOne
+            | enums::BankNames::Chase
+            | enums::BankNames::Citi
+            | enums::BankNames::CimbBank
+            | enums::BankNames::Discover
+            | enums::BankNames::NavyFederalCreditUnion
+            | enums::BankNames::PentagonFederalCreditUnion
+            | enums::BankNames::SynchronyBank
+            | enums::BankNames::WellsFargo
+            | enums::BankNames::AbnAmro
+            | enums::BankNames::AsnBank
+            | enums::BankNames::Bunq
+            | enums::BankNames::Handelsbanken
+            | enums::BankNames::HongLeongBank
+            | enums::BankNames::Ing
+            | enums::BankNames::Knab
+            | enums::BankNames::KuwaitFinanceHouse
+            | enums::BankNames::Moneyou
+            | enums::BankNames::Rabobank
+            | enums::BankNames::Regiobank
+            | enums::BankNames::SnsBank
+            | enums::BankNames::TriodosBank
+            | enums::BankNames::VanLanschot
+            | enums::BankNames::ArzteUndApothekerBank
+            | enums::BankNames::AustrianAnadiBankAg
+            | enums::BankNames::BankAustria
+            | enums::BankNames::Bank99Ag
+            | enums::BankNames::BankhausCarlSpangler
+            | enums::BankNames::BankhausSchelhammerUndSchatteraAg
+            | enums::BankNames::BankMillennium
+            | enums::BankNames::BankPEKAOSA
+            | enums::BankNames::BawagPskAg
+            | enums::BankNames::BksBankAg
+            | enums::BankNames::BrullKallmusBankAg
+            | enums::BankNames::BtvVierLanderBank
+            | enums::BankNames::CapitalBankGraweGruppeAg
+            | enums::BankNames::CeskaSporitelna
+            | enums::BankNames::Dolomitenbank
+            | enums::BankNames::EasybankAg
+            | enums::BankNames::EPlatbyVUB
+            | enums::BankNames::ErsteBankUndSparkassen
+            | enums::BankNames::FrieslandBank
+            | enums::BankNames::HypoAlpeadriabankInternationalAg
+            | enums::BankNames::HypoNoeLbFurNiederosterreichUWien
+            | enums::BankNames::HypoOberosterreichSalzburgSteiermark
+            | enums::BankNames::HypoTirolBankAg
+            | enums::BankNames::HypoVorarlbergBankAg
+            | enums::BankNames::HypoBankBurgenlandAktiengesellschaft
+            | enums::BankNames::KomercniBanka
+            | enums::BankNames::MBank
+            | enums::BankNames::MarchfelderBank
+            | enums::BankNames::Maybank
+            | enums::BankNames::OberbankAg
+            | enums::BankNames::OsterreichischeArzteUndApothekerbank
+            | enums::BankNames::OcbcBank
+            | enums::BankNames::PayWithING
+            | enums::BankNames::PlaceZIPKO
+            | enums::BankNames::PlatnoscOnlineKartaPlatnicza
+            | enums::BankNames::PosojilnicaBankEGen
+            | enums::BankNames::PostovaBanka
+            | enums::BankNames::PublicBank
+            | enums::BankNames::RaiffeisenBankengruppeOsterreich
+            | enums::BankNames::RhbBank
+            | enums::BankNames::SchelhammerCapitalBankAg
+            | enums::BankNames::StandardCharteredBank
+            | enums::BankNames::SchoellerbankAg
+            | enums::BankNames::SpardaBankWien
+            | enums::BankNames::SporoPay
+            | enums::BankNames::TatraPay
+            | enums::BankNames::Viamo
+            | enums::BankNames::VolksbankGruppe
+            | enums::BankNames::VolkskreditbankAg
+            | enums::BankNames::VrBankBraunau
+            | enums::BankNames::UobBank
+            | enums::BankNames::PayWithAliorBank
+            | enums::BankNames::BankiSpoldzielcze
+            | enums::BankNames::PayWithInteligo
+            | enums::BankNames::BNPParibasPoland
+            | enums::BankNames::BankNowySA
+            | enums::BankNames::CreditAgricole
+            | enums::BankNames::PayWithBOS
+            | enums::BankNames::PayWithCitiHandlowy
+            | enums::BankNames::PayWithPlusBank
+            | enums::BankNames::ToyotaBank
+            | enums::BankNames::VeloBank
+            | enums::BankNames::ETransferPocztowy24
+            | enums::BankNames::PlusBank
+            | enums::BankNames::EtransferPocztowy24
+            | enums::BankNames::BankiSpbdzielcze
+            | enums::BankNames::BankNowyBfgSa
+            | enums::BankNames::GetinBank
+            | enums::BankNames::Blik
+            | enums::BankNames::NoblePay
+            | enums::BankNames::IdeaBank
+            | enums::BankNames::EnveloBank
+            | enums::BankNames::NestPrzelew
+            | enums::BankNames::MbankMtransfer
+            | enums::BankNames::Inteligo
+            | enums::BankNames::PbacZIpko
+            | enums::BankNames::BnpParibas
+            | enums::BankNames::BankPekaoSa
+            | enums::BankNames::VolkswagenBank
+            | enums::BankNames::AliorBank
+            | enums::BankNames::Boz
+            | enums::BankNames::BangkokBank
+            | enums::BankNames::KrungsriBank
+            | enums::BankNames::KrungThaiBank
+            | enums::BankNames::TheSiamCommercialBank
+            | enums::BankNames::KasikornBank => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
             })?,
@@ -1380,7 +1499,8 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 payments::PaymentMethodData::Crypto(_)
                 | payments::PaymentMethodData::MandatePayment
                 | payments::PaymentMethodData::Reward
-                | payments::PaymentMethodData::Upi(_) => {
+                | payments::PaymentMethodData::Upi(_)
+                | payments::PaymentMethodData::CardToken(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "Adyen",
@@ -1391,11 +1511,11 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl<'a> TryFrom<&types::PaymentsBalanceRouterData> for AdyenBalanceRequest<'a> {
+impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'a> {
     type Error = Error;
-    fn try_from(item: &types::PaymentsBalanceRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let payment_method = match &item.request.payment_method_data {
-            payments::PaymentMethodData::GiftCard(gift_card_data) => {
+            Some(payments::PaymentMethodData::GiftCard(gift_card_data)) => {
                 match gift_card_data.as_ref() {
                     payments::GiftCardData::Givex(gift_card_data) => {
                         let balance_pm = BalancePmData {
@@ -1509,7 +1629,7 @@ fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Optio
 
 fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -> Amount {
     Amount {
-        currency: item.router_data.request.currency.to_string(),
+        currency: item.router_data.request.currency,
         value: item.amount.to_owned(),
     }
 }
@@ -2101,7 +2221,12 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             ),
             api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
                 AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
-                    issuer: OpenBankingUKIssuer::try_from(issuer)?,
+                    issuer: match issuer {
+                        Some(bank_name) => OpenBankingUKIssuer::try_from(bank_name)?,
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "issuer",
+                        })?,
+                    },
                 })),
             ),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
@@ -2201,6 +2326,12 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
             payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
+            payments::CardRedirectData::CardRedirect {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -2270,7 +2401,8 @@ impl<'a>
                     | payments::PaymentMethodData::Reward
                     | payments::PaymentMethodData::Upi(_)
                     | payments::PaymentMethodData::Voucher(_)
-                    | payments::PaymentMethodData::GiftCard(_) => {
+                    | payments::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -2572,7 +2704,7 @@ impl<'a>
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
-        let (shopper_locale, country) = get_redirect_extra_details(item.router_data);
+        let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
         let line_items = Some(get_line_items(item));
 
         Ok(AdyenPaymentRequest {
@@ -2603,7 +2735,7 @@ impl<'a>
 
 fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> (Option<String>, Option<api_enums::CountryAlpha2>) {
+) -> Result<(Option<String>, Option<api_enums::CountryAlpha2>), errors::ConnectorError> {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
             match redirect_data {
@@ -2611,17 +2743,20 @@ fn get_redirect_extra_details(
                     country,
                     preferred_language,
                     ..
-                } => (
+                } => Ok((
                     Some(preferred_language.to_string()),
                     Some(country.to_owned()),
-                ),
+                )),
                 api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
-                    (None, Some(country.to_owned()))
+                    let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "country",
+                    })?;
+                    Ok((None, Some(country)))
                 }
-                _ => (None, None),
+                _ => Ok((None, None)),
             }
         }
-        _ => (None, None),
+        _ => Ok((None, None)),
     }
 }
 
@@ -2843,18 +2978,31 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>>
-    for types::PaymentsBalanceRouterData
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            AdyenBalanceResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>,
+        item: types::ResponseRouterData<
+            F,
+            AdyenBalanceResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2864,6 +3012,7 @@ impl TryFrom<types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
                 amount: item.response.balance.value,
@@ -2900,6 +3049,8 @@ pub fn get_adyen_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: response.refusal_reason,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -2923,6 +3074,7 @@ pub fn get_adyen_response(
         connector_metadata: None,
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -2991,6 +3143,8 @@ pub fn get_redirection_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3020,6 +3174,7 @@ pub fn get_redirection_response(
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3052,6 +3207,8 @@ pub fn get_present_to_shopper_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3069,6 +3226,7 @@ pub fn get_present_to_shopper_response(
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3101,6 +3259,8 @@ pub fn get_qr_code_response(
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None
@@ -3115,6 +3275,7 @@ pub fn get_qr_code_response(
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3138,6 +3299,8 @@ pub fn get_redirection_error_response(
         message: response.refusal_reason.clone(),
         reason: Some(response.refusal_reason),
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -3147,6 +3310,7 @@ pub fn get_redirection_error_response(
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
     };
 
     Ok((status, error, payments_response_data))
@@ -3439,7 +3603,7 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
             merchant_account: auth_type.merchant_account,
             reference,
             amount: Amount {
-                currency: item.router_data.request.currency.to_string(),
+                currency: item.router_data.request.currency,
                 value: item.amount.to_owned(),
             },
         })
@@ -3481,6 +3645,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             amount_captured: Some(item.response.amount.value),
             ..item.data
@@ -3529,7 +3694,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::RefundsRouterData<F>>> for AdyenRefundR
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
-                currency: item.router_data.request.currency.to_string(),
+                currency: item.router_data.request.currency,
                 value: item.router_data.request.refund_amount,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
@@ -3611,7 +3776,7 @@ pub struct AdyenAdditionalDataWH {
 #[derive(Debug, Deserialize)]
 pub struct AdyenAmountWH {
     pub value: i64,
-    pub currency: String,
+    pub currency: storage_enums::Currency,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, strum::Display, PartialEq)]
@@ -3937,7 +4102,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             )?;
         Ok(Self {
             amount: Amount {
-                currency: item.router_data.request.destination_currency.to_string(),
+                currency: item.router_data.request.destination_currency,
                 value: item.amount.to_owned(),
             },
             merchant_account: auth_type.merchant_account,
@@ -3999,8 +4164,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         iban: Some(b.iban),
                         tax_id: None,
                     },
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfers via ACH or Bacs are not supported".to_string(),
+                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via ACH is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };
@@ -4008,7 +4177,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                 Ok(Self {
                     amount: Amount {
                         value: item.amount.to_owned(),
-                        currency: item.router_data.request.destination_currency.to_string(),
+                        currency: item.router_data.request.destination_currency,
                     },
                     recurring: RecurringContract {
                         contract: Contract::Payout,
@@ -4055,7 +4224,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                 Ok(Self::Card(Box::new(PayoutFulfillCardRequest {
                     amount: Amount {
                         value: item.amount.to_owned(),
-                        currency: item.router_data.request.destination_currency.to_string(),
+                        currency: item.router_data.request.destination_currency,
                     },
                     card: get_payout_card_details(&item.router_data.get_payout_method_data()?)
                         .map_or(

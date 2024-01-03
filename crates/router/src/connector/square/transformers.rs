@@ -191,7 +191,8 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -307,7 +308,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -334,6 +336,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
             | types::ConnectorAuthType::SignatureKey { .. }
             | types::ConnectorAuthType::MultiAuthKey { .. }
             | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::TemporaryAuth { .. }
             | types::ConnectorAuthType::NoKey { .. } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
@@ -398,6 +401,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.payment.reference_id,
+                incremental_authorization_allowed: None,
             }),
             amount_captured,
             ..item.data

@@ -202,19 +202,27 @@ impl From<RefundUpdate> for RefundUpdateInternal {
 
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
-        let pa_update: RefundUpdateInternal = self.into();
+        let RefundUpdateInternal {
+            connector_refund_id,
+            refund_status,
+            sent_to_gateway,
+            refund_error_message,
+            refund_arn,
+            metadata,
+            refund_reason,
+            refund_error_code,
+            updated_by,
+        } = self.into();
         Refund {
-            connector_refund_id: pa_update.connector_refund_id.or(source.connector_refund_id),
-            refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
-            sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
-            refund_error_message: pa_update
-                .refund_error_message
-                .or(source.refund_error_message),
-            refund_error_code: pa_update.refund_error_code.or(source.refund_error_code),
-            refund_arn: pa_update.refund_arn.or(source.refund_arn),
-            metadata: pa_update.metadata.or(source.metadata),
-            refund_reason: pa_update.refund_reason.or(source.refund_reason),
-            updated_by: pa_update.updated_by,
+            connector_refund_id: connector_refund_id.or(source.connector_refund_id),
+            refund_status: refund_status.unwrap_or(source.refund_status),
+            sent_to_gateway: sent_to_gateway.unwrap_or(source.sent_to_gateway),
+            refund_error_message: refund_error_message.or(source.refund_error_message),
+            refund_error_code: refund_error_code.or(source.refund_error_code),
+            refund_arn: refund_arn.or(source.refund_arn),
+            metadata: metadata.or(source.metadata),
+            refund_reason: refund_reason.or(source.refund_reason),
+            updated_by,
             ..source
         }
     }
@@ -226,4 +234,13 @@ pub struct RefundCoreWorkflow {
     pub connector_transaction_id: String,
     pub merchant_id: String,
     pub payment_id: String,
+}
+
+impl common_utils::events::ApiEventMetric for Refund {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Refund {
+            payment_id: Some(self.payment_id.clone()),
+            refund_id: self.refund_id.clone(),
+        })
+    }
 }

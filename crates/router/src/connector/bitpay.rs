@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as bitpay;
@@ -23,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt, Encode},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -120,6 +120,8 @@ impl ConnectorCommon for Bitpay {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.error,
             reason: response.message,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -144,6 +146,20 @@ impl
         types::PaymentsResponseData,
     > for Bitpay
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Bitpay".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -172,21 +188,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = bitpay::BitpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = bitpay::BitpayPaymentsRequest::try_from(&connector_router_data)?;
 
-        let bitpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(bitpay_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -204,7 +216,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -389,12 +403,11 @@ impl api::IncomingWebhook for Bitpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Encode::<BitpayWebhookDetails>::encode_to_value(&notif)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+        Ok(Box::new(notif))
     }
 }
