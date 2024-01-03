@@ -6,6 +6,10 @@ on:
 
   workflow_dispatch:
 
+  push:
+    branches:
+      - ci-nightly-tag-workflow
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
