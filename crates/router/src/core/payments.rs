@@ -1611,10 +1611,10 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
         (
             Some(storage::enums::PaymentMethodType::ApplePay),
             Some(enums::ApplePayFlow::Simplified),
-        ) => match apple_pay_pre_decrypt_flow_filter {
-            Some(ApplePayPreDecryptFlow::NetworkTokenization) => false,
-            _ => true,
-        },
+        ) => !matches!(
+            apple_pay_pre_decrypt_flow_filter,
+            Some(ApplePayPreDecryptFlow::NetworkTokenization)
+        ),
         _ => true,
     }
 }
