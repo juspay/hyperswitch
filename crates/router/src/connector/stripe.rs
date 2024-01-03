@@ -80,13 +80,22 @@ impl ConnectorValidation for Stripe {
             pm_type: Option<types::storage::enums::PaymentMethodType>,
         ) -> CustomResult<(), errors::ConnectorError> {
         match pm_type {
-            Some(types::storage::enums::PaymentMethodType::Credit) => Ok(()),
-            Some(payment_method) =>  Err(connector_utils::construct_mandate_not_supported_error_report(payment_method, self.id())),
-            _ =>  Err(errors::ConnectorError::NotSupported {
-                message: "mandate payment for".to_string(),
-                connector: self.id(),
-            }
-            .into())
+            Some(types::storage::enums::PaymentMethodType::Credit)
+            | Some(types::storage::enums::PaymentMethodType::Ach)
+            | Some(types::storage::enums::PaymentMethodType::Bacs)
+            | Some(types::storage::enums::PaymentMethodType::Becs)
+            | Some(types::storage::enums::PaymentMethodType::Boleto)
+            | Some(types::storage::enums::PaymentMethodType::Debit)
+            | Some(types::storage::enums::PaymentMethodType::GooglePay)
+            | Some(types::storage::enums::PaymentMethodType::Ideal)
+            | Some(types::storage::enums::PaymentMethodType::Paypal)
+            | Some(types::storage::enums::PaymentMethodType::Pix)
+            | Some(types::storage::enums::PaymentMethodType::Sepa)
+            | Some(types::storage::enums::PaymentMethodType::Sofort)
+            | Some(types::storage::enums::PaymentMethodType::ApplePay) => Ok(()),
+            Some(payment_method) =>  Err(connector_utils::construct_mandate_not_supported_error_report_with_pmt(payment_method, self.id())),
+            _ =>  Err(connector_utils::construct_mandate_not_supported_error_report(self.id())),
+
         }
     }
 }
