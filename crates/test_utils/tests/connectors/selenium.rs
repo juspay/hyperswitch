@@ -816,7 +816,10 @@ pub fn should_ignore_test(name: &str) -> bool {
         "{}::*",
         <&str>::clone(modules.get(1).expect("Error fetching filed module"))
     );
-    let module_name = modules.get(1..3).expect("Error fetching filed module name").join("::");
+    let module_name = modules
+        .get(1..3)
+        .expect("Error fetching filed module name")
+        .join("::");
     // Ignore if it matches patterns like nuvei_ui::*, nuvei_ui::should_make_nuvei_eps_payment_test
     tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)
 }
