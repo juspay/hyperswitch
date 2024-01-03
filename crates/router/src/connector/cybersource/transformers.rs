@@ -95,15 +95,21 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                let card = CardDetails::PaymentCard(Card {
-                    number: ccard.card_number,
-                    expiration_month: ccard.card_exp_month,
-                    expiration_year: ccard.card_exp_year,
-                    security_code: ccard.card_cvc,
-                    card_type: None,
-                });
+                let card_issuer = ccard.get_card_issuer();
+                let card_type = match card_issuer {
+                    Ok(issuer) => Some(String::from(issuer)),
+                    Err(_) => None,
+                };
                 (
-                    PaymentInformation::Cards(CardPaymentInformation { card }),
+                    PaymentInformation::Cards(CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: ccard.card_cvc,
+                            card_type,
+                        },
+                    }),
                     None,
                 )
             }
@@ -294,7 +300,7 @@ pub struct CaptureOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardPaymentInformation {
-    card: CardDetails,
+    card: Card,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,7 +335,7 @@ pub struct ApplePayPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
-    payment_instrument: Option<CybersoucreInstrumentIdentifier>,
+    payment_instrument: Option<CybersoucrePaymentInstrument>,
 }
 
 #[derive(Debug, Serialize)]
@@ -355,17 +361,9 @@ pub enum PaymentInformation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CybersoucreInstrumentIdentifier {
+pub struct CybersoucrePaymentInstrument {
     id: String,
 }
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum CardDetails {
-    PaymentCard(Card),
-    MandateCard(MandateCardDetails),
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
@@ -376,14 +374,6 @@ pub struct Card {
     #[serde(rename = "type")]
     card_type: Option<String>,
 }
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MandateCardDetails {
-    expiration_month: Secret<String>,
-    expiration_year: Secret<String>,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformationWithBill {
@@ -591,30 +581,16 @@ impl
             Err(_) => None,
         };
 
-        let payment_instrument =
-            item.router_data
-                .request
-                .connector_mandate_id()
-                .map(|mandate_token_id| CybersoucreInstrumentIdentifier {
-                    id: mandate_token_id,
-                });
-
-        let card = if payment_instrument.is_some() {
-            CardDetails::MandateCard(MandateCardDetails {
-                expiration_month: ccard.card_exp_month,
-                expiration_year: ccard.card_exp_year,
-            })
-        } else {
-            CardDetails::PaymentCard(Card {
+        let payment_information = PaymentInformation::Cards(CardPaymentInformation {
+            card: Card {
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
                 security_code: ccard.card_cvc,
                 card_type,
-            })
-        };
+            },
+        });
 
-        let payment_information = PaymentInformation::Cards(CardPaymentInformation { card });
         let processing_information = ProcessingInformation::from((item, None));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
@@ -813,7 +789,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     item.router_data
                         .request
                         .connector_mandate_id()
-                        .map(|mandate_token_id| CybersoucreInstrumentIdentifier {
+                        .map(|mandate_token_id| CybersoucrePaymentInstrument {
                             id: mandate_token_id,
                         });
 
@@ -1129,14 +1105,11 @@ pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CybersourceSetupMandatesResponse {
-    id: String,
-    status: CybersourcePaymentStatus,
-    error_information: Option<CybersourceErrorInformation>,
-    client_reference_information: Option<ClientReferenceInformation>,
-    token_information: Option<CybersourceTokenInformation>,
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum CybersourceSetupMandatesResponse {
+    ClientReferenceInformation(CybersourceClientReferenceResponse),
+    ErrorInformation(CybersourceErrorInformationResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1148,7 +1121,7 @@ pub struct ClientReferenceInformation {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
-    payment_instrument: CybersoucreInstrumentIdentifier,
+    payment_instrument: CybersoucrePaymentInstrument,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1437,51 +1410,66 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let mandate_reference =
-            item.response
-                .token_information
-                .map(|token_info| types::MandateReference {
-                    connector_mandate_id: Some(token_info.payment_instrument.id),
-                    payment_method_id: None,
+        match item.response {
+            CybersourceSetupMandatesResponse::ClientReferenceInformation(info_response) => {
+                let mandate_reference = info_response.token_information.clone().map(|token_info| {
+                    types::MandateReference {
+                        connector_mandate_id: Some(token_info.payment_instrument.id),
+                        payment_method_id: None,
+                    }
                 });
-        let mut mandate_status = enums::AttemptStatus::foreign_from((item.response.status, false));
-        if matches!(mandate_status, enums::AttemptStatus::Authorized) {
-            //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
-            mandate_status = enums::AttemptStatus::Charged
-        }
-        Ok(Self {
-            status: mandate_status,
-            response: match item.response.error_information {
-                Some(error) => Err(types::ErrorResponse {
+                let mut mandate_status =
+                    enums::AttemptStatus::foreign_from((info_response.status.clone(), false));
+                if matches!(mandate_status, enums::AttemptStatus::Authorized) {
+                    //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
+                    mandate_status = enums::AttemptStatus::Charged
+                }
+                let error_response =
+                    get_error_response_if_failure((&info_response, mandate_status, item.http_code));
+
+                Ok(Self {
+                    status: mandate_status,
+                    response: match error_response {
+                        Some(error) => Err(error),
+                        None => Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                info_response.id.clone(),
+                            ),
+                            redirection_data: None,
+                            mandate_reference,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                info_response
+                                    .client_reference_information
+                                    .code
+                                    .clone()
+                                    .unwrap_or(info_response.id),
+                            ),
+                            incremental_authorization_allowed: Some(
+                                mandate_status == enums::AttemptStatus::Authorized,
+                            ),
+                        }),
+                    },
+                    ..item.data
+                })
+            }
+            CybersourceSetupMandatesResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
-                    message: error
+                    message: error_response
+                        .error_information
                         .message
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error.reason,
+                    reason: error_response.error_information.reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: Some(item.response.id),
+                    connector_transaction_id: Some(error_response.id.clone()),
                 }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: item
-                        .response
-                        .client_reference_information
-                        .map(|cref| cref.code)
-                        .unwrap_or(Some(item.response.id)),
-                    incremental_authorization_allowed: Some(
-                        mandate_status == enums::AttemptStatus::Authorized,
-                    ),
-                }),
-            },
-            ..item.data
-        })
+                status: enums::AttemptStatus::Failure,
+                ..item.data
+            }),
+        }
     }
 }
 
