@@ -44,7 +44,7 @@ use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 use crate::{
-    configs::settings::PaymentMethodTypeTokenFilter,
+    configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::PaymentMethodRetrieve,
@@ -1579,6 +1579,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     connector_name: &str,
     payment_method: &storage::enums::PaymentMethod,
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    apple_pay_flow: &Option<enums::ApplePayFlow>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -1592,8 +1593,30 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     payment_method_type,
                     connector_filter.payment_method_type.clone(),
                 )
+                && is_apple_pay_pre_decrypt_type_connector_tokenization(
+                    payment_method_type,
+                    apple_pay_flow,
+                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
+                )
         })
         .unwrap_or(false))
+}
+
+fn is_apple_pay_pre_decrypt_type_connector_tokenization(
+    payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
+) -> bool {
+    match (payment_method_type, apple_pay_flow) {
+        (
+            Some(storage::enums::PaymentMethodType::ApplePay),
+            Some(enums::ApplePayFlow::Simplified),
+        ) => match apple_pay_pre_decrypt_flow_filter {
+            Some(ApplePayPreDecryptFlow::NetworkTokenization) => false,
+            _ => true,
+        },
+        _ => true,
+    }
 }
 
 fn decide_apple_pay_flow(
@@ -1795,18 +1818,19 @@ where
                 .get_required_value("payment_method")?;
             let payment_method_type = &payment_data.payment_attempt.payment_method_type;
 
+            let apple_pay_flow = decide_apple_pay_flow(
+                payment_method_type,
+                &Some(merchant_connector_account.clone()),
+            );
+
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
                     &connector,
                     payment_method,
                     payment_method_type,
+                    &apple_pay_flow,
                 )?;
-
-            let apple_pay_flow = decide_apple_pay_flow(
-                payment_method_type,
-                &Some(merchant_connector_account.clone()),
-            );
 
             add_apple_pay_flow_metrics(
                 &apple_pay_flow,
