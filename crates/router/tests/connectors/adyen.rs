@@ -19,9 +19,11 @@ impl utils::Connector for AdyenTest {
             connector: Box::new(&Adyen),
             connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         use router::connector::Adyen;
         Some(types::api::PayoutConnectorData {
@@ -67,6 +69,7 @@ impl AdyenTest {
         })
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
@@ -123,7 +126,7 @@ impl AdyenTest {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -153,6 +156,9 @@ impl AdyenTest {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
+            surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
         })
     }
 }
@@ -477,7 +483,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    let errors = vec!["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
+    let errors = ["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
     assert!(errors.contains(&response.response.unwrap_err().message.as_str()))
 }
 

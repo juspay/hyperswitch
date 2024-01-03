@@ -1,30 +1,29 @@
-mod transformers;
-
+pub mod transformers;
 use std::fmt::Debug;
 
+use base64::Engine;
+use common_utils::request::RequestContent;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use transformers as cashtocode;
 
+use super::utils as connector_utils;
 use crate::{
-    configs::settings,
-    connector::utils as conn_utils,
+    configs::settings::{self},
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage::{self},
-        ErrorResponse, Response,
+        domain, storage, ErrorResponse, Response,
     },
-    utils::{self, ByteSliceExt, BytesExt},
+    utils::{ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -33,7 +32,7 @@ pub struct Cashtocode;
 impl api::Payment for Cashtocode {}
 impl api::PaymentSession for Cashtocode {}
 impl api::ConnectorAccessToken for Cashtocode {}
-impl api::PreVerify for Cashtocode {}
+impl api::MandateSetup for Cashtocode {}
 impl api::PaymentAuthorize for Cashtocode {}
 impl api::PaymentSync for Cashtocode {}
 impl api::PaymentCapture for Cashtocode {}
@@ -43,34 +42,40 @@ impl api::Refund for Cashtocode {}
 impl api::RefundExecute for Cashtocode {}
 impl api::RefundSync for Cashtocode {}
 
-fn get_auth_cashtocode(
+fn get_b64_auth_cashtocode(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
-    auth_type: &types::ConnectorAuthType,
+    auth_type: &transformers::CashtocodeAuth,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    match (*payment_method_type).ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
-        Ok(reward_type) => match reward_type {
-            storage::enums::PaymentMethodType::ClassicReward => match auth_type {
-                types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", api_key.peek()).into_masked(),
-                )]),
-                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            },
-            storage::enums::PaymentMethodType::Evoucher => match auth_type {
-                types::ConnectorAuthType::BodyKey { key1, .. } => Ok(vec![(
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", key1.peek()).into_masked(),
-                )]),
-                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            },
-            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                message: reward_type.to_string(),
-                connector: "cashtocode",
-                payment_experience: "Try with a different payment method".to_string(),
-            })),
-        },
-        Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+    fn construct_basic_auth(
+        username: Option<Secret<String>>,
+        password: Option<Secret<String>>,
+    ) -> Result<request::Maskable<String>, errors::ConnectorError> {
+        let username = username.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        let password = password.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(format!(
+                "{}:{}",
+                username.peek(),
+                password.peek()
+            ))
+        )
+        .into_masked())
     }
+
+    let auth_header = match payment_method_type {
+        Some(storage::enums::PaymentMethodType::ClassicReward) => construct_basic_auth(
+            auth_type.username_classic.to_owned(),
+            auth_type.password_classic.to_owned(),
+        ),
+        Some(storage::enums::PaymentMethodType::Evoucher) => construct_basic_auth(
+            auth_type.username_evoucher.to_owned(),
+            auth_type.password_evoucher.to_owned(),
+        ),
+        _ => return Err(errors::ConnectorError::MissingPaymentMethodType)?,
+    }?;
+
+    Ok(vec![(headers::AUTHORIZATION.to_string(), auth_header)])
 }
 
 impl
@@ -97,28 +102,8 @@ impl ConnectorCommon for Cashtocode {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        cashtocode::CashtocodeAuthType::try_from(val)?;
-        Ok(())
-    }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.cashtocode.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = cashtocode::CashtocodeAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -134,7 +119,24 @@ impl ConnectorCommon for Cashtocode {
             code: response.error.to_string(),
             message: response.error_description,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
+    }
+}
+
+impl ConnectorValidation for Cashtocode {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -149,9 +151,27 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cashtocode
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cashtocode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Cashtocode".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -168,13 +188,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .to_owned()
                 .into(),
         )];
-        let auth_differentiator =
-            get_auth_cashtocode(&req.request.payment_method_type, &req.connector_auth_type);
 
-        let mut api_key = match auth_differentiator {
-            Ok(auth_type) => auth_type,
-            Err(err) => return Err(err),
-        };
+        let auth_type = transformers::CashtocodeAuth::try_from((
+            &req.connector_auth_type,
+            &req.request.currency,
+        ))?;
+
+        let mut api_key = get_b64_auth_cashtocode(&req.request.payment_method_type, &auth_type)?;
+
         header.append(&mut api_key);
         Ok(header)
     }
@@ -197,14 +218,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = cashtocode::CashtocodePaymentsRequest::try_from(req)?;
-        let cashtocode_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<cashtocode::CashtocodePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(cashtocode_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = cashtocode::CashtocodePaymentsRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -222,7 +239,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -320,33 +339,35 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = conn_utils::get_header_key_value("authorization", request.headers)?;
+        let base64_signature =
+            connector_utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
         Ok(signature)
     }
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                db,
-                merchant_id,
+                merchant_account,
                 connector_label,
-                key_store,
+                merchant_connector_account,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret_auth = String::from_utf8(secret.to_vec())
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
@@ -381,16 +402,13 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json =
-            utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(res_json)
+        Ok(Box::new(webhook))
     }
 
     fn get_webhook_api_response(

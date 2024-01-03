@@ -1,0 +1,7 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with confirm true",
+    "Scenario2-Create payment with confirm false",
+    "Scenario3-Create payment without PMD"
+  ]
+}

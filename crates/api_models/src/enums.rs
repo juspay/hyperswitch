@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 pub use common_enums::*;
 use utoipa::ToSchema;
 
@@ -75,8 +77,9 @@ pub enum Connector {
     Adyen,
     Airwallex,
     Authorizedotnet,
-    Bitpay,
     Bambora,
+    Bankofamerica,
+    Bitpay,
     Bluesnap,
     Boku,
     Braintree,
@@ -90,6 +93,8 @@ pub enum Connector {
     Forte,
     Globalpay,
     Globepay,
+    Gocardless,
+    Helcim,
     Iatapay,
     Klarna,
     Mollie,
@@ -104,19 +109,25 @@ pub enum Connector {
     Payme,
     Paypal,
     Payu,
+    Placetopay,
     Powertranz,
+    Prophetpay,
     Rapyd,
     Shift4,
+    Square,
     Stax,
     Stripe,
     Trustpay,
     // Tsys,
     Tsys,
+    Volt,
     Wise,
     Worldline,
     Worldpay,
     Zen,
     Signifyd,
+    Plaid,
+    Riskified,
 }
 
 impl Connector {
@@ -129,6 +140,7 @@ impl Connector {
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
+                | (Self::Volt, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -137,98 +149,6 @@ impl Connector {
     pub fn requires_defend_dispute(&self) -> bool {
         matches!(self, Self::Checkout)
     }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::EnumVariantNames,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum RoutableConnectors {
-    Stax,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "phonypay")]
-    #[strum(serialize = "phonypay")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "fauxpay")]
-    #[strum(serialize = "fauxpay")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "pretendpay")]
-    #[strum(serialize = "pretendpay")]
-    DummyConnector3,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "stripe_test")]
-    #[strum(serialize = "stripe_test")]
-    DummyConnector4,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "adyen_test")]
-    #[strum(serialize = "adyen_test")]
-    DummyConnector5,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "checkout_test")]
-    #[strum(serialize = "checkout_test")]
-    DummyConnector6,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "paypal_test")]
-    #[strum(serialize = "paypal_test")]
-    DummyConnector7,
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bitpay,
-    Bambora,
-    Bluesnap,
-    Boku,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    Dlocal,
-    Fiserv,
-    Forte,
-    Globalpay,
-    Globepay,
-    Iatapay,
-    Klarna,
-    Mollie,
-    Multisafepay,
-    Nexinets,
-    Nmi,
-    Noon,
-    Nuvei,
-    // Opayo, added as template code for future usage
-    Opennode,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Payme,
-    Paypal,
-    Payu,
-    Powertranz,
-    Rapyd,
-    Shift4,
-    Stripe,
-    Trustpay,
-    // Tsys,
-    Tsys,
-    Wise,
-    Worldline,
-    Worldpay,
-    Zen,
 }
 
 #[cfg(feature = "payouts")]
@@ -260,6 +180,78 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Wise => Self::Wise,
         }
     }
+}
+
+#[cfg(feature = "frm")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectors {
+    /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
+    Signifyd,
+    Riskified,
+}
+
+#[cfg(feature = "frm")]
+impl From<FrmConnectors> for RoutableConnectors {
+    fn from(value: FrmConnectors) -> Self {
+        match value {
+            FrmConnectors::Signifyd => Self::Signifyd,
+            FrmConnectors::Riskified => Self::Riskified,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankType {
+    Checking,
+    Savings,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankHolderType {
+    Personal,
+    Business,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -403,6 +395,24 @@ pub enum BankNames {
     KrungThaiBank,
     TheSiamCommercialBank,
     KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
 }
 
 #[derive(
@@ -448,19 +458,24 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    UserCardNumber,
+    UserCardExpiryMonth,
+    UserCardExpiryYear,
+    UserCardCvc,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountry { options: Vec<String> },
-    UserAddressline1,
-    UserAddressline2,
+    UserCountryCode,                      //phone number's country code
+    UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
+    UserCurrency { options: Vec<String> },
+    UserBillingName,
+    UserAddressLine1,
+    UserAddressLine2,
     UserAddressCity,
     UserAddressPincode,
     UserAddressState,
-    UserAddressCountry,
+    UserAddressCountry { options: Vec<String> },
     UserBlikCode,
-    FieldsComplete,
-    UserBillingName,
     UserBank,
     Text,
     DropDown { options: Vec<String> },
@@ -484,4 +499,33 @@ pub enum RetryAction {
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
+}
+
+#[derive(Clone, Copy)]
+pub enum LockerChoice {
+    Basilisk,
+    Tartarus,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PmAuthConnectors {
+    Plaid,
+}
+
+pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
+    PmAuthConnectors::from_str(connector_name).ok()
 }

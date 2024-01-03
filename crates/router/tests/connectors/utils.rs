@@ -4,9 +4,11 @@ use async_trait::async_trait;
 use common_utils::pii::Email;
 use error_stack::Report;
 use masking::Secret;
+#[cfg(feature = "payouts")]
+use router::core::utils as core_utils;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments, utils as core_utils},
+    core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
@@ -17,15 +19,21 @@ use wiremock::{Mock, MockServer};
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
+
     fn get_auth_token(&self) -> types::ConnectorAuthType;
+
     fn get_name(&self) -> String;
+
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None
     }
+
     /// interval in seconds to be followed when making the subsequent request whenever needed
     fn get_request_interval(&self) -> u64 {
         5
     }
+
+    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         None
     }
@@ -68,10 +76,11 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn create_connector_customer(
@@ -87,14 +96,16 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn create_connector_pm_token(
@@ -110,14 +121,16 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// For initiating payments when `CaptureMethod` is set to `Automatic`
@@ -137,14 +150,16 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn sync_payment(
@@ -157,7 +172,7 @@ pub trait ConnectorActions: Connector {
             payment_data.unwrap_or_else(|| PaymentSyncType::default().0),
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// will retry the psync till the given status matches or retry max 3 times
@@ -195,7 +210,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn authorize_and_capture_payment(
@@ -231,7 +246,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn authorize_and_void_payment(
@@ -268,7 +283,7 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     async fn capture_payment_and_refund(
@@ -384,10 +399,11 @@ pub trait ConnectorActions: Connector {
                 connector_metadata: None,
                 reason: None,
                 connector_refund_id: Some(refund_id),
+                browser_info: None,
             }),
             payment_info,
         );
-        call_connector(request, integration).await
+        Box::pin(call_connector(request, integration)).await
     }
 
     /// will retry the rsync till the given status matches or retry max 3 times
@@ -418,6 +434,7 @@ pub trait ConnectorActions: Connector {
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_request<Flow, Res>(
         &self,
         connector_payout_id: Option<String>,
@@ -438,11 +455,6 @@ pub trait ConnectorActions: Connector {
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
-                country_code: payment_info
-                    .to_owned()
-                    .map_or(enums::CountryAlpha2::NL, |pi| {
-                        pi.country.map_or(enums::CountryAlpha2::NL, |c| c)
-                    }),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -493,9 +505,12 @@ pub trait ConnectorActions: Connector {
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info.clone().and_then(|a| a.payment_method_token),
+            payment_method_token: info
+                .clone()
+                .and_then(|a| a.payment_method_token.map(types::PaymentMethodToken::Token)),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
+
             preprocessing_id: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             #[cfg(feature = "payouts")]
@@ -503,6 +518,12 @@ pub trait ConnectorActions: Connector {
             #[cfg(feature = "payouts")]
             quote_id: None,
             test_mode: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            connector_http_status_code: None,
+            apple_pay_flow: None,
+            external_latency: None,
+            frm_metadata: None,
         }
     }
 
@@ -521,10 +542,13 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Err(_) => None,
         }
     }
 
+    #[cfg(feature = "payouts")]
     async fn verify_payout_eligibility(
         &self,
         payout_type: enums::PayoutType,
@@ -542,10 +566,12 @@ pub trait ConnectorActions: Connector {
             .get_connector_integration();
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -562,6 +588,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn fulfill_payout(
         &self,
         connector_payout_id: Option<String>,
@@ -580,10 +607,12 @@ pub trait ConnectorActions: Connector {
             .get_connector_integration();
         let mut request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -600,6 +629,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_payout(
         &self,
         connector_customer: Option<String>,
@@ -619,10 +649,12 @@ pub trait ConnectorActions: Connector {
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         request.connector_customer = connector_customer;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -639,6 +671,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn cancel_payout(
         &self,
         connector_payout_id: String,
@@ -658,10 +691,12 @@ pub trait ConnectorActions: Connector {
         let mut request =
             self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -678,6 +713,7 @@ pub trait ConnectorActions: Connector {
         Ok(res.response.unwrap())
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_and_fulfill_payout(
         &self,
         connector_customer: Option<String>,
@@ -701,6 +737,7 @@ pub trait ConnectorActions: Connector {
         Ok(fulfill_res)
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_and_cancel_payout(
         &self,
         connector_customer: Option<String>,
@@ -724,6 +761,7 @@ pub trait ConnectorActions: Connector {
         Ok(cancel_res)
     }
 
+    #[cfg(feature = "payouts")]
     async fn create_payout_recipient(
         &self,
         payout_type: enums::PayoutType,
@@ -741,10 +779,12 @@ pub trait ConnectorActions: Connector {
             .get_connector_integration();
         let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -772,7 +812,14 @@ async fn call_connector<
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
     services::api::execute_connector_processing_step(
         &state,
         integration,
@@ -823,7 +870,7 @@ impl Default for CCardType {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,
@@ -862,6 +909,9 @@ impl Default for PaymentAuthorizeType {
             complete_authorize_url: None,
             webhook_url: None,
             customer_id: None,
+            surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
         };
         Self(data)
     }
@@ -916,6 +966,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
         };
         Self(data)
@@ -934,6 +985,7 @@ impl Default for PaymentRefundType {
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
+            browser_info: None,
         };
         Self(data)
     }
@@ -942,6 +994,7 @@ impl Default for PaymentRefundType {
 impl Default for CustomerType {
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             description: None,
             email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
             phone: None,
@@ -957,6 +1010,8 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
+            amount: Some(100),
+            currency: enums::Currency::USD,
         };
         Self(data)
     }
@@ -976,6 +1031,8 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Err(_) => None,
     }
 }
@@ -991,6 +1048,7 @@ pub fn get_connector_metadata(
             connector_metadata,
             network_txn_id: _,
             connector_response_reference_id: _,
+            incremental_authorization_allowed: _,
         }) => connector_metadata,
         _ => None,
     }

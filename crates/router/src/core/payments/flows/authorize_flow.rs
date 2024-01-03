@@ -6,7 +6,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
     },
     logger,
     routes::{metrics, AppState},
@@ -29,6 +31,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -36,14 +39,18 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+        >(
             state,
             self.clone(),
             connector_id,
             merchant_account,
             key_store,
             customer,
-        )
+            merchant_connector_account,
+        ))
         .await
     }
 }
@@ -57,6 +64,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -64,6 +72,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
+        connector
+            .connector
+            .validate_capture_method(self.request.capture_method)
+            .to_payment_failed_response()?;
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -80,17 +92,56 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            let pm_id = tokenization::save_payment_method(
-                state,
-                connector,
-                resp.to_owned(),
-                maybe_customer,
-                merchant_account,
-                self.request.payment_method_type,
-            )
-            .await?;
+            if resp.request.setup_mandate_details.clone().is_some() {
+                let payment_method_id = Box::pin(tokenization::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                    self.request.payment_method_type,
+                    key_store,
+                ))
+                .await?;
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    payment_method_id,
+                    connector.merchant_connector_id.clone(),
+                )
+                .await?)
+            } else {
+                let connector = connector.clone();
+                let response = resp.clone();
+                let maybe_customer = maybe_customer.clone();
+                let merchant_account = merchant_account.clone();
+                let key_store = key_store.clone();
+                let state = state.clone();
 
-            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                logger::info!("Initiating async call to save_payment_method in locker");
+
+                tokio::spawn(async move {
+                    logger::info!("Starting async call to save_payment_method in locker");
+
+                    let result = Box::pin(tokenization::save_payment_method(
+                        &state,
+                        &connector,
+                        response,
+                        &maybe_customer,
+                        &merchant_account,
+                        self.request.payment_method_type,
+                        &key_store,
+                    ))
+                    .await;
+
+                    if let Err(err) = result {
+                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                    }
+                });
+
+                Ok(resp)
+            }
         } else {
             Ok(self.clone())
         }
@@ -106,17 +157,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 
     async fn add_payment_method_token<'a>(
-        &self,
+        &mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
+        let request = self.request.clone();
         tokenization::add_payment_method_token(
             state,
             connector,
             tokenization_action,
             self,
-            types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
+            types::PaymentMethodTokenizationData::try_from(request)?,
         )
         .await
     }
@@ -229,7 +281,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
@@ -319,6 +371,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
+            payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
             name: None,
@@ -334,6 +387,8 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
         Ok(Self {
             payment_method_data: data.payment_method_data,
             browser_info: data.browser_info,
+            currency: data.currency,
+            amount: Some(data.amount),
         })
     }
 }
@@ -348,6 +403,38 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
+            connector_transaction_id: None,
+        })
+    }
+}
+
+impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            amount: Some(data.amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: None,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: None,
+            browser_info: data.browser_info,
+            surcharge_details: None,
+            connector_transaction_id: data.connector_transaction_id,
         })
     }
 }

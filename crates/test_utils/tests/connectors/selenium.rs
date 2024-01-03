@@ -14,6 +14,8 @@ use std::{
 };
 
 use async_trait::async_trait;
+use base64::Engine;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use test_utils::connector_auth;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
@@ -58,6 +60,7 @@ pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
     ContainsAny(Selector, Vec<&'a str>),
+    EitherOfThemExist(&'a str, &'a str),
     IsPresent(&'a str),
     IsElePresent(By),
     IsPresentNow(&'a str),
@@ -115,6 +118,10 @@ pub trait SeleniumTest {
                         }
                         _ => assert!(driver.title().await?.contains(search_keys.first().unwrap())),
                     },
+                    Assert::EitherOfThemExist(text_1, text_2) => assert!(
+                        is_text_present_now(driver, text_1).await?
+                            || is_text_present_now(driver, text_2).await?
+                    ),
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
@@ -147,6 +154,13 @@ pub trait SeleniumTest {
                     },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::EitherOfThemExist(text_1, text_2) => {
+                        if is_text_present_now(driver, text_1).await.is_ok()
+                            || is_text_present_now(driver, text_2).await.is_ok()
+                        {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -208,6 +222,19 @@ pub trait SeleniumTest {
                         )
                         .await?;
                     }
+                    Assert::EitherOfThemExist(text_1, text_2) => {
+                        self.complete_actions(
+                            driver,
+                            if is_text_present_now(driver, text_1).await.is_ok()
+                                || is_text_present_now(driver, text_2).await.is_ok()
+                            {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
                     Assert::IsPresent(text) => {
                         self.complete_actions(
                             driver,
@@ -247,23 +274,18 @@ pub trait SeleniumTest {
                         let saved_tests =
                             serde_json::to_string(&self.get_saved_testcases()).unwrap();
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
-                        let hs_base_url = self
-                            .get_configs()
-                            .automation_configs
-                            .unwrap()
+                        let configs = self.get_configs().automation_configs.unwrap();
+                        let hs_base_url = configs
                             .hs_base_url
                             .unwrap_or_else(|| "http://localhost:8080".to_string());
-                        let configs_url = self
-                            .get_configs()
-                            .automation_configs
-                            .unwrap()
-                            .configs_url
-                            .unwrap();
+                        let configs_url = configs.configs_url.unwrap();
+                        let hs_api_keys = configs.hs_api_keys.unwrap();
+                        let test_env = configs.hs_test_env.unwrap();
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
-                            "localStorage.current_env='local'",
+                            format!("localStorage.current_env='{test_env}'").as_str(),
                             "localStorage.hs_api_key=''",
-                            "localStorage.hs_api_keys=''",
+                            format!("localStorage.hs_api_keys='{hs_api_keys}'").as_str(),
                             format!("localStorage.base_url='{hs_base_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
                             format!("localStorage.saved_payments=JSON.stringify({saved_tests})")
@@ -403,7 +425,7 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
             Event::Trigger(Trigger::Sleep(5)),
             Event::RunIf(
-                Assert::IsPresentNow("Sign in"),
+                Assert::EitherOfThemExist("Use your Google Account", "Sign in"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
@@ -484,6 +506,60 @@ pub trait SeleniumTest {
         ];
         affirm_actions.extend(actions);
         self.complete_actions(&driver, affirm_actions).await
+    }
+    async fn make_webhook_test(
+        &self,
+        web_driver: WebDriver,
+        payment_url: &str,
+        actions: Vec<Event<'_>>,
+        webhook_retry_time: u64,
+        webhook_status: &str,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &web_driver,
+            vec![Event::Trigger(Trigger::Goto(payment_url))],
+        )
+        .await?;
+        self.complete_actions(&web_driver, actions).await?; //additional actions needs to make a payment
+        self.complete_actions(
+            &web_driver,
+            vec![Event::Trigger(Trigger::Goto(&format!(
+                "{CHEKOUT_BASE_URL}/events"
+            )))],
+        )
+        .await?;
+        let element = web_driver.query(By::Css("h2.last-payment")).first().await?;
+        let payment_id = element.text().await?;
+        let retries = 3; // no of retry times
+        for _i in 0..retries {
+            let configs = self.get_configs().automation_configs.unwrap();
+            let outgoing_webhook_url = configs.hs_webhook_url.unwrap().to_string();
+            let client = reqwest::Client::new();
+            let response = client.get(outgoing_webhook_url).send().await.unwrap(); // get events from outgoing webhook endpoint
+            let body_text = response.text().await.unwrap();
+            let data: WebhookResponse = serde_json::from_str(&body_text).unwrap();
+            let last_three_events = &data.data[data.data.len().saturating_sub(3)..]; // Get the last three elements if available
+            for last_event in last_three_events {
+                let last_event_body = &last_event.step.request.body;
+                let decoded_bytes = base64::engine::general_purpose::STANDARD //decode the encoded outgoing webhook event
+                    .decode(last_event_body)
+                    .unwrap();
+                let decoded_str = String::from_utf8(decoded_bytes).unwrap();
+                let webhook_response: HsWebhookResponse =
+                    serde_json::from_str(&decoded_str).unwrap();
+                if payment_id == webhook_response.content.object.payment_id
+                    && webhook_status == webhook_response.content.object.status
+                {
+                    return Ok(());
+                }
+            }
+            self.complete_actions(
+                &web_driver,
+                vec![Event::Trigger(Trigger::Sleep(webhook_retry_time))],
+            )
+            .await?;
+        }
+        Err(WebDriverError::CustomError("Webhook Not Found".to_string()))
     }
     async fn make_paypal_payment(
         &self,
@@ -756,6 +832,8 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {
+                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+                caps.add_firefox_arg(profile_path).unwrap();
                 caps.add_firefox_arg("--headless").ok();
             }
             caps.into()
@@ -781,7 +859,10 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
+    if env::consts::OS == "macos" {
+        base_path.push_str(r"/Library/Application\ Support/Google/Chrome/Default");
+        //Issue: 1573
+    } // We're only using Firefox on Ubuntu runner
     Ok(base_path)
 }
 
@@ -796,7 +877,17 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#); //Issue: 1573
+    if env::consts::OS == "macos" {
+        base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    //Issue: 1573
+    } else if env::consts::OS == "linux" {
+        if let Some(home_dir) = env::var_os("HOME") {
+            if let Some(home_path) = home_dir.to_str() {
+                let profile_path = format!("{}/.mozilla/firefox/hs-test", home_path);
+                return Ok(profile_path);
+            }
+        }
+    }
     Ok(base_path)
 }
 
@@ -826,4 +917,41 @@ pub fn handle_test_error(
             false
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookResponse {
+    data: Vec<WebhookResponseData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookResponseData {
+    step: WebhookRequestData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookRequestData {
+    request: WebhookRequest,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookRequest {
+    body: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HsWebhookResponse {
+    content: HsWebhookContent,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HsWebhookContent {
+    object: HsWebhookObject,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HsWebhookObject {
+    payment_id: String,
+    status: String,
+    connector: String,
 }

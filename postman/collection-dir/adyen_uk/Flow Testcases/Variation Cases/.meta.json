@@ -1,0 +1,14 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with Invalid card details",
+    "Scenario2-Confirming the payment without PMD",
+    "Scenario3-Capture greater amount",
+    "Scenario4-Capture the succeeded payment",
+    "Scenario5-Void the success_slash_failure payment",
+    "Scenario6-Create 3DS payment with greater capture",
+    "Scenario7-Refund exceeds amount",
+    "Scenario8-Refund for unsuccessful payment",
+    "Scenario9-Create a recurring payment with greater mandate amount",
+    "Scenario10-Create payouts using unsupported methods"
+  ]
+}

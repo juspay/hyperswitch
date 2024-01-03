@@ -38,7 +38,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -68,6 +68,9 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
+            surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -80,6 +83,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
+
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -87,6 +91,12 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        apple_pay_flow: None,
+        external_latency: None,
+        frm_metadata: None,
     }
 }
 
@@ -119,6 +129,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
+            browser_info: None,
         },
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
@@ -131,6 +142,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
+
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -138,6 +150,12 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        apple_pay_flow: None,
+        external_latency: None,
+        frm_metadata: None,
     }
 }
 
@@ -146,13 +164,21 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     static CV: aci::Aci = aci::Aci;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
+        merchant_connector_id: None,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -183,11 +209,19 @@ async fn payments_create_failure() {
         let conf = Settings::new().unwrap();
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+        let state = routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            Box::new(services::MockApiClient),
+        )
+        .await;
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         };
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -201,7 +235,7 @@ async fn payments_create_failure() {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -234,9 +268,17 @@ async fn refund_for_successful_payments() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
+        merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Authorize,
@@ -295,9 +337,17 @@ async fn refunds_create_failure() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
+        merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,

@@ -22,6 +22,7 @@ impl utils::Connector for WorldlineTest {
             connector: Box::new(&Worldline),
             connector_name: types::Connector::Worldline,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -70,7 +71,7 @@ impl WorldlineTest {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -100,6 +101,9 @@ impl WorldlineTest {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
+            surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
         })
     }
 }
@@ -152,7 +156,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "worldline",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }

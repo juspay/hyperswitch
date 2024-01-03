@@ -79,7 +79,7 @@ impl Default for DrainerSettings {
             num_partitions: 64,
             max_read_count: 100,
             shutdown_interval: 1000, // in milliseconds
-            loop_interval: 500,      // in milliseconds
+            loop_interval: 100,      // in milliseconds
         }
     }
 }
@@ -147,7 +147,7 @@ impl Settings {
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
         let config = router_env::Config::builder(&environment.to_string())?
-            .add_source(File::from(config_path).required(true))
+            .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("DRAINER")
                     .try_parsing(true)

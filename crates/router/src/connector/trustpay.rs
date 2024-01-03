@@ -1,16 +1,18 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{
+    crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent,
+};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
 
 use super::utils::{
     collect_and_sort_values_by_removing_signature, get_error_code_error_message_based_on_priority,
-    ConnectorErrorType, ConnectorErrorTypeMapping,
+    ConnectorErrorType, ConnectorErrorTypeMapping, PaymentsPreProcessingData,
 };
 use crate::{
     configs::settings,
@@ -19,11 +21,11 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -80,16 +82,12 @@ impl ConnectorCommon for Trustpay {
         "trustpay"
     }
 
-    fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        trustpay::TrustpayAuthType::try_from(val)?;
-        Ok(())
+    fn common_get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -112,36 +110,51 @@ impl ConnectorCommon for Trustpay {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: trustpay::TrustpayErrorResponse = res
-            .response
-            .parse_struct("trustpay ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let error_list = response.errors.clone().unwrap_or(vec![]);
-        let option_error_code_message = get_error_code_error_message_based_on_priority(
-            self.clone(),
-            error_list.into_iter().map(|errors| errors.into()).collect(),
-        );
-        let reason = response.errors.map(|errors| {
-            errors
-                .iter()
-                .map(|error| error.description.clone())
-                .collect::<Vec<String>>()
-                .join(" & ")
-        });
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: option_error_code_message
-                .clone()
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            // message vary for the same code, so relying on code alone as it is unique
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: reason.or(response.description),
-        })
+        let response: Result<
+            trustpay::TrustpayErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("trustpay ErrorResponse");
+
+        match response {
+            Ok(response_data) => {
+                let error_list = response_data.errors.clone().unwrap_or_default();
+                let option_error_code_message = get_error_code_error_message_based_on_priority(
+                    self.clone(),
+                    error_list.into_iter().map(|errors| errors.into()).collect(),
+                );
+                let reason = response_data.errors.map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| error.description.clone())
+                        .collect::<Vec<String>>()
+                        .join(" & ")
+                });
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: option_error_code_message
+                        .clone()
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    // message vary for the same code, so relying on code alone as it is unique
+                    message: option_error_code_message
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: reason
+                        .or(response_data.description)
+                        .or(response_data.payment_description),
+                    attempt_status: None,
+                    connector_transaction_id: response_data.instance_id,
+                })
+            }
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "trustpay".to_owned())
+            }
+        }
     }
 }
+
+impl ConnectorValidation for Trustpay {}
 
 impl api::Payment for Trustpay {}
 
@@ -157,10 +170,28 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Trustpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Trustpay
+impl api::MandateSetup for Trustpay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Trustpay
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Trustpay".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentVoid for Trustpay {}
@@ -220,14 +251,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayAuthUpdateRequest::try_from(req)?;
-        let trustpay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(trustpay_req))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -241,7 +268,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(req)
@@ -278,6 +307,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             // message vary for the same code, so relying on code alone as it is unique
             message: response.result_info.result_code.to_string(),
             reason: response.result_info.additional_info,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -341,17 +372,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: trustpay::TrustPayTransactionStatusErrorResponse = res
-            .response
-            .parse_struct("trustpay transaction status ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.to_string(),
-            // message vary for the same code, so relying on code alone as it is unique
-            message: response.status.to_string(),
-            reason: Some(response.payment_description),
-        })
+        self.build_error_response(res)
     }
 
     fn handle_response(
@@ -418,14 +439,19 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let create_intent_req = trustpay::TrustpayCreateIntentRequest::try_from(req)?;
-        let trustpay_req = types::RequestBody::log_and_get_request_body(
-            &create_intent_req,
-            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(trustpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let currency = req.request.get_currency()?;
+        let amount = req.request.get_amount()?;
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            &self.get_currency_unit(),
+            currency,
+            amount,
+            req,
+        ))?;
+        let connector_req =
+            trustpay::TrustpayCreateIntentRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -443,8 +469,8 @@ impl
                 .url(&types::PaymentsPreProcessingType::get_url(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req,
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
                 )?)
                 .build(),
         );
@@ -521,23 +547,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
-        let trustpay_req_string = match req.payment_method {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = req.request.amount;
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            amount,
+            req,
+        ))?;
+        let connector_req = trustpay::TrustpayPaymentsRequest::try_from(&connector_router_data)?;
+        match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
-                types::RequestBody::log_and_get_request_body(
-                    &connector_req,
-                    utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            _ => types::RequestBody::log_and_get_request_body(
-                &connector_req,
-                utils::Encode::<trustpay::PaymentRequestCards>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-        };
-        Ok(Some(trustpay_req_string))
+            _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req))),
+        }
     }
 
     fn build_request(
@@ -555,7 +580,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -624,24 +651,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = trustpay::TrustpayRefundRequest::try_from(req)?;
-        let trustpay_req_string = match req.payment_method {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = trustpay::TrustpayRefundRequest::try_from(&connector_router_data)?;
+        match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
-                types::RequestBody::log_and_get_request_body(
-                    &connector_req,
-                    utils::Encode::<trustpay::TrustpayRefundRequestBankRedirect>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
-            _ =>
-                types::RequestBody::log_and_get_request_body(
-                    &connector_req,
-                    utils::Encode::<trustpay::TrustpayRefundRequestCards>::url_encode,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-        };
-        Ok(Some(trustpay_req_string))
+            _ => Ok(RequestContent::FormUrlEncoded(Box::new(connector_req))),
+        }
     }
 
     fn build_request(
@@ -656,7 +680,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -846,16 +872,12 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
-        let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
-            &details.payment_information,
-        )
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+        Ok(Box::new(details.payment_information))
     }
 
     fn get_webhook_source_verification_algorithm(
@@ -868,6 +890,7 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -882,7 +905,7 @@ impl api::IncomingWebhook for Trustpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -905,11 +928,15 @@ impl api::IncomingWebhook for Trustpay {
             .switch()?;
         let payment_info = trustpay_response.payment_information;
         let reason = payment_info.status_reason_information.unwrap_or_default();
+        let connector_dispute_id = payment_info
+            .references
+            .payment_id
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api::disputes::DisputePayload {
             amount: payment_info.amount.amount.to_string(),
             currency: payment_info.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
-            connector_dispute_id: payment_info.references.payment_id,
+            connector_dispute_id,
             connector_reason: reason.reason.reject_reason,
             connector_reason_code: Some(reason.reason.code),
             challenge_required_by: None,
@@ -923,26 +950,15 @@ impl api::IncomingWebhook for Trustpay {
 impl services::ConnectorRedirectResponse for Trustpay {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let query =
-            serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        crate::logger::debug!(trustpay_redirect_response=?query);
-        Ok(query.status.map_or(
-            payments::CallConnectorAction::Trigger,
-            |status| match status.as_str() {
-                "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
-                    status: diesel_models::enums::AttemptStatus::Charged,
-                    error_code: None,
-                    error_message: None,
-                },
-                _ => payments::CallConnectorAction::Trigger,
-            },
-        ))
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

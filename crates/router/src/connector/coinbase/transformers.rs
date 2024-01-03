@@ -136,7 +136,7 @@ impl<F, T>
             .last()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
             .clone();
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = timeline.status.clone();
         let response_data = timeline.context.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -145,7 +145,8 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
@@ -155,7 +156,7 @@ impl<F, T>
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
                 }),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id),
             })
             },
         );
@@ -260,7 +261,10 @@ fn get_crypto_specific_payment_data(
         billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
     let description = item.get_description().ok();
     let connector_meta: CoinbaseConnectorMeta =
-        utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
+        utils::to_connector_meta_from_secret_with_required_field(
+            item.connector_meta_data.clone(),
+            "Pricing Type Not present in connector meta data",
+        )?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let redirect_url = item.request.get_return_url()?;

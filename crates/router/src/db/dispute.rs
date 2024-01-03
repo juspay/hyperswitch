@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -147,8 +147,11 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            #[allow(clippy::as_conversions)]
-            id: locked_disputes.len() as i32,
+            id: locked_disputes
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
             currency: dispute.currency,
@@ -167,7 +170,9 @@ impl DisputeInterface for MockDb {
             created_at: now,
             modified_at: now,
             connector: dispute.connector,
+            profile_id: dispute.profile_id,
             evidence,
+            merchant_connector_id: dispute.merchant_connector_id,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -367,6 +372,7 @@ mod tests {
             enums::{DisputeStage, DisputeStatus},
         };
         use masking::Secret;
+        use redis_interface::RedisSettings;
         use serde_json::Value;
         use time::macros::datetime;
 
@@ -399,12 +405,17 @@ mod tests {
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
+                profile_id: None,
+                merchant_connector_id: None,
             }
         }
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            #[allow(clippy::expect_used)]
+            let mockdb = MockDb::new(&RedisSettings::default())
+                .await
+                .expect("Failed to create a mock DB");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -432,7 +443,10 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            #[allow(clippy::expect_used)]
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -472,7 +486,10 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_dispute_by_merchant_id_dispute_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            #[allow(clippy::expect_used)]
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -506,7 +523,10 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            #[allow(clippy::expect_used)]
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -544,6 +564,7 @@ mod tests {
                         received_time_gt: None,
                         received_time_lte: None,
                         received_time_gte: None,
+                        profile_id: None,
                     },
                 )
                 .await
@@ -556,7 +577,10 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id_payment_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            #[allow(clippy::expect_used)]
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -609,7 +633,10 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update() {
-                let mockdb = MockDb::new(&Default::default()).await;
+                #[allow(clippy::expect_used)]
+                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                    .await
+                    .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -686,7 +713,10 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_status() {
-                let mockdb = MockDb::new(&Default::default()).await;
+                #[allow(clippy::expect_used)]
+                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                    .await
+                    .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -758,7 +788,10 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_evidence() {
-                let mockdb = MockDb::new(&Default::default()).await;
+                #[allow(clippy::expect_used)]
+                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                    .await
+                    .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {

@@ -1,6 +1,37 @@
 use serde::{Deserialize, Serialize};
 use masking::Secret;
-use crate::{connector::utils::PaymentsAuthorizeRequestData,core::errors,types::{self,api, storage::enums}};
+use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self,api, storage::enums}};
+
+//TODO: Fill the struct with respective fields
+pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
+    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for {{project-name | downcase | pascal_case}}RouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -11,7 +42,6 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}Card {
-    name: Secret<String>,
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -19,21 +49,20 @@ pub struct {{project-name | downcase | pascal_case}}Card {
     complete: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
+impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::PaymentsAuthorizeRouterData>> for {{project-name | downcase | pascal_case}}PaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        match item.request.payment_method_data.clone() {
+    fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card = {{project-name | downcase | pascal_case}}Card {
-                    name: req_card.card_holder_name,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
+                    complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.request.amount,
+                    amount: item.amount.to_owned(),
                     card,
                 })
             }
@@ -99,6 +128,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -113,11 +143,11 @@ pub struct {{project-name | downcase | pascal_case}}RefundRequest {
     pub amount: i64
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
+impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>> for {{project-name | downcase | pascal_case}}RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+    fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&types::RefundsRouterData<F>>) -> Result<Self,Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.amount.to_owned(),
         })
     }
 }

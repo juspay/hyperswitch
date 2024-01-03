@@ -4,7 +4,7 @@ mod utils;
 
 use router::{
     configs,
-    core::payments,
+    core::{payment_methods::Oss, payments},
     db::StorageImpl,
     routes, services,
     types::{
@@ -24,7 +24,7 @@ use uuid::Uuid;
 #[ignore]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn payments_create_stripe() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
@@ -93,7 +93,7 @@ async fn payments_create_stripe() {
 #[ignore]
 // verify the API-KEY/merchant id has adyen as first choice
 async fn payments_create_adyen() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "321");
@@ -162,7 +162,7 @@ async fn payments_create_adyen() {
 // verify the API-KEY/merchant id has stripe as first choice
 #[ignore]
 async fn payments_create_fail() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
@@ -221,12 +221,12 @@ async fn payments_create_fail() {
 #[actix_web::test]
 #[ignore]
 async fn payments_todo() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let client = awc::Client::default();
     let mut response;
     let mut response_body;
-    let _post_endpoints = vec!["123/update", "123/confirm", "cancel"];
+    let _post_endpoints = ["123/update", "123/confirm", "cancel"];
     let get_endpoints = vec!["list"];
 
     for endpoint in get_endpoints {
@@ -275,7 +275,13 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     let key_store = state
         .store
@@ -314,7 +320,7 @@ async fn payments_create_core() {
             card_number: "4242424242424242".to_string().try_into().unwrap(),
             card_exp_month: "10".to_string().into(),
             card_exp_year: "35".to_string().into(),
-            card_holder_name: "Arun Raj".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
             card_cvc: "123".to_string().into(),
             card_issuer: None,
             card_network: None,
@@ -352,19 +358,28 @@ async fn payments_create_core() {
         mandate_id: None,
         ..Default::default()
     };
-    let expected_response = services::ApplicationResponse::Json(expected_response);
-    let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
-            merchant_account,
-            key_store,
-            payments::PaymentCreate,
-            req,
-            services::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-        )
-        .await
-        .unwrap();
+    let expected_response =
+        services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
+    let actual_response = Box::pin(payments::payments_core::<
+        api::Authorize,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        Oss,
+    >(
+        state,
+        merchant_account,
+        key_store,
+        payments::PaymentCreate,
+        req,
+        services::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        None,
+        api::HeaderPayload::default(),
+    ))
+    .await
+    .unwrap();
     assert_eq!(expected_response, actual_response);
 }
 
@@ -436,7 +451,13 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
@@ -475,7 +496,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
             card_exp_month: "03".to_string().into(),
             card_exp_year: "2030".to_string().into(),
-            card_holder_name: "JohnDoe".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
             card_cvc: "737".to_string().into(),
             card_issuer: None,
             card_network: None,
@@ -498,32 +519,43 @@ async fn payments_create_core_adyen_no_redirect() {
         ..Default::default()
     };
 
-    let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {
-        payment_id: Some(payment_id.clone()),
-        status: api_enums::IntentStatus::Processing,
-        amount: 6540,
-        amount_capturable: None,
-        amount_received: None,
-        client_secret: None,
-        created: None,
-        currency: "USD".to_string(),
-        customer_id: None,
-        description: Some("Its my first payment request".to_string()),
-        refunds: None,
-        mandate_id: None,
-        ..Default::default()
-    });
-    let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
-            merchant_account,
-            key_store,
-            payments::PaymentCreate,
-            req,
-            services::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-        )
-        .await
-        .unwrap();
+    let expected_response = services::ApplicationResponse::JsonWithHeaders((
+        api::PaymentsResponse {
+            payment_id: Some(payment_id.clone()),
+            status: api_enums::IntentStatus::Processing,
+            amount: 6540,
+            amount_capturable: None,
+            amount_received: None,
+            client_secret: None,
+            created: None,
+            currency: "USD".to_string(),
+            customer_id: None,
+            description: Some("Its my first payment request".to_string()),
+            refunds: None,
+            mandate_id: None,
+            ..Default::default()
+        },
+        vec![],
+    ));
+    let actual_response = Box::pin(payments::payments_core::<
+        api::Authorize,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        Oss,
+    >(
+        state,
+        merchant_account,
+        key_store,
+        payments::PaymentCreate,
+        req,
+        services::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        None,
+        api::HeaderPayload::default(),
+    ))
+    .await
+    .unwrap();
     assert_eq!(expected_response, actual_response);
 }

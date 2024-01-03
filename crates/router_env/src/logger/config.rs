@@ -101,6 +101,8 @@ pub struct LogTelemetry {
     pub otel_exporter_otlp_timeout: Option<u64>,
     /// Whether to use xray ID generator, (enable this if you plan to use AWS-XRAY)
     pub use_xray_generator: bool,
+    /// Route Based Tracing
+    pub route_to_trace: Option<Vec<String>>,
 }
 
 /// Telemetry / tracing.
@@ -141,7 +143,7 @@ impl Config {
         let config_path = Self::config_path(&environment.to_string(), explicit_config_path);
 
         let config = Self::builder(&environment.to_string())?
-            .add_source(config::File::from(config_path).required(true))
+            .add_source(config::File::from(config_path).required(false))
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 

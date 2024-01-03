@@ -5,7 +5,10 @@ use actix_web::{
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-use crate::services::{api, authentication as auth};
+use crate::{
+    core::api_locking,
+    services::{api, authentication as auth},
+};
 #[cfg(feature = "payouts")]
 use crate::{core::payouts::*, types::api::payouts as payout_types};
 
@@ -30,17 +33,17 @@ pub async fn payouts_create(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| payouts_create_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 /// Payouts - Retrieve
 #[cfg(feature = "payouts")]
 #[utoipa::path(
@@ -69,17 +72,17 @@ pub async fn payouts_retrieve(
         force_sync: query_params.force_sync,
     };
     let flow = Flow::PayoutsRetrieve;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payout_retrieve_request,
         |state, auth, req| payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 /// Payouts - Update
 #[cfg(feature = "payouts")]
 #[utoipa::path(
@@ -108,17 +111,17 @@ pub async fn payouts_update(
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payout_update_payload,
         |state, auth, req| payouts_update_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 /// Payouts - Cancel
 #[cfg(feature = "payouts")]
 #[utoipa::path(
@@ -147,17 +150,17 @@ pub async fn payouts_cancel(
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| payouts_cancel_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 /// Payouts - Fulfill
 #[cfg(feature = "payouts")]
 #[utoipa::path(
@@ -186,17 +189,17 @@ pub async fn payouts_fulfill(
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsAccounts))]
 // #[get("/accounts")]
 pub async fn payouts_accounts() -> impl Responder {

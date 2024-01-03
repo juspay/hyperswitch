@@ -21,6 +21,7 @@ impl utils::Connector for BluesnapTest {
             connector: Box::new(&Bluesnap),
             connector_name: types::Connector::Bluesnap,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -399,7 +400,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -411,7 +412,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
+        "VALIDATION_GENERAL_FAILURE".to_string(),
     );
 }
 
@@ -425,7 +426,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -437,7 +438,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
+        "VALIDATION_GENERAL_FAILURE".to_string(),
     );
 }
 
@@ -451,7 +452,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             Some(types::PaymentsAuthorizeData {
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_holder_name: Secret::new("John Doe".to_string()),
+                    card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -463,7 +464,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
+        "VALIDATION_GENERAL_FAILURE".to_string(),
     );
 }
 
@@ -485,7 +486,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .unwrap();
     assert_eq!(
         void_response.response.unwrap_err().message,
-        "Transaction AUTH_REVERSAL failed. Transaction has already been captured."
+        "TRANSACTION_ALREADY_CAPTURED"
     );
 }
 
@@ -524,7 +525,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount cannot be more than the refundable order amount.",
+        "REFUND_MAX_AMOUNT_FAILURE",
     );
 }
 

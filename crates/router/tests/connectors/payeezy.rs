@@ -9,7 +9,7 @@ use router::{
 };
 
 use crate::{
-    connector_auth::{self},
+    connector_auth,
     utils::{self, ConnectorActions, PaymentInfo},
 };
 
@@ -22,8 +22,10 @@ impl utils::Connector for PayeezyTest {
         use router::connector::Payeezy;
         types::api::ConnectorData {
             connector: Box::new(&Payeezy),
+            // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -382,7 +384,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "card".to_string(),
             connector: "Payeezy",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }

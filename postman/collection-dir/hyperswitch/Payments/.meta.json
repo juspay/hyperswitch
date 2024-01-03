@@ -1,0 +1,14 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Session Token",
+    "Payments - Update",
+    "Payments - Retrieve",
+    "Payments - Confirm",
+    "Payments - Capture",
+    "Payments - Create Copy",
+    "Payments - Cancel",
+    "Payment-List"
+  ],
+  "description": "Process and manage payments across wide range of payment processors using the Unified Payments API."
+}

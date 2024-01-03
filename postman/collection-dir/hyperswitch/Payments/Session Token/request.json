@@ -1,0 +1,37 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "payment_id": "{{payment_id}}",
+      "wallets": [],
+      "client_secret": "{{client_secret}}"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/session_tokens",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", "session_tokens"]
+  }
+}

@@ -6,12 +6,15 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 #[cfg(feature = "kms")]
-counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
+counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
+#[cfg(feature = "kms")]
+counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
+histogram_metric!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
 counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
@@ -28,7 +31,10 @@ counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);
 counter_metric!(SUBSEQUENT_MANDATE_PAYMENT, GLOBAL_METER);
 
-counter_metric!(RETRY_COUNT, GLOBAL_METER);
+// Manual retry metrics
+counter_metric!(MANUAL_RETRY_REQUEST_COUNT, GLOBAL_METER);
+counter_metric!(MANUAL_RETRY_COUNT, GLOBAL_METER);
+counter_metric!(MANUAL_RETRY_VALIDATION_FAILED, GLOBAL_METER);
 
 counter_metric!(STORED_TO_LOCKER, GLOBAL_METER);
 counter_metric!(GET_FROM_LOCKER, GLOBAL_METER);
@@ -37,6 +43,8 @@ counter_metric!(DELETE_FROM_LOCKER, GLOBAL_METER);
 counter_metric!(CREATED_TOKENIZED_CARD, GLOBAL_METER);
 counter_metric!(DELETED_TOKENIZED_CARD, GLOBAL_METER);
 counter_metric!(GET_TOKENIZED_CARD, GLOBAL_METER);
+counter_metric!(TOKENIZED_DATA_COUNT, GLOBAL_METER); // Tokenized data added
+counter_metric!(RETRIED_DELETE_DATA_COUNT, GLOBAL_METER); // Tokenized data retried
 
 counter_metric!(CUSTOMER_CREATED, GLOBAL_METER);
 counter_metric!(CUSTOMER_REDACTED, GLOBAL_METER);
@@ -70,9 +78,16 @@ counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
 counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
+// Connector http status code metrics
+counter_metric!(CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT, GLOBAL_METER);
+counter_metric!(CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT, GLOBAL_METER);
+counter_metric!(CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT, GLOBAL_METER);
+counter_metric!(CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT, GLOBAL_METER);
+counter_metric!(CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT, GLOBAL_METER);
 
 // Service Level
 counter_metric!(CARD_LOCKER_FAILURES, GLOBAL_METER);
+counter_metric!(CARD_LOCKER_SUCCESSFUL_RESPONSE, GLOBAL_METER);
 counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
 histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
@@ -81,6 +96,22 @@ histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
 // Encryption and Decryption metrics
 histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
 histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
+
+// Apple Pay Flow Metrics
+counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
+counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW, GLOBAL_METER);
+counter_metric!(APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT, GLOBAL_METER);
+counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT, GLOBAL_METER);
+counter_metric!(APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT, GLOBAL_METER);
+counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT, GLOBAL_METER);
+
+// Metrics for Auto Retries
+counter_metric!(AUTO_RETRY_ELIGIBLE_REQUEST_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_RETRY_GSM_MISS_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_RETRY_GSM_FETCH_FAILURE_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_RETRY_GSM_MATCH_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_RETRY_EXHAUSTED_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_RETRY_PAYMENT_COUNT, GLOBAL_METER);
 
 pub mod request;
 pub mod utils;

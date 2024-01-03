@@ -1,18 +1,18 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
-    MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
-    PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
-    PaymentMethodData, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
+    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
+    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use time::PrimitiveDateTime;
 
 use crate::{
     core::errors,
@@ -34,29 +34,6 @@ impl PaymentsRequestExt for PaymentsRequest {
     }
 }
 
-pub(crate) trait CustomerAcceptanceExt {
-    fn get_ip_address(&self) -> Option<String>;
-    fn get_user_agent(&self) -> Option<String>;
-    fn get_accepted_at(&self) -> PrimitiveDateTime;
-}
-
-impl CustomerAcceptanceExt for CustomerAcceptance {
-    fn get_ip_address(&self) -> Option<String> {
-        self.online
-            .as_ref()
-            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
-    }
-
-    fn get_user_agent(&self) -> Option<String> {
-        self.online.as_ref().map(|data| data.user_agent.clone())
-    }
-
-    fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at
-            .unwrap_or_else(common_utils::date_time::now)
-    }
-}
-
 impl super::Router for PaymentsRequest {}
 
 // Core related api layer.
@@ -70,7 +47,15 @@ pub struct AuthorizeSessionToken;
 pub struct CompleteAuthorize;
 
 #[derive(Debug, Clone)]
+pub struct Approve;
+
+// Used in gift cards balance check
+#[derive(Debug, Clone)]
+pub struct Balance;
+
+#[derive(Debug, Clone)]
 pub struct InitPayment;
+
 #[derive(Debug, Clone)]
 pub struct Capture;
 
@@ -78,6 +63,9 @@ pub struct Capture;
 pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
+
+#[derive(Debug, Clone)]
+pub struct Reject;
 
 #[derive(Debug, Clone)]
 pub struct Session;
@@ -89,10 +77,13 @@ pub struct PaymentMethodToken;
 pub struct CreateConnectorCustomer;
 
 #[derive(Debug, Clone)]
-pub struct Verify;
+pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
+
+#[derive(Debug, Clone)]
+pub struct IncrementalAuthorization;
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
@@ -152,6 +143,16 @@ pub trait PaymentVoid:
 {
 }
 
+pub trait PaymentApprove:
+    api::ConnectorIntegration<Approve, types::PaymentsApproveData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentReject:
+    api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
+{
+}
+
 pub trait PaymentCapture:
     api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
@@ -162,8 +163,17 @@ pub trait PaymentSession:
 {
 }
 
-pub trait PreVerify:
-    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+pub trait MandateSetup:
+    api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentIncrementalAuthorization:
+    api::ConnectorIntegration<
+    IncrementalAuthorization,
+    types::PaymentsIncrementalAuthorizationData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -205,16 +215,20 @@ pub trait PaymentsPreProcessing:
 
 pub trait Payment:
     api_types::ConnectorCommon
+    + api_types::ConnectorValidation
     + PaymentAuthorize
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
-    + PreVerify
+    + PaymentApprove
+    + PaymentReject
+    + MandateSetup
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing
     + ConnectorCustomer
+    + PaymentIncrementalAuthorization
 {
 }
 
@@ -230,7 +244,7 @@ mod payments_test {
             card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
-            card_holder_name: "JohnDoe".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),

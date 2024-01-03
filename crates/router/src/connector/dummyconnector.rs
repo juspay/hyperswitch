@@ -1,26 +1,28 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -29,7 +31,7 @@ pub struct DummyConnector<const T: u8>;
 impl<const T: u8> api::Payment for DummyConnector<T> {}
 impl<const T: u8> api::PaymentSession for DummyConnector<T> {}
 impl<const T: u8> api::ConnectorAccessToken for DummyConnector<T> {}
-impl<const T: u8> api::PreVerify for DummyConnector<T> {}
+impl<const T: u8> api::MandateSetup for DummyConnector<T> {}
 impl<const T: u8> api::PaymentAuthorize for DummyConnector<T> {}
 impl<const T: u8> api::PaymentSync for DummyConnector<T> {}
 impl<const T: u8> api::PaymentCapture for DummyConnector<T> {}
@@ -80,14 +82,6 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        transformers::DummyConnectorAuthType::try_from(val)?;
-        Ok(())
-    }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dummyconnector.base_url.as_ref()
     }
@@ -118,7 +112,24 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             code: response.error.code,
             message: response.error.message,
             reason: response.error.reason,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
+    }
+}
+
+impl<const T: u8> ConnectorValidation for DummyConnector<T> {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -136,9 +147,26 @@ impl<const T: u8>
 }
 
 impl<const T: u8>
-    ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for DummyConnector<T>
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for DummyConnector<T>
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for DummyConnector".to_string(),
+        )
+        .into())
+    }
 }
 
 impl<const T: u8>
@@ -169,7 +197,6 @@ impl<const T: u8>
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
                 connector: Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id(),
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })),
         }
     }
@@ -177,14 +204,10 @@ impl<const T: u8>
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = transformers::DummyConnectorPaymentsRequest::<T>::try_from(req)?;
-        let dummmy_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<transformers::DummyConnectorPaymentsRequest::<T>>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dummmy_payments_request))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = transformers::DummyConnectorPaymentsRequest::<T>::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -202,7 +225,9 @@ impl<const T: u8>
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -337,7 +362,8 @@ impl<const T: u8>
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -419,14 +445,10 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = transformers::DummyConnectorRefundRequest::try_from(req)?;
-        let dummmy_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<transformers::DummyConnectorRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dummmy_refund_request))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = transformers::DummyConnectorRefundRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -441,7 +463,9 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -510,7 +534,6 @@ impl<const T: u8> ConnectorIntegration<api::RSync, types::RefundsData, types::Re
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -559,7 +582,7 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

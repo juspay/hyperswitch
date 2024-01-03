@@ -16,6 +16,7 @@ impl utils::Connector for StaxTest {
             connector: Box::new(&Stax),
             connector_name: types::Connector::Stax,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -69,6 +70,8 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
             ..utils::CCardType::default().0
         }),
         browser_info: None,
+        amount: None,
+        currency: enums::Currency::USD,
     })
 }
 
@@ -477,6 +480,8 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
+                amount: None,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -513,6 +518,8 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
+                amount: None,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -549,6 +556,8 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
+                amount: None,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -617,7 +626,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().reason,
-        Some(r#"{"total":["The total may not be greater than 100."]}"#.to_string()),
+        Some(r#"{"total":["The total may not be greater than 1."]}"#.to_string()),
     );
 }
 

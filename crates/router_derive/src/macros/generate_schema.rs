@@ -42,12 +42,14 @@ pub fn polymorphic_macro_derive_inner(
         let (mandatory_attribute, other_attributes) = field
             .attrs
             .iter()
-            .partition::<Vec<_>, _>(|attribute| attribute.path.is_ident("mandatory_in"));
+            .partition::<Vec<_>, _>(|attribute| attribute.path().is_ident("mandatory_in"));
 
         // Other attributes ( schema ) are to be printed as is
         other_attributes
             .iter()
-            .filter(|attribute| attribute.path.is_ident("schema") || attribute.path.is_ident("doc"))
+            .filter(|attribute| {
+                attribute.path().is_ident("schema") || attribute.path().is_ident("doc")
+            })
             .for_each(|attribute| {
                 // Since attributes will be modified, the field should not contain any attributes
                 // So create a field, with previous attributes removed
@@ -56,7 +58,7 @@ pub fn polymorphic_macro_derive_inner(
 
                 all_fields
                     .entry(field_without_attributes.to_owned())
-                    .or_insert(vec![])
+                    .or_default()
                     .push(attribute.to_owned().to_owned());
             });
 

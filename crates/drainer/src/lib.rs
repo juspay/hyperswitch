@@ -1,17 +1,17 @@
 mod connection;
-pub mod env;
 pub mod errors;
+pub mod logger;
 pub(crate) mod metrics;
 pub mod services;
 pub mod settings;
 mod utils;
 use std::sync::{atomic, Arc};
 
-use common_utils::signals::get_allowed_signals;
+use common_utils::{ext_traits::StringExt, signals::get_allowed_signals};
 use diesel_models::kv;
-pub use env as logger;
 use error_stack::{IntoReport, ResultExt};
-use tokio::sync::mpsc;
+use router_env::{instrument, tracing};
+use tokio::sync::{mpsc, oneshot};
 
 use crate::{connection::pg_connection, services::Store};
 
@@ -23,7 +23,7 @@ pub async fn start_drainer(
     loop_interval: u32,
 ) -> errors::DrainerResult<()> {
     let mut stream_index: u8 = 0;
-    let mut jobs_picked: u8 = 0;
+    let jobs_picked = Arc::new(atomic::AtomicU8::new(0));
 
     let mut shutdown_interval =
         tokio::time::interval(std::time::Duration::from_millis(shutdown_interval.into()));
@@ -37,12 +37,22 @@ pub async fn start_drainer(
                 "Failed while getting allowed signals".to_string(),
             ))?;
 
+    let (redis_error_tx, redis_error_rx) = oneshot::channel();
     let (tx, mut rx) = mpsc::channel(1);
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()));
+
+    let redis_conn_clone = store.redis_conn.clone();
+
+    // Spawn a task to monitor if redis is down or not
+    tokio::spawn(async move { redis_conn_clone.on_error(redis_error_tx).await });
+
+    //Spawns a task to send shutdown signal if redis goes down
+    tokio::spawn(redis_error_receiver(redis_error_rx, tx));
 
     let active_tasks = Arc::new(atomic::AtomicU64::new(0));
     'event: loop {
+        metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
                 if utils::is_stream_available(stream_index, store.clone()).await {
@@ -51,15 +61,15 @@ pub async fn start_drainer(
                         stream_index,
                         max_read_count,
                         active_tasks.clone(),
+                        jobs_picked.clone(),
                     ));
-                    jobs_picked += 1;
                 }
-                (stream_index, jobs_picked) = utils::increment_stream_index(
-                    (stream_index, jobs_picked),
+                stream_index = utils::increment_stream_index(
+                    (stream_index, jobs_picked.clone()),
                     number_of_streams,
-                    &mut loop_interval,
                 )
                 .await;
+                loop_interval.tick().await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::info!("Awaiting shutdown!");
@@ -90,22 +100,46 @@ pub async fn start_drainer(
     Ok(())
 }
 
+pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: mpsc::Sender<()>) {
+    match rx.await {
+        Ok(_) => {
+            logger::error!("The redis server failed ");
+            let _ = shutdown_channel.send(()).await.map_err(|err| {
+                logger::error!("Failed to send signal to the shutdown channel {err}")
+            });
+        }
+        Err(err) => {
+            logger::error!("Channel receiver error{err}");
+        }
+    }
+}
+
+#[router_env::instrument(skip_all)]
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
     max_read_count: u64,
     active_tasks: Arc<atomic::AtomicU64>,
+    jobs_picked: Arc<atomic::AtomicU8>,
 ) -> errors::DrainerResult<()> {
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
-    let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
+
+    let drainer_result = Box::pin(drainer(
+        store.clone(),
+        max_read_count,
+        stream_name.as_str(),
+        jobs_picked,
+    ))
+    .await;
 
     if let Err(error) = drainer_result {
         logger::error!(?error)
     }
 
     let flag_stream_name = utils::get_stream_key_flag(store.clone(), stream_index);
+
     //TODO: USE THE RESULT FOR LOGGING
     let output =
         utils::make_stream_available(flag_stream_name.as_str(), store.redis_conn.as_ref()).await;
@@ -113,14 +147,35 @@ async fn drainer_handler(
     output
 }
 
+#[instrument(skip_all, fields(global_id, request_id, session_id))]
 async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,
     stream_name: &str,
+    jobs_picked: Arc<atomic::AtomicU8>,
 ) -> errors::DrainerResult<()> {
     let stream_read =
-        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
-
+        match utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await
+        {
+            Ok(result) => {
+                jobs_picked.fetch_add(1, atomic::Ordering::SeqCst);
+                result
+            }
+            Err(error) => {
+                if let errors::DrainerError::RedisError(redis_err) = error.current_context() {
+                    if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
+                        redis_err.current_context()
+                    {
+                        metrics::STREAM_EMPTY.add(&metrics::CONTEXT, 1, &[]);
+                        return Ok(());
+                    } else {
+                        return Err(error);
+                    }
+                } else {
+                    return Err(error);
+                }
+            }
+        };
     // parse_stream_entries returns error if no entries is found, handle it
     let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
     let read_count = entries.len();
@@ -134,13 +189,31 @@ async fn drainer(
         }],
     );
 
+    let session_id = common_utils::generate_id_with_default_len("drainer_session");
+
     // TODO: Handle errors when deserialization fails and when DB error occurs
     for entry in entries {
         let typed_sql = entry.1.get("typed_sql").map_or(String::new(), Clone::clone);
-        let result = serde_json::from_str::<kv::DBOperation>(&typed_sql);
+        let request_id = entry
+            .1
+            .get("request_id")
+            .map_or(String::new(), Clone::clone);
+        let global_id = entry.1.get("global_id").map_or(String::new(), Clone::clone);
+        let pushed_at = entry.1.get("pushed_at");
+
+        tracing::Span::current().record("request_id", request_id);
+        tracing::Span::current().record("global_id", global_id);
+        tracing::Span::current().record("session_id", &session_id);
+
+        let result = typed_sql.parse_struct("DBOperation");
+
         let db_op = match result {
             Ok(f) => f,
-            Err(_err) => continue, // TODO: handle error
+            Err(err) => {
+                logger::error!(operation= "deserialization",error = %err);
+                metrics::STREAM_PARSE_FAIL.add(&metrics::CONTEXT, 1, &[]);
+                continue;
+            }
         };
 
         let conn = pg_connection(&store.master_pool).await;
@@ -149,6 +222,8 @@ async fn drainer(
         let payment_intent = "payment_intent";
         let payment_attempt = "payment_attempt";
         let refund = "refund";
+        let reverse_lookup = "reverse_lookup";
+        let address = "address";
         match db_op {
             // TODO: Handle errors
             kv::DBOperation::Insert { insertable } => {
@@ -171,6 +246,16 @@ async fn drainer(
                         kv::Insertable::Refund(a) => {
                             macro_util::handle_resp!(a.insert(&conn).await, insert_op, refund)
                         }
+                        kv::Insertable::Address(addr) => {
+                            macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
+                        }
+                        kv::Insertable::ReverseLookUp(rev) => {
+                            macro_util::handle_resp!(
+                                rev.insert(&conn).await,
+                                insert_op,
+                                reverse_lookup
+                            )
+                        }
                     }
                 })
                 .await;
@@ -182,6 +267,7 @@ async fn drainer(
                         value: insert_op.into(),
                     }],
                 );
+                utils::push_drainer_delay(pushed_at, insert_op.to_string());
             }
             kv::DBOperation::Update { updatable } => {
                 let (_, execution_time) = common_utils::date_time::time_it(|| async {
@@ -207,6 +293,11 @@ async fn drainer(
                                 refund
                             )
                         }
+                        kv::Updateable::AddressUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            address
+                        ),
                     }
                 })
                 .await;
@@ -218,6 +309,7 @@ async fn drainer(
                         value: update_op.into(),
                     }],
                 );
+                utils::push_drainer_delay(pushed_at, update_op.to_string());
             }
             kv::DBOperation::Delete => {
                 // [#224]: Implement this

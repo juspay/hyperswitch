@@ -7,7 +7,7 @@ use diesel::{
 };
 use masking::Secret;
 
-#[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 #[diesel(sql_type = diesel::sql_types::Binary)]
 #[repr(transparent)]
 pub struct Encryption {

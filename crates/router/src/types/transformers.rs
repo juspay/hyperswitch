@@ -1,13 +1,21 @@
-use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
+// use actix_web::HttpMessage;
+use actix_web::http::header::HeaderMap;
+use api_models::{enums as api_enums, gsm as gsm_api_types, payments, routing::ConnectorSelection};
+use common_utils::{
+    consts::X_HS_LATENCY,
+    crypto::Encryptable,
+    ext_traits::{StringExt, ValueExt},
+    pii,
+};
 use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
     core::errors,
-    types::{api as api_types, storage},
+    services::authentication::get_header_value_by_key,
+    types::{api as api_types, api::routing as routing_types, storage},
 };
 
 pub trait ForeignInto<T> {
@@ -76,8 +84,11 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
-            storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::Started
+            storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
+            storage_enums::AttemptStatus::PartialChargedAndChargeable => {
+                Self::PartiallyCapturedAndCapturable
+            }
+            storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
@@ -92,6 +103,46 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure => Self::Failed,
             storage_enums::AttemptStatus::Voided => Self::Cancelled,
+        }
+    }
+}
+
+impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStatus {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        attempt_status: storage_enums::AttemptStatus,
+    ) -> errors::RouterResult<Self> {
+        match attempt_status {
+            storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartialCharged => Ok(Self::Charged),
+            storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
+            storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::CaptureFailed => Ok(Self::Failed),
+
+            storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable=> {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
+                }.into())
+            }
         }
     }
 }
@@ -122,6 +173,96 @@ impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::Manda
     }
 }
 
+impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
+        Ok(match from {
+            api_enums::Connector::Aci => Self::Aci,
+            api_enums::Connector::Adyen => Self::Adyen,
+            api_enums::Connector::Airwallex => Self::Airwallex,
+            api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
+            api_enums::Connector::Bambora => Self::Bambora,
+            api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Bitpay => Self::Bitpay,
+            api_enums::Connector::Bluesnap => Self::Bluesnap,
+            api_enums::Connector::Boku => Self::Boku,
+            api_enums::Connector::Braintree => Self::Braintree,
+            api_enums::Connector::Cashtocode => Self::Cashtocode,
+            api_enums::Connector::Checkout => Self::Checkout,
+            api_enums::Connector::Coinbase => Self::Coinbase,
+            api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::Cybersource => Self::Cybersource,
+            api_enums::Connector::Dlocal => Self::Dlocal,
+            api_enums::Connector::Fiserv => Self::Fiserv,
+            api_enums::Connector::Forte => Self::Forte,
+            api_enums::Connector::Globalpay => Self::Globalpay,
+            api_enums::Connector::Globepay => Self::Globepay,
+            api_enums::Connector::Gocardless => Self::Gocardless,
+            api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::Iatapay => Self::Iatapay,
+            api_enums::Connector::Klarna => Self::Klarna,
+            api_enums::Connector::Mollie => Self::Mollie,
+            api_enums::Connector::Multisafepay => Self::Multisafepay,
+            api_enums::Connector::Nexinets => Self::Nexinets,
+            api_enums::Connector::Nmi => Self::Nmi,
+            api_enums::Connector::Noon => Self::Noon,
+            api_enums::Connector::Nuvei => Self::Nuvei,
+            api_enums::Connector::Opennode => Self::Opennode,
+            api_enums::Connector::Payme => Self::Payme,
+            api_enums::Connector::Paypal => Self::Paypal,
+            api_enums::Connector::Payu => Self::Payu,
+            api_models::enums::Connector::Placetopay => Self::Placetopay,
+            api_enums::Connector::Plaid => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "plaid is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Powertranz => Self::Powertranz,
+            api_enums::Connector::Prophetpay => Self::Prophetpay,
+            api_enums::Connector::Rapyd => Self::Rapyd,
+            api_enums::Connector::Shift4 => Self::Shift4,
+            api_enums::Connector::Signifyd => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "signifyd is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Riskified => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "riskified is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Square => Self::Square,
+            api_enums::Connector::Stax => Self::Stax,
+            api_enums::Connector::Stripe => Self::Stripe,
+            api_enums::Connector::Trustpay => Self::Trustpay,
+            api_enums::Connector::Tsys => Self::Tsys,
+            api_enums::Connector::Volt => Self::Volt,
+            api_enums::Connector::Wise => Self::Wise,
+            api_enums::Connector::Worldline => Self::Worldline,
+            api_enums::Connector::Worldpay => Self::Worldpay,
+            api_enums::Connector::Zen => Self::Zen,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+        })
+    }
+}
+
 impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::MandateAmountData {
     fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
         Self {
@@ -130,6 +271,58 @@ impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::Man
             start_date: from.start_date,
             end_date: from.end_date,
             metadata: from.metadata,
+        }
+    }
+}
+
+// TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
+impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::MandateData {
+    fn foreign_from(d: api_models::payments::MandateData) -> Self {
+        Self {
+            customer_acceptance: d.customer_acceptance.map(|d| {
+                data_models::mandates::CustomerAcceptance {
+                    acceptance_type: match d.acceptance_type {
+                        api_models::payments::AcceptanceType::Online => {
+                            data_models::mandates::AcceptanceType::Online
+                        }
+                        api_models::payments::AcceptanceType::Offline => {
+                            data_models::mandates::AcceptanceType::Offline
+                        }
+                    },
+                    accepted_at: d.accepted_at,
+                    online: d.online.map(|d| data_models::mandates::OnlineMandate {
+                        ip_address: d.ip_address,
+                        user_agent: d.user_agent,
+                    }),
+                }
+            }),
+            mandate_type: d.mandate_type.map(|d| match d {
+                api_models::payments::MandateType::MultiUse(Some(i)) => {
+                    data_models::mandates::MandateDataType::MultiUse(Some(
+                        data_models::mandates::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        },
+                    ))
+                }
+                api_models::payments::MandateType::SingleUse(i) => {
+                    data_models::mandates::MandateDataType::SingleUse(
+                        data_models::mandates::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        },
+                    )
+                }
+                api_models::payments::MandateType::MultiUse(None) => {
+                    data_models::mandates::MandateDataType::MultiUse(None)
+                }
+            }),
         }
     }
 }
@@ -146,19 +339,24 @@ impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::Man
     }
 }
 
-impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
-    type Error = errors::ValidationError;
-
-    fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
+impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: api_enums::IntentStatus) -> Self {
         match value {
-            api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
-            api_enums::IntentStatus::Failed => Ok(Self::PaymentFailed),
-            api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            api_enums::IntentStatus::Succeeded => Some(storage_enums::EventType::PaymentSucceeded),
+            api_enums::IntentStatus::Failed => Some(storage_enums::EventType::PaymentFailed),
+            api_enums::IntentStatus::Processing => {
+                Some(storage_enums::EventType::PaymentProcessing)
+            }
             api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::RequiresCustomerAction => Ok(Self::ActionRequired),
-            _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "intent_status",
-            }),
+            | api_enums::IntentStatus::RequiresCustomerAction => {
+                Some(storage_enums::EventType::ActionRequired)
+            }
+            api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::RequiresPaymentMethod
+            | api_enums::IntentStatus::RequiresConfirmation
+            | api_enums::IntentStatus::RequiresCapture
+            | api_enums::IntentStatus::PartiallyCaptured
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
@@ -204,6 +402,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::OpenBankingUk
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
@@ -225,6 +424,13 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::RedCompra
             | api_enums::PaymentMethodType::Alfamart
             | api_enums::PaymentMethodType::Indomaret
+            | api_enums::PaymentMethodType::Oxxo
+            | api_enums::PaymentMethodType::SevenEleven
+            | api_enums::PaymentMethodType::Lawson
+            | api_enums::PaymentMethodType::MiniStop
+            | api_enums::PaymentMethodType::FamilyMart
+            | api_enums::PaymentMethodType::Seicomart
+            | api_enums::PaymentMethodType::PayEasy
             | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
             api_enums::PaymentMethodType::Pse
             | api_enums::PaymentMethodType::Multibanco
@@ -236,7 +442,13 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::PaySafeCard => Self::GiftCard,
+            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
+                Self::GiftCard
+            }
+            api_enums::PaymentMethodType::Benefit
+            | api_enums::PaymentMethodType::Knet
+            | api_enums::PaymentMethodType::MomoAtm
+            | api_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
         }
     }
 }
@@ -247,17 +459,19 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
         payment_method_data: api_models::payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
-            api_models::payments::PaymentMethodData::Card(..) => Ok(Self::Card),
+            api_models::payments::PaymentMethodData::Card(..)
+            | api_models::payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
             api_models::payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             api_models::payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             api_models::payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
             api_models::payments::PaymentMethodData::BankDebit(..) => Ok(Self::BankDebit),
             api_models::payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             api_models::payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
-            api_models::payments::PaymentMethodData::Reward(..) => Ok(Self::Reward),
+            api_models::payments::PaymentMethodData::Reward => Ok(Self::Reward),
             api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
+            api_models::payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
             api_models::payments::PaymentMethodData::MandatePayment => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
@@ -267,32 +481,38 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
     }
 }
 
-impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
-    type Error = errors::ValidationError;
-
-    fn foreign_try_from(value: storage_enums::RefundStatus) -> Result<Self, Self::Error> {
+impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: storage_enums::RefundStatus) -> Self {
         match value {
-            storage_enums::RefundStatus::Success => Ok(Self::RefundSucceeded),
-            storage_enums::RefundStatus::Failure => Ok(Self::RefundFailed),
-            _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "refund_status",
-            }),
+            storage_enums::RefundStatus::Success => Some(storage_enums::EventType::RefundSucceeded),
+            storage_enums::RefundStatus::Failure => Some(storage_enums::EventType::RefundFailed),
+            api_enums::RefundStatus::ManualReview
+            | api_enums::RefundStatus::Pending
+            | api_enums::RefundStatus::TransactionFailure => None,
         }
     }
 }
 
-impl ForeignTryFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
-    type Error = errors::ValidationError;
-
-    fn foreign_try_from(value: storage_enums::DisputeStatus) -> Result<Self, Self::Error> {
+impl ForeignFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
+    fn foreign_from(value: storage_enums::DisputeStatus) -> Self {
         match value {
-            storage_enums::DisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
-            storage_enums::DisputeStatus::DisputeExpired => Ok(Self::DisputeExpired),
-            storage_enums::DisputeStatus::DisputeAccepted => Ok(Self::DisputeAccepted),
-            storage_enums::DisputeStatus::DisputeCancelled => Ok(Self::DisputeCancelled),
-            storage_enums::DisputeStatus::DisputeChallenged => Ok(Self::DisputeChallenged),
-            storage_enums::DisputeStatus::DisputeWon => Ok(Self::DisputeWon),
-            storage_enums::DisputeStatus::DisputeLost => Ok(Self::DisputeLost),
+            storage_enums::DisputeStatus::DisputeOpened => Self::DisputeOpened,
+            storage_enums::DisputeStatus::DisputeExpired => Self::DisputeExpired,
+            storage_enums::DisputeStatus::DisputeAccepted => Self::DisputeAccepted,
+            storage_enums::DisputeStatus::DisputeCancelled => Self::DisputeCancelled,
+            storage_enums::DisputeStatus::DisputeChallenged => Self::DisputeChallenged,
+            storage_enums::DisputeStatus::DisputeWon => Self::DisputeWon,
+            storage_enums::DisputeStatus::DisputeLost => Self::DisputeLost,
+        }
+    }
+}
+
+impl ForeignFrom<storage_enums::MandateStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: storage_enums::MandateStatus) -> Self {
+        match value {
+            storage_enums::MandateStatus::Active => Some(storage_enums::EventType::MandateActive),
+            storage_enums::MandateStatus::Revoked => Some(storage_enums::EventType::MandateRevoked),
+            storage_enums::MandateStatus::Inactive | storage_enums::MandateStatus::Pending => None,
         }
     }
 }
@@ -313,9 +533,24 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::MandateStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::MandateActive => Ok(Self::Active),
+            api_models::webhooks::IncomingWebhookEvent::MandateRevoked => Ok(Self::Revoked),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
-        let config = config;
         Self {
             key: config.key,
             value: config.config,
@@ -325,16 +560,14 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
-        let config_update = config;
         Self::Update {
-            config: Some(config_update.value.clone()),
+            config: Some(config.value.clone()),
         }
     }
 }
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        let address = address;
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
@@ -459,6 +692,19 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     }
 }
 
+impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationResponse {
+    fn foreign_from(authorization: storage::Authorization) -> Self {
+        Self {
+            authorization_id: authorization.authorization_id,
+            amount: authorization.amount,
+            status: authorization.status,
+            error_code: authorization.error_code,
+            error_message: authorization.error_message,
+            previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaymentsRetrieve {
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
@@ -521,7 +767,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                             field_name: "frm_configs".to_string(),
-                            expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -554,6 +800,10 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
         })
     }
 }
@@ -579,6 +829,27 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
+        }
+    }
+}
+
+impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
+    fn foreign_from(capture: storage::Capture) -> Self {
+        Self {
+            capture_id: capture.capture_id,
+            status: capture.status,
+            amount: capture.amount,
+            currency: capture.currency,
+            connector: capture.connector,
+            authorized_attempt_id: capture.authorized_attempt_id,
+            connector_capture_id: capture.connector_capture_id,
+            capture_sequence: capture.capture_sequence,
+            error_message: capture.error_message,
+            error_code: capture.error_code,
+            error_reason: capture.error_reason,
+            reference_id: capture.connector_response_reference_id,
         }
     }
 }
@@ -611,6 +882,36 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     }
 }
 
+impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+        let payment_confirm_source: Option<api_enums::PaymentSource> =
+            get_header_value_by_key("payment_confirm_source".into(), headers)?
+                .map(|source| {
+                    source
+                        .to_owned()
+                        .parse_enum("PaymentSource")
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Invalid data received in payment_confirm_source header"
+                                .into(),
+                        })
+                        .attach_printable(
+                            "Failed while paring PaymentConfirmSource header value to enum",
+                        )
+                })
+                .transpose()?;
+
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
+            .map(|value| value == Some("true"))
+            .unwrap_or(false);
+
+        Ok(Self {
+            payment_confirm_source,
+            x_hs_latency: Some(x_hs_latency),
+        })
+    }
+}
+
 impl
     ForeignFrom<(
         Option<&storage::PaymentAttempt>,
@@ -638,6 +939,97 @@ impl
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
+        }
+    }
+}
+
+impl ForeignFrom<(storage::PaymentLink, String)>
+    for api_models::payments::RetrievePaymentLinkResponse
+{
+    fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
+        Self {
+            payment_link_id: payment_link_object.payment_link_id,
+            merchant_id: payment_link_object.merchant_id,
+            link_to_pay: payment_link_object.link_to_pay,
+            amount: payment_link_object.amount,
+            created_at: payment_link_object.created_at,
+            link_expiry: payment_link_object.fulfilment_time,
+            description: payment_link_object.description,
+            currency: payment_link_object.currency,
+            status,
+        }
+    }
+}
+
+impl From<domain::Address> for payments::AddressDetails {
+    fn from(addr: domain::Address) -> Self {
+        Self {
+            city: addr.city,
+            country: addr.country,
+            line1: addr.line1.map(Encryptable::into_inner),
+            line2: addr.line2.map(Encryptable::into_inner),
+            line3: addr.line3.map(Encryptable::into_inner),
+            zip: addr.zip.map(Encryptable::into_inner),
+            state: addr.state.map(Encryptable::into_inner),
+            first_name: addr.first_name.map(Encryptable::into_inner),
+            last_name: addr.last_name.map(Encryptable::into_inner),
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
+    fn foreign_from(value: ConnectorSelection) -> Self {
+        match value {
+            ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
+
+            ConnectorSelection::VolumeSplit(splits) => Self::VolumeSplit(splits),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::organization::OrganizationNew>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
+        Self {
+            org_id: item.org_id,
+            org_name: item.org_name,
+        }
+    }
+}
+
+impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+    fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
+        }
+    }
+}
+
+impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+        Self {
+            connector: value.connector.to_string(),
+            flow: value.flow,
+            sub_flow: value.sub_flow,
+            code: value.code,
+            message: value.message,
+            decision: value.decision.to_string(),
+            status: value.status,
+            router_error: value.router_error,
+            step_up_possible: value.step_up_possible,
+            unified_code: value.unified_code,
+            unified_message: value.unified_message,
         }
     }
 }

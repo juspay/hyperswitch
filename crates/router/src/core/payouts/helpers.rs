@@ -1,6 +1,3 @@
-use std::str::FromStr;
-
-use ::cards::CardNumber;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
@@ -9,7 +6,11 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::{cards, vault},
+        payment_methods::{
+            cards, transformers,
+            transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
+            vault,
+        },
         payments::{customers::get_connector_customer_details_if_present, CustomerDetails},
         utils as core_utils,
     },
@@ -27,6 +28,7 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     payout_method_data: Option<&api::PayoutMethodData>,
@@ -35,6 +37,7 @@ pub async fn make_payout_method_data<'a>(
     merchant_id: &str,
     payout_id: &str,
     payout_type: Option<&api_enums::PayoutType>,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
@@ -66,14 +69,16 @@ pub async fn make_payout_method_data<'a>(
     match (payout_method_data.to_owned(), hyperswitch_token) {
         // Get operation
         (None, Some(payout_token)) => {
-            let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
-                state,
-                &payout_token,
-            )
-            .await
-            .attach_printable(
-                "Payout method for given token not found or there was a problem fetching it",
-            )?;
+            let (pm, supplementary_data) =
+                vault::Vault::get_payout_method_data_from_temporary_locker(
+                    state,
+                    &payout_token,
+                    merchant_key_store,
+                )
+                .await
+                .attach_printable(
+                    "Payout method for given token not found or there was a problem fetching it",
+                )?;
             utils::when(
                 supplementary_data
                     .customer_id
@@ -92,6 +97,7 @@ pub async fn make_payout_method_data<'a>(
                 payout_token.to_owned(),
                 payout_method,
                 Some(customer_id.to_owned()),
+                merchant_key_store,
             )
             .await?;
 
@@ -125,21 +131,38 @@ pub async fn save_payout_data_to_locker(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let mut enc_card_data = None;
-    let (card_details, payment_method_type) = match payout_method_data {
-        api_models::payouts::PayoutMethodData::Card(card) => (
-            api::CardDetail {
+    let (locker_req, card_details, payment_method_type) = match payout_method_data {
+        api_models::payouts::PayoutMethodData::Card(card) => {
+            let card_detail = api::CardDetail {
                 card_number: card.card_number.to_owned(),
+                card_holder_name: Some(card.card_holder_name.to_owned()),
                 card_exp_month: card.expiry_month.to_owned(),
                 card_exp_year: card.expiry_year.to_owned(),
-                card_holder_name: Some(card.card_holder_name.to_owned()),
                 nick_name: None,
-            },
-            api_enums::PaymentMethodType::Debit,
-        ),
+            };
+            let payload = StoreLockerReq::LockerCard(StoreCardReq {
+                merchant_id: &merchant_account.merchant_id,
+                merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                card: transformers::Card {
+                    card_number: card.card_number.to_owned(),
+                    name_on_card: Some(card.card_holder_name.to_owned()),
+                    card_exp_month: card.expiry_month.to_owned(),
+                    card_exp_year: card.expiry_year.to_owned(),
+                    card_brand: None,
+                    card_isin: None,
+                    nick_name: None,
+                },
+                requestor_card_reference: None,
+            });
+            (
+                payload,
+                Some(card_detail),
+                api_enums::PaymentMethodType::Debit,
+            )
+        }
         api_models::payouts::PayoutMethodData::Bank(bank) => {
             let key = key_store.key.get_inner().peek();
-            let enc_str = async {
+            let enc_data = async {
                 serde_json::to_value(payout_method_data.to_owned())
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -160,29 +183,24 @@ pub async fn save_payout_data_to_locker(
             .map_or(Err(errors::ApiErrorResponse::InternalServerError), |e| {
                 Ok(hex::encode(e.peek()))
             })?;
-            enc_card_data = Some(enc_str);
+            let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
+                merchant_id: &merchant_account.merchant_id,
+                merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                enc_data,
+            });
             (
-                api::CardDetail {
-                    card_number: CardNumber::from_str("4111111111111111")
-                        .into_report()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to form a sample card number")?,
-                    card_exp_month: "12".to_string().into(),
-                    card_exp_year: "99".to_string().into(),
-                    card_holder_name: None,
-                    nick_name: None,
-                },
+                payload,
+                None,
                 api_enums::PaymentMethodType::foreign_from(bank.to_owned()),
             )
         }
     };
     // Store payout method in locker
-    let stored_resp = cards::call_to_card_hs(
+    let stored_resp = cards::call_to_locker_hs(
         state,
-        &card_details,
-        enc_card_data.as_deref(),
+        &locker_req,
         &payout_attempt.customer_id,
-        merchant_account,
+        api_enums::LockerChoice::Basilisk,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -202,17 +220,36 @@ pub async fn save_payout_data_to_locker(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error updating payouts in saved payout method")?;
 
+    let pm_data = api::payment_methods::PaymentMethodsData::Card(
+        api::payment_methods::CardDetailsPaymentMethod {
+            last4_digits: card_details
+                .as_ref()
+                .map(|c| c.card_number.clone().get_last4()),
+            issuer_country: None,
+            expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+            expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+            nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+            card_holder_name: card_details
+                .as_ref()
+                .and_then(|c| c.card_holder_name.clone()),
+        },
+    );
+
+    let card_details_encrypted =
+        cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await;
+
     // Insert in payment_method table
     let payment_method = api::PaymentMethodCreate {
         payment_method: api_enums::PaymentMethod::foreign_from(payout_method_data.to_owned()),
         payment_method_type: Some(payment_method_type),
         payment_method_issuer: None,
         payment_method_issuer_code: None,
-        card: Some(card_details),
+        card: card_details,
         metadata: None,
         customer_id: Some(payout_attempt.customer_id.to_owned()),
         card_network: None,
     };
+
     cards::create_payment_method(
         db,
         &payment_method,
@@ -220,10 +257,10 @@ pub async fn save_payout_data_to_locker(
         &stored_resp.card_reference,
         &merchant_account.merchant_id,
         None,
+        card_details_encrypted,
+        key_store,
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to save payment method")?;
+    .await?;
 
     Ok(())
 }
@@ -270,6 +307,7 @@ pub async fn get_or_create_customer_details(
                 id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
+                address_id: None,
             };
 
             Ok(Some(

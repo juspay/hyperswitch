@@ -1,6 +1,8 @@
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
+#[cfg(feature = "payouts")]
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
@@ -15,6 +17,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -23,7 +26,7 @@ use crate::{
     utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payments, routes, utils};
+use crate::{core::payments, routes};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
@@ -59,13 +62,6 @@ impl ConnectorCommon for Wise {
     fn id(&self) -> &'static str {
         "wise"
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        wise::WiseAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn get_auth_header(
         &self,
@@ -100,6 +96,8 @@ impl ConnectorCommon for Wise {
                         code: e.code.clone(),
                         message: e.message.clone(),
                         reason: None,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 } else {
                     Ok(types::ErrorResponse {
@@ -107,6 +105,8 @@ impl ConnectorCommon for Wise {
                         code: default_status,
                         message: response.message.unwrap_or_default(),
                         reason: None,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 }
             }
@@ -115,6 +115,8 @@ impl ConnectorCommon for Wise {
                 code: default_status,
                 message: response.message.unwrap_or_default(),
                 reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
             }),
         }
     }
@@ -125,9 +127,10 @@ impl api::PaymentAuthorize for Wise {}
 impl api::PaymentSync for Wise {}
 impl api::PaymentVoid for Wise {}
 impl api::PaymentCapture for Wise {}
-impl api::PreVerify for Wise {}
+impl api::MandateSetup for Wise {}
 impl api::ConnectorAccessToken for Wise {}
 impl api::PaymentToken for Wise {}
+impl ConnectorValidation for Wise {}
 
 impl
     services::ConnectorIntegration<
@@ -149,11 +152,25 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Wise
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Wise".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentSession for Wise {}
@@ -294,6 +311,8 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             code,
             message,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -327,14 +346,10 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoQuote>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WisePayoutQuoteRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WisePayoutQuoteRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(wise_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -347,7 +362,9 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
             .url(&types::PayoutQuoteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutQuoteType::get_headers(self, req, connectors)?)
-            .body(types::PayoutQuoteType::get_request_body(self, req)?)
+            .set_body(types::PayoutQuoteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -402,14 +419,10 @@ impl
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoRecipient>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WiseRecipientCreateRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WiseRecipientCreateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(wise_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -424,7 +437,9 @@ impl
             .headers(types::PayoutRecipientType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutRecipientType::get_request_body(self, req)?)
+            .set_body(types::PayoutRecipientType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -517,14 +532,10 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WisePayoutCreateRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WisePayoutCreateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(wise_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -537,7 +548,9 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCreateType::get_request_body(self, req)?)
+            .set_body(types::PayoutCreateType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -613,14 +626,10 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = wise::WisePayoutFulfillRequest::try_from(req)?;
-        let wise_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<wise::WisePayoutFulfillRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(wise_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -635,7 +644,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .headers(types::PayoutFulfillType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutFulfillType::get_request_body(self, req)?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
 
         Ok(Some(request))
@@ -699,7 +710,7 @@ impl api::IncomingWebhook for Wise {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

@@ -1,0 +1,9 @@
+{
+  "childrenOrder": [
+    "Scenario 1 - Create payment with confirm true",
+    "Scenario 2 - Create payment with confirm false",
+    "Scenario 3 - Create payment without PMD",
+    "Scenario 4 - Void the payment",
+    "Scenario5 - Create paypal wallet"
+  ]
+}

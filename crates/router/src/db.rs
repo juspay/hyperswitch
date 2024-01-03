@@ -1,37 +1,56 @@
 pub mod address;
 pub mod api_keys;
+pub mod authorization;
+pub mod business_profile;
 pub mod cache;
+pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connector_response;
 pub mod customers;
+pub mod dashboard_metadata;
 pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
+pub mod gsm;
+mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
-pub mod payment_attempt;
-pub mod payment_intent;
+pub mod organization;
+pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
-pub mod process_tracker;
-pub mod queue;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod routing_algorithm;
+pub mod user;
+pub mod user_role;
 
-use std::sync::Arc;
+use data_models::payments::{
+    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
+};
+use diesel_models::{
+    fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
+    organization::{Organization, OrganizationNew, OrganizationUpdate},
+};
+use error_stack::ResultExt;
+use masking::PeekInterface;
+use redis_interface::errors::RedisError;
+use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
 
-use futures::lock::Mutex;
-
-use crate::{
-    services::{self, Store},
-    types::storage,
+pub use self::kafka_store::KafkaStore;
+use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
+pub use crate::{
+    errors::CustomResult,
+    services::{
+        kafka::{KafkaError, KafkaProducer, MQResult},
+        Store,
+    },
 };
 
 #[derive(PartialEq, Eq)]
@@ -49,33 +68,44 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
-    + connector_response::ConnectorResponseInterface
+    + capture::CaptureInterface
     + customers::CustomerInterface
+    + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
     + file::FileMetadataInterface
-    + fraud_check::FraudCheckInterface
+    + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
-    + payment_attempt::PaymentAttemptInterface
-    + payment_intent::PaymentIntentInterface
+    + PaymentAttemptInterface
+    + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + scheduler::SchedulerInterface
     + payout_attempt::PayoutAttemptInterface
     + payouts::PayoutsInterface
-    + process_tracker::ProcessTrackerInterface
-    + queue::QueueInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
-    + services::RedisConnInterface
+    + payment_link::PaymentLinkInterface
+    + RedisConnInterface
+    + RequestIdStore
+    + business_profile::BusinessProfileInterface
+    + OrganizationInterface
+    + routing_algorithm::RoutingAlgorithmInterface
+    + gsm::GsmInterface
+    + user::UserInterface
+    + user_role::UserRoleInterface
+    + authorization::AuthorizationInterface
+    + user::sample_data::BatchSampleDataInterface
     + 'static
 {
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -84,7 +114,7 @@ pub trait MasterKeyInterface {
 
 impl MasterKeyInterface for Store {
     fn get_master_key(&self) -> &[u8] {
-        &self.master_key
+        self.master_key().peek()
     }
 }
 
@@ -99,72 +129,47 @@ impl MasterKeyInterface for MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for Store {}
-
-#[derive(Clone)]
-pub struct MockDb {
-    addresses: Arc<Mutex<Vec<storage::Address>>>,
-    configs: Arc<Mutex<Vec<storage::Config>>>,
-    merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
-    merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
-    payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
-    payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
-    payment_methods: Arc<Mutex<Vec<storage::PaymentMethod>>>,
-    customers: Arc<Mutex<Vec<storage::Customer>>>,
-    refunds: Arc<Mutex<Vec<storage::Refund>>>,
-    processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
-    connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
-    redis: Arc<redis_interface::RedisConnectionPool>,
-    api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
-    ephemeral_keys: Arc<Mutex<Vec<storage::EphemeralKey>>>,
-    cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
-    events: Arc<Mutex<Vec<storage::Event>>>,
-    disputes: Arc<Mutex<Vec<storage::Dispute>>>,
-    lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
-    mandates: Arc<Mutex<Vec<storage::Mandate>>>,
-    merchant_key_store: Arc<Mutex<Vec<storage::MerchantKeyStore>>>,
-}
-
-impl MockDb {
-    pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
-        Self {
-            addresses: Default::default(),
-            configs: Default::default(),
-            merchant_accounts: Default::default(),
-            merchant_connector_accounts: Default::default(),
-            payment_attempts: Default::default(),
-            payment_intents: Default::default(),
-            payment_methods: Default::default(),
-            customers: Default::default(),
-            refunds: Default::default(),
-            processes: Default::default(),
-            connector_response: Default::default(),
-            redis: Arc::new(crate::connection::redis_connection(redis).await),
-            api_keys: Default::default(),
-            ephemeral_keys: Default::default(),
-            cards_info: Default::default(),
-            events: Default::default(),
-            disputes: Default::default(),
-            lockers: Default::default(),
-            mandates: Default::default(),
-            merchant_key_store: Default::default(),
-        }
+impl StorageInterface for Store {
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
     }
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for MockDb {}
+impl StorageInterface for MockDb {
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+}
+
+pub trait RequestIdStore {
+    fn add_request_id(&mut self, _request_id: String) {}
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
+}
+
+impl RequestIdStore for MockDb {}
+
+impl RequestIdStore for Store {
+    fn add_request_id(&mut self, request_id: String) {
+        self.request_id = Some(request_id)
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
+    }
+}
 
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
     key: &str,
     type_name: &'static str,
-) -> common_utils::errors::CustomResult<T, redis_interface::errors::RedisError>
+) -> CustomResult<T, RedisError>
 where
     T: serde::de::DeserializeOwned,
 {
     use common_utils::ext_traits::ByteSliceExt;
-    use error_stack::ResultExt;
 
     let bytes = db.get_key(key).await?;
     bytes
@@ -172,15 +177,73 @@ where
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
 }
 
-impl services::RedisConnInterface for MockDb {
-    fn get_redis_conn(
-        &self,
-    ) -> Result<
-        Arc<redis_interface::RedisConnectionPool>,
-        error_stack::Report<redis_interface::errors::RedisError>,
-    > {
-        Ok(self.redis.clone())
+dyn_clone::clone_trait_object!(StorageInterface);
+
+impl RequestIdStore for KafkaStore {
+    fn add_request_id(&mut self, request_id: String) {
+        self.diesel_store.add_request_id(request_id)
     }
 }
 
-dyn_clone::clone_trait_object!(StorageInterface);
+#[async_trait::async_trait]
+impl FraudCheckInterface for KafkaStore {
+    async fn insert_fraud_check_response(
+        &self,
+        new: FraudCheckNew,
+    ) -> CustomResult<FraudCheck, StorageError> {
+        self.diesel_store.insert_fraud_check_response(new).await
+    }
+    async fn update_fraud_check_response_with_attempt_id(
+        &self,
+        fraud_check: FraudCheck,
+        fraud_check_update: FraudCheckUpdate,
+    ) -> CustomResult<FraudCheck, StorageError> {
+        self.diesel_store
+            .update_fraud_check_response_with_attempt_id(fraud_check, fraud_check_update)
+            .await
+    }
+    async fn find_fraud_check_by_payment_id(
+        &self,
+        payment_id: String,
+        merchant_id: String,
+    ) -> CustomResult<FraudCheck, StorageError> {
+        self.diesel_store
+            .find_fraud_check_by_payment_id(payment_id, merchant_id)
+            .await
+    }
+    async fn find_fraud_check_by_payment_id_if_present(
+        &self,
+        payment_id: String,
+        merchant_id: String,
+    ) -> CustomResult<Option<FraudCheck>, StorageError> {
+        self.diesel_store
+            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl OrganizationInterface for KafkaStore {
+    async fn insert_organization(
+        &self,
+        organization: OrganizationNew,
+    ) -> CustomResult<Organization, StorageError> {
+        self.diesel_store.insert_organization(organization).await
+    }
+    async fn find_organization_by_org_id(
+        &self,
+        org_id: &str,
+    ) -> CustomResult<Organization, StorageError> {
+        self.diesel_store.find_organization_by_org_id(org_id).await
+    }
+
+    async fn update_organization_by_org_id(
+        &self,
+        org_id: &str,
+        update: OrganizationUpdate,
+    ) -> CustomResult<Organization, StorageError> {
+        self.diesel_store
+            .update_organization_by_org_id(org_id, update)
+            .await
+    }
+}
