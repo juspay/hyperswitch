@@ -291,8 +291,11 @@ where
     eprintln!("[CONNECTOR_LOGS] 2 {:?}", req.payment_id);
     let thread_id = std::thread::current().id();
     eprintln!("[CONNECTOR_LOGS] 3 thread_id: {:?}", thread_id);
-    logger::debug!(payment_id="test_payment_id");
+    logger::debug!(payment_id_a="test_payment_id");
+    tracing::Span::current().record("payment_id_a", "test_data");
     eprintln!("[CONNECTOR_LOGS] 3.5");
+    logger::debug!(payment_id_a="test_payment_id");
+    eprintln!("[CONNECTOR_LOGS] 3.75");
     logger::debug!(payment_id=?req.payment_id);
     eprintln!("[CONNECTOR_LOGS] 4 {:?}", call_connector_action);
     let mut router_data = req.clone();
