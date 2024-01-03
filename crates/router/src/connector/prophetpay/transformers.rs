@@ -282,7 +282,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 
 fn get_card_token(
     response: Option<types::CompleteAuthorizeRedirectResponse>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> Result<String, errors::ConnectorError> {
     let res = response.ok_or(errors::ConnectorError::MissingRequiredField {
         field_name: "redirect_response",
     })?;
@@ -293,10 +293,18 @@ fn get_card_token(
             let values = param.peek().split('&').collect::<Vec<&str>>();
             for value in values {
                 let pair = value.split('=').collect::<Vec<&str>>();
-                queries.insert(pair[0].to_string(), pair[1].to_string());
+                queries.insert(
+                    pair.first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                    pair.get(1)
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                );
             }
-            queries
+            Ok(queries)
         })
+        .transpose()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
@@ -308,7 +316,6 @@ fn get_card_token(
     Err(errors::ConnectorError::MissingRequiredField {
         field_name: "card_token",
     })
-    .into_report()
 }
 
 #[derive(Debug, Clone, Serialize)]

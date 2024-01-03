@@ -757,23 +757,27 @@ pub enum CardIssuer {
 }
 
 pub trait CardData {
-    fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Secret<String>;
+    ) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_expiry_date_as_yymm(&self) -> Secret<String>;
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl CardData for api::Card {
-    fn get_card_expiry_year_2_digit(&self) -> Secret<String> {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
-        Secret::new(year[year.len() - 2..].to_string())
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -781,14 +785,14 @@ impl CardData for api::Card {
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Secret<String> {
-        let year = self.get_card_expiry_year_2_digit();
-        Secret::new(format!(
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
             "{}{}{}",
             self.card_exp_month.peek().clone(),
             delimiter,
             year.peek()
-        ))
+        )))
     }
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
@@ -815,10 +819,10 @@ impl CardData for api::Card {
         }
         Secret::new(year)
     }
-    fn get_expiry_date_as_yymm(&self) -> Secret<String> {
-        let year = self.get_card_expiry_year_2_digit().expose();
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
-        Secret::new(format!("{year}{month}"))
+        Ok(Secret::new(format!("{year}{month}")))
     }
 }
 

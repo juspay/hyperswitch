@@ -90,7 +90,9 @@ pub fn encrypt(msg: &String, key: &[u8]) -> CustomResult<Vec<u8>, errors::Encryp
 }
 
 pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::EncryptionError> {
-    let nonce_seed = data[0..12]
+    let nonce_seed = data
+        .get(0..12)
+        .ok_or(errors::EncryptionError)?
         .try_into()
         .into_report()
         .change_context(errors::EncryptionError)

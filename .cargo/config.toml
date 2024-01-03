@@ -17,16 +17,17 @@ rustflags = [
     # "-Wmissing_docs",
     "-Wrust_2018_idioms",
     "-Wunused_qualifications",
+    "-Wclippy::index_refutable_slice",
+    "-Wclippy::indexing_slicing",
+    "-Wclippy::match_on_vec_items",
+    "-Wclippy::out_of_bounds_indexing",
     "--cfg",
     "uuid_unstable"
 ]
 
 
 [build]
-rustdocflags = [
-    "--cfg",
-    "uuid_unstable"
-]
+rustdocflags = ["--cfg", "uuid_unstable"]
 
 [alias]
 gen-pg = "generate --path ../../../../connector-template -n"
