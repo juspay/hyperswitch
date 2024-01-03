@@ -2136,9 +2136,7 @@ impl AuthorizationInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl HealthCheckInterface for KafkaStore {
-    async fn health_check_db(
-        &self,
-    ) -> CustomResult<(), errors::HealthCheckDBError> {
+    async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
     }
 
