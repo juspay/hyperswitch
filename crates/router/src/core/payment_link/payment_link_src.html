@@ -630,7 +630,7 @@
 
       @media only screen and (max-width: 1400px) {
         body {
-          overflow: scroll;
+          overflow-y: scroll;
         }
 
         .hyper-checkout {
@@ -772,7 +772,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
     />
   </head>
-  <body>
+  <body class="hide-scrollbar">
     <!-- SVG ICONS -->
     <svg xmlns="http://www.w3.org/2000/svg" display="none">
       <defs>
@@ -944,7 +944,7 @@
         <div></div>
       </div>
     </div>
-    <div class="hyper-checkout">
+    <div class="hyper-checkout hide-scrollbar">
       <div class="main hidden" id="hyper-checkout-status-canvas">
         <div class="hyper-checkout-status-wrap">
           <div id="hyper-checkout-status-header"></div>
@@ -1264,7 +1264,7 @@
             colorBackground: "rgb(255, 255, 255)",
           },
         };
-        hyper = window.Hyper(pub_key);
+        hyper = window.Hyper(pub_key, { isPreloadEnabled: false });
         widgets = hyper.widgets({
           appearance: appearance,
           clientSecret: client_secret,
