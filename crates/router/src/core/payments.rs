@@ -2174,7 +2174,6 @@ pub async fn apply_filters_on_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
         .into_iter()
-        .map(|(pi, pa)| (pi, pa))
         .collect();
 
     let data: Vec<api::PaymentsResponse> =

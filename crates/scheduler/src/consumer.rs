@@ -40,9 +40,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     use rand::distributions::{Distribution, Uniform};
 
     let mut rng = rand::thread_rng();
-    let timeout = Uniform::try_from(0..=settings.loop_interval)
-        .into_report()
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?;
+    let timeout = Uniform::from(0..=settings.loop_interval);
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
     let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
