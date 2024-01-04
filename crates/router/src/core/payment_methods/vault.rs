@@ -1059,7 +1059,7 @@ pub async fn retry_delete_tokenize(
 
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
-    keys: &settings::ActiveKmsSecrets,
+    keys: &settings::ActiveAwsKmsSecrets,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
     let keys = keys.jwekey.peek();
     let key_id = get_key_id(keys);

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
-#[cfg(feature = "kms")]
-use external_services::kms;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
@@ -11,9 +11,9 @@ use serde::Deserialize;
 
 use crate::errors;
 
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
+#[cfg(feature = "aws_kms")]
+pub type Password = aws_kms::AwsKmsValue;
+#[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
@@ -32,8 +32,8 @@ pub struct Settings {
     pub redis: redis::RedisSettings,
     pub log: Log,
     pub drainer: DrainerSettings,
-    #[cfg(feature = "kms")]
-    pub kms: kms::KmsConfig,
+    #[cfg(feature = "aws_kms")]
+    pub aws_kms: aws_kms::AwsKmsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]

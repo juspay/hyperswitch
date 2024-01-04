@@ -17,8 +17,8 @@ pub async fn retrieve_forex(
             state.conf.forex_api.call_delay,
             state.conf.forex_api.local_fetch_retry_delay,
             state.conf.forex_api.local_fetch_retry_count,
-            #[cfg(feature = "kms")]
-            &state.conf.kms,
+            #[cfg(feature = "aws_kms")]
+            &state.conf.aws_kms,
         )
         .await
         .change_context(ApiErrorResponse::GenericNotFoundError {
@@ -42,8 +42,8 @@ pub async fn convert_forex(
             amount,
             to_currency,
             from_currency,
-            #[cfg(feature = "kms")]
-            &state.conf.kms,
+            #[cfg(feature = "aws_kms")]
+            &state.conf.aws_kms,
         ))
         .await
         .change_context(ApiErrorResponse::InternalServerError)?,

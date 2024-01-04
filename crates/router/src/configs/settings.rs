@@ -9,10 +9,10 @@ use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-#[cfg(feature = "kms")]
-use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -27,9 +27,9 @@ use crate::{
     env::{self, logger, Env},
     events::EventsConfig,
 };
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
+#[cfg(feature = "aws_kms")]
+pub type Password = aws_kms::AwsKmsValue;
+#[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
@@ -51,13 +51,13 @@ pub enum Subcommand {
     GenerateOpenapiSpec,
 }
 
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
+#[cfg(feature = "aws_kms")]
+/// Store the decrypted aws kms secret values for active use in the application
 /// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
 /// allocations.
 /// note: we can consider adding such behaviour in the future with custom implementation
 #[derive(Clone)]
-pub struct ActiveKmsSecrets {
+pub struct ActiveAwsKmsSecrets {
     pub jwekey: masking::Secret<Jwekey>,
 }
 
@@ -86,8 +86,8 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
-    #[cfg(feature = "kms")]
-    pub kms: kms::KmsConfig,
+    #[cfg(feature = "aws_kms")]
+    pub aws_kms: aws_kms::AwsKmsConfig,
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
@@ -458,19 +458,19 @@ where
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub jwt_secret: String,
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub admin_api_key: String,
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub aws_kms_encrypted_jwt_secret: aws_kms::AwsKmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub aws_kms_encrypted_admin_api_key: aws_kms::AwsKmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub aws_kms_encrypted_recon_admin_api_key: aws_kms::AwsKmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -545,7 +545,7 @@ pub struct Database {
     pub max_lifetime: Option<u64>,
 }
 
-#[cfg(not(feature = "kms"))]
+#[cfg(not(feature = "aws_kms"))]
 impl From<Database> for storage_impl::config::Database {
     fn from(val: Database) -> Self {
         Self {
@@ -698,14 +698,14 @@ pub struct WebhookIgnoreErrorSettings {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ApiKeys {
-    /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
+    /// Base64-encoded (AWS KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: kms::KmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub aws_kms_encrypted_hash_key: aws_kms::AwsKmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub hash_key: String,
 
     // Specifies the number of days before API key expiry when email reminders should be sent
@@ -841,8 +841,8 @@ impl Settings {
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
         self.api_keys.validate()?;
-        #[cfg(feature = "kms")]
-        self.kms
+        #[cfg(feature = "aws_kms")]
+        self.aws_kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
         #[cfg(feature = "s3")]

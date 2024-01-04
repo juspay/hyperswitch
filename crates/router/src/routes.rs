@@ -33,7 +33,7 @@ pub mod routing;
 pub mod user;
 #[cfg(feature = "olap")]
 pub mod user_role;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
@@ -50,7 +50,7 @@ pub use self::app::Forex;
 pub use self::app::Payouts;
 #[cfg(feature = "olap")]
 pub use self::app::Routing;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
