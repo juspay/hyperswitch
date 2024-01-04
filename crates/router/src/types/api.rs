@@ -76,8 +76,8 @@ pub struct MandateRevoke;
 pub trait ConnectorMandateRevoke:
     ConnectorIntegration<
     MandateRevoke,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
+    types::MandateRevokeRequestData,
+    types::MandateRevokeResponseData,
 >
 {
 }
@@ -170,7 +170,7 @@ pub trait Connector:
     + ConnectorTransactionId
     + Payouts
     + ConnectorVerifyWebhookSource
-    + FraudCheck
+    + FraudCheck //  + ConnectorMandateRevoke
 {
 }
 
@@ -191,7 +191,7 @@ impl<
             + ConnectorTransactionId
             + Payouts
             + ConnectorVerifyWebhookSource
-            + FraudCheck,
+            + FraudCheck, // + ConnectorMandateRevoke,
     > Connector for T
 {
 }

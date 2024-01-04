@@ -2200,7 +2200,7 @@ default_imp_for_incremental_authorization!(
 
 macro_rules! default_imp_for_revoking_mandates {
     ($($path:ident::$connector:ident),*) => {
-        $(
+        $( impl api::ConnectorMandateRevoke for $path::$connector {}
             impl
             services::ConnectorIntegration<
             api::MandateRevoke,

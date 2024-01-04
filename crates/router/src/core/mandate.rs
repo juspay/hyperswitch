@@ -90,28 +90,24 @@ pub async fn revoke_mandate(
     )
     .await;
 
-    match response {
-        Ok(_) => {
-            let update_mandate = db
-                .update_mandate_by_merchant_id_mandate_id(
-                    &merchant_account.merchant_id,
-                    &req.mandate_id,
-                    storage::MandateUpdate::StatusUpdate {
-                        mandate_status: storage::enums::MandateStatus::Revoked,
-                    },
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "Failed to construct the Mandate Revocation RouterData".to_string(),
-                })?;
+    let update_mandate = db
+        .update_mandate_by_merchant_id_mandate_id(
+            &merchant_account.merchant_id,
+            &req.mandate_id,
+            storage::MandateUpdate::StatusUpdate {
+                mandate_status: storage::enums::MandateStatus::Revoked,
+            },
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
-            Ok(services::ApplicationResponse::Json(
-                mandates::MandateRevokedResponse {
-                    mandate_id: update_mandate.mandate_id,
-                    status: update_mandate.mandate_status,
-                },
-            ))
-        }
+    match response {
+        Ok(_) => Ok(services::ApplicationResponse::Json(
+            mandates::MandateRevokedResponse {
+                mandate_id: update_mandate.mandate_id,
+                status: update_mandate.mandate_status,
+            },
+        )),
         Err(err) => Err(
             err.change_context(errors::ApiErrorResponse::MandateValidationFailed {
                 reason: "Failed to revoke the mandate from connector's end".to_string(),

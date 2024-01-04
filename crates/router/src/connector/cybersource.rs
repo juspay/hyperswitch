@@ -261,6 +261,7 @@ impl api::PaymentIncrementalAuthorization for Cybersource {}
 impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
+impl api::ConnectorMandateRevoke for Cybersource {}
 
 impl
     ConnectorIntegration<
