@@ -1059,7 +1059,7 @@ pub async fn retry_delete_tokenize(
 
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
-    keys: &settings::ActiveKmsSecrets,
+    keys: &settings::ActiveAwsKmsSecrets,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
     let keys = keys.jwekey.peek();
     let key_id = get_key_id(keys);
@@ -1093,7 +1093,7 @@ pub async fn old_create_tokenize(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
+    let (public_key, private_key) = get_locker_jwe_keys(&state.aws_kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -1170,7 +1170,7 @@ pub async fn old_get_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
+    let (public_key, private_key) = get_locker_jwe_keys(&state.aws_kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -1249,7 +1249,7 @@ pub async fn old_delete_tokenized_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error serializing api::DeleteTokenizeByTokenRequest")?;
 
-    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.aws_kms_secrets.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;

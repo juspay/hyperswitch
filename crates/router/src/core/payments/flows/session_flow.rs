@@ -2,8 +2,8 @@ use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, Report, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -177,17 +177,18 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
-                    #[cfg(feature = "kms")]
-                    let decrypted_apple_pay_merchant_cert = kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant certificate decryption failed")?;
+                    #[cfg(feature = "aws_kms")]
+                    let decrypted_apple_pay_merchant_cert =
+                        aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+                            .await
+                            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Apple pay merchant certificate decryption failed")?;
 
-                    #[cfg(feature = "kms")]
+                    #[cfg(feature = "aws_kms")]
                     let decrypted_apple_pay_merchant_cert_key =
-                        kms::get_kms_client(&state.conf.kms)
+                        aws_kms::get_aws_kms_client(&state.conf.aws_kms)
                             .await
                             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key)
                             .await
@@ -196,20 +197,21 @@ async fn create_applepay_session_token(
                                 "Apple pay merchant certificate key decryption failed",
                             )?;
 
-                    #[cfg(feature = "kms")]
-                    let decrypted_merchant_identifier = kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(
-                            &state
-                                .conf
-                                .applepay_merchant_configs
-                                .common_merchant_identifier,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant identifier decryption failed")?;
+                    #[cfg(feature = "aws_kms")]
+                    let decrypted_merchant_identifier =
+                        aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+                            .await
+                            .decrypt(
+                                &state
+                                    .conf
+                                    .applepay_merchant_configs
+                                    .common_merchant_identifier,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Apple pay merchant identifier decryption failed")?;
 
-                    #[cfg(not(feature = "kms"))]
+                    #[cfg(not(feature = "aws_kms"))]
                     let decrypted_merchant_identifier = &state
                         .conf
                         .applepay_merchant_configs
@@ -220,11 +222,11 @@ async fn create_applepay_session_token(
                         session_token_data,
                     );
 
-                    #[cfg(not(feature = "kms"))]
+                    #[cfg(not(feature = "aws_kms"))]
                     let decrypted_apple_pay_merchant_cert =
                         &state.conf.applepay_decrypt_keys.apple_pay_merchant_cert;
 
-                    #[cfg(not(feature = "kms"))]
+                    #[cfg(not(feature = "aws_kms"))]
                     let decrypted_apple_pay_merchant_cert_key =
                         &state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key;
 
