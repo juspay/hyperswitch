@@ -492,13 +492,7 @@ where
             } else {
                 let mut next_action_response = None;
 
-                // let bank_transfer_next_steps =
-                //     bank_transfer_next_steps_check(payment_attempt.clone())?;
-
                 let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
-
-                // let next_action_containing_qr_code_url =
-                //     qr_code_next_steps_check(payment_attempt.clone())?;
 
                 let next_action_other_than_redirection =
                     other_next_action_check(payment_attempt.to_owned())?;
@@ -509,7 +503,6 @@ where
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || next_action_other_than_redirection.is_some()
                     || next_action_voucher.is_some()
-                    // || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = next_action_other_than_redirection
@@ -545,11 +538,6 @@ where
                                             }
                                         }
                                     }
-                                    // api_models::payments::NextActionData::QrCodeInformation {
-                                    //        image_data_url,
-                                    //        display_to_timestamp,
-                                    //        qr_code_url,
-                                    //    }
                                },
                                })
                         .or(next_action_voucher.map(|voucher_data| {
@@ -557,12 +545,6 @@ where
                                 voucher_details: voucher_data,
                             }
                         }))
-                        // .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                        //     api_models::payments::NextActionData::QrCodeInformation {
-                        //         image_data_url: qr_code_data.image_data_url,
-                        //         display_to_timestamp: qr_code_data.display_to_timestamp,
-                        //     }
-                        // }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
                                 display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -928,29 +910,6 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
         }
     }
 }
-
-// pub fn bank_transfer_next_steps_check(
-//     payment_attempt: storage::PaymentAttempt,
-// ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
-//     let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
-//         payment_attempt.payment_method
-//     {
-//         let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
-//             payment_attempt
-//                 .connector_metadata
-//                 .map(|metadata| {
-//                     metadata
-//                         .parse_value("NextStepsRequirements")
-//                         .change_context(errors::ApiErrorResponse::InternalServerError)
-//                         .attach_printable("Failed to parse the Value to NextRequirements struct")
-//                 })
-//                 .transpose()?;
-//         bank_transfer_next_steps
-//     } else {
-//         None
-//     };
-//     Ok(bank_transfer_next_step)
-// }
 
 pub fn voucher_next_steps_check(
     payment_attempt: storage::PaymentAttempt,

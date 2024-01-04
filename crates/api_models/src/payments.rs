@@ -1904,11 +1904,7 @@ pub enum NextActionFromConnectorMetaData {
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
-    QrCodeInformation(QrCodeInformation), // QrCodeInformation {
-                                          //     image_data_url: Url,
-                                          //     display_to_timestamp: Option<i64>,
-                                          //     qr_code_url: Option<Url>,
-                                          // },
+    QrCodeInformation(QrCodeInformation),
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

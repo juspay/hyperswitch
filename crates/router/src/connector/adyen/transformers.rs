@@ -613,11 +613,6 @@ pub struct BancontactCardData {
     holder_name: Secret<String>,
 }
 
-// #[derive(Debug, Clone, Serialize)]
-// pub struct MobilePayData {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MbwayData {
@@ -646,11 +641,6 @@ pub struct PayBrightData {
     payment_type: PaymentType,
 }
 
-// #[derive(Debug, Clone, Serialize)]
-// pub struct OnlineBankingFinlandData {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
 #[derive(Debug, Clone, Serialize)]
 pub struct OnlineBankingCzechRepublicData {
     #[serde(rename = "type")]
@@ -1033,13 +1023,6 @@ pub struct BlikRedirectionData {
     blik_code: String,
 }
 
-// #[derive(Debug, Clone, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct BankRedirectionPMData {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankRedirectionWithIssuer<'a> {
@@ -1098,23 +1081,6 @@ pub enum CancelStatus {
     #[default]
     Processing,
 }
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct AdyenPaypal {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct AliPayData {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct AliPayHkData {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoPayData {}
@@ -1145,12 +1111,6 @@ pub struct AdyenApplePay {
     #[serde(rename = "applePayToken")]
     apple_pay_token: Secret<String>,
 }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct AdyenPayLaterData {
-//     #[serde(rename = "type")]
-//     payment_type: PaymentType,
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
