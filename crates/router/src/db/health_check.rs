@@ -116,9 +116,7 @@ impl HealthCheckInterface for Store {
             services::call_connector_api(state, request)
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
-                .map(|resp| resp.status_code)
-                .map_err(|err| err.status_code)
-                .unwrap_or_else(|code| code);
+                .ok();
         }
 
         logger::debug!("Locker call was successful");
