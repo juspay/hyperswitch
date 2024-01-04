@@ -2,7 +2,6 @@ use std::str;
 
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::{jwe, jws};
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
