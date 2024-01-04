@@ -2320,7 +2320,7 @@ impl<F, T>
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
             // three_ds_form,
-            response: if status == enums::AttemptStatus::Failure {
+            response: if connector_util::is_payment_failure(status) {
                 build_error_response(
                     &item.response.last_payment_error,
                     item.http_code,
@@ -2471,7 +2471,7 @@ impl<F, T>
 
         let status = enums::AttemptStatus::from(item.response.status.to_owned());
 
-        let response = if status == enums::AttemptStatus::Failure {
+        let response = if connector_util::is_payment_failure(status) {
             build_last_payment_error_response(
                 &item.response.last_payment_error,
                 item.http_code,
@@ -2520,7 +2520,7 @@ impl<F, T>
 
         Ok(Self {
             status,
-            response: if status == enums::AttemptStatus::Failure {
+            response: if connector_util::is_payment_failure(status) {
                 build_error_response(
                     &item.response.last_setup_error,
                     item.http_code,
@@ -2760,8 +2760,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: if (refund_status == enums::RefundStatus::TransactionFailure)
-                || (refund_status == enums::RefundStatus::Failure)
+            response: if connector_util::is_refund_failure(refund_status)
             {
                 Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -2795,8 +2794,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: if (refund_status == enums::RefundStatus::TransactionFailure)
-                || (refund_status == enums::RefundStatus::Failure)
+            response: if connector_util::is_refund_failure(refund_status)
             {
                 Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -3108,7 +3106,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
             )
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let status = enums::AttemptStatus::from(item.response.status);
-        if status == enums::AttemptStatus::Failure {
+        if connector_util::is_payment_failure(status) {
             Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: item
@@ -3130,7 +3128,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
         } else {
             Ok(Self {
                 status,
-                response: if status == enums::AttemptStatus::Failure {
+                response: if connector_util::is_payment_failure(status) {
                     Err(types::ErrorResponse {
                         code: item
                             .response

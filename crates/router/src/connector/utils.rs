@@ -1810,3 +1810,14 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
     }
 }
+
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
