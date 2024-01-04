@@ -6,7 +6,9 @@ use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    connector::utils::{
+        self, is_payment_failure, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
@@ -276,7 +278,7 @@ fn get_iatpay_response(
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.status);
-    let error = if status == enums::AttemptStatus::Failure {
+    let error = if is_payment_failure(status) {
         Some(types::ErrorResponse {
             code: response
                 .failure_code

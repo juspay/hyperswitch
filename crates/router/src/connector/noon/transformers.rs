@@ -491,6 +491,8 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let order = item.response.result.order;
+        let status = enums::AttemptStatus::foreign_from((order.status, item.data.status));
         let redirection_data = item.response.result.checkout_data.map(|redirection_data| {
             services::RedirectForm::Form {
                 endpoint: redirection_data.post_url.to_string(),
@@ -506,17 +508,16 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier),
                     payment_method_id: None,
                 });
-        let order = item.response.result.order;
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((order.status, item.data.status)),
+            status,
             response: match order.error_message {
                 Some(error_message) => Err(ErrorResponse {
                     code: order.error_code.to_string(),
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
+                    attempt_status: Some(status),
+                    connector_transaction_id: order.reference.or(Some(order.id.to_string())),
                 }),
                 _ => {
                     let connector_response_reference_id =
