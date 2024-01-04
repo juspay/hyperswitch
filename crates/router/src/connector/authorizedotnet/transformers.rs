@@ -1030,7 +1030,7 @@ fn get_err_response(
 ) -> Result<types::ErrorResponse, errors::ConnectorError> {
     let response_message = message
         .message
-        .get(0)
+        .first()
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
     Ok(types::ErrorResponse {
         code: response_message.code.clone(),

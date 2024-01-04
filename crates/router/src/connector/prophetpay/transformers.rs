@@ -282,7 +282,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 
 fn get_card_token(
     response: Option<types::CompleteAuthorizeRedirectResponse>,
-) -> Result<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::ConnectorError> {
     let res = response.ok_or(errors::ConnectorError::MissingRequiredField {
         field_name: "redirect_response",
     })?;
@@ -304,7 +304,8 @@ fn get_card_token(
             }
             Ok(queries)
         })
-        .transpose()?
+        .transpose()
+        .into_report()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
@@ -315,7 +316,8 @@ fn get_card_token(
 
     Err(errors::ConnectorError::MissingRequiredField {
         field_name: "card_token",
-    })
+    }
+    .into())
 }
 
 #[derive(Debug, Clone, Serialize)]

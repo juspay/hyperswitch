@@ -814,11 +814,11 @@ pub fn should_ignore_test(name: &str) -> bool {
     let modules: Vec<_> = name.split("::").collect();
     let file_match = format!(
         "{}::*",
-        <&str>::clone(modules.get(1).expect("Error fetching filed module"))
+        <&str>::clone(modules.get(1).expect("Error obtaining module path segment"))
     );
     let module_name = modules
         .get(1..3)
-        .expect("Error fetching filed module name")
+        .expect("Error obtaining module path segment")
         .join("::");
     // Ignore if it matches patterns like nuvei_ui::*, nuvei_ui::should_make_nuvei_eps_payment_test
     tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)

@@ -48,7 +48,7 @@ where
             write!(f, "{}{}", "*".repeat(val_str.len() - 4), val_str)
         } else {
             #[cfg(feature = "logs")]
-            logger::info!("Invalid PhoneNumberStrategy {:?}", val_str);
+            logger::error!("Invalid phone number: {val_str}");
             WithType::fmt(val, f)
         }
     }
@@ -194,6 +194,7 @@ where
             )
         } else {
             #[cfg(feature = "logs")]
+            logger::error!("Invalid client secret: {val_str}");
             logger::info!("Invalid ClientSecret {:?}", client_secret_segments);
             WithType::fmt(val, f)
         }
@@ -342,7 +343,7 @@ where
             write!(f, "{}.**.**.**", segments)
         } else {
             #[cfg(feature = "logs")]
-            logger::info!("Invalid IpAddress {:?}", segments);
+            logger::error!("Invalid IP address: {val_str}");
             WithType::fmt(val, f)
         }
     }

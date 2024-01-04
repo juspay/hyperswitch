@@ -906,7 +906,7 @@ fn get_error_response(
             let message = &response
                 .messages
                 .message
-                .get(0)
+                .first()
                 .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                 .text;
             Ok(types::ErrorResponse {

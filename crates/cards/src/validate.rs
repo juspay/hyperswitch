@@ -89,7 +89,7 @@ where
         if let Some(value) = val_str.get(..6) {
             write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
         } else {
-            logger::info!("Invalid card number {:?}", val_str);
+            logger::error!("Invalid card number {val_str}");
             WithType::fmt(val, f)
         }
     }
