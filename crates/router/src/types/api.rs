@@ -170,7 +170,8 @@ pub trait Connector:
     + ConnectorTransactionId
     + Payouts
     + ConnectorVerifyWebhookSource
-    + FraudCheck //  + ConnectorMandateRevoke
+    + FraudCheck
+    + ConnectorMandateRevoke
 {
 }
 
@@ -191,7 +192,8 @@ impl<
             + ConnectorTransactionId
             + Payouts
             + ConnectorVerifyWebhookSource
-            + FraudCheck, // + ConnectorMandateRevoke,
+            + FraudCheck
+            + ConnectorMandateRevoke,
     > Connector for T
 {
 }

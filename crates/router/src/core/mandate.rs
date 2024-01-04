@@ -2,6 +2,7 @@ pub mod utils;
 
 use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
+
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -50,7 +51,7 @@ pub async fn get_mandate(
 pub async fn revoke_mandate(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    merchant_connector_account: domain::MerchantConnectorAccount,
+    key_store: domain::MerchantKeyStore,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let db = state.store.as_ref();
@@ -58,12 +59,44 @@ pub async fn revoke_mandate(
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+    let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
+        let pi = db
+            .find_payment_intent_by_payment_id_merchant_id(
+                payment_id,
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let profile_id =
+            pi.profile_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    id: pi
+                        .profile_id
+                        .unwrap_or_else(|| "Profile id is Null".to_string()),
+                })?;
+        Ok(profile_id)
+    } else {
+        Err(errors::ApiErrorResponse::PaymentNotFound)
+    };
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        &state,
+        &merchant_account.merchant_id,
+        None,
+        &key_store,
+        &profile_id?,
+        &mandate.connector,
+        mandate.merchant_connector_id.as_ref(),
+    )
+    .await?;
 
     let connector_data = ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &mandate.connector,
         GetToken::Connector,
-        mandate.merchant_connector_id,
+        mandate.merchant_connector_id.clone(),
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -73,11 +106,11 @@ pub async fn revoke_mandate(
     > = connector_data.connector.get_connector_integration();
 
     let router_data = utils::construct_mandate_revoke_router_data(
-        &mandate.connector,
-        req,
+        mandate.connector.as_ref(),
+        req.clone(),
         merchant_connector_account,
-        merchant_account,
-        mandate,
+        &merchant_account,
+        mandate.clone(),
     )
     .await?;
 

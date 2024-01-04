@@ -2212,6 +2212,17 @@ macro_rules! default_imp_for_revoking_mandates {
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorMandateRevoke for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::MandateRevoke,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    > for connector::DummyConnector<T>
+{
+}
 default_imp_for_revoking_mandates!(
     connector::Aci,
     connector::Adyen,
