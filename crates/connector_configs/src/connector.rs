@@ -10,13 +10,23 @@ use toml;
 use crate::common_config::{CardProvider, GooglePayData, Provider, ZenApplePay};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Classic {
+    pub password_classic: String,
+    pub username_classic: String,
+    pub merchant_id_classic: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Evoucher {
+    pub password_evoucher: String,
+    pub username_evoucher: String,
+    pub merchant_id_evoucher: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CurrencyAuthKeyType {
-    pub password_classic: Option<String>,
-    pub username_classic: Option<String>,
-    pub merchant_id_classic: Option<String>,
-    pub password_evoucher: Option<String>,
-    pub username_evoucher: Option<String>,
-    pub merchant_id_evoucher: Option<String>,
+    pub classic: Classic,
+    pub evoucher: Evoucher,
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
