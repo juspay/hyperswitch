@@ -186,14 +186,28 @@ pub async fn insert_to_blocklist_lookup_db(
                         return Err(StorageError::EncryptionError.into());
                     }
                     let card_bin = &pm_hash[..6];
-                    duplicate_check_insert_bin(card_bin, state, merchant_id.clone(), merchant_secret.clone(), pm_type.clone()).await
+                    duplicate_check_insert_bin(
+                        card_bin,
+                        state,
+                        merchant_id.clone(),
+                        merchant_secret.clone(),
+                        pm_type.clone(),
+                    )
+                    .await
                 }
                 "extended_cardbin" => {
                     if pm_hash.len() < 8 {
                         return Err(StorageError::EncryptionError.into());
                     }
                     let extended_bin = &pm_hash[..8];
-                    duplicate_check_insert_bin(extended_bin, state, merchant_id.clone(), merchant_secret.clone(), pm_type.clone()).await
+                    duplicate_check_insert_bin(
+                        extended_bin,
+                        state,
+                        merchant_id.clone(),
+                        merchant_secret.clone(),
+                        pm_type.clone(),
+                    )
+                    .await
                 }
                 _ => {
                     // For fingerprint we are getting the fingerprint id already
@@ -266,23 +280,16 @@ pub async fn insert_to_blocklist_lookup_db(
     });
 
     if all_requested_fingerprints_blocked {
-        let response  = match pm_type {
-            "cardbin" => {
-                blacklist_pm::BlacklistPmResponse {
-                    blocked: blacklist_pm::BlocklistType::Cardbin(fingerprints_blocked),
-                }
+        let response = match pm_type {
+            "cardbin" => blacklist_pm::BlacklistPmResponse {
+                blocked: blacklist_pm::BlocklistType::Cardbin(fingerprints_blocked),
             },
-            "extended_cardbin" =>{
-                blacklist_pm::BlacklistPmResponse {
-                    blocked: blacklist_pm::BlocklistType::ExtendedCardbin(fingerprints_blocked),
-                }
+            "extended_cardbin" => blacklist_pm::BlacklistPmResponse {
+                blocked: blacklist_pm::BlocklistType::ExtendedCardbin(fingerprints_blocked),
             },
-            _ => {
-
-                blacklist_pm::BlacklistPmResponse {
-                    blocked: blacklist_pm::BlocklistType::Fingerprint(fingerprints_blocked),
-                }
-            }
+            _ => blacklist_pm::BlacklistPmResponse {
+                blocked: blacklist_pm::BlocklistType::Fingerprint(fingerprints_blocked),
+            },
         };
         Ok(response)
     } else {
@@ -310,7 +317,7 @@ async fn duplicate_check_insert_bin(
     merchant_id: String,
     merchant_secret: String,
     pm_type: &str,
-)-> CustomResult<pm_blocklist::PmBlocklist, StorageError> {
+) -> CustomResult<pm_blocklist::PmBlocklist, StorageError> {
     let hashed_bin = crypto::HmacSha512::sign_message(
         &crypto::HmacSha512,
         merchant_secret.clone().as_bytes(),
@@ -341,12 +348,10 @@ async fn duplicate_check_insert_bin(
         // TODO KMS encrypt the encoded hash and then store
         let fingerprint_id = state
             .store
-            .insert_pm_fingerprint_entry(
-                diesel_models::pm_fingerprint::PmFingerprintNew {
-                    fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
-                    kms_hash: encoded_hash.clone(),
-                },
-            )
+            .insert_pm_fingerprint_entry(diesel_models::pm_fingerprint::PmFingerprintNew {
+                fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
+                kms_hash: encoded_hash.clone(),
+            })
             .await
             .change_context(errors::StorageError::ValueNotFound(
                 bin.to_string().clone().to_string(),
@@ -354,12 +359,10 @@ async fn duplicate_check_insert_bin(
             .fingerprint_id;
         let _ = state
             .store
-            .insert_blocklist_lookup_entry(
-                diesel_models::blocklist_lookup::BlocklistLookupNew {
-                    merchant_id: merchant_id.clone(),
-                    kms_decrypted_hash: encoded_hash.clone(),
-                },
-            )
+            .insert_blocklist_lookup_entry(diesel_models::blocklist_lookup::BlocklistLookupNew {
+                merchant_id: merchant_id.clone(),
+                kms_decrypted_hash: encoded_hash.clone(),
+            })
             .await;
 
         state
@@ -373,4 +376,3 @@ async fn duplicate_check_insert_bin(
             .await
     }
 }
-

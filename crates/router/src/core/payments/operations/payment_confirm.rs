@@ -12,7 +12,7 @@ use error_stack::{report, IntoReport, ResultExt};
 // use external_services::kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing, logger};
+use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -750,11 +750,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("error in pm fingerprint creation")
-                    .map_or_else(|err| {
-                           logger::error!(error=?err);
-                           None
+                    .map_or_else(
+                        |err| {
+                            logger::error!(error=?err);
+                            None
                         },
-                            Some)
+                        Some,
+                    )
                 }
                 _ => None,
             });
@@ -772,16 +774,18 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("error in card bin hash creation")
-                    .map_or_else(|err| {
-                           logger::error!(error=?err);
-                           None
+                    .map_or_else(
+                        |err| {
+                            logger::error!(error=?err);
+                            None
                         },
-                            Some)
+                        Some,
+                    )
                 }
                 _ => None,
             });
 
-        // Hashed Extended Cardbin to check whether or not this payment should be blocked. 
+        // Hashed Extended Cardbin to check whether or not this payment should be blocked.
         let extended_cardbin_hash = payment_data
             .payment_method_data
             .as_ref()
@@ -794,19 +798,21 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("error in extended card bin hash creation")
-                    .map_or_else(|err| {
-                           logger::error!(error=?err);
-                           None
+                    .map_or_else(
+                        |err| {
+                            logger::error!(error=?err);
+                            None
                         },
-                            Some)
-                        
+                        Some,
+                    )
                 }
                 _ => None,
             });
 
         let cardbin_encoded_hash = cardbin_hash.map(|id| consts::BASE64_ENGINE.encode(id));
 
-        let extended_cardbin_encoded_hash = extended_cardbin_hash.map(|id| consts::BASE64_ENGINE.encode(id));
+        let extended_cardbin_encoded_hash =
+            extended_cardbin_hash.map(|id| consts::BASE64_ENGINE.encode(id));
 
         let fingerprint_encoded_hash = fingerprint_hash.map(|id| consts::BASE64_ENGINE.encode(id));
         let mut fingerprint_id = None;
@@ -816,24 +822,24 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let find_for_fingerprint = db
             .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                 merchant_id.clone(),
-                fingerprint_encoded_hash.clone().ok_or(
-                    errors::ApiErrorResponse::InternalServerError
-                )?
+                fingerprint_encoded_hash
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?,
             );
 
         let find_for_cardbin = db.find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
             merchant_id.clone(),
-            cardbin_encoded_hash.clone().ok_or(
-                    errors::ApiErrorResponse::InternalServerError
-                )?
+            cardbin_encoded_hash
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?,
         );
 
         let find_for_extended_cardbin = db
             .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                 merchant_id.clone(),
-                extended_cardbin_encoded_hash.clone().ok_or(
-                    errors::ApiErrorResponse::InternalServerError
-                )?
+                extended_cardbin_encoded_hash
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?,
             );
 
         let (is_fingerprint_blocked, is_cardbin_blocked, is_extended_cardbin_blocked) = tokio::join!(
@@ -866,9 +872,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     db.insert_pm_fingerprint_entry(
                         diesel_models::pm_fingerprint::PmFingerprintNew {
                             fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
-                            kms_hash: fingerprint_encoded_hash.clone().ok_or(
-                                    errors::ApiErrorResponse::InternalServerError
-                                )?
+                            kms_hash: fingerprint_encoded_hash
+                                .clone()
+                                .ok_or(errors::ApiErrorResponse::InternalServerError)?,
                         },
                     )
                     .await

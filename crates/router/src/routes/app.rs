@@ -556,9 +556,17 @@ impl PaymentMethods {
                     .route(web::post().to(create_payment_method_api))
                     .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
             )
-            .service(web::resource("/block").route(web::post().to(pm_blocklist::block_payment_method)))
-            .service(web::resource("/unblock").route(web::post().to(pm_blocklist::unblock_payment_method)))
-            .service(web::resource("/blocklist").route(web::get().to(pm_blocklist::list_blocked_payment_methods)))
+            .service(
+                web::resource("/block").route(web::post().to(pm_blocklist::block_payment_method)),
+            )
+            .service(
+                web::resource("/unblock")
+                    .route(web::post().to(pm_blocklist::unblock_payment_method)),
+            )
+            .service(
+                web::resource("/blocklist")
+                    .route(web::get().to(pm_blocklist::list_blocked_payment_methods)),
+            )
             .service(
                 web::resource("/{payment_method_id}")
                     .route(web::get().to(payment_method_retrieve_api))
