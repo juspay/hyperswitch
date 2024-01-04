@@ -671,8 +671,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         };
 
         #[cfg(not(feature = "kms"))]
-        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion
-        {
+        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion {
             Some(FrmSuggestion::FrmCancelTransaction) => (
                 storage_enums::IntentStatus::Failed,
                 storage_enums::AttemptStatus::Failure,
