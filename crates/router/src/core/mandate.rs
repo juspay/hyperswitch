@@ -59,7 +59,7 @@ pub async fn revoke_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
-    let mandate_status = match mandate.mandate_status {
+    let mandate_revoke_status = match mandate.mandate_status {
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
@@ -179,7 +179,7 @@ pub async fn revoke_mandate(
             .into_report()
         }
     };
-    mandate_status
+    mandate_revoke_status
 }
 
 #[instrument(skip(db))]
