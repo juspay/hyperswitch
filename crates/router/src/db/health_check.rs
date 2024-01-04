@@ -6,6 +6,7 @@ use router_env::logger;
 use super::{MockDb, StorageInterface, Store};
 use crate::{
     connection,
+    consts::LOCKER_HEALTH_CALL_PATH,
     core::errors::{self, CustomResult},
     routes,
     services::api as services,
@@ -110,14 +111,12 @@ impl HealthCheckInterface for Store {
         let locker = &state.conf.locker;
         if !locker.mock_locker {
             let mut url = locker.host_rs.to_owned();
-            url.push_str("/health");
+            url.push_str(LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
             services::call_connector_api(state, request)
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
-                .map(|resp| resp.status_code)
-                .map_err(|err| err.status_code)
-                .unwrap_or_else(|code| code);
+                .ok();
         }
 
         logger::debug!("Locker call was successful");
