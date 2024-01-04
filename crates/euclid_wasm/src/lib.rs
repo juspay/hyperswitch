@@ -34,7 +34,7 @@ use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
 struct SeedData<'a> {
-    kgraph: constraint_graph::ConstraintGraph<'a, dir::DirValue>,
+    cgraph: constraint_graph::ConstraintGraph<'a, dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
@@ -99,7 +99,7 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
 
     SEED_DATA
         .set(SeedData {
-            kgraph: analysis_graph,
+            cgraph: analysis_graph,
             connectors,
         })
         .map_err(|_| "Knowledge Graph has been already seeded".to_string())
@@ -135,7 +135,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
         // Standalone conjunctive context analysis to ensure the context itself is valid before
         // checking it against merchant's connectors
         seed_data
-            .kgraph
+            .cgraph
             .perform_context_analysis(ctx, &mut constraint_graph::Memoization::new(), None)
             .err_to_js()?;
 
@@ -147,7 +147,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 
             let ctx_val = dssa::types::ContextValue::assertion(choice, &dummy_meta);
             ctx.push(ctx_val);
-            let analysis_result = seed_data.kgraph.perform_context_analysis(
+            let analysis_result = seed_data.cgraph.perform_context_analysis(
                 ctx,
                 &mut constraint_graph::Memoization::new(),
                 None,
@@ -170,7 +170,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 #[wasm_bindgen(js_name = analyzeProgram)]
 pub fn analyze_program(js_program: JsValue) -> JsResult {
     let program: ast::Program<ConnectorSelection> = serde_wasm_bindgen::from_value(js_program)?;
-    analyzer::analyze(program, SEED_DATA.get().map(|sd| &sd.kgraph)).err_to_js()?;
+    analyzer::analyze(program, SEED_DATA.get().map(|sd| &sd.cgraph)).err_to_js()?;
     Ok(JsValue::NULL)
 }
 
