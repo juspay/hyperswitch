@@ -1,6 +1,6 @@
 pub mod utils;
 
-use api_models::pm_blacklist;
+use api_models::pm_blocklist;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
@@ -9,21 +9,21 @@ use crate::{core::errors, routes::AppState, services, types::domain};
 pub async fn block_payment_method(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: pm_blacklist::BlacklistPmRequest,
+    body: pm_blocklist::BlacklistPmRequest,
     merchant_account: domain::MerchantAccount,
 ) -> CustomResult<
-    services::ApplicationResponse<pm_blacklist::BlacklistPmResponse>,
+    services::ApplicationResponse<pm_blocklist::BlacklistPmResponse>,
     errors::ApiErrorResponse,
 > {
     let blocklist_type: &str;
     match &body.blocklist_pm {
-        pm_blacklist::BlocklistType::Cardbin(cards) => {
+        pm_blocklist::BlocklistType::Cardbin(cards) => {
             blocklist_type = "cardbin";
             Ok(services::api::ApplicationResponse::Json(
                 utils::insert_to_blocklist_lookup_db(
                     &state,
                     merchant_account.merchant_id,
-                    &cards,
+                    cards,
                     blocklist_type,
                 )
                 .await
@@ -34,13 +34,13 @@ pub async fn block_payment_method(
                 )?,
             ))
         }
-        pm_blacklist::BlocklistType::ExtendedCardbin(extended_cardbins) => {
+        pm_blocklist::BlocklistType::ExtendedCardbin(extended_cardbins) => {
             blocklist_type = "extended_cardbin";
             Ok(services::api::ApplicationResponse::Json(
                 utils::insert_to_blocklist_lookup_db(
                     &state,
                     merchant_account.merchant_id,
-                    &extended_cardbins,
+                    extended_cardbins,
                     blocklist_type,
                 )
                 .await
@@ -51,13 +51,13 @@ pub async fn block_payment_method(
                 )?,
             ))
         }
-        pm_blacklist::BlocklistType::Fingerprint(fingerprints) => {
+        pm_blocklist::BlocklistType::Fingerprint(fingerprints) => {
             blocklist_type = "fingerprint";
             Ok(services::api::ApplicationResponse::Json(
                 utils::insert_to_blocklist_lookup_db(
                     &state,
                     merchant_account.merchant_id,
-                    &fingerprints,
+                    fingerprints,
                     blocklist_type,
                 )
                 .await
@@ -74,10 +74,10 @@ pub async fn block_payment_method(
 pub async fn unblock_payment_method(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: pm_blacklist::UnblockPmRequest,
+    body: pm_blocklist::UnblockPmRequest,
     merchant_account: domain::MerchantAccount,
 ) -> CustomResult<
-    services::ApplicationResponse<pm_blacklist::UnblockPmResponse>,
+    services::ApplicationResponse<pm_blocklist::UnblockPmResponse>,
     errors::ApiErrorResponse,
 > {
     Ok(services::api::ApplicationResponse::Json(
@@ -94,7 +94,7 @@ pub async fn list_blocked_payment_methods(
     _req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
 ) -> CustomResult<
-    services::ApplicationResponse<pm_blacklist::ListBlockedPmResponse>,
+    services::ApplicationResponse<pm_blocklist::ListBlockedPmResponse>,
     errors::ApiErrorResponse,
 > {
     Ok(services::api::ApplicationResponse::Json(

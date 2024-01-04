@@ -26,7 +26,7 @@ pub mod payments;
 pub mod payouts;
 pub mod pm_auth;
 #[cfg(any(feature = "olap", feature = "oltp"))]
-pub mod pm_blacklist;
+pub mod pm_blocklist;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_config;

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use api_models::pm_blacklist;
+use api_models::pm_blocklist as blacklist_pm;
 use base64::Engine;
 use common_utils::{
     crypto::{self, SignMessage},
     errors::CustomResult,
-    ext_traits::Encode,
+    // ext_traits::Encode,
 };
 use diesel_models::pm_blocklist;
 use error_stack::{IntoReport, ResultExt};
@@ -18,8 +18,8 @@ use crate::{consts, utils};
 pub async fn delete_from_blocklist_lookup_db(
     state: &AppState,
     merchant_id: String,
-    pm_hashes: &Vec<String>,
-) -> CustomResult<pm_blacklist::UnblockPmResponse, StorageError> {
+    pm_hashes: &[String],
+) -> CustomResult<blacklist_pm::UnblockPmResponse, StorageError> {
     let pm_hashes = remove_duplicates(pm_hashes);
     let blocklist_entries = pm_hashes
         .iter()
@@ -91,24 +91,24 @@ pub async fn delete_from_blocklist_lookup_db(
         .zip(unblocked_from_blocklist.into_iter())
         .zip(pm_hashes.into_iter())
     {
-        if unblocked_from_lookup == true && unblocked_from_blocklist == true {
+        if (unblocked_from_lookup, unblocked_from_blocklist) == (true, true) {
             unblocked_pm.push(data);
         } else {
             not_unblocked_pm.push(data);
         }
     }
 
-    if not_unblocked_pm.len() > 0 {
+    if !not_unblocked_pm.is_empty() {
         logger::error!("Unblocking pm failed for: {:?}", not_unblocked_pm);
     }
 
-    Ok(pm_blacklist::UnblockPmResponse { unblocked_pm })
+    Ok(blacklist_pm::UnblockPmResponse { unblocked_pm })
 }
 
 pub async fn list_blocked_pm_from_db(
     state: &AppState,
     merchant_id: String,
-) -> CustomResult<pm_blacklist::ListBlockedPmResponse, errors::ApiErrorResponse> {
+) -> CustomResult<blacklist_pm::ListBlockedPmResponse, errors::ApiErrorResponse> {
     let blocked_cardbins = state
         .store
         .list_all_blocked_pm_for_merchant_by_type(merchant_id.clone(), "cardbin".to_string());
@@ -133,7 +133,7 @@ pub async fn list_blocked_pm_from_db(
         blocked_extended_bins,
     ) {
         (Ok(fingerprint), Ok(cardbin), Ok(extended_bin)) => {
-            Ok(pm_blacklist::ListBlockedPmResponse {
+            Ok(blacklist_pm::ListBlockedPmResponse {
                 blocked_fingerprints: fingerprint
                     .iter()
                     .map(|fingerprint| fingerprint.pm_hash.clone())
@@ -160,9 +160,9 @@ pub async fn list_blocked_pm_from_db(
 pub async fn insert_to_blocklist_lookup_db(
     state: &AppState,
     merchant_id: String,
-    pm_hashes: &Vec<String>,
+    pm_hashes: &[String],
     pm_type: &str,
-) -> CustomResult<pm_blacklist::BlacklistPmResponse, StorageError> {
+) -> CustomResult<blacklist_pm::BlacklistPmResponse, StorageError> {
     let pm_hashes = remove_duplicates(pm_hashes);
     let mut new_entries = Vec::new();
     let mut fingerprints_blocked = Vec::new();
@@ -186,140 +186,14 @@ pub async fn insert_to_blocklist_lookup_db(
                         return Err(StorageError::EncryptionError.into());
                     }
                     let card_bin = &pm_hash[..6];
-                    let hashed_bin = crypto::HmacSha512::sign_message(
-                        &crypto::HmacSha512,
-                        merchant_secret.clone().as_bytes(),
-                        // what if they supply 10 digits instead of say 6 or 8
-                        card_bin.as_bytes(),
-                    )
-                    .change_context(StorageError::EncryptionError)
-                    .attach_printable("error in card bin hash creation")?;
-
-                    let encoded_hash = consts::BASE64_ENGINE.encode(hashed_bin.clone());
-
-                    // Checking for duplicacy
-                    if state
-                        .store
-                        .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
-                            merchant_id.clone(),
-                            encoded_hash.clone(),
-                        )
-                        .await
-                        .is_ok()
-                    {
-                        Err(StorageError::DuplicateValue {
-                            entity: "blocklist_entry",
-                            key: Some(card_bin.to_string().clone()),
-                        })
-                        .into_report()
-                    } else {
-                        // TODO KMS encrypt the encoded hash and then store
-                        let fingerprint_id = state
-                            .store
-                            .insert_pm_fingerprint_entry(
-                                diesel_models::pm_fingerprint::PmFingerprintNew {
-                                    fingerprint_id: format!(
-                                        "{}",
-                                        utils::generate_id(consts::ID_LENGTH, "fingerprint")
-                                    ),
-                                    kms_hash: encoded_hash.clone(),
-                                },
-                            )
-                            .await
-                            .change_context(errors::StorageError::ValueNotFound(
-                                card_bin.to_string().clone().to_string(),
-                            ))?
-                            .fingerprint_id;
-                        let _ = state
-                            .store
-                            .insert_blocklist_lookup_entry(
-                                diesel_models::blocklist_lookup::BlocklistLookupNew {
-                                    merchant_id: merchant_id.clone(),
-                                    kms_decrypted_hash: encoded_hash.clone(),
-                                },
-                            )
-                            .await;
-
-                        state
-                            .store
-                            .insert_pm_blocklist_item(pm_blocklist::PmBlocklistNew {
-                                merchant_id: merchant_id.clone(),
-                                pm_hash: fingerprint_id.clone().to_string(),
-                                pm_type: pm_type.to_string().clone(),
-                                metadata: Some(card_bin.to_string().clone()),
-                            })
-                            .await
-                    }
+                    duplicate_check_insert_bin(card_bin, state, merchant_id.clone(), merchant_secret.clone(), pm_type.clone()).await
                 }
                 "extended_cardbin" => {
                     if pm_hash.len() < 8 {
                         return Err(StorageError::EncryptionError.into());
                     }
                     let extended_bin = &pm_hash[..8];
-                    let hashed_bin = crypto::HmacSha512::sign_message(
-                        &crypto::HmacSha512,
-                        merchant_secret.clone().as_bytes(),
-                        // what if they supply 10 digits instead of say 6 or 8
-                        extended_bin.as_bytes(),
-                    )
-                    .change_context(StorageError::EncryptionError)
-                    .attach_printable("error in card bin hash creation")?;
-
-                    let encoded_hash = consts::BASE64_ENGINE.encode(hashed_bin.clone());
-
-                    // Checking for duplicacy
-                    if state
-                        .store
-                        .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
-                            merchant_id.clone(),
-                            encoded_hash.clone(),
-                        )
-                        .await
-                        .is_ok()
-                    {
-                        Err(StorageError::DuplicateValue {
-                            entity: "blocklist_entry",
-                            key: Some(extended_bin.to_string().clone()),
-                        })
-                        .into_report()
-                    } else {
-                        // TODO KMS encrypt the encoded hash and then store
-                        let fingerprint_id = state
-                            .store
-                            .insert_pm_fingerprint_entry(
-                                diesel_models::pm_fingerprint::PmFingerprintNew {
-                                    fingerprint_id: format!(
-                                        "{}",
-                                        utils::generate_id(consts::ID_LENGTH, "fingerprint")
-                                    ),
-                                    kms_hash: encoded_hash.clone(),
-                                },
-                            )
-                            .await
-                            .change_context(errors::StorageError::ValueNotFound(
-                                extended_bin.to_string().clone(),
-                            ))?
-                            .fingerprint_id;
-                        let _ = state
-                            .store
-                            .insert_blocklist_lookup_entry(
-                                diesel_models::blocklist_lookup::BlocklistLookupNew {
-                                    merchant_id: merchant_id.clone(),
-                                    kms_decrypted_hash: encoded_hash.clone(),
-                                },
-                            )
-                            .await;
-
-                        state
-                            .store
-                            .insert_pm_blocklist_item(pm_blocklist::PmBlocklistNew {
-                                merchant_id: merchant_id.clone(),
-                                pm_hash: fingerprint_id.clone().to_string(),
-                                pm_type: pm_type.to_string().clone(),
-                                metadata: Some(extended_bin.to_string().clone()),
-                            })
-                            .await
-                    }
+                    duplicate_check_insert_bin(extended_bin, state, merchant_id.clone(), merchant_secret.clone(), pm_type.clone()).await
                 }
                 _ => {
                     // For fingerprint we are getting the fingerprint id already
@@ -392,13 +266,22 @@ pub async fn insert_to_blocklist_lookup_db(
     });
 
     if all_requested_fingerprints_blocked {
-        let response = if pm_type.eq("cardbin") {
-            pm_blacklist::BlacklistPmResponse {
-                blocked: pm_blacklist::BlocklistType::Cardbin(fingerprints_blocked),
-            }
-        } else {
-            pm_blacklist::BlacklistPmResponse {
-                blocked: pm_blacklist::BlocklistType::Fingerprint(fingerprints_blocked),
+        let response  = match pm_type {
+            "cardbin" => {
+                blacklist_pm::BlacklistPmResponse {
+                    blocked: blacklist_pm::BlocklistType::Cardbin(fingerprints_blocked),
+                }
+            },
+            "extended_cardbin" =>{
+                blacklist_pm::BlacklistPmResponse {
+                    blocked: blacklist_pm::BlocklistType::ExtendedCardbin(fingerprints_blocked),
+                }
+            },
+            _ => {
+
+                blacklist_pm::BlacklistPmResponse {
+                    blocked: blacklist_pm::BlocklistType::Fingerprint(fingerprints_blocked),
+                }
             }
         };
         Ok(response)
@@ -407,7 +290,7 @@ pub async fn insert_to_blocklist_lookup_db(
     }
 }
 
-fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &Vec<T>) -> Vec<T> {
+fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &[T]) -> Vec<T> {
     let mut set = HashSet::new();
 
     vec.iter()
@@ -420,3 +303,74 @@ fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &Vec<T>) -> Vec<T> {
         })
         .collect()
 }
+
+async fn duplicate_check_insert_bin(
+    bin: &str,
+    state: &AppState,
+    merchant_id: String,
+    merchant_secret: String,
+    pm_type: &str,
+)-> CustomResult<pm_blocklist::PmBlocklist, StorageError> {
+    let hashed_bin = crypto::HmacSha512::sign_message(
+        &crypto::HmacSha512,
+        merchant_secret.clone().as_bytes(),
+        // what if they supply 10 digits instead of say 6 or 8
+        bin.as_bytes(),
+    )
+    .change_context(StorageError::EncryptionError)
+    .attach_printable("error in bin hash creation")?;
+
+    let encoded_hash = consts::BASE64_ENGINE.encode(hashed_bin.clone());
+
+    // Checking for duplicacy
+    if state
+        .store
+        .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
+            merchant_id.clone(),
+            encoded_hash.clone(),
+        )
+        .await
+        .is_ok()
+    {
+        Err(StorageError::DuplicateValue {
+            entity: "blocklist_entry",
+            key: Some(bin.to_string().clone()),
+        })
+        .into_report()
+    } else {
+        // TODO KMS encrypt the encoded hash and then store
+        let fingerprint_id = state
+            .store
+            .insert_pm_fingerprint_entry(
+                diesel_models::pm_fingerprint::PmFingerprintNew {
+                    fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
+                    kms_hash: encoded_hash.clone(),
+                },
+            )
+            .await
+            .change_context(errors::StorageError::ValueNotFound(
+                bin.to_string().clone().to_string(),
+            ))?
+            .fingerprint_id;
+        let _ = state
+            .store
+            .insert_blocklist_lookup_entry(
+                diesel_models::blocklist_lookup::BlocklistLookupNew {
+                    merchant_id: merchant_id.clone(),
+                    kms_decrypted_hash: encoded_hash.clone(),
+                },
+            )
+            .await;
+
+        state
+            .store
+            .insert_pm_blocklist_item(pm_blocklist::PmBlocklistNew {
+                merchant_id: merchant_id.clone(),
+                pm_hash: fingerprint_id.clone().to_string(),
+                pm_type: pm_type.to_string().clone(),
+                metadata: Some(bin.to_string().clone()),
+            })
+            .await
+    }
+}
+

@@ -8,11 +8,11 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode},
 };
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+// #[cfg(feature = "kms")]
+// use external_services::kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, logger};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -25,7 +25,7 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        utils::{self as core_utils},
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
@@ -746,17 +746,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     crypto::HmacSha512::sign_message(
                         &crypto::HmacSha512,
                         merchant_secret.as_bytes(),
-                        &card.card_number.clone().get_card_no().as_bytes(),
+                        card.card_number.clone().get_card_no().as_bytes(),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("error in pm fingerprint creation")
-                    .ok()
+                    .map_or_else(|err| {
+                           logger::error!(error=?err);
+                           None
+                        },
+                            Some)
                 }
-                // TODO can be used in future to generate the fingerprints of other payment_methods
-                _ => todo!(),
+                _ => None,
             });
 
-        // Hashed Cardbin to check whether or not this payment_method is blocked or not.
+        // Hashed Cardbin to check whether or not this payment should be blocked.
         let cardbin_hash = payment_data
             .payment_method_data
             .as_ref()
@@ -765,17 +768,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     crypto::HmacSha512::sign_message(
                         &crypto::HmacSha512,
                         merchant_secret.as_bytes(),
-                        &card.card_number.clone().get_card_isin().as_bytes(),
+                        card.card_number.clone().get_card_isin().as_bytes(),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("error in card bin hash creation")
-                    .ok()
+                    .map_or_else(|err| {
+                           logger::error!(error=?err);
+                           None
+                        },
+                            Some)
                 }
-                // TODO can be used in future to generate the fingerprints of other payment_methods
-                _ => todo!(),
+                _ => None,
             });
 
-        // Hashed Extended Cardbin to check whether or not this payment_method is blocked or not.
+        // Hashed Extended Cardbin to check whether or not this payment should be blocked. 
         let extended_cardbin_hash = payment_data
             .payment_method_data
             .as_ref()
@@ -784,50 +790,50 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     crypto::HmacSha512::sign_message(
                         &crypto::HmacSha512,
                         merchant_secret.as_bytes(),
-                        &card.card_number.clone().get_extended_card_bin().as_bytes(),
+                        card.card_number.clone().get_extended_card_bin().as_bytes(),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("error in extended card bin hash creation")
-                    .ok()
+                    .map_or_else(|err| {
+                           logger::error!(error=?err);
+                           None
+                        },
+                            Some)
+                        
                 }
-                // TODO can be used in future to generate the fingerprints of other payment_methods
-                _ => todo!(),
+                _ => None,
             });
 
-        let extended_cardbin_encoded_hash = match extended_cardbin_hash {
-            Some(id) => Some(consts::BASE64_ENGINE.encode(id)),
-            _ => None,
-        };
+        let cardbin_encoded_hash = cardbin_hash.map(|id| consts::BASE64_ENGINE.encode(id));
 
-        let cardbin_encoded_hash = match cardbin_hash {
-            Some(id) => Some(consts::BASE64_ENGINE.encode(id)),
-            _ => None,
-        };
+        let extended_cardbin_encoded_hash = extended_cardbin_hash.map(|id| consts::BASE64_ENGINE.encode(id));
 
-        let fingerprint_encoded_hash = match fingerprint_hash {
-            Some(id) => Some(consts::BASE64_ENGINE.encode(id)),
-            _ => None,
-        };
-
+        let fingerprint_encoded_hash = fingerprint_hash.map(|id| consts::BASE64_ENGINE.encode(id));
         let mut fingerprint_id = None;
 
         //validating the payment method.
-        let mut is_pm_blacklisted = false;
+        let mut is_pm_blocklisted = false;
         let find_for_fingerprint = db
             .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                 merchant_id.clone(),
-                fingerprint_encoded_hash.clone().unwrap(),
+                fingerprint_encoded_hash.clone().ok_or(
+                    errors::ApiErrorResponse::InternalServerError
+                )?
             );
 
         let find_for_cardbin = db.find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
             merchant_id.clone(),
-            cardbin_encoded_hash.clone().unwrap(),
+            cardbin_encoded_hash.clone().ok_or(
+                    errors::ApiErrorResponse::InternalServerError
+                )?
         );
 
         let find_for_extended_cardbin = db
             .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                 merchant_id.clone(),
-                extended_cardbin_encoded_hash.clone().unwrap(),
+                extended_cardbin_encoded_hash.clone().ok_or(
+                    errors::ApiErrorResponse::InternalServerError
+                )?
             );
 
         let (is_fingerprint_blocked, is_cardbin_blocked, is_extended_cardbin_blocked) = tokio::join!(
@@ -843,7 +849,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         ) {
             (Ok(_), _, _) | (_, Ok(_), _) | (_, _, Ok(_)) => {
                 intent_status = storage_enums::IntentStatus::Failed;
-                is_pm_blacklisted = true;
+                is_pm_blocklisted = true;
             }
             _ => {
                 println!(
@@ -859,11 +865,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 fingerprint_id = Some(
                     db.insert_pm_fingerprint_entry(
                         diesel_models::pm_fingerprint::PmFingerprintNew {
-                            fingerprint_id: format!(
-                                "{}",
-                                utils::generate_id(consts::ID_LENGTH, "fingerprint")
-                            ),
-                            kms_hash: fingerprint_encoded_hash.clone().unwrap(),
+                            fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
+                            kms_hash: fingerprint_encoded_hash.clone().ok_or(
+                                    errors::ApiErrorResponse::InternalServerError
+                                )?
                         },
                     )
                     .await
@@ -1002,7 +1007,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         payment_data.payment_attempt = payment_attempt;
 
         // Block the payment if the entry was present in the Blocklist
-        if is_pm_blacklisted {
+        if is_pm_blocklisted {
             return Err(errors::ApiErrorResponse::PaymentBlocked.into());
         }
 

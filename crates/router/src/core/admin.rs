@@ -47,9 +47,10 @@ pub fn create_merchant_publishable_key() -> String {
         Uuid::new_v4().simple()
     )
 }
+
 #[inline]
 pub fn create_merchant_fingerprint() -> String {
-    format!("{}", utils::generate_id(consts::ID_LENGTH, "secret"),)
+    utils::generate_id(consts::ID_LENGTH, "secret")
 }
 
 pub async fn create_merchant_account(
