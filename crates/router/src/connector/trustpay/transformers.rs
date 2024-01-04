@@ -867,21 +867,19 @@ pub fn handle_webhook_response(
 > {
     let status = enums::AttemptStatus::try_from(payment_information.status)?;
     let error = if utils::is_payment_failure(status) {
-        let reason_info = payment_information.status_reason_information.unwrap_or_default();
-        Some(types::ErrorResponse{
+        let reason_info = payment_information
+            .status_reason_information
+            .unwrap_or_default();
+        Some(types::ErrorResponse {
             code: reason_info.reason.code.clone(),
             // message vary for the same code, so relying on code alone as it is unique
             message: reason_info.reason.code,
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
-            connector_transaction_id: 
-                    payment_information
-                    .references
-                    .payment_request_id
-                    .clone()
+            connector_transaction_id: payment_information.references.payment_request_id.clone(),
         })
-    } else{
+    } else {
         None
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -920,7 +918,9 @@ pub fn get_trustpay_response(
         TrustpayPaymentsResponse::BankRedirectError(response) => {
             handle_bank_redirects_error_response(*response, status_code)
         }
-        TrustpayPaymentsResponse::WebhookResponse(response) => handle_webhook_response(*response, status_code),
+        TrustpayPaymentsResponse::WebhookResponse(response) => {
+            handle_webhook_response(*response, status_code)
+        }
     }
 }
 
@@ -1477,20 +1477,16 @@ fn handle_webhooks_refund_response(
     let refund_status = diesel_models::enums::RefundStatus::try_from(response.status)?;
     let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response.status_reason_information.unwrap_or_default();
-        Some(types::ErrorResponse{
+        Some(types::ErrorResponse {
             code: reason_info.reason.code.clone(),
             // message vary for the same code, so relying on code alone as it is unique
             message: reason_info.reason.code,
             reason: reason_info.reason.reject_reason,
             status_code,
             attempt_status: None,
-            connector_transaction_id: 
-            response
-                    .references
-                    .payment_request_id
-                    .clone()
+            connector_transaction_id: response.references.payment_request_id.clone(),
         })
-    } else{
+    } else {
         None
     };
     let refund_response_data = types::RefundsResponseData {
@@ -1589,7 +1585,9 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
             RefundResponse::CardsRefund(response) => {
                 handle_cards_refund_response(*response, item.http_code)?
             }
-            RefundResponse::WebhookRefund(response) => handle_webhooks_refund_response(*response, item.http_code)?,
+            RefundResponse::WebhookRefund(response) => {
+                handle_webhooks_refund_response(*response, item.http_code)?
+            }
             RefundResponse::BankRedirectRefund(response) => {
                 handle_bank_redirects_refund_response(*response, item.http_code)
             }
