@@ -180,7 +180,7 @@ impl PaymentMethodRetrieve for Oss {
                     merchant_key_store,
                     auth_token,
                     payment_intent,
-                    customer
+                    customer,
                 )
                 .await
             }

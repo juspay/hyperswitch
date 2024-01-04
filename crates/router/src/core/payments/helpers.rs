@@ -1623,7 +1623,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
-                customer
+                customer,
             )
             .await
             .attach_printable("in 'make_pm_data'")?;

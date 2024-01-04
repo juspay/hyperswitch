@@ -9,11 +9,10 @@ use hex;
 pub mod helpers;
 pub mod transformers;
 
-use common_utils::ext_traits::OptionExt;
 use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, OptionExt},
     generate_id,
 };
 use data_models::payments::PaymentIntent;
