@@ -634,11 +634,10 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let notif: IatapayPaymentsResponse =
-            request
-                .body
-                .parse_struct("IatapayPaymentsResponse")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let notif: iatapay::IatapayWebhookResponse = request
+            .body
+            .parse_struct("IatapayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         if notif.iata_payment_id.is_some() {
             Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
@@ -658,25 +657,28 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif: IatapayPaymentsResponse =
-            request
-                .body
-                .parse_struct("IatapayPaymentsResponse")
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let notif: iatapay::IatapayWebhookResponse = request
+            .body
+            .parse_struct("IatapayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         match notif.status {
-            iatapay::IatapayPaymentStatus::Authorized => match notif.iata_payment_id.is_some() {
+            iatapay::IatapayWebhookStatus::Authorized => match notif.iata_payment_id.is_some() {
                 true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
                 false => Ok(api::IncomingWebhookEvent::RefundSuccess),
             },
-            iatapay::IatapayPaymentStatus::Failed => match notif.iata_payment_id.is_some() {
+            iatapay::IatapayWebhookStatus::Failed => match notif.iata_payment_id.is_some() {
                 true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
                 false => Ok(api::IncomingWebhookEvent::RefundFailure),
             },
-            iatapay::IatapayPaymentStatus::Created
-            | iatapay::IatapayPaymentStatus::Initiated
-            | iatapay::IatapayPaymentStatus::Cleared
-            | iatapay::IatapayPaymentStatus::Settled
-            | iatapay::IatapayPaymentStatus::UnexpectedSettled => {
+            iatapay::IatapayWebhookStatus::Unknown
+            | iatapay::IatapayWebhookStatus::Created
+            | iatapay::IatapayWebhookStatus::Initiated
+            | iatapay::IatapayWebhookStatus::Cleared
+            | iatapay::IatapayWebhookStatus::Settled
+            | iatapay::IatapayWebhookStatus::Tobeinvestigated
+            | iatapay::IatapayWebhookStatus::Blocked
+            | iatapay::IatapayWebhookStatus::Locked
+            | iatapay::IatapayWebhookStatus::UnexpectedSettled => {
                 Ok(api::IncomingWebhookEvent::EventNotSupported)
             }
         }
@@ -686,11 +688,10 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let notif: IatapayPaymentsResponse =
-            request
-                .body
-                .parse_struct("IatapayPaymentsResponse")
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notif: iatapay::IatapayWebhookResponse = request
+            .body
+            .parse_struct("IatapayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(Box::new(notif))
     }
