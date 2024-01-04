@@ -453,6 +453,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct VoltWebhookBodyReference {
     pub payment: String,
+    pub merchant_internal_reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -467,6 +468,7 @@ pub struct VoltWebhookBodyEventType {
 pub struct VoltWebhookObjectResource {
     pub reference: String,
     pub payment: String,
+    pub merchant_internal_reference: Option<String>,
     pub status: VoltWebhookStatus,
     pub detailed_status: Option<VoltDetailedStatus>,
 }
