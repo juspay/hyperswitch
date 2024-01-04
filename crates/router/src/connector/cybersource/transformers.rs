@@ -1149,13 +1149,17 @@ impl<F, T>
     ) -> Self {
         Self {
             response: Err(types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
+                code: error_response
+                    .error_information
+                    .reason
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                 message: error_response
                     .error_information
                     .message
                     .clone()
                     .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                reason: error_response.error_information.reason.clone(),
+                reason: error_response.error_information.message.clone(),
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(error_response.id.clone()),
@@ -1173,21 +1177,17 @@ fn get_error_response_if_failure(
     ),
 ) -> Option<types::ErrorResponse> {
     if is_payment_failure(status) {
-        let (message, reason) = match info_response.error_information.as_ref() {
-            Some(error_info) => (
-                error_info
-                    .message
-                    .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                error_info.reason.clone(),
-            ),
-            None => (consts::NO_ERROR_MESSAGE.to_string(), None),
+        let (error_code, error_message) = match info_response.error_information.as_ref() {
+            Some(error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (None, None),
         };
 
         Some(types::ErrorResponse {
-            code: consts::NO_ERROR_CODE.to_string(),
-            message,
-            reason,
+            code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: error_message,
             status_code: http_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(info_response.id.clone()),
@@ -1300,12 +1300,16 @@ impl<F>
             }
             CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
+                    code: error_response
+                        .error_information
+                        .reason
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_response
                         .error_information
                         .message
+                        .clone()
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
+                    reason: error_response.error_information.message,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
@@ -1456,12 +1460,16 @@ impl<F, T>
             }
             CybersourceSetupMandatesResponse::ErrorInformation(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
+                    code: error_response
+                        .error_information
+                        .reason
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_response
                         .error_information
                         .message
+                        .clone()
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
+                    reason: error_response.error_information.message,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
@@ -1571,20 +1579,18 @@ impl<F>
                 let incremental_authorization_allowed =
                     Some(status == enums::AttemptStatus::Authorized);
                 if is_payment_failure(status) {
-                    let (message, reason) = match app_response.error_information {
-                        Some(error_info) => (
-                            error_info
-                                .message
-                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                            error_info.reason,
-                        ),
-                        None => (consts::NO_ERROR_MESSAGE.to_string(), None),
+                    let (error_code, error_message) = match app_response.error_information {
+                        Some(error_info) => (error_info.reason, error_info.message),
+                        None => (None, None),
                     };
+
                     Ok(Self {
                         response: Err(types::ErrorResponse {
-                            code: consts::NO_ERROR_CODE.to_string(),
-                            message,
-                            reason,
+                            code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                            message: error_message
+                                .clone()
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                            reason: error_message,
                             status_code: item.http_code,
                             attempt_status: Some(enums::AttemptStatus::Failure),
                             connector_transaction_id: Some(app_response.id),
