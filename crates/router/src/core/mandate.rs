@@ -79,14 +79,14 @@ pub async fn revoke_mandate(
         Ok(profile_id)
     } else {
         Err(errors::ApiErrorResponse::PaymentNotFound)
-    };
+    }?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         &state,
         &merchant_account.merchant_id,
         None,
         &key_store,
-        &profile_id?,
+        &profile_id,
         &mandate.connector,
         mandate.merchant_connector_id.as_ref(),
     )

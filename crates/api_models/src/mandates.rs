@@ -9,6 +9,11 @@ use crate::{enums as api_enums, payments};
 pub struct MandateId {
     pub mandate_id: String,
 }
+// #[derive(Default, Debug, Deserialize, Serialize, Clone)]
+// pub struct MandateRevokeRequestConnector {
+//     pub mandate_id: String,
+//     pub connector_mandate_id:
+// }
 
 #[derive(Default, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MandateRevokedResponse {

@@ -963,7 +963,8 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 
 #[derive(Debug, Clone)]
 pub struct MandateRevokeRequestData {
-    pub mandate_id: Option<mandates::MandateId>,
+    pub mandate_id: String,
+    pub connector_mandate_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
