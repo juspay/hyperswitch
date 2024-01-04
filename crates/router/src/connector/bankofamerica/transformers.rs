@@ -683,21 +683,11 @@ fn get_error_response_if_failure(
     ),
 ) -> Option<types::ErrorResponse> {
     if is_payment_failure(status) {
-        let (error_code, error_message) = match info_response.error_information.as_ref() {
-            Some(error_info) => (error_info.reason.clone(), error_info.message.clone()),
-            None => (None, None),
-        };
-
-        Some(types::ErrorResponse {
-            code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message
-                .clone()
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_message,
-            status_code: http_code,
-            attempt_status: Some(enums::AttemptStatus::Failure),
-            connector_transaction_id: Some(info_response.id.clone()),
-        })
+        Some(types::ErrorResponse::from((
+            &info_response.error_information,
+            http_code,
+            info_response.id.clone(),
+        )))
     } else {
         None
     }
@@ -967,21 +957,12 @@ impl<F>
                     item.data.request.is_auto_capture()?,
                 ));
                 if is_payment_failure(status) {
-                    let (error_code, error_message) = match app_response.error_information {
-                        Some(error_info) => (error_info.reason, error_info.message),
-                        None => (None, None),
-                    };
                     Ok(Self {
-                        response: Err(types::ErrorResponse {
-                            code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                            message: error_message
-                                .clone()
-                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                            reason: error_message,
-                            status_code: item.http_code,
-                            attempt_status: Some(enums::AttemptStatus::Failure),
-                            connector_transaction_id: Some(app_response.id),
-                        }),
+                        response: Err(types::ErrorResponse::from((
+                            &app_response.error_information,
+                            item.http_code,
+                            app_response.id.clone(),
+                        ))),
                         status: enums::AttemptStatus::Failure,
                         ..item.data
                     })
@@ -1266,4 +1247,29 @@ pub struct ErrorInformation {
 #[derive(Debug, Default, Deserialize)]
 pub struct AuthenticationErrorInformation {
     pub rmsg: String,
+}
+
+impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::ErrorResponse {
+    fn from(value: (&Option<BankOfAmericaErrorInformation>, u16, String)) -> Self {
+        let error_data = value.0;
+        let status_code = value.1;
+        let transaction_id = value.2;
+        let error_message = error_data
+            .clone()
+            .and_then(|error_details| error_details.message);
+
+        types::ErrorResponse {
+            code: error_data
+                .clone()
+                .and_then(|error_details| error_details.reason)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: error_message.clone(),
+            status_code,
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            connector_transaction_id: Some(transaction_id.clone()),
+        }
+    }
 }
