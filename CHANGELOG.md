@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.106.0 (2024-01-04)
+
+### Features
+
+- **connector:**
+  - [BOA] Populate merchant_defined_information with metadata ([#3208](https://github.com/juspay/hyperswitch/pull/3208)) ([`18eca7e`](https://github.com/juspay/hyperswitch/commit/18eca7e9fbe6cdc101bd135c4618882b7a5455bf))
+  - [CYBERSOURCE] Refactor cybersource ([#3215](https://github.com/juspay/hyperswitch/pull/3215)) ([`e06ba14`](https://github.com/juspay/hyperswitch/commit/e06ba148b666772fe79d7050d0c505dd2f04f87c))
+- **customers:** Add JWT Authentication for `/customers` APIs ([#3179](https://github.com/juspay/hyperswitch/pull/3179)) ([`aefe618`](https://github.com/juspay/hyperswitch/commit/aefe6184ec3e3156877c72988ca0f92454a47e7d))
+
+### Bug Fixes
+
+- **connector:** [Volt] Error handling for auth response ([#3187](https://github.com/juspay/hyperswitch/pull/3187)) ([`a51c54d`](https://github.com/juspay/hyperswitch/commit/a51c54d39d3687c6a06176895435ac66fa194d7b))
+- **core:** Fix recurring mandates flow for cyber source ([#3224](https://github.com/juspay/hyperswitch/pull/3224)) ([`6a1743e`](https://github.com/juspay/hyperswitch/commit/6a1743ebe993d5abb53f2ce1b8b383aa4a9553fb))
+- **middleware:** Add support for logging request-id sent in request ([#3225](https://github.com/juspay/hyperswitch/pull/3225)) ([`0f72b55`](https://github.com/juspay/hyperswitch/commit/0f72b5527aab221b8e69e737e5d19abdd0696150))
+
+### Refactors
+
+- **connector:** [NMI] Include mandatory fields for card 3DS ([#3203](https://github.com/juspay/hyperswitch/pull/3203)) ([`a46b8a7`](https://github.com/juspay/hyperswitch/commit/a46b8a7b05367fbbdbf4fca89d8a6b29110a4e1c))
+
+### Testing
+
+- **postman:** Update postman collection files ([`0248d35`](https://github.com/juspay/hyperswitch/commit/0248d35dd49d2dc7e5e4da6b60a3ee3577c8eac9))
+
+### Miscellaneous Tasks
+
+- Fix channel handling for consumer workflow loop ([#3223](https://github.com/juspay/hyperswitch/pull/3223)) ([`51e1fac`](https://github.com/juspay/hyperswitch/commit/51e1fac556fdd8775e0bbc858b0b3cc50a7e88ec))
+
+**Full Changelog:** [`v1.105.0...v1.106.0`](https://github.com/juspay/hyperswitch/compare/v1.105.0...v1.106.0)
+
+- - -
+
+
 ## 1.105.0 (2023-12-23)
 
 ### Features
