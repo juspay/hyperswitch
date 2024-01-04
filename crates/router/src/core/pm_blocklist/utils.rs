@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use external_services::kms;
 
 use api_models::pm_blocklist as blacklist_pm;
 use base64::Engine;
@@ -10,6 +9,7 @@ use common_utils::{
 };
 use diesel_models::pm_blocklist;
 use error_stack::{IntoReport, ResultExt};
+use external_services::kms;
 use router_env::logger;
 use storage_impl::errors::StorageError;
 
@@ -53,10 +53,10 @@ pub async fn delete_from_blocklist_lookup_db(
                     .delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                         merchant_id.clone(),
                         kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(fingerprint.kms_hash)
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)?, 
+                            .await
+                            .decrypt(fingerprint.kms_hash)
+                            .await
+                            .change_context(errors::StorageError::DecryptionError)?,
                     );
                 lookup_entries.push((query_future, pm_hash.clone()));
             }
