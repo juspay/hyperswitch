@@ -2760,8 +2760,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: if connector_util::is_refund_failure(refund_status)
-            {
+            response: if connector_util::is_refund_failure(refund_status) {
                 Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: item
@@ -2794,8 +2793,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: if connector_util::is_refund_failure(refund_status)
-            {
+            response: if connector_util::is_refund_failure(refund_status) {
                 Err(types::ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: item
