@@ -9,6 +9,7 @@ use hex;
 pub mod helpers;
 pub mod transformers;
 
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
@@ -618,6 +619,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     key_store: &domain::MerchantKeyStore,
     auth_token: &payment_methods::BankAccountConnectorDetails,
     payment_intent: &PaymentIntent,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
@@ -710,10 +712,20 @@ pub async fn retrieve_payment_method_from_auth_service(
             last_name,
         }
     });
+
+    let email = customer
+        .as_ref()
+        .and_then(|customer| customer.email.clone())
+        .map(common_utils::pii::Email::from)
+        .get_required_value("email")
+        .change_context(ApiErrorResponse::MissingRequiredField {
+            field_name: "email",
+        })?;
+
     let payment_method_data = PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
         billing_details: BankDebitBilling {
             name: name.unwrap_or_default(),
-            email: common_utils::pii::Email::from(masking::Secret::new("".to_string())),
+            email,
             address: address_details,
         },
         account_number: masking::Secret::new(bank_account.account_number.clone()),
