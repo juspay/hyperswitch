@@ -41,6 +41,12 @@ impl<T>
     }
 }
 
+pub mod webhook_headers {
+    pub const X_VOLT_SIGNED: &str = "X-Volt-Signed";
+    pub const X_VOLT_TIMED: &str = "X-Volt-Timed";
+    pub const USER_AGENT: &str = "User-Agent";
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {

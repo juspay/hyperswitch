@@ -7,6 +7,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use transformers as volt;
 
+use self::transformers::webhook_headers;
 use super::utils;
 use crate::{
     configs::settings,
@@ -599,8 +600,9 @@ impl api::IncomingWebhook for Volt {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature = utils::get_header_key_value("X-Volt-Signed", request.headers)
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let signature =
+            utils::get_header_key_value(webhook_headers::X_VOLT_SIGNED, request.headers)
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         hex::decode(signature)
             .into_report()
@@ -613,8 +615,9 @@ impl api::IncomingWebhook for Volt {
         _merchant_id: &str,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let x_volt_timed = utils::get_header_key_value("X-Volt-Timed", request.headers)?;
-        let user_agent = utils::get_header_key_value("User-Agent", request.headers)?;
+        let x_volt_timed =
+            utils::get_header_key_value(webhook_headers::X_VOLT_TIMED, request.headers)?;
+        let user_agent = utils::get_header_key_value(webhook_headers::USER_AGENT, request.headers)?;
         let version = user_agent
             .split('/')
             .last()
