@@ -640,12 +640,39 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+        #[cfg(feature = "kms")]
         let db = state.store.as_ref();
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
 
+        #[cfg(feature = "kms")]
         let (mut intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion
+        {
+            Some(FrmSuggestion::FrmCancelTransaction) => (
+                storage_enums::IntentStatus::Failed,
+                storage_enums::AttemptStatus::Failure,
+                frm_message.map_or((None, None), |fraud_check| {
+                    (
+                        Some(Some(fraud_check.frm_status.to_string())),
+                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                    )
+                }),
+            ),
+            Some(FrmSuggestion::FrmManualReview) => (
+                storage_enums::IntentStatus::RequiresMerchantAction,
+                storage_enums::AttemptStatus::Unresolved,
+                (None, None),
+            ),
+            _ => (
+                storage_enums::IntentStatus::Processing,
+                storage_enums::AttemptStatus::Pending,
+                (None, None),
+            ),
+        };
+
+        #[cfg(not(feature = "kms"))]
+        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion
         {
             Some(FrmSuggestion::FrmCancelTransaction) => (
                 storage_enums::IntentStatus::Failed,

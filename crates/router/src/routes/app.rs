@@ -20,9 +20,9 @@ use super::currency;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "kms"))]
 use super::pm_auth;
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "oltp", feature = "kms"))]
 use super::pm_blocklist;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
@@ -546,7 +546,7 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "kms"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_methods")

@@ -6,7 +6,6 @@ use base64::Engine;
 use common_utils::{
     crypto::{self, SignMessage},
     errors::CustomResult,
-    ext_traits::Encode,
 };
 use diesel_models::pm_blocklist;
 use error_stack::{IntoReport, ResultExt};
