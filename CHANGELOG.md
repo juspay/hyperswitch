@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.105.0+hotfix.1 (2024-01-04)
+
+### Bug Fixes
+
+- **middleware:** Add support for logging request-id sent in request (… ([#3240](https://github.com/juspay/hyperswitch/pull/3240)) ([`42d8e96`](https://github.com/juspay/hyperswitch/commit/42d8e961598a0bd914996534e69b0db06350df9e))
+
+**Full Changelog:** [`v1.105.0...v1.105.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.105.0...v1.105.0+hotfix.1)
+
+- - -
+
 ## 1.105.0 (2023-12-23)
 
 ### Features
