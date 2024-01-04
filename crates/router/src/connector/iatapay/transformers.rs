@@ -224,8 +224,6 @@ pub enum IatapayPaymentStatus {
     Initiated,
     Authorized,
     Settled,
-    Tobeinvestigated,
-    Blocked,
     Cleared,
     Failed,
     #[serde(rename = "UNEXPECTED SETTLED")]
@@ -237,12 +235,10 @@ impl From<IatapayPaymentStatus> for enums::AttemptStatus {
         match item {
             IatapayPaymentStatus::Authorized
             | IatapayPaymentStatus::Settled
-            | IatapayPaymentStatus::Tobeinvestigated
-            | IatapayPaymentStatus::Blocked
             | IatapayPaymentStatus::Cleared => Self::Charged,
-            IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
+            IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
         }
     }
 }

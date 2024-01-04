@@ -676,8 +676,6 @@ impl api::IncomingWebhook for Iatapay {
             | iatapay::IatapayPaymentStatus::Initiated
             | iatapay::IatapayPaymentStatus::Cleared
             | iatapay::IatapayPaymentStatus::Settled
-            | iatapay::IatapayPaymentStatus::Tobeinvestigated
-            | iatapay::IatapayPaymentStatus::Blocked
             | iatapay::IatapayPaymentStatus::UnexpectedSettled => {
                 Ok(api::IncomingWebhookEvent::EventNotSupported)
             }
