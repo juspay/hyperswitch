@@ -499,7 +499,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = &state.aws_kms_secrets;
 
     let payment_method_data = if !locker.mock_locker {
         let request = payment_methods::mk_get_card_request_hs(
@@ -557,7 +557,7 @@ pub async fn call_to_locker_hs<'a>(
     #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = &state.aws_kms_secrets;
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
         let request =
@@ -618,7 +618,7 @@ pub async fn get_card_from_hs_locker<'a>(
     #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = &state.aws_kms_secrets;
 
     if !locker.mock_locker {
         let request = payment_methods::mk_get_card_request_hs(
@@ -673,7 +673,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = &state.aws_kms_secrets;
 
     let request = payment_methods::mk_delete_card_request_hs(
         jwekey,
