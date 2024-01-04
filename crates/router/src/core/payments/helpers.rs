@@ -953,7 +953,7 @@ pub fn payment_attempt_status_fsm(
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::AttemptStatus::Pending,
+            Some(true) => storage_enums::AttemptStatus::PaymentMethodAwaited,
             _ => storage_enums::AttemptStatus::ConfirmationAwaited,
         },
         None => storage_enums::AttemptStatus::PaymentMethodAwaited,
@@ -966,7 +966,7 @@ pub fn payment_intent_status_fsm(
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::IntentStatus::RequiresCustomerAction,
+            Some(true) => storage_enums::IntentStatus::RequiresPaymentMethod,
             _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
         None => storage_enums::IntentStatus::RequiresPaymentMethod,

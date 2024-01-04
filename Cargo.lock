@@ -1728,6 +1728,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "connector_configs"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "serde",
+ "serde_with",
+ "toml 0.7.4",
+ "utoipa",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2386,6 +2397,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "connector_configs",
  "currency_conversion",
  "euclid",
  "getrandom 0.2.11",

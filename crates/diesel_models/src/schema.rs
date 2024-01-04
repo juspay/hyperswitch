@@ -207,8 +207,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        data_key -> Varchar,
+        data_key -> DashboardMetadata,
         data_value -> Json,
         #[max_length = 64]
         created_by -> Varchar,
@@ -1018,14 +1017,13 @@ diesel::table! {
         role_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        status -> Varchar,
+        status -> UserStatus,
         #[max_length = 64]
         created_by -> Varchar,
         #[max_length = 64]
         last_modified_by -> Varchar,
         created_at -> Timestamp,
-        last_modified_at -> Timestamp,
+        last_modified -> Timestamp,
     }
 }
 
