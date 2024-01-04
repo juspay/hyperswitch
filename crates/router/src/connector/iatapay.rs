@@ -479,7 +479,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let connector_router_data = iatapay::IatapayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.payment_amount,
+            req.request.refund_amount,
             req,
         ))?;
         let connector_req = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
