@@ -1,11 +1,12 @@
 use std::collections::HashSet;
+use external_services::kms;
 
 use api_models::pm_blocklist as blacklist_pm;
 use base64::Engine;
 use common_utils::{
     crypto::{self, SignMessage},
     errors::CustomResult,
-    // ext_traits::Encode,
+    ext_traits::Encode,
 };
 use diesel_models::pm_blocklist;
 use error_stack::{IntoReport, ResultExt};
@@ -51,7 +52,11 @@ pub async fn delete_from_blocklist_lookup_db(
                     .store
                     .delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                         merchant_id.clone(),
-                        fingerprint.kms_hash,
+                        kms::get_kms_client(&state.conf.kms)
+                        .await
+                        .decrypt(fingerprint.kms_hash)
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?, 
                     );
                 lookup_entries.push((query_future, pm_hash.clone()));
             }
@@ -212,7 +217,7 @@ pub async fn insert_to_blocklist_lookup_db(
                 _ => {
                     // For fingerprint we are getting the fingerprint id already
                     //TODO Decrypt this KMS encryption to get hash
-                    let kms_decrypted_hash = state
+                    let kms_hash = state
                         .store
                         .find_pm_fingerprint_entry(pm_hash.clone())
                         .await
@@ -220,6 +225,12 @@ pub async fn insert_to_blocklist_lookup_db(
                             pm_hash.clone().to_string(),
                         ))?
                         .kms_hash;
+
+                    let kms_decrypted_hash = kms::get_kms_client(&state.conf.kms)
+                        .await
+                        .decrypt(kms_hash)
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?;
 
                     if state
                         .store
@@ -346,17 +357,24 @@ async fn duplicate_check_insert_bin(
         .into_report()
     } else {
         // TODO KMS encrypt the encoded hash and then store
+        let kms_hash = kms::get_kms_client(&state.conf.kms)
+            .await
+            .encrypt(encoded_hash.as_bytes())
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+
         let fingerprint_id = state
             .store
             .insert_pm_fingerprint_entry(diesel_models::pm_fingerprint::PmFingerprintNew {
                 fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
-                kms_hash: encoded_hash.clone(),
+                kms_hash,
             })
             .await
             .change_context(errors::StorageError::ValueNotFound(
                 bin.to_string().clone().to_string(),
             ))?
             .fingerprint_id;
+
         let _ = state
             .store
             .insert_blocklist_lookup_entry(diesel_models::blocklist_lookup::BlocklistLookupNew {
