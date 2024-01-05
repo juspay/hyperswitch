@@ -2336,7 +2336,7 @@ pub fn get_connector_metadata(
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                let bank_instructions = response.financial_addresses.get(0);
+                let bank_instructions = response.financial_addresses.first();
                 let (sepa_bank_instructions, bacs_bank_instructions) =
                     bank_instructions.map_or((None, None), |financial_address| {
                         (
@@ -3649,7 +3649,10 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.first_name");
+        assert_eq!(
+            *missing_fields.first().unwrap(),
+            "shipping.address.first_name"
+        );
     }
 
     #[test]
@@ -3674,7 +3677,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.line1");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.line1");
     }
 
     #[test]
@@ -3699,7 +3702,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.country");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.country");
     }
 
     #[test]
@@ -3723,7 +3726,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.zip");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.zip");
     }
 
     #[test]

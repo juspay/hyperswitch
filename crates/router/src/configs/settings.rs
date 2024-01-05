@@ -556,7 +556,7 @@ impl From<Database> for storage_impl::config::Database {
             dbname: val.dbname,
             pool_size: val.pool_size,
             connection_timeout: val.connection_timeout,
-            queue_strategy: val.queue_strategy.into(),
+            queue_strategy: val.queue_strategy,
             min_idle: val.min_idle,
             max_lifetime: val.max_lifetime,
         }

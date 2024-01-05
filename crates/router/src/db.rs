@@ -14,6 +14,7 @@ pub mod events;
 pub mod file;
 pub mod fraud_check;
 pub mod gsm;
+pub mod health_check;
 mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -103,6 +104,7 @@ pub trait StorageInterface:
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
+    + health_check::HealthCheckInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
