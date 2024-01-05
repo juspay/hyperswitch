@@ -347,12 +347,14 @@ impl
         let (response, status) = match item.response.response {
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.orderid),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -638,7 +640,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
@@ -732,7 +734,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::Charged,
@@ -788,7 +790,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -838,7 +840,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
