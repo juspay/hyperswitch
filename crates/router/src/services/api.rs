@@ -1138,6 +1138,14 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
         .body(response)
 }
 
+pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
+    response: T,
+) -> HttpResponse {
+    HttpResponse::InternalServerError()
+        .content_type(mime::APPLICATION_JSON)
+        .body(response)
+}
+
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     mut headers: Vec<(String, String)>,
