@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.105.0+hotfix.3 (2024-01-05)
+
+### Features
+
+- **connector:** [BOA] Populate merchant_defined_information with metadata ([#3253](https://github.com/juspay/hyperswitch/pull/3253)) ([`ec08236`](https://github.com/juspay/hyperswitch/commit/ec082369075faf278d30f0330820a92bc8423183))
+
+**Full Changelog:** [`v1.105.0+hotfix.2...v1.105.0+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.2...v1.105.0+hotfix.3)
+
+- - -
+
 ## 1.105.0+hotfix.2 (2024-01-04)
 
 ### Bug Fixes
