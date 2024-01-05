@@ -116,7 +116,6 @@ impl_misc_api_event_type!(
     AttachEvidenceRequest,
     DisputeId,
     PaymentLinkFormData,
-    PaymentsRedirectResponseData,
     ConfigUpdate
 );
 
@@ -131,3 +130,15 @@ impl_misc_api_event_type!(
     DummyConnectorRefundResponse,
     DummyConnectorRefundRequest
 );
+
+impl ApiEventMetric for PaymentsRedirectResponseData {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentRedirectionResponse {
+            connector: self.connector.clone(),
+            payment_id: match &self.resource_id {
+                api_models::payments::PaymentIdType::PaymentIntentId(id) => Some(id.clone()),
+                _ => None,
+            },
+        })
+    }
+}
