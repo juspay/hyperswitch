@@ -26,7 +26,6 @@
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
       "amount_to_capture": 6540,
-      "customer_id": "bernard123",
       "email": "guest@example.com",
       "name": "John Doe",
       "phone": "999999999",
