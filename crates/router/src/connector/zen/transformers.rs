@@ -939,7 +939,7 @@ fn get_zen_response(
         None => (None, None),
     };
     let status = enums::AttemptStatus::foreign_try_from((response.status, action))?;
-    let error = if status == enums::AttemptStatus::Failure {
+    let error = if utils::is_payment_failure(status) {
         Some(types::ErrorResponse {
             code: response
                 .reject_code
@@ -1055,9 +1055,12 @@ impl From<RefundStatus> for enums::RefundStatus {
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    reject_code: Option<String>,
+    reject_reason: Option<String>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -1067,15 +1070,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
+        let (error, refund_response_data) = get_zen_refund_response(item.response, item.http_code)?;
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status,
-            }),
+            response: error.map_or_else(|| Ok(refund_response_data), Err),
             ..item.data
         })
     }
+}
+
+fn get_zen_refund_response(
+    response: RefundResponse,
+    status_code: u16,
+) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
+{
+    let refund_status = enums::RefundStatus::from(response.status);
+    let error = if utils::is_refund_failure(refund_status) {
+        Some(types::ErrorResponse {
+            code: response
+                .reject_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .reject_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.reject_reason,
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response.id.clone()),
+        })
+    } else {
+        None
+    };
+    let refund_response_data = types::RefundsResponseData {
+        connector_refund_id: response.id,
+        refund_status,
+    };
+    Ok((error, refund_response_data))
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
