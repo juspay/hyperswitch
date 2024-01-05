@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::enums::{self as api_enums, DisputeStage, DisputeStatus};
 use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
@@ -1098,5 +1098,134 @@ pub fn get_incremental_authorization_allowed_value(
         Some(false)
     } else {
         incremental_authorization_allowed
+    }
+}
+
+pub fn validate_payment_method_type_against_payment_method(
+    payment_method: api_enums::PaymentMethod,
+    payment_method_type: api_enums::PaymentMethodType,
+) -> bool {
+    match payment_method {
+        api_enums::PaymentMethod::Card => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit
+        ),
+        api_enums::PaymentMethod::PayLater => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Affirm
+                | api_enums::PaymentMethodType::Alma
+                | api_enums::PaymentMethodType::AfterpayClearpay
+                | api_enums::PaymentMethodType::Klarna
+                | api_enums::PaymentMethodType::PayBright
+                | api_enums::PaymentMethodType::Atome
+                | api_enums::PaymentMethodType::Walley
+        ),
+        api_enums::PaymentMethod::Wallet => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::ApplePay
+                | api_enums::PaymentMethodType::GooglePay
+                | api_enums::PaymentMethodType::Paypal
+                | api_enums::PaymentMethodType::AliPay
+                | api_enums::PaymentMethodType::AliPayHk
+                | api_enums::PaymentMethodType::Dana
+                | api_enums::PaymentMethodType::MbWay
+                | api_enums::PaymentMethodType::MobilePay
+                | api_enums::PaymentMethodType::SamsungPay
+                | api_enums::PaymentMethodType::Twint
+                | api_enums::PaymentMethodType::Vipps
+                | api_enums::PaymentMethodType::TouchNGo
+                | api_enums::PaymentMethodType::Swish
+                | api_enums::PaymentMethodType::WeChatPay
+                | api_enums::PaymentMethodType::GoPay
+                | api_enums::PaymentMethodType::Gcash
+                | api_enums::PaymentMethodType::Momo
+                | api_enums::PaymentMethodType::KakaoPay
+                | api_enums::PaymentMethodType::Cashapp
+        ),
+        api_enums::PaymentMethod::BankRedirect => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Giropay
+                | api_enums::PaymentMethodType::Ideal
+                | api_enums::PaymentMethodType::Sofort
+                | api_enums::PaymentMethodType::Eps
+                | api_enums::PaymentMethodType::BancontactCard
+                | api_enums::PaymentMethodType::Blik
+                | api_enums::PaymentMethodType::OnlineBankingThailand
+                | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+                | api_enums::PaymentMethodType::OnlineBankingFinland
+                | api_enums::PaymentMethodType::OnlineBankingFpx
+                | api_enums::PaymentMethodType::OnlineBankingPoland
+                | api_enums::PaymentMethodType::OnlineBankingSlovakia
+                | api_enums::PaymentMethodType::Przelewy24
+                | api_enums::PaymentMethodType::Trustly
+                | api_enums::PaymentMethodType::Bizum
+                | api_enums::PaymentMethodType::Interac
+                | api_enums::PaymentMethodType::OpenBankingUk
+        ),
+        api_enums::PaymentMethod::BankTransfer => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Ach
+                | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::Bacs
+                | api_enums::PaymentMethodType::Multibanco
+                | api_enums::PaymentMethodType::Pix
+                | api_enums::PaymentMethodType::Pse
+                | api_enums::PaymentMethodType::PermataBankTransfer
+                | api_enums::PaymentMethodType::BcaBankTransfer
+                | api_enums::PaymentMethodType::BniVa
+                | api_enums::PaymentMethodType::BriVa
+                | api_enums::PaymentMethodType::CimbVa
+                | api_enums::PaymentMethodType::DanamonVa
+                | api_enums::PaymentMethodType::MandiriVa
+        ),
+        api_enums::PaymentMethod::BankDebit => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Ach
+                | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::Bacs
+                | api_enums::PaymentMethodType::Becs
+        ),
+        api_enums::PaymentMethod::Crypto => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::CryptoCurrency
+        ),
+        api_enums::PaymentMethod::Reward => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Evoucher | api_enums::PaymentMethodType::ClassicReward
+        ),
+        api_enums::PaymentMethod::Upi => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::UpiCollect
+        ),
+        api_enums::PaymentMethod::Voucher => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Boleto
+                | api_enums::PaymentMethodType::Efecty
+                | api_enums::PaymentMethodType::PagoEfectivo
+                | api_enums::PaymentMethodType::RedCompra
+                | api_enums::PaymentMethodType::RedPagos
+                | api_enums::PaymentMethodType::Indomaret
+                | api_enums::PaymentMethodType::Alfamart
+                | api_enums::PaymentMethodType::Oxxo
+                | api_enums::PaymentMethodType::SevenEleven
+                | api_enums::PaymentMethodType::Lawson
+                | api_enums::PaymentMethodType::MiniStop
+                | api_enums::PaymentMethodType::FamilyMart
+                | api_enums::PaymentMethodType::Seicomart
+                | api_enums::PaymentMethodType::PayEasy
+        ),
+        api_enums::PaymentMethod::GiftCard => {
+            matches!(
+                payment_method_type,
+                api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard
+            )
+        }
+        api_enums::PaymentMethod::CardRedirect => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Knet
+                | api_enums::PaymentMethodType::Benefit
+                | api_enums::PaymentMethodType::MomoAtm
+                | api_enums::PaymentMethodType::CardRedirect
+        ),
     }
 }
