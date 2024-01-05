@@ -143,6 +143,7 @@ pub struct NmiVaultResponse {
     pub responsetext: String,
     pub customer_vault_id: Option<String>,
     pub response_code: String,
+    pub transactionid: String,
 }
 
 impl
@@ -205,7 +206,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
@@ -213,11 +214,11 @@ impl
             Response::Declined | Response::Error => (
                 Err(types::ErrorResponse {
                     code: item.response.response_code,
-                    message: item.response.responsetext,
-                    reason: None,
+                    message: item.response.responsetext.to_owned(),
+                    reason: Some(item.response.responsetext),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(item.response.transactionid),
                 }),
                 enums::AttemptStatus::Failure,
             ),
@@ -346,12 +347,14 @@ impl
         let (response, status) = match item.response.response {
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.orderid),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -382,11 +385,11 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
         Self {
             code: response.response_code,
-            message: response.responsetext,
-            reason: None,
+            message: response.responsetext.to_owned(),
+            reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.transactionid),
         }
     }
 }
@@ -632,13 +635,13 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
@@ -726,13 +729,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::Charged,
@@ -757,11 +760,11 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (StandardResponse, u16)) -> Self {
         Self {
             code: response.response_code,
-            message: response.responsetext,
-            reason: None,
+            message: response.responsetext.to_owned(),
+            reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.transactionid),
         }
     }
 }
@@ -782,13 +785,13 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -832,13 +835,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
@@ -1163,8 +1166,12 @@ pub enum NmiWebhookEventType {
 impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
     fn foreign_from(status: NmiWebhookEventType) -> Self {
         match status {
-            NmiWebhookEventType::SaleSuccess => Self::PaymentIntentSuccess,
-            NmiWebhookEventType::SaleFailure => Self::PaymentIntentFailure,
+            NmiWebhookEventType::SaleSuccess | NmiWebhookEventType::CaptureSuccess => {
+                Self::PaymentIntentSuccess
+            }
+            NmiWebhookEventType::SaleFailure | NmiWebhookEventType::CaptureFailure => {
+                Self::PaymentIntentFailure
+            }
             NmiWebhookEventType::RefundSuccess => Self::RefundSuccess,
             NmiWebhookEventType::RefundFailure => Self::RefundFailure,
             NmiWebhookEventType::VoidSuccess => Self::PaymentIntentCancelled,
@@ -1175,8 +1182,6 @@ impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
             | NmiWebhookEventType::AuthUnknown
             | NmiWebhookEventType::VoidFailure
             | NmiWebhookEventType::VoidUnknown
-            | NmiWebhookEventType::CaptureSuccess
-            | NmiWebhookEventType::CaptureFailure
             | NmiWebhookEventType::CaptureUnknown => Self::EventNotSupported,
         }
     }
