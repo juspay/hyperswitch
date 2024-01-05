@@ -127,7 +127,7 @@ fn get_card_details(
             utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
                 card_details,
                 "".to_string(),
-            ),
+            )?,
             card_details.card_cvc.clone(),
         )),
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -459,7 +459,7 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
         payment_method_data: &api_models::payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match &payment_method_data {
-            api::PaymentMethodData::Card(ref card) => Ok(Self::from(card)),
+            api::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 api_models::payments::WalletData::GooglePay(ref googlepay_data) => {
                     Ok(Self::from(googlepay_data))
@@ -518,18 +518,19 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
     }
 }
 
-impl From<&api_models::payments::Card> for PaymentMethod {
-    fn from(card: &api_models::payments::Card) -> Self {
+impl TryFrom<&api_models::payments::Card> for PaymentMethod {
+    type Error = Error;
+    fn try_from(card: &api_models::payments::Card) -> Result<Self, Self::Error> {
         let ccexp = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
             card,
             "".to_string(),
-        );
+        )?;
         let card = CardData {
             ccnumber: card.card_number.clone(),
             ccexp,
             cvv: card.card_cvc.clone(),
         };
-        Self::Card(Box::new(card))
+        Ok(Self::Card(Box::new(card)))
     }
 }
 
