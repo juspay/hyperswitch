@@ -158,6 +158,7 @@ impl AdyenTest {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         })
     }
 }

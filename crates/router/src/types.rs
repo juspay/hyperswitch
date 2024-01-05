@@ -407,6 +407,7 @@ pub struct PaymentsAuthorizeData {
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1245,6 +1246,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
+            metadata: None,
         }
     }
 }

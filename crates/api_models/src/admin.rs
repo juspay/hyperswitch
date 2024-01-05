@@ -359,7 +359,7 @@ pub mod payout_routing_algorithm {
         where
             A: de::MapAccess<'de>,
         {
-            let mut output = serde_json::Value::Object(Map::new());
+            let mut output = Map::new();
             let mut routing_data: String = "".to_string();
             let mut routing_type: String = "".to_string();
 
@@ -367,14 +367,20 @@ pub mod payout_routing_algorithm {
                 match key {
                     "type" => {
                         routing_type = map.next_value()?;
-                        output["type"] = serde_json::Value::String(routing_type.to_owned());
+                        output.insert(
+                            "type".to_string(),
+                            serde_json::Value::String(routing_type.to_owned()),
+                        );
                     }
                     "data" => {
                         routing_data = map.next_value()?;
-                        output["data"] = serde_json::Value::String(routing_data.to_owned());
+                        output.insert(
+                            "data".to_string(),
+                            serde_json::Value::String(routing_data.to_owned()),
+                        );
                     }
                     f => {
-                        output[f] = map.next_value()?;
+                        output.insert(f.to_string(), map.next_value()?);
                     }
                 }
             }
@@ -392,7 +398,7 @@ pub mod payout_routing_algorithm {
                 }
                 u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
             }?;
-            Ok(output)
+            Ok(serde_json::Value::Object(output))
         }
     }
 
