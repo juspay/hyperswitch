@@ -8,12 +8,9 @@ use rdkafka::{
 };
 
 use crate::events::EventType;
-mod api_event;
-pub mod outgoing_request;
 mod payment_attempt;
 mod payment_intent;
 mod refund;
-pub use api_event::{ApiCallEventType, ApiEvents, ApiEventsType};
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::refund::Refund;
 use serde::Serialize;
@@ -298,11 +295,6 @@ impl KafkaProducer {
         .attach_printable_lazy(|| {
             format!("Failed to add negative refund event {delete_old_refund:?}")
         })
-    }
-
-    pub async fn log_api_event(&self, event: &ApiEvents) -> MQResult<()> {
-        self.log_kafka_event(&self.api_logs_topic, event)
-            .attach_printable_lazy(|| format!("Failed to add api log event {event:?}"))
     }
 
     pub fn get_topic(&self, event: EventType) -> &str {
