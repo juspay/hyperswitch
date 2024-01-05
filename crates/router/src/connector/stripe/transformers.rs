@@ -135,7 +135,7 @@ pub struct PaymentIntentRequest {
 pub struct StripeMetadata {
     // merchant_reference_id
     #[serde(rename(serialize = "metadata[order_id]"))]
-    pub order_id: String,
+    pub order_id: Option<String>,
     // to check whether the order_id is refund_id or payemnt_id
     // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
     // it is set as string instead of bool because stripe pass it as string even if we set it as bool
@@ -1861,7 +1861,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
             meta_data: StripeMetadata {
-                order_id,
+                order_id: Some(order_id),
                 is_refund_id_as_reference: None,
             },
             return_url: item
@@ -2696,7 +2696,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
             amount: Some(amount),
             payment_intent,
             meta_data: StripeMetadata {
-                order_id: item.request.refund_id.clone(),
+                order_id: Some(item.request.refund_id.clone()),
                 is_refund_id_as_reference: Some("true".to_string()),
             },
         })
