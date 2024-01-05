@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
+        self as conn_utils, is_refund_failure, CardData, PaymentsAuthorizeRequestData, RouterData,
+        WalletData,
     },
     core::errors,
     services,
@@ -660,6 +661,9 @@ pub struct NoonRefundResponseResult {
 #[derive(Default, Debug, Deserialize)]
 pub struct RefundResponse {
     result: NoonRefundResponseResult,
+    result_code: u32,
+    class_description: String,
+    message: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -669,11 +673,26 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let response = &item.response;
+        let refund_status =
+            enums::RefundStatus::from(response.result.transaction.status.to_owned());
+        let response = if is_refund_failure(refund_status) {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: response.result_code.to_string(),
+                message: response.class_description.clone(),
+                reason: Some(response.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: Some(response.result.transaction.id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.result.transaction.id,
-                refund_status: enums::RefundStatus::from(item.response.result.transaction.status),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -695,6 +714,9 @@ pub struct NoonRefundSyncResponseResult {
 #[derive(Default, Debug, Deserialize)]
 pub struct RefundSyncResponse {
     result: NoonRefundSyncResponseResult,
+    result_code: u32,
+    class_description: String,
+    message: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
@@ -718,12 +740,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
                     })
             })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(noon_transaction.status.to_owned());
+        let response = if is_refund_failure(refund_status) {
+            let response = &item.response;
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: response.result_code.to_string(),
+                message: response.class_description.clone(),
+                reason: Some(response.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: Some(noon_transaction.id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: noon_transaction.id.to_owned(),
-                refund_status: enums::RefundStatus::from(noon_transaction.status.to_owned()),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
