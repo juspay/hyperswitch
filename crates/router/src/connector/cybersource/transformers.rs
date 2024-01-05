@@ -1754,7 +1754,7 @@ impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorR
             .clone()
             .and_then(|error_details| error_details.message);
 
-        types::ErrorResponse {
+        Self {
             code: error_data
                 .clone()
                 .and_then(|error_details| error_details.reason)
