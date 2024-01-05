@@ -187,7 +187,7 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 
 pub async fn get_decrypted_response_payload(
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveAwsKmsSecrets,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
@@ -237,7 +237,7 @@ pub async fn get_decrypted_response_payload(
 }
 
 pub async fn mk_basilisk_req(
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveAwsKmsSecrets,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     jws: &str,
     locker_choice: api_enums::LockerChoice,
@@ -294,7 +294,7 @@ pub async fn mk_basilisk_req(
 
 pub async fn mk_add_locker_request_hs<'a>(
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveAwsKmsSecrets,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     payload: &StoreLockerReq<'a>,
     locker_choice: api_enums::LockerChoice,
@@ -427,7 +427,7 @@ pub fn mk_add_card_request(
 
 pub async fn mk_get_card_request_hs(
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveAwsKmsSecrets,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
@@ -503,7 +503,7 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 }
 
 pub async fn mk_delete_card_request_hs(
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveAwsKmsSecrets,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     customer_id: &str,

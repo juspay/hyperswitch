@@ -44,7 +44,7 @@ pub async fn get_hash_key(
                 .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt API key hashing key")?;
+                .attach_printable("Failed to AWS KMS decrypt API key hashing key")?;
 
             #[cfg(not(feature = "aws_kms"))]
             let hash_key = &api_key_config.hash_key;

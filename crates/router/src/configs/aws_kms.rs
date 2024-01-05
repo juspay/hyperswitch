@@ -36,7 +36,7 @@ impl AwsKmsDecrypt for settings::Jwekey {
 }
 
 #[async_trait::async_trait]
-impl AwsKmsDecrypt for settings::ActiveAwsKmsSecrets {
+impl AwsKmsDecrypt for settings::ActiveKmsSecrets {
     type Output = Self;
     async fn decrypt_inner(
         mut self,

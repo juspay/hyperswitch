@@ -262,7 +262,7 @@ pub async fn get_admin_api_key(
                 .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt admin API key")?;
+                .attach_printable("Failed to AWS KMS decrypt admin API key")?;
 
             #[cfg(not(feature = "aws_kms"))]
             let admin_api_key = secrets.admin_api_key.clone();
@@ -741,7 +741,7 @@ pub async fn get_jwt_secret(
                 .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt JWT secret")?;
+                .attach_printable("Failed to AWS KMS decrypt JWT secret")?;
 
             #[cfg(not(feature = "aws_kms"))]
             let jwt_secret = secrets.jwt_secret.clone();

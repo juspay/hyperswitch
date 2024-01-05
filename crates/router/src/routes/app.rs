@@ -57,7 +57,7 @@ pub struct AppState {
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
     #[cfg(feature = "aws_kms")]
-    pub aws_kms_secrets: Arc<settings::ActiveAwsKmsSecrets>,
+    pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
@@ -206,7 +206,7 @@ impl AppState {
 
             #[cfg(feature = "aws_kms")]
             #[allow(clippy::expect_used)]
-            let aws_kms_secrets = settings::ActiveAwsKmsSecrets {
+            let kms_secrets = settings::ActiveKmsSecrets {
                 jwekey: conf.jwekey.clone().into(),
             }
             .decrypt_inner(aws_kms_client)
@@ -223,7 +223,7 @@ impl AppState {
                 #[cfg(feature = "email")]
                 email_client,
                 #[cfg(feature = "aws_kms")]
-                aws_kms_secrets: Arc::new(aws_kms_secrets),
+                kms_secrets: Arc::new(kms_secrets),
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]

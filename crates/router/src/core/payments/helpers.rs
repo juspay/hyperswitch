@@ -2861,7 +2861,7 @@ pub async fn get_merchant_connector_account(
 
             #[cfg(feature = "aws_kms")]
             let private_key = state
-                .aws_kms_secrets
+                .kms_secrets
                 .jwekey
                 .peek()
                 .tunnel_private_key

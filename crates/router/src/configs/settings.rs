@@ -57,7 +57,7 @@ pub enum Subcommand {
 /// allocations.
 /// note: we can consider adding such behaviour in the future with custom implementation
 #[derive(Clone)]
-pub struct ActiveAwsKmsSecrets {
+pub struct ActiveKmsSecrets {
     pub jwekey: masking::Secret<Jwekey>,
 }
 
