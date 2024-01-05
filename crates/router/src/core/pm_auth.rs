@@ -9,7 +9,6 @@ use hex;
 pub mod helpers;
 pub mod transformers;
 
-use common_utils::ext_traits::OptionExt;
 use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
@@ -53,6 +52,7 @@ use crate::{
         storage,
         transformers::ForeignTryFrom,
     },
+    utils::ext_traits::OptionExt,
 };
 
 pub async fn create_link_token(
@@ -717,10 +717,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         .as_ref()
         .and_then(|customer| customer.email.clone())
         .map(common_utils::pii::Email::from)
-        .get_required_value("email")
-        .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "email",
-        })?;
+        .get_required_value("email")?;
 
     let payment_method_data = PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
         billing_details: BankDebitBilling {
