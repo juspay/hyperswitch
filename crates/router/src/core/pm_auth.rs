@@ -12,7 +12,7 @@ pub mod transformers;
 use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
-    ext_traits::{AsyncExt, OptionExt},
+    ext_traits::AsyncExt,
     generate_id,
 };
 use data_models::payments::PaymentIntent;
