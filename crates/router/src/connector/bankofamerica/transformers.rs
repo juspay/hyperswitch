@@ -1228,9 +1228,6 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
             String,
         ),
     ) -> Self {
-        let error_data = value.0;
-        let status_code = value.1;
-        let transaction_id = value.2;
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.message);
