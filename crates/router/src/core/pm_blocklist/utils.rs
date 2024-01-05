@@ -166,7 +166,7 @@ pub async fn insert_to_blocklist_lookup_db(
     merchant_id: String,
     pm_hashes: &[String],
     pm_type: &str,
-) -> CustomResult<blacklist_pm::BlacklistPmResponse, StorageError> {
+) -> CustomResult<blacklist_pm::BlocklistPmResponse, StorageError> {
     let pm_hashes = remove_duplicates(pm_hashes);
     let mut new_entries = Vec::new();
     let mut fingerprints_blocked = Vec::new();
@@ -195,7 +195,7 @@ pub async fn insert_to_blocklist_lookup_db(
                         state,
                         merchant_id.clone(),
                         merchant_secret.clone(),
-                        pm_type.clone(),
+                        pm_type,
                     )
                     .await
                 }
@@ -209,13 +209,12 @@ pub async fn insert_to_blocklist_lookup_db(
                         state,
                         merchant_id.clone(),
                         merchant_secret.clone(),
-                        pm_type.clone(),
+                        pm_type,
                     )
                     .await
                 }
                 _ => {
                     // For fingerprint we are getting the fingerprint id already
-                    //TODO Decrypt this KMS encryption to get hash
                     let kms_hash = state
                         .store
                         .find_pm_fingerprint_entry(pm_hash.clone())
@@ -291,13 +290,13 @@ pub async fn insert_to_blocklist_lookup_db(
 
     if all_requested_fingerprints_blocked {
         let response = match pm_type {
-            "cardbin" => blacklist_pm::BlacklistPmResponse {
+            "cardbin" => blacklist_pm::BlocklistPmResponse {
                 blocked: blacklist_pm::BlocklistType::Cardbin(fingerprints_blocked),
             },
-            "extended_cardbin" => blacklist_pm::BlacklistPmResponse {
+            "extended_cardbin" => blacklist_pm::BlocklistPmResponse {
                 blocked: blacklist_pm::BlocklistType::ExtendedCardbin(fingerprints_blocked),
             },
-            _ => blacklist_pm::BlacklistPmResponse {
+            _ => blacklist_pm::BlocklistPmResponse {
                 blocked: blacklist_pm::BlocklistType::Fingerprint(fingerprints_blocked),
             },
         };
@@ -331,7 +330,6 @@ async fn duplicate_check_insert_bin(
     let hashed_bin = crypto::HmacSha512::sign_message(
         &crypto::HmacSha512,
         merchant_secret.clone().as_bytes(),
-        // what if they supply 10 digits instead of say 6 or 8
         bin.as_bytes(),
     )
     .change_context(StorageError::EncryptionError)
@@ -355,7 +353,6 @@ async fn duplicate_check_insert_bin(
         })
         .into_report()
     } else {
-        // TODO KMS encrypt the encoded hash and then store
         let kms_hash = kms::get_kms_client(&state.conf.kms)
             .await
             .encrypt(encoded_hash.as_bytes())

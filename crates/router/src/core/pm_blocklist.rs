@@ -10,10 +10,10 @@ use crate::{core::errors, routes::AppState, services, types::domain};
 pub async fn block_payment_method(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: pm_blocklist::BlacklistPmRequest,
+    body: pm_blocklist::BlocklistPmRequest,
     merchant_account: domain::MerchantAccount,
 ) -> CustomResult<
-    services::ApplicationResponse<pm_blocklist::BlacklistPmResponse>,
+    services::ApplicationResponse<pm_blocklist::BlocklistPmResponse>,
     errors::ApiErrorResponse,
 > {
     let blocklist_type: &str;
@@ -30,7 +30,7 @@ pub async fn block_payment_method(
                 .await
                 .change_context(
                     errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "Unable to block fingerprints".to_string(),
+                        message: "Unable to block cardbins".to_string(),
                     },
                 )?,
             ))

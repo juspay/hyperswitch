@@ -671,8 +671,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         };
 
         #[cfg(not(feature = "kms"))]
-        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion
-        {
+        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion {
             Some(FrmSuggestion::FrmCancelTransaction) => (
                 storage_enums::IntentStatus::Failed,
                 storage_enums::AttemptStatus::Failure,
@@ -893,10 +892,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     is_pm_blocklisted = true;
                 }
                 _ => {
-                    println!(
-                        ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>The entry isn't found we can move on"
-                    );
-                    // TODO KMS ENCRYPT THE HASH AND STORE IN THE TABLE AND GIVE BACK THE ID
                     let kms_hash = kms::get_kms_client(&state.conf.kms)
                         .await
                         .encrypt(

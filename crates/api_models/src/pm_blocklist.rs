@@ -3,7 +3,7 @@ use common_utils::events::ApiEventMetric;
 /// The request body for blacklisting pm
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlacklistPmRequest {
+pub struct BlocklistPmRequest {
     pub blocklist_pm: BlocklistType,
 }
 
@@ -17,7 +17,7 @@ pub struct UnblockPmRequest {
 /// Response to be sent for the pm/block api
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub struct BlacklistPmResponse {
+pub struct BlocklistPmResponse {
     pub blocked: BlocklistType,
 }
 
@@ -45,8 +45,8 @@ pub enum BlocklistType {
     ExtendedCardbin(Vec<String>),
 }
 
-impl ApiEventMetric for BlacklistPmRequest {}
-impl ApiEventMetric for BlacklistPmResponse {}
+impl ApiEventMetric for BlocklistPmRequest {}
+impl ApiEventMetric for BlocklistPmResponse {}
 impl ApiEventMetric for UnblockPmResponse {}
 impl ApiEventMetric for UnblockPmRequest {}
 impl ApiEventMetric for ListBlockedPmResponse {}

@@ -104,7 +104,6 @@ impl PmBlocklistInterface for Store {
     }
 }
 
-// TODO need to map this to either error or outputs
 #[async_trait::async_trait]
 impl PmBlocklistInterface for MockDb {
     #[instrument(skip_all)]

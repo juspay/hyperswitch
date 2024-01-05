@@ -11,7 +11,7 @@ use crate::{
 pub async fn block_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<pm_blocklist_model::BlacklistPmRequest>,
+    json_payload: web::Json<pm_blocklist_model::BlocklistPmRequest>,
 ) -> HttpResponse {
     let flow = Flow::PmBlockFlow;
     Box::pin(api::server_wrap(
@@ -37,7 +37,7 @@ pub async fn unblock_payment_method(
     req: HttpRequest,
     json_payload: web::Json<pm_blocklist_model::UnblockPmRequest>,
 ) -> HttpResponse {
-    let flow = Flow::PmBlockFlow;
+    let flow = Flow::PmUnblockFlow;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -60,7 +60,7 @@ pub async fn list_blocked_payment_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
-    let flow = Flow::PmBlockFlow;
+    let flow = Flow::PmBlocklistListFlow;
     Box::pin(api::server_wrap(
         flow,
         state,

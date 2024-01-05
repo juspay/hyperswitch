@@ -24,7 +24,7 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
-    PmBlock,
+    Blocklist,
     Forex,
     RustLockerMigration,
     Gsm,
@@ -57,7 +57,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
-            Flow::PmBlockFlow => Self::PmBlock,
+
+            Flow::PmBlockFlow => Self::Blocklist,
+            Flow::PmUnblockFlow => Self::Blocklist,
+            Flow::PmBlocklistListFlow => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve

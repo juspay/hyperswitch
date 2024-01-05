@@ -130,13 +130,12 @@ pub fn mk_app(
     {
         #[cfg(feature = "kms")]
         {
-            server_app = server_app
-                .service(routes::PaymentMethods::server(state.clone()))
+            server_app = server_app.service(routes::PaymentMethods::server(state.clone()))
         }
 
         server_app = server_app
-        .service(routes::EphemeralKey::server(state.clone()))
-        .service(routes::Webhooks::server(state.clone()))
+            .service(routes::EphemeralKey::server(state.clone()))
+            .service(routes::Webhooks::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]

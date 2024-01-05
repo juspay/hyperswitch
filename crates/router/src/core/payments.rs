@@ -1955,7 +1955,6 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
-    // pub pm_fingerprint: Option<String>,
     pub frm_metadata: Option<serde_json::Value>,
 }
 

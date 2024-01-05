@@ -187,6 +187,10 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Payment Method block flow
     PmBlockFlow,
+    /// Payment Method unblock flow
+    PmUnblockFlow,
+    /// Payment Method blocklist list flow
+    PmBlocklistListFlow,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
