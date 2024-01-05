@@ -1229,7 +1229,7 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
             .clone()
             .and_then(|error_details| error_details.message);
 
-            Self {
+        Self {
             code: error_data
                 .clone()
                 .and_then(|error_details| error_details.reason)
