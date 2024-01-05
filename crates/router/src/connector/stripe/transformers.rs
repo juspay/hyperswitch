@@ -3203,7 +3203,7 @@ pub struct WebhookPaymentMethodDetails {
     pub payment_method: WebhookPaymentMethodType,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
@@ -3218,7 +3218,7 @@ pub struct WebhookEventObjectData {
     pub metadata: Option<StripeMetadata>,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]
+#[derive(Debug, Clone, Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventObjectType {
     PaymentIntent,
@@ -3280,7 +3280,7 @@ pub enum WebhookEventType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, strum::Display, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventStatus {
     WarningNeedsResponse,
@@ -3304,7 +3304,7 @@ pub enum WebhookEventStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct EvidenceDetails {
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub due_by: PrimitiveDateTime,
