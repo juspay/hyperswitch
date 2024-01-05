@@ -1746,7 +1746,13 @@ pub struct AuthenticationErrorInformation {
 }
 
 impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorResponse {
-    fn from((error_data,status_code, transaction_id): (&Option<CybersourceErrorInformation>, u16, String)) -> Self {
+    fn from(
+        (error_data, status_code, transaction_id): (
+            &Option<CybersourceErrorInformation>,
+            u16,
+            String,
+        ),
+    ) -> Self {
         let error_data = value.0;
         let status_code = value.1;
         let transaction_id = value.2;
