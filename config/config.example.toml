@@ -22,7 +22,7 @@ idle_pool_connection_timeout = 90 # Timeout for idle pool connections (defaults 
 # Main SQL data store credentials
 [master_database]
 username = "db_user"      # DB Username
-password = "db_pass"      # DB Password. Use base-64 encoded aws kms encrypted value here when aws_kms is enabled
+password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
@@ -33,7 +33,7 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 # Replica SQL data store credentials
 [replica_database]
 username = "replica_user" # DB Username
-password = "db_pass"      # DB Password. Use base-64 encoded aws kms encrypted value here when aws_kms is enabled
+password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
@@ -115,11 +115,11 @@ route_to_trace = ["*/confirm"]
 # This section provides some secret values.
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
-admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when AWS KMS is disabled.
+admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when KMS is disabled.
 kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
-jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when AWS KMS is disabled.
+jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when KMS is disabled.
 kms_encrypted_jwt_secret = ""            # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
-recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when AWS KMS is disabled.
+recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when KMS is disabled.
 kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
 
 # Locker settings contain details for accessing a card locker, a
