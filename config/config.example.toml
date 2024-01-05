@@ -524,9 +524,10 @@ enabled = true # Switch to enable or disable PayPal onboarding
 source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                       # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"   # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"  # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"   # Kafka topic to be used for Refund events
-api_logs_topic = "topic"           # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"     # Kafka topic to be used for connector api events
+brokers = []                              # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"          # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"         # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"          # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                  # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"            # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"     # Kafka topic to be used for outgoing webhook events
