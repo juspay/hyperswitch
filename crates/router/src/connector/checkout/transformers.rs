@@ -1026,7 +1026,7 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
         self.status == CheckoutPaymentStatus::Captured
     }
     fn get_amount_captured(&self) -> Option<i64> {
-        self.amount.map(|amount| amount.into())
+        self.amount.map(Into::into)
     }
 }
 
