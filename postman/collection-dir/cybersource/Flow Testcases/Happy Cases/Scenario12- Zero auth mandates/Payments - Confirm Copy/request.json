@@ -103,5 +103,5 @@
       }
     ]
   },
-  "description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+  "description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 }
