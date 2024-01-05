@@ -1898,7 +1898,7 @@ pub enum NextActionData {
     },
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionFromConnectorMetaData {
     DisplayBankTransferInformation {
@@ -1907,7 +1907,7 @@ pub enum NextActionFromConnectorMetaData {
     QrCodeInformation(QrCodeInformation),
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum QrCodeInformation {

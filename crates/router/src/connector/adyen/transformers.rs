@@ -294,7 +294,7 @@ pub enum AdyenPaymentResponse {
     Response(Box<Response>),
     PresentToShopper(Box<PresentToShopperResponse>),
     QrCodeResponse(Box<QrCodeResponseResponse>),
-    AdyenNextActionResponse(Box<AdyenNextActionResponse>),
+    RedirectionResponse(Box<RedirectionResponse>),
     RedirectionErrorResponse(Box<RedirectionErrorResponse>),
 }
 
@@ -321,9 +321,9 @@ pub struct RedirectionErrorResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenNextActionResponse {
+pub struct RedirectionResponse {
     result_code: AdyenStatus,
-    action: AdyenNextAction,
+    action: AdyenRedirectAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
 }
@@ -354,7 +354,7 @@ pub struct AdyenQrCodeAction {
     #[serde(rename = "type")]
     type_of_response: ActionType,
     #[serde(rename = "url")]
-    mobile_redirection_url: Option<Url>,
+    qr_code_url: Option<Url>,
     qr_code_data: String,
 }
 
@@ -375,7 +375,7 @@ pub struct AdyenPtsAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenNextAction {
+pub struct AdyenRedirectAction {
     payment_method_type: PaymentType,
     url: Option<Url>,
     method: Option<services::Method>,
@@ -383,7 +383,6 @@ pub struct AdyenNextAction {
     type_of_response: ActionType,
     data: Option<std::collections::HashMap<String, String>>,
     payment_data: Option<String>,
-    qr_code_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -523,17 +522,6 @@ pub enum AdyenPaymentMethod<'a> {
 pub struct PmdForPaymentType {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-}
-
-/// Cases:
-/// we get only image_data_url for some pm
-/// we get only qr_code_url for some pm
-/// we get both in some cases
-
-#[derive(Clone, Debug, Serialize)]
-pub struct QrCodeNextInstructions {
-    pub image_data_url: Option<Url>,
-    pub qr_code_url: Option<Url>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -3099,8 +3087,8 @@ fn update_attempt_status_based_on_event_type_if_needed(
     }
 }
 
-pub fn get_next_action_response(
-    response: AdyenNextActionResponse,
+pub fn get_redirection_response(
+    response: RedirectionResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -3134,22 +3122,19 @@ pub fn get_next_action_response(
         None
     };
 
-    let redirection_data = match response.action.type_of_response {
-        ActionType::QrCode => None,
-        _ => response.to_owned().action.url.map(|url| {
-            let form_fields = response.to_owned().action.data.unwrap_or_else(|| {
-                std::collections::HashMap::from_iter(
-                    url.query_pairs()
-                        .map(|(key, value)| (key.to_string(), value.to_string())),
-                )
-            });
-            services::RedirectForm::Form {
-                endpoint: url.to_string(),
-                method: response.action.method.unwrap_or(services::Method::Get),
-                form_fields,
-            }
-        }),
-    };
+    let redirection_data = response.action.url.clone().map(|url| {
+        let form_fields = response.action.data.clone().unwrap_or_else(|| {
+            std::collections::HashMap::from_iter(
+                url.query_pairs()
+                    .map(|(key, value)| (key.to_string(), value.to_string())),
+            )
+        });
+        services::RedirectForm::Form {
+            endpoint: url.to_string(),
+            method: response.action.method.unwrap_or(services::Method::Get),
+            form_fields,
+        }
+    });
 
     let connector_metadata = get_wait_screen_metadata(&response)?;
 
@@ -3303,67 +3288,6 @@ pub fn get_redirection_error_response(
     Ok((status, error, payments_response_data))
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct ConnectorMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub qr_code_information: Option<QrCodeNextInstructions>,
-}
-
-pub fn get_connector_metadata(
-    response: AdyenNextActionResponse,
-) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let qr_code_metadata = match response.action.type_of_response {
-        ActionType::QrCode => {
-            let metadata = get_qr_code_metadata(response)?;
-            Some(metadata)
-        }
-        _ => None,
-    };
-
-    let connector_metadata = ConnectorMetadata {
-        qr_code_information: qr_code_metadata,
-    };
-
-    let encoded_connector_metadata =
-        common_utils::ext_traits::Encode::<ConnectorMetadata>::encode_to_value(&connector_metadata)
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-    // When all the ConnectorMetadata fields are none and if we encode it to value, we get empty serde json object
-    // We have to handle this empty object or else it will get updated in db unnecessarily
-    let metadata = match encoded_connector_metadata {
-        serde_json::Value::Object(obj) => {
-            if obj.is_empty() {
-                None
-            } else {
-                Some(serde_json::Value::Object(obj))
-            }
-        }
-        _ => None,
-    };
-
-    Ok(metadata)
-}
-
-pub fn get_qr_code_metadata(
-    response: AdyenNextActionResponse,
-) -> errors::CustomResult<QrCodeNextInstructions, errors::ConnectorError> {
-    let image_data = response
-        .action
-        .qr_code_data
-        .map(crate_utils::QrImage::new_from_data)
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-    let image_data_url =
-        image_data.and_then(|image_data| Url::parse(image_data.data.as_str()).ok());
-
-    let qr_code_instructions = QrCodeNextInstructions {
-        image_data_url,
-        qr_code_url: response.action.url,
-    };
-    Ok(qr_code_instructions)
-}
-
 pub fn get_qr_metadata(
     response: &QrCodeResponseResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
@@ -3373,14 +3297,22 @@ pub fn get_qr_metadata(
     let image_data_url = Url::parse(image_data.data.as_str())
         .ok()
         .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+    let qr_code_url = response
+        .action
+        .qr_code_url
+        .clone()
+        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let qr_code_instructions = payments::QrCodeNextStepsInstruction {
-        image_data_url,
-        display_to_timestamp: None,
-    };
+    let qr_code_instructions = payments::NextActionFromConnectorMetaData::QrCodeInformation(
+        payments::QrCodeInformation::QrCodeUrl {
+            image_data_url,
+            qr_code_url,
+            display_to_timestamp: None,
+        },
+    );
 
     Some(common_utils::ext_traits::Encode::<
-        payments::QrCodeNextStepsInstruction,
+        payments::NextActionFromConnectorMetaData,
     >::encode_to_value(&qr_code_instructions))
     .transpose()
     .change_context(errors::ConnectorError::ResponseHandlingFailed)
@@ -3393,7 +3325,7 @@ pub struct WaitScreenData {
 }
 
 pub fn get_wait_screen_metadata(
-    next_action: &AdyenNextActionResponse,
+    next_action: &RedirectionResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     match next_action.action.payment_method_type {
         PaymentType::Blik => {
@@ -3613,8 +3545,8 @@ impl<F, Req>
             AdyenPaymentResponse::QrCodeResponse(response) => {
                 get_qr_code_response(*response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenNextActionResponse(response) => {
-                get_next_action_response(*response, is_manual_capture, item.http_code)?
+            AdyenPaymentResponse::RedirectionResponse(response) => {
+                get_redirection_response(*response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(*response, is_manual_capture, item.http_code)?
