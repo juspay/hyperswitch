@@ -4,14 +4,17 @@ pm.test("[POST]::/payments - Status code is 4xx", function () {
 });
 
 // Validate if response header has matching content-type
-pm.test("[POST]::/payments - Content-Type is application/json", function () {
-  pm.expect(pm.response.headers.get("Content-Type")).to.include(
-    "application/json",
-  );
-});
+pm.test(
+  "[POST]::/payments/:id/confirm - Content-Type is application/json",
+  function () {
+    pm.expect(pm.response.headers.get("Content-Type")).to.include(
+      "application/json",
+    );
+  },
+);
 
 // Validate if response has JSON Body
-pm.test("[POST]::/payments - Response has JSON Body", function () {
+pm.test("[POST]::/payments/:id/confirm - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
 
@@ -60,25 +63,18 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "next_action.redirect_to_url"
-pm.test("[POST]::/payments - Content check if 'error' exists", function () {
-  pm.expect(typeof jsonData.error !== "undefined").to.be.true;
-});
+// Response body should have "error"
+pm.test(
+  "[POST]::/payments/:id/confirm - Content check if 'error' exists",
+  function () {
+    pm.expect(typeof jsonData.error !== "undefined").to.be.true;
+  },
+);
 
-// Response body should have value "invalid_request" for "error type"
+// Response body should have value "connector error" for "error type"
 if (jsonData?.error?.type) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
-    function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
-    },
-  );
-}
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
-  pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments/:id/confirm - Content check if value for 'error.type' matches 'invalid_request'",
     function () {
       pm.expect(jsonData.error.type).to.eql("invalid_request");
     },

@@ -1,17 +1,17 @@
-// Validate status 4xx
-pm.test("[POST]::/payments - Status code is 4xx", function () {
-  pm.response.to.be.error;
+// Validate status 2xx
+pm.test("[GET]::/payments/:id - Status code is 2xx", function () {
+  pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
-pm.test("[POST]::/payments - Content-Type is application/json", function () {
+pm.test("[GET]::/payments/:id - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
     "application/json",
   );
 });
 
 // Validate if response has JSON Body
-pm.test("[POST]::/payments - Response has JSON Body", function () {
+pm.test("[GET]::/payments/:id - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
 
@@ -60,27 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "next_action.redirect_to_url"
-pm.test("[POST]::/payments - Content check if 'error' exists", function () {
-  pm.expect(typeof jsonData.error !== "undefined").to.be.true;
-});
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
+// Response body should have value "succeeded" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments - Content check if value for 'status' matches 'partially_captured'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
-    },
-  );
-}
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
-  pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
-    function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.status).to.eql("partially_captured");
     },
   );
 }

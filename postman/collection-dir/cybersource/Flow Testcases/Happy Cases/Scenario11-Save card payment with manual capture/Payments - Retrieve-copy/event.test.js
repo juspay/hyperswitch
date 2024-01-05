@@ -1,17 +1,17 @@
-// Validate status 4xx
-pm.test("[POST]::/payments - Status code is 4xx", function () {
-  pm.response.to.be.error;
+// Validate status 2xx
+pm.test("[GET]::/payments/:id - Status code is 2xx", function () {
+  pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
-pm.test("[POST]::/payments - Content-Type is application/json", function () {
+pm.test("[GET]::/payments/:id - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
     "application/json",
   );
 });
 
 // Validate if response has JSON Body
-pm.test("[POST]::/payments - Response has JSON Body", function () {
+pm.test("[GET]::/payments/:id - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
 
@@ -60,27 +60,47 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "next_action.redirect_to_url"
-pm.test("[POST]::/payments - Content check if 'error' exists", function () {
-  pm.expect(typeof jsonData.error !== "undefined").to.be.true;
-});
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
+// Response body should have value "Succeeded" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.status).to.eql("succeeded");
     },
   );
 }
 
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
+// Validate the connector
+pm.test("[POST]::/payments - connector", function () {
+  pm.expect(jsonData.connector).to.eql("cybersource");
+});
+
+// Response body should have value "6540" for "amount"
+if (jsonData?.amount) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[post]:://payments/:id/capture - Content check if value for 'amount' matches '6540'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.amount).to.eql(6540);
+    },
+  );
+}
+
+// Response body should have value "6000" for "amount_received"
+if (jsonData?.amount_received) {
+  pm.test(
+    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6540'",
+    function () {
+      pm.expect(jsonData.amount_received).to.eql(6540);
+    },
+  );
+}
+
+// Response body should have value "6540" for "amount_capturable"
+if (jsonData?.amount) {
+  pm.test(
+    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 540'",
+    function () {
+      pm.expect(jsonData.amount_capturable).to.eql(0);
     },
   );
 }

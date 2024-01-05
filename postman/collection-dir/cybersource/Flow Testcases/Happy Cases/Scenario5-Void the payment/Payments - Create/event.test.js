@@ -1,6 +1,6 @@
-// Validate status 4xx
-pm.test("[POST]::/payments - Status code is 4xx", function () {
-  pm.response.to.be.error;
+// Validate status 2xx
+pm.test("[POST]::/payments - Status code is 2xx", function () {
+  pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
@@ -60,27 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "next_action.redirect_to_url"
-pm.test("[POST]::/payments - Content check if 'error' exists", function () {
-  pm.expect(typeof jsonData.error !== "undefined").to.be.true;
-});
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
+// Response body should have value "requires_capture" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_capture'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
-    },
-  );
-}
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
-  pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
-    function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.status).to.eql("requires_capture");
     },
   );
 }

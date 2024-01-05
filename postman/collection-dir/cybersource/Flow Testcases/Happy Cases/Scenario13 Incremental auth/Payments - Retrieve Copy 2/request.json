@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    },
+    {
+      "key": "x-feature",
+      "value": "router-custom",
+      "type": "text",
+      "disabled": true
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id?expand_attempts=true&force_sync=true",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id"
+    ],
+    "query": [
+      {
+        "key": "client_secret",
+        "value": "pay_1sIy7sTMzo8ibi00iOQB_secret_8wB9Wlfsd02oi0olPjvg",
+        "disabled": true
+      },
+      {
+        "key": "expand_attempts",
+        "value": "true"
+      },
+      {
+        "key": "force_sync",
+        "value": "true"
+      }
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}"
+      }
+    ]
+  },
+  "description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
+}

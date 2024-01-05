@@ -60,27 +60,17 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "next_action.redirect_to_url"
+// Response body should have "error"
 pm.test("[POST]::/payments - Content check if 'error' exists", function () {
   pm.expect(typeof jsonData.error !== "undefined").to.be.true;
 });
 
-// Response body should have value "invalid_request" for "error type"
+// Response body should have value "connector error" for "error type"
 if (jsonData?.error?.type) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments - Content check if value for 'error.type' matches 'connector_error'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
-    },
-  );
-}
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
-  pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
-    function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.error.type).to.eql("connector_error");
     },
   );
 }

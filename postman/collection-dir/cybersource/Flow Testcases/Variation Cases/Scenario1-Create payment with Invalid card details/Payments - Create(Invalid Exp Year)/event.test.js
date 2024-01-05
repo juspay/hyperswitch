@@ -65,7 +65,7 @@ pm.test("[POST]::/payments - Content check if 'error' exists", function () {
   pm.expect(typeof jsonData.error !== "undefined").to.be.true;
 });
 
-// Response body should have value "invalid_request" for "error type"
+// Response body should have value "connector error" for "error type"
 if (jsonData?.error?.type) {
   pm.test(
     "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
@@ -75,12 +75,12 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.type) {
+// Response body should have value "connector error" for "error message"
+if (jsonData?.error?.message) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments - Content check if value for 'error.message' matches 'Invalid Expiry Year'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.error.message).to.eql("Invalid Expiry Year");
     },
   );
 }
