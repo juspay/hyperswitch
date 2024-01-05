@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.106.1 (2024-01-05)
+
+### Bug Fixes
+
+- **connector:** [iatapay] change refund amount ([#3244](https://github.com/juspay/hyperswitch/pull/3244)) ([`e79604b`](https://github.com/juspay/hyperswitch/commit/e79604bd4681a69802f3c3169dd94424e3688e42))
+
+**Full Changelog:** [`v1.106.0...v1.106.1`](https://github.com/juspay/hyperswitch/compare/v1.106.0...v1.106.1)
+
+- - -
+
+
 ## 1.106.0 (2024-01-04)
 
 ### Features
