@@ -446,7 +446,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     name: ccard
                         .card_holder_name
                         .clone()
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                        .unwrap_or(Secret::new("".to_string())),
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),
                     attributes,
@@ -486,7 +486,12 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                             experience_context: ContextStruct {
                                 return_url: item.router_data.request.complete_authorize_url.clone(),
                                 cancel_url: item.router_data.request.complete_authorize_url.clone(),
-                                shipping_preference: ShippingPreference::SetProvidedAddress,
+                                shipping_preference: if item.router_data.address.shipping.is_some()
+                                {
+                                    ShippingPreference::SetProvidedAddress
+                                } else {
+                                    ShippingPreference::GetFromFile
+                                },
                                 user_action: Some(UserAction::PayNow),
                             },
                         }));

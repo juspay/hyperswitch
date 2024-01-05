@@ -12,13 +12,15 @@ use std::{
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::X_HS_LATENCY,
     errors::{ErrorSwitch, ReportSwitchExt},
+    request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeOptionInterface, PeekInterface};
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -34,7 +36,10 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
+    events::{
+        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
+        connector_api_logs::ConnectorEvent,
+    },
     logger,
     routes::{
         app::AppStateInfo,
@@ -96,10 +101,6 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
-
-    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(format!("Surcharge for {}", self.id())).into())
-    }
 }
 
 #[async_trait::async_trait]
@@ -133,8 +134,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        Ok(None)
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
     }
 
     fn get_request_form_data(
@@ -278,6 +279,7 @@ where
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
+    logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
         payments::CallConnectorAction::HandleResponse(res) => {
@@ -351,10 +353,48 @@ where
             match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+
+                    let masked_request_body = match &request.body {
+                        Some(request) => match request {
+                            RequestContent::Json(i)
+                            | RequestContent::FormUrlEncoded(i)
+                            | RequestContent::Xml(i) => i
+                                .masked_serialize()
+                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
+                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                        },
+                        None => serde_json::Value::Null,
+                    };
+                    let request_url = request.url.clone();
+                    let request_method = request.method;
+
                     let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
+
+                    let connector_event = ConnectorEvent::new(
+                        req.connector.clone(),
+                        std::any::type_name::<T>(),
+                        masked_request_body,
+                        None,
+                        request_url,
+                        request_method,
+                        req.payment_id.clone(),
+                        req.merchant_id.clone(),
+                        state.request_id.as_ref(),
+                        external_latency,
+                    );
+
+                    match connector_event.try_into() {
+                        Ok(event) => {
+                            state.event_handler().log_event(event);
+                        }
+                        Err(err) => {
+                            logger::error!(error=?err, "Error Logging Connector Event");
+                        }
+                    }
+
                     match response {
                         Ok(body) => {
                             let response = match body {
@@ -477,7 +517,7 @@ pub async fn send_request(
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
-    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
+    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
         .into_report()
@@ -508,46 +548,49 @@ pub async fn send_request(
             Method::Get => client.get(url),
             Method::Post => {
                 let client = client.post(url);
-                match request.content_type {
-                    Some(ContentType::Json) => client.json(&request.payload),
-
-                    Some(ContentType::FormData) => {
-                        client.multipart(request.form_data.unwrap_or_default())
-                    }
-
-                    // Currently this is not used remove this if not required
-                    // If using this then handle the serde_part
-                    Some(ContentType::FormUrlEncoded) => {
-                        let payload = match request.payload.clone() {
-                            Some(req) => serde_json::from_str(req.peek())
-                                .into_report()
-                                .change_context(errors::ApiClientError::UrlEncodingFailed)?,
-                            _ => json!(r#""#),
-                        };
-                        let url_encoded_payload = serde_urlencoded::to_string(&payload)
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload)
                             .into_report()
-                            .change_context(errors::ApiClientError::UrlEncodingFailed)
-                            .attach_printable_lazy(|| {
-                                format!(
-                                    "Unable to do url encoding on request: {:?}",
-                                    &request.payload
-                                )
-                            })?;
-
-                        logger::debug!(?url_encoded_payload);
-                        client.body(url_encoded_payload)
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body).header("Content-Type", "application/xml")
                     }
-                    // If payload needs processing the body cannot have default
-                    None => client.body(request.payload.expose_option().unwrap_or_default()),
+                    None => client,
                 }
             }
-
-            Method::Put => client
-                .put(url)
-                .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
-            Method::Patch => client
-                .patch(url)
-                .body(request.payload.expose_option().unwrap_or_default()),
+            Method::Put => {
+                let client = client.put(url);
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload)
+                            .into_report()
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body).header("Content-Type", "application/xml")
+                    }
+                    None => client,
+                }
+            }
+            Method::Patch => {
+                let client = client.patch(url);
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload)
+                            .into_report()
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body).header("Content-Type", "application/xml")
+                    }
+                    None => client,
+                }
+            }
             Method::Delete => client.delete(url),
         }
         .add_headers(headers)
@@ -729,6 +772,13 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+    },
+    Nmi {
+        amount: String,
+        currency: Currency,
+        public_key: Secret<String>,
+        customer_vault_id: String,
+        order_id: String,
     },
 }
 
@@ -1452,6 +1502,86 @@ pub fn build_redirection_form(
                                         }}); </script>"
                                     )))
                 }}
+        }
+        RedirectForm::Nmi {
+            amount,
+            currency,
+            public_key,
+            customer_vault_id,
+            order_id,
+        } => {
+            let public_key_val = public_key.peek();
+            maud::html! {
+                    (maud::DOCTYPE)
+                    head {
+                        (PreEscaped(r#"<script src="https://secure.networkmerchants.com/js/v1/Gateway.js"></script>"#))
+                    }
+                    (PreEscaped(format!("<script>
+                    const gateway = Gateway.create('{public_key_val}');
+
+                    // Initialize the ThreeDSService
+                    const threeDS = gateway.get3DSecure();
+            
+                    const options = {{
+                        customerVaultId: '{customer_vault_id}',
+                        currency: '{currency}',
+                        amount: '{amount}'
+                    }};
+
+                    var responseForm = document.createElement('form');
+                    responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                    responseForm.method='POST';
+            
+                    const threeDSsecureInterface = threeDS.createUI(options);
+                    threeDSsecureInterface.start('body');
+            
+                    threeDSsecureInterface.on('challenge', function(e) {{
+                        console.log('Challenged');
+                    }});
+            
+                    threeDSsecureInterface.on('complete', function(e) {{
+                        
+                        var item1=document.createElement('input');
+                        item1.type='hidden';
+                        item1.name='cavv';
+                        item1.value=e.cavv;
+                        responseForm.appendChild(item1);
+
+                        var item2=document.createElement('input');
+                        item2.type='hidden';
+                        item2.name='xid';
+                        item2.value=e.xid;
+                        responseForm.appendChild(item2);
+
+                        var item3=document.createElement('input');
+                        item3.type='hidden';
+                        item3.name='cardHolderAuth';
+                        item3.value=e.cardHolderAuth;
+                        responseForm.appendChild(item3);
+
+                        var item4=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='threeDsVersion';
+                        item4.value=e.threeDsVersion;
+                        responseForm.appendChild(item4);
+
+                        var item5=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='orderId';
+                        item4.value='{order_id}';
+                        responseForm.appendChild(item5);
+
+                        document.body.appendChild(responseForm);
+                        responseForm.submit();
+                    }});
+            
+                    threeDSsecureInterface.on('failure', function(e) {{
+                        responseForm.submit();
+                    }});
+            
+            </script>"
+            )))
+                }
         }
     }
 }
