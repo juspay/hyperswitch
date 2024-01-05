@@ -458,7 +458,7 @@ pub trait ConnectorActions: Connector {
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
-                    email: TryFrom::try_from(Secret::new("john.doe@example".to_string())).ok(),
+                    email: TryFrom::try_from("john.doe@example".to_string()).ok(),
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
                 }),

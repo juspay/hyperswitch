@@ -77,7 +77,7 @@ pub fn get_link_with_token(
     token: impl std::fmt::Display,
     action: impl std::fmt::Display,
 ) -> String {
-    format!("{base_url}/user/{action}/?token={token}")
+    format!("{base_url}/user/{action}?token={token}")
 }
 
 pub struct VerifyEmail {
@@ -153,7 +153,8 @@ impl EmailData for MagicLink {
             .await
             .change_context(EmailError::TokenGenerationFailure)?;
 
-        let magic_link_login = get_link_with_token(&self.settings.email.base_url, token, "login");
+        let magic_link_login =
+            get_link_with_token(&self.settings.email.base_url, token, "verify_email");
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
