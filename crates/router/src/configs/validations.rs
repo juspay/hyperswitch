@@ -22,20 +22,17 @@ impl super::settings::Secrets {
 
         #[cfg(feature = "aws_kms")]
         {
-            when(
-                self.aws_kms_encrypted_jwt_secret.is_default_or_empty(),
-                || {
-                    Err(ApplicationError::InvalidConfigurationValueError(
-                        "AWS KMS encrypted JWT secret must not be empty".into(),
-                    ))
-                },
-            )?;
+            when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "KMS encrypted JWT secret must not be empty".into(),
+                ))
+            })?;
 
             when(
-                self.aws_kms_encrypted_admin_api_key.is_default_or_empty(),
+                self.kms_encrypted_admin_api_key.is_default_or_empty(),
                 || {
                     Err(ApplicationError::InvalidConfigurationValueError(
-                        "AWS KMS encrypted admin API key must not be empty".into(),
+                        "KMS encrypted admin API key must not be empty".into(),
                     ))
                 },
             )?;
@@ -154,14 +151,11 @@ impl super::settings::ApiKeys {
         use common_utils::fp_utils::when;
 
         #[cfg(feature = "aws_kms")]
-        return when(
-            self.aws_kms_encrypted_hash_key.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "API key hashing key must not be empty when KMS feature is enabled".into(),
-                ))
-            },
-        );
+        return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key hashing key must not be empty when KMS feature is enabled".into(),
+            ))
+        });
 
         #[cfg(not(feature = "aws_kms"))]
         when(self.hash_key.is_empty(), || {

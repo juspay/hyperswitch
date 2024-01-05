@@ -40,7 +40,7 @@ pub async fn get_hash_key(
         .get_or_try_init(|| async {
             #[cfg(feature = "aws_kms")]
             let hash_key = api_key_config
-                .aws_kms_encrypted_hash_key
+                .kms_encrypted_hash_key
                 .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

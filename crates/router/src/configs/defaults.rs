@@ -5282,7 +5282,7 @@ impl Default for super::settings::ApiKeys {
     fn default() -> Self {
         Self {
             #[cfg(feature = "aws_kms")]
-            aws_kms_encrypted_hash_key: AwsKmsValue::default(),
+            kms_encrypted_hash_key: AwsKmsValue::default(),
 
             // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
             // hashes of API keys

@@ -116,11 +116,11 @@ route_to_trace = ["*/confirm"]
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
 admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when AWS KMS is disabled.
-aws_kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when AWS KMS is enabled.
+kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
 jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when AWS KMS is disabled.
-aws_kms_encrypted_jwt_secret = ""            # Base64-encoded (AWS KMS encrypted) ciphertext of the jwt_secret. Only applicable when AWS KMS is enabled.
+kms_encrypted_jwt_secret = ""            # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
 recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when AWS KMS is disabled.
-aws_kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (AWS KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when AWS KMS is enabled
+kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -163,8 +163,8 @@ outgoing_enabled = true
 validity = 1
 
 [api_keys]
-# Base64-encoded (AWS KMS encrypted) ciphertext of the API key hashing key
-aws_kms_encrypted_hash_key = ""
+# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
+kms_encrypted_hash_key = ""
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 

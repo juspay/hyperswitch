@@ -466,11 +466,11 @@ pub struct Secrets {
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
     #[cfg(feature = "aws_kms")]
-    pub aws_kms_encrypted_jwt_secret: aws_kms::AwsKmsValue,
+    pub kms_encrypted_jwt_secret: aws_kms::AwsKmsValue,
     #[cfg(feature = "aws_kms")]
-    pub aws_kms_encrypted_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_admin_api_key: aws_kms::AwsKmsValue,
     #[cfg(feature = "aws_kms")]
-    pub aws_kms_encrypted_recon_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_recon_admin_api_key: aws_kms::AwsKmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -698,10 +698,10 @@ pub struct WebhookIgnoreErrorSettings {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ApiKeys {
-    /// Base64-encoded (AWS KMS encrypted) ciphertext of the key used for calculating hashes of API
+    /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "aws_kms")]
-    pub aws_kms_encrypted_hash_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_hash_key: aws_kms::AwsKmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys

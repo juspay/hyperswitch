@@ -258,7 +258,7 @@ pub async fn get_admin_api_key(
         .get_or_try_init(|| async {
             #[cfg(feature = "aws_kms")]
             let admin_api_key = secrets
-                .aws_kms_encrypted_admin_api_key
+                .kms_encrypted_admin_api_key
                 .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -737,7 +737,7 @@ pub async fn get_jwt_secret(
         .get_or_try_init(|| async {
             #[cfg(feature = "aws_kms")]
             let jwt_secret = secrets
-                .aws_kms_encrypted_jwt_secret
+                .kms_encrypted_jwt_secret
                 .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
