@@ -226,7 +226,7 @@ pub enum KmsError {
     Utf8DecodingFailed,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
     MerchantConfigNotFound,

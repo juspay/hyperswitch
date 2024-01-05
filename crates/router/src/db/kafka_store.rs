@@ -43,6 +43,7 @@ use crate::{
         events::EventInterface,
         file::FileMetadataInterface,
         gsm::GsmInterface,
+        health_check::HealthCheckInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -57,6 +58,7 @@ use crate::{
         routing_algorithm::RoutingAlgorithmInterface,
         MasterKeyInterface, StorageInterface,
     },
+    routes,
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
         domain,
@@ -2129,5 +2131,26 @@ impl AuthorizationInterface for KafkaStore {
                 authorization,
             )
             .await
+    }
+}
+
+#[async_trait::async_trait]
+impl HealthCheckInterface for KafkaStore {
+    async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
+        self.diesel_store.health_check_db().await
+    }
+
+    async fn health_check_redis(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> CustomResult<(), errors::HealthCheckRedisError> {
+        self.diesel_store.health_check_redis(db).await
+    }
+
+    async fn health_check_locker(
+        &self,
+        state: &routes::AppState,
+    ) -> CustomResult<(), errors::HealthCheckLockerError> {
+        self.diesel_store.health_check_locker(state).await
     }
 }
