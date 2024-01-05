@@ -1,0 +1,41 @@
+[drainer_redis]
+pool_size = 5
+
+[drainer]
+loop_interval = 500
+max_read_count = 100
+num_partitions = 64
+shutdown_interval = 1000
+stream_name = "drainer_stream"
+
+[kms]
+key_id = "kms_key_id"
+region = "kms_region"
+
+[log.console]
+enabled = "true"
+level = "DEBUG"
+log_format = "json"
+
+[log.telemetry]
+metrics_enabled = true
+otel_exporter_otlp_endpoint = "http://otel_exporter_otlp_endpoint_uri"
+
+[master_database]
+dbname = "master_database_name"
+host = "master_database_host"
+password = "master_database_password"
+pool_size = 3
+port = 5432
+username = "username"
+
+[redis]
+cluster_enabled = false
+cluster_urls = "cluster_uri"
+default_ttl = 300
+host = "redis_host_uri"
+port = 6379
+reconnect_delay = 5
+reconnect_max_attempts = 5
+stream_read_count = 1
+use_legacy_version = false

@@ -1,0 +1,12 @@
+[scheduler]
+consumer_group = "scheduler_group"
+graceful_shutdown_interval = 60000
+loop_interval = 30000
+stream = "scheduler_stream"
+
+[scheduler.producer]
+batch_size = 50
+lock_key = "producer_locking_key"
+lock_ttl = 160
+lower_fetch_limit = 900
+upper_fetch_limit = 0
