@@ -2445,6 +2445,45 @@
           "propertyName": "type"
         }
       },
+      "AchBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number",
+          "bank_routing_number"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+            "example": "000123456"
+          },
+          "bank_routing_number": {
+            "type": "string",
+            "description": "[9 digits] Routing number - used in USA for identifying a specific bank.",
+            "example": "110000000"
+          }
+        }
+      },
       "AchBillingDetails": {
         "type": "object",
         "required": [
@@ -2861,6 +2900,45 @@
           "processing",
           "unresolved"
         ]
+      },
+      "BacsBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number",
+          "bank_sort_code"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+            "example": "000123456"
+          },
+          "bank_sort_code": {
+            "type": "string",
+            "description": "[6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.",
+            "example": "98-76-54"
+          }
+        }
       },
       "BacsBankTransferInstructions": {
         "type": "object",
@@ -11950,6 +12028,45 @@
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
             "example": "Jane Doe"
+          }
+        }
+      },
+      "SepaBankTransfer": {
+        "type": "object",
+        "required": [
+          "iban",
+          "bic"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          },
+          "bic": {
+            "type": "string",
+            "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
+            "example": "HSBCGB2LXXX"
           }
         }
       },
