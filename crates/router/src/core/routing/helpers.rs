@@ -241,10 +241,16 @@ pub async fn update_business_profile_active_algorithm_ref(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
 
-    let (merchant_id, profile_id) = (
-        current_business_profile.merchant_id.clone(),
-        current_business_profile.profile_id.clone(),
+    let merchant_id = current_business_profile.merchant_id.clone();
+
+    #[cfg(feature = "business_profile_routing")]
+    let profile_id = current_business_profile.profile_id.clone();
+    let routing_cache_key = redis_cache::CacheKind::Routing(
+        format!("routing_config_{merchant_id}_{profile_id}").into(),
     );
+
+    #[cfg(not(feature = "business_profile_routing"))]
+    let routing_cache_key = format!("dsl_{merchant_id}");
 
     let business_profile_update = BusinessProfileUpdateInternal {
         profile_name: None,
@@ -267,9 +273,6 @@ pub async fn update_business_profile_active_algorithm_ref(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    let routing_cache_key = redis_cache::CacheKind::Routing(
-        format!("routing_config_{merchant_id}_{profile_id}").into(),
-    );
     cache::publish_into_redact_channel(db, [routing_cache_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
