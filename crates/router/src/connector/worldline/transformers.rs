@@ -342,7 +342,7 @@ fn make_card_request(
     req: &PaymentsAuthorizeData,
     ccard: &payments::Card,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
-    let expiry_year = ccard.card_exp_year.peek();
+    let expiry_year = ccard.card_exp_year.peek().clone();
     let secret_value = format!(
         "{}{}",
         ccard.card_exp_month.peek(),

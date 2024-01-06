@@ -499,6 +499,7 @@ mod tests {
                 customer_id: None,
                 surcharge_details: None,
                 request_incremental_authorization: false,
+                metadata: None,
             },
             response: Err(Default::default()),
             payment_method_id: None,
