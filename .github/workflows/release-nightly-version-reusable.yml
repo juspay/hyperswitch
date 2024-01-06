@@ -70,7 +70,7 @@ jobs:
           crate: git-cliff
           version: 1.4.0
 
-      - name: Obtain previous and new tag information
+      - name: Obtain previous and next tag information
         shell: bash
         run: |
           # Calendar versioning format followed: `YYYY.0M.0D.MICRO`
@@ -127,10 +127,12 @@ jobs:
       - name: Generate changelog
         shell: bash
         run: |
+          # Generate changelog content and store it in `release-notes.md`
           git-cliff --config '.github/git-cliff-changelog.toml' --strip header --tag "${NEXT_TAG}" "${PREVIOUS_TAG}^.." \
             | sed "/## ${PREVIOUS_TAG}\$/,\$d" \
             | sed '$s/$/\n- - -/' > release-notes.md
 
+          # Append release notes after the specified pattern in `CHANGELOG.md`
           sed --in-place '0,/^- - -/!b; /^- - -/{
               a
               r release-notes.md
