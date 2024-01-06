@@ -141,7 +141,7 @@ impl AppState {
     ) -> Self {
         Box::pin(async move {
             #[cfg(feature = "aws_kms")]
-            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.aws_kms).await;
+            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf

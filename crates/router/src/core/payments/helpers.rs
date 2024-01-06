@@ -3496,7 +3496,7 @@ impl ApplePayData {
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         #[cfg(feature = "aws_kms")]
-        let cert_data = aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+        let cert_data = aws_kms::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
             .await
@@ -3556,7 +3556,7 @@ impl ApplePayData {
             .attach_printable("Failed to deserialize the public key")?;
 
         #[cfg(feature = "aws_kms")]
-        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
             .await

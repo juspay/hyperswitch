@@ -179,7 +179,7 @@ async fn create_applepay_session_token(
                 } => {
                     #[cfg(feature = "aws_kms")]
                     let decrypted_apple_pay_merchant_cert =
-                        aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+                        aws_kms::get_aws_kms_client(&state.conf.kms)
                             .await
                             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert)
                             .await
@@ -188,7 +188,7 @@ async fn create_applepay_session_token(
 
                     #[cfg(feature = "aws_kms")]
                     let decrypted_apple_pay_merchant_cert_key =
-                        aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+                        aws_kms::get_aws_kms_client(&state.conf.kms)
                             .await
                             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key)
                             .await
@@ -199,7 +199,7 @@ async fn create_applepay_session_token(
 
                     #[cfg(feature = "aws_kms")]
                     let decrypted_merchant_identifier =
-                        aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+                        aws_kms::get_aws_kms_client(&state.conf.kms)
                             .await
                             .decrypt(
                                 &state

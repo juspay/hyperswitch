@@ -33,7 +33,7 @@ pub struct Settings {
     pub log: Log,
     pub drainer: DrainerSettings,
     #[cfg(feature = "aws_kms")]
-    pub aws_kms: aws_kms::AwsKmsConfig,
+    pub kms: aws_kms::AwsKmsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -345,7 +345,7 @@ async fn store_bank_details_in_payment_methods(
     }
 
     #[cfg(feature = "aws_kms")]
-    let pm_auth_key = aws_kms::get_aws_kms_client(&state.conf.aws_kms)
+    let pm_auth_key = aws_kms::get_aws_kms_client(&state.conf.kms)
         .await
         .decrypt(state.conf.payment_method_auth.pm_auth_key.clone())
         .await

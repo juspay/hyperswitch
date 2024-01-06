@@ -87,7 +87,7 @@ pub struct Settings {
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
     #[cfg(feature = "aws_kms")]
-    pub aws_kms: aws_kms::AwsKmsConfig,
+    pub kms: aws_kms::AwsKmsConfig,
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
@@ -842,7 +842,7 @@ impl Settings {
         self.drainer.validate()?;
         self.api_keys.validate()?;
         #[cfg(feature = "aws_kms")]
-        self.aws_kms
+        self.kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
         #[cfg(feature = "s3")]

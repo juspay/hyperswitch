@@ -559,7 +559,7 @@ mod tests {
         let hash_key = get_hash_key(
             &settings.api_keys,
             #[cfg(feature = "aws_kms")]
-            external_services::aws_kms::get_aws_kms_client(&settings.aws_kms).await,
+            external_services::aws_kms::get_aws_kms_client(&settings.kms).await,
         )
         .await
         .unwrap();

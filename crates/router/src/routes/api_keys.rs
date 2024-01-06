@@ -44,7 +44,7 @@ pub async fn api_key_create(
         |state, _, payload| async {
             #[cfg(feature = "aws_kms")]
             let aws_kms_client =
-                external_services::aws_kms::get_aws_kms_client(&state.clone().conf.aws_kms).await;
+                external_services::aws_kms::get_aws_kms_client(&state.clone().conf.kms).await;
             api_keys::create_api_key(
                 state,
                 #[cfg(feature = "aws_kms")]

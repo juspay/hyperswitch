@@ -44,7 +44,7 @@ pub async fn get_store(
     test_transaction: bool,
 ) -> StorageResult<Store> {
     #[cfg(feature = "aws_kms")]
-    let aws_kms_client = aws_kms::get_aws_kms_client(&config.aws_kms).await;
+    let aws_kms_client = aws_kms::get_aws_kms_client(&config.kms).await;
 
     #[cfg(feature = "aws_kms")]
     let master_config = config

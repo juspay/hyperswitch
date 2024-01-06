@@ -193,7 +193,7 @@ where
             api_keys::get_hash_key(
                 &config.api_keys,
                 #[cfg(feature = "aws_kms")]
-                aws_kms::get_aws_kms_client(&config.aws_kms).await,
+                aws_kms::get_aws_kms_client(&config.kms).await,
             )
             .await?
         };
@@ -292,7 +292,7 @@ where
         let admin_api_key = get_admin_api_key(
             &conf.secrets,
             #[cfg(feature = "aws_kms")]
-            aws_kms::get_aws_kms_client(&conf.aws_kms).await,
+            aws_kms::get_aws_kms_client(&conf.kms).await,
         )
         .await?;
 
@@ -759,7 +759,7 @@ where
     let secret = get_jwt_secret(
         &conf.secrets,
         #[cfg(feature = "aws_kms")]
-        aws_kms::get_aws_kms_client(&conf.aws_kms).await,
+        aws_kms::get_aws_kms_client(&conf.kms).await,
     )
     .await?
     .peek()
