@@ -3621,8 +3621,12 @@ impl ApplePayData {
             .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
-        let ciphertext = &data[..data.len() - 16];
-        let tag = &data[data.len() - 16..];
+        let ciphertext = data
+            .get(..data.len() - 16)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let tag = data
+            .get(data.len() - 16..)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let cipher = Cipher::aes_256_gcm();
         let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
             .into_report()
