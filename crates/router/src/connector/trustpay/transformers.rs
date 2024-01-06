@@ -297,7 +297,7 @@ fn get_card_request_data(
             currency: item.request.currency.to_string(),
             pan: ccard.card_number.clone(),
             cvv: ccard.card_cvc.clone(),
-            expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
+            expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
             cardholder: get_full_name(params.billing_first_name, billing_last_name),
             reference: item.connector_request_reference_id.clone(),
             redirect_url: return_url,
