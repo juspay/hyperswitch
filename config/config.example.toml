@@ -323,7 +323,7 @@ paypal = { currency = "USD,INR", country = "US" }
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
 
-# KMS configuration. Only applicable when the `kms` feature flag is enabled.
+# AWS KMS configuration. Only applicable when the `aws_kms` feature flag is enabled.
 [kms]
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
@@ -501,15 +501,6 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 [kv_config]
 # TTL for KV in seconds
 ttl = 900
-
-[frm]
-enabled = true
-
-[paypal_onboarding]
-client_id = "paypal_client_id" # Client ID for PayPal onboarding
-client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
-partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
-enabled = true # Switch to enable or disable PayPal onboarding
 
 [frm]
 enabled = true

@@ -3,8 +3,8 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
@@ -192,8 +192,8 @@ where
             let config = state.conf();
             api_keys::get_hash_key(
                 &config.api_keys,
-                #[cfg(feature = "kms")]
-                kms::get_kms_client(&config.kms).await,
+                #[cfg(feature = "aws_kms")]
+                aws_kms::get_aws_kms_client(&config.kms).await,
             )
             .await?
         };
@@ -252,19 +252,19 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
-    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
-            #[cfg(feature = "kms")]
+            #[cfg(feature = "aws_kms")]
             let admin_api_key = secrets
                 .kms_encrypted_admin_api_key
-                .decrypt_inner(kms_client)
+                .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt admin API key")?;
+                .attach_printable("Failed to AWS KMS decrypt admin API key")?;
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let admin_api_key = secrets.admin_api_key.clone();
 
             Ok(StrongSecret::new(admin_api_key))
@@ -291,8 +291,8 @@ where
 
         let admin_api_key = get_admin_api_key(
             &conf.secrets,
-            #[cfg(feature = "kms")]
-            kms::get_kms_client(&conf.kms).await,
+            #[cfg(feature = "aws_kms")]
+            aws_kms::get_aws_kms_client(&conf.kms).await,
         )
         .await?;
 
@@ -731,19 +731,19 @@ static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::On
 
 pub async fn get_jwt_secret(
     secrets: &settings::Secrets,
-    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     JWT_SECRET
         .get_or_try_init(|| async {
-            #[cfg(feature = "kms")]
+            #[cfg(feature = "aws_kms")]
             let jwt_secret = secrets
                 .kms_encrypted_jwt_secret
-                .decrypt_inner(kms_client)
+                .decrypt_inner(aws_kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt JWT secret")?;
+                .attach_printable("Failed to AWS KMS decrypt JWT secret")?;
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let jwt_secret = secrets.jwt_secret.clone();
 
             Ok(StrongSecret::new(jwt_secret))
@@ -758,8 +758,8 @@ where
     let conf = state.conf();
     let secret = get_jwt_secret(
         &conf.secrets,
-        #[cfg(feature = "kms")]
-        kms::get_kms_client(&conf.kms).await,
+        #[cfg(feature = "aws_kms")]
+        aws_kms::get_aws_kms_client(&conf.kms).await,
     )
     .await?
     .peek()
