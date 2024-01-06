@@ -1,4 +1,6 @@
 use api_models::user as user_api;
+#[cfg(feature = "email")]
+use diesel_models::user_role::UserRoleNew;
 use diesel_models::{enums::UserStatus, user as storage_user};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
@@ -369,7 +371,6 @@ pub async fn invite_user(
         let invitee_user_from_db = domain::UserFromStorage::from(invitee_user);
 
         let now = common_utils::date_time::now();
-        use diesel_models::user_role::UserRoleNew;
         state
             .store
             .insert_user_role(UserRoleNew {
@@ -401,17 +402,35 @@ pub async fn invite_user(
         .err()
         .unwrap_or(false)
     {
-        let new_user = domain::NewUser::try_from((request.clone(), user_from_token))?;
+        let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
         new_user
             .insert_user_in_db(state.store.as_ref())
             .await
             .change_context(UserErrors::InternalServerError)?;
-        new_user
-            .clone()
-            .insert_user_role_in_db(state.clone(), request.role_id, UserStatus::InvitationSent)
+
+        let now = common_utils::date_time::now();
+        state
+            .store
+            .insert_user_role(UserRoleNew {
+                user_id: new_user.get_user_id().to_owned(),
+                merchant_id: user_from_token.merchant_id,
+                role_id: request.role_id,
+                org_id: user_from_token.org_id,
+                status: UserStatus::InvitationSent,
+                created_by: user_from_token.user_id.clone(),
+                last_modified_by: user_from_token.user_id,
+                created_at: now,
+                last_modified: now,
+            })
             .await
-            .change_context(UserErrors::InternalServerError)?;
+            .map_err(|e| {
+                if e.current_context().is_db_unique_violation() {
+                    e.change_context(UserErrors::UserExists)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
 
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,

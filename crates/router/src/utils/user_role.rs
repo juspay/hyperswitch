@@ -74,6 +74,8 @@ impl TryFrom<&Permission> for user_role_api::Permission {
             Permission::DisputeWrite => Ok(Self::DisputeWrite),
             Permission::MandateRead => Ok(Self::MandateRead),
             Permission::MandateWrite => Ok(Self::MandateWrite),
+            Permission::CustomerRead => Ok(Self::CustomerRead),
+            Permission::CustomerWrite => Ok(Self::CustomerWrite),
             Permission::FileRead => Ok(Self::FileRead),
             Permission::FileWrite => Ok(Self::FileWrite),
             Permission::Analytics => Ok(Self::Analytics),
