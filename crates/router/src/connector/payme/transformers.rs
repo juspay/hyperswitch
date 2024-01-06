@@ -12,8 +12,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, is_payment_failure, missing_field_err, AddressDetailsData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
+        CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         PaymentsPreProcessingData, PaymentsSyncRequestData, RouterData,
     },
     consts,
@@ -984,6 +984,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
     payme_transaction_id: String,
+    status_error_code: i64,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
@@ -993,11 +994,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::try_from(item.response.sale_status.clone())?;
+        let response = if is_refund_failure(refund_status) {
+            let payme_response = &item.response;
+            Err(types::ErrorResponse {
+                code: payme_response.status_error_code.to_string(),
+                message: payme_response.status_error_code.to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(payme_response.payme_transaction_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.payme_transaction_id,
-                refund_status: enums::RefundStatus::try_from(item.response.sale_status)?,
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -1012,6 +1027,7 @@ pub struct PaymeQueryTransactionResponse {
 pub struct TransactionQuery {
     sale_status: SaleStatus,
     payme_transaction_id: String,
+    sale_payme_code: String,
 }
 
 impl<F, T>
@@ -1033,13 +1049,24 @@ impl<F, T>
             .items
             .first()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                refund_status: enums::RefundStatus::try_from(
-                    pay_sale_response.sale_status.clone(),
-                )?,
+        let refund_status = enums::RefundStatus::try_from(pay_sale_response.sale_status.clone())?;
+        let response = if is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: pay_sale_response.sale_payme_code.clone(),
+                message: pay_sale_response.sale_payme_code.clone(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(pay_sale_response.payme_transaction_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
+                refund_status,
                 connector_refund_id: pay_sale_response.payme_transaction_id.clone(),
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -1123,6 +1150,7 @@ impl From<WebhookEventDataResource> for PaymeQueryTransactionResponse {
         let item = TransactionQuery {
             sale_status: value.sale_status,
             payme_transaction_id: value.payme_transaction_id,
+            sale_payme_code: value.payme_sale_id,
         };
         Self { items: vec![item] }
     }

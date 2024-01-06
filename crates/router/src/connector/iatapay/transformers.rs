@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, is_payment_failure, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+        self, is_payment_failure, is_refund_failure, PaymentsAuthorizeRequestData,
+        RefundsRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -380,7 +381,7 @@ impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRef
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     #[default]
@@ -435,11 +436,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let response = if is_refund_failure(refund_status) {
+            let refund_response = &item.response;
+            Err(types::ErrorResponse {
+                code: refund_response.failure_code.clone().unwrap_or_default(),
+                message: refund_response.failure_details.clone().unwrap_or_default(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(refund_response.iata_refund_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.iata_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -452,11 +467,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let response = if is_refund_failure(refund_status) {
+            let refund_response = &item.response;
+            Err(types::ErrorResponse {
+                code: refund_response.failure_code.clone().unwrap_or_default(),
+                message: refund_response.failure_details.clone().unwrap_or_default(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(refund_response.iata_refund_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.iata_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
