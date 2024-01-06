@@ -279,34 +279,28 @@ impl ConnectorApiIntegrationPayload {
 
     pub fn get_google_pay_metadata_response(response: Self) -> Option<GooglePayData> {
         match response.metadata {
-            Some(meta_data) => match meta_data.google_pay {
-                Some(google_pay) => match google_pay {
-                    GoogleApiModelData::Standard(standard_data) => {
-                        if standard_data.allowed_payment_methods.is_empty() {
-                            None
-                        } else {
-                            let data = Some(
-                                standard_data.allowed_payment_methods[0]
-                                    .tokenization_specification
-                                    .parameters
-                                    .clone(),
-                            );
-                            match data {
-                                Some(data) => Some(GooglePayData::Standard(GpayDashboardPayLoad {
-                                    gateway_merchant_id: data.gateway_merchant_id,
-                                    stripe_version: data.stripe_version,
-                                    stripe_publishable_key: data.stripe_publishable_key,
-                                    merchant_name: standard_data.merchant_info.merchant_name,
-                                    merchant_id: standard_data.merchant_info.merchant_id,
-                                })),
-                                None => None,
-                            }
+            Some(meta_data) => {
+                match meta_data.google_pay {
+                    Some(google_pay) => match google_pay {
+                        GoogleApiModelData::Standard(standard_data) => {
+                            let data = standard_data.allowed_payment_methods.first().map(
+                                |allowed_pm| {
+                                    allowed_pm.tokenization_specification.parameters.clone()
+                                },
+                            )?;
+                            Some(GooglePayData::Standard(GpayDashboardPayLoad {
+                                gateway_merchant_id: data.gateway_merchant_id,
+                                stripe_version: data.stripe_version,
+                                stripe_publishable_key: data.stripe_publishable_key,
+                                merchant_name: standard_data.merchant_info.merchant_name,
+                                merchant_id: standard_data.merchant_info.merchant_id,
+                            }))
                         }
-                    }
-                    GoogleApiModelData::Zen(data) => Some(GooglePayData::Zen(data)),
-                },
-                None => None,
-            },
+                        GoogleApiModelData::Zen(data) => Some(GooglePayData::Zen(data)),
+                    },
+                    None => None,
+                }
+            }
             None => None,
         }
     }

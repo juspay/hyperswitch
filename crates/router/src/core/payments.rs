@@ -2158,10 +2158,7 @@ pub async fn apply_filters_on_payments(
             merchant.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
-        .into_iter()
-        .map(|(pi, pa)| (pi, pa))
-        .collect();
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
