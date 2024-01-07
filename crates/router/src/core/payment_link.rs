@@ -361,7 +361,9 @@ fn capitalize_first_char(s: &str) -> String {
     if let Some(first_char) = s.chars().next() {
         let capitalized = first_char.to_uppercase();
         let mut result = capitalized.to_string();
-        result.push_str(&s[1..]);
+        if let Some(remaining) = s.get(1..) {
+            result.push_str(remaining);
+        }
         result
     } else {
         s.to_owned()
