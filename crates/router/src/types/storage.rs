@@ -26,7 +26,6 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
-mod query;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;

@@ -75,10 +75,12 @@ impl ConnectorCommon for Nmi {
             .parse_struct("StandardResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
-            message: response.responsetext,
+            message: response.responsetext.to_owned(),
             status_code: res.status_code,
-            reason: None,
-            ..Default::default()
+            reason: Some(response.responsetext),
+            code: response.response_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response.transactionid),
         })
     }
 }
