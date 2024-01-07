@@ -8,14 +8,14 @@ use crate::{
     core::{errors, payments::helpers},
     types::{self, api::mandates, domain, PaymentAddress},
 };
-const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_payment_id_in_source_verification_flow";
+const IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW: &str =
+    "irrelevant_payment_id_in_mandate_revoke_flow";
 
-const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_attempt_id_in_source_verification_flow";
+const IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW: &str =
+    "irrelevant_attempt_id_in_mandate_revoke_flow";
 
-const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_connector_request_reference_id_in_source_verification_flow";
+const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW: &str =
+    "irrelevant_connector_request_reference_id_in_mandate_revoke_flow";
 
 pub async fn construct_mandate_revoke_router_data(
     connector_name: &str,
@@ -36,8 +36,8 @@ pub async fn construct_mandate_revoke_router_data(
         connector: connector_name.to_string(),
         payment_id: mandate
             .original_payment_id
-            .unwrap_or_else(|| IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string()),
-        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+            .unwrap_or_else(|| IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW.to_string()),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
@@ -62,7 +62,7 @@ pub async fn construct_mandate_revoke_router_data(
         response: Err(types::ErrorResponse::get_not_implemented()),
         payment_method_id: None,
         connector_request_reference_id:
-            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         test_mode: None,
         connector_http_status_code: None,
         external_latency: None,
