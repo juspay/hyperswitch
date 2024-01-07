@@ -335,6 +335,18 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     }
 }
 
+pub trait RevokeMandateRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl RevokeMandateRequestData for types::MandateRevokeRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
+}
+
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;

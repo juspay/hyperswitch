@@ -118,6 +118,11 @@ pub type SetupMandateType = dyn services::ConnectorIntegration<
     SetupMandateRequestData,
     PaymentsResponseData,
 >;
+pub type MandateRevokeType = dyn services::ConnectorIntegration<
+    api::MandateRevoke,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
+>;
 pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     api::PreProcessing,
     PaymentsPreProcessingData,

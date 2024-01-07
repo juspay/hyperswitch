@@ -143,33 +143,20 @@ pub async fn revoke_mandate(
                         mandates::MandateRevokedResponse {
                             mandate_id: update_mandate.mandate_id,
                             status: update_mandate.mandate_status,
+                            error_code: None,
+                            error_message: None,
                         },
                     ))
                 }
 
-                Err(err) if err.code == "IR_00" => {
-                    let update_mandate = db
-                        .update_mandate_by_merchant_id_mandate_id(
-                            &merchant_account.merchant_id,
-                            &req.mandate_id,
-                            storage::MandateUpdate::StatusUpdate {
-                                mandate_status: storage::enums::MandateStatus::Revoked,
-                            },
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-                    Ok(services::ApplicationResponse::Json(
-                        mandates::MandateRevokedResponse {
-                            mandate_id: update_mandate.mandate_id,
-                            status: update_mandate.mandate_status,
-                        },
-                    ))
-                }
-
-                Err(_) => Err(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "Failed to revoke the mandate from connector's end".to_string(),
-                })
-                .into_report(),
+                Err(err) => Ok(services::ApplicationResponse::Json(
+                    mandates::MandateRevokedResponse {
+                        mandate_id: mandate.mandate_id,
+                        status: mandate.mandate_status,
+                        error_code: None,
+                        error_message: Some(err.message),
+                    },
+                )),
             }
         }
         common_enums::MandateStatus::Revoked => {
