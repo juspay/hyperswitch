@@ -33,7 +33,12 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_config.fulfilment_time);
+    let session_expiry = payment_link_config.fulfilment_time.unwrap_or_else(|| {
+        common_utils::date_time::now()
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
+    });
+
+    let status = check_payment_link_status(session_expiry);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
         payment_link_config,
@@ -213,9 +218,9 @@ pub async fn list_payment_link(
 }
 
 pub fn check_payment_link_status(
-    max_age: Option<PrimitiveDateTime>,
+    max_age: PrimitiveDateTime,
 ) -> api_models::payments::PaymentLinkStatus {
-    let curr_time = Some(common_utils::date_time::now());
+    let curr_time = common_utils::date_time::now();
 
     if curr_time > max_age {
         api_models::payments::PaymentLinkStatus::Expired
@@ -314,32 +319,32 @@ pub fn get_payment_link_config_based_on_priority(
     };
 
     let theme = payment_create_link_config
-        .clone()
-        .and_then(|pc_config| pc_config.config.theme)
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.theme.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.theme)
+                .as_ref()
+                .and_then(|business_config| business_config.theme.clone())
         })
         .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
 
     let logo = payment_create_link_config
-        .clone()
-        .and_then(|pc_config| pc_config.config.logo)
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.logo.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.logo)
+                .as_ref()
+                .and_then(|business_config| business_config.logo.clone())
         })
         .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
 
     let seller_name = payment_create_link_config
-        .clone()
-        .and_then(|pc_config| pc_config.config.seller_name)
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.seller_name.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.seller_name)
+                .as_ref()
+                .and_then(|business_config| business_config.seller_name.clone())
         })
         .unwrap_or(merchant_name.clone());
 
