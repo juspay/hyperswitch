@@ -203,7 +203,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         name_on_card: req_card
                             .card_holder_name
                             .clone()
-                            .ok_or_else(conn_utils::missing_field_err("card_holder_name"))?,
+                            .unwrap_or(Secret::new("".to_string())),
                         number_plain: req_card.card_number.clone(),
                         expiry_month: req_card.card_exp_month.clone(),
                         expiry_year: req_card.get_expiry_year_4_digit(),
