@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::Mandate;
 use error_stack::ResultExt;
@@ -6,7 +8,6 @@ use crate::{
     core::{errors, payments::helpers},
     types::{self, api::mandates, domain, PaymentAddress},
 };
-use std::marker::PhantomData;
 const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_payment_id_in_source_verification_flow";
 
@@ -58,7 +59,7 @@ pub async fn construct_mandate_revoke_router_data(
             mandate_id: request.mandate_id,
             connector_mandate_id: mandate.connector_mandate_id,
         },
-        response: Err(types::ErrorResponse::default()),
+        response: Err(types::ErrorResponse::get_not_implemented()),
         payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
@@ -72,5 +73,6 @@ pub async fn construct_mandate_revoke_router_data(
         #[cfg(feature = "payouts")]
         quote_id: None,
     };
+
     Ok(router_data)
 }
