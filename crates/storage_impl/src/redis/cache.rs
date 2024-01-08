@@ -101,7 +101,7 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
 
 impl<T> Cacheable for T
 where
-    T: Any + Send + Sync + Clone,
+    T: Any + Clone + Send + Sync,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -145,7 +145,6 @@ impl Cache {
         self.insert(key, Arc::new(val)).await;
     }
 
-    /// On Success, An Arc pointer to the object is returned
     pub async fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
         let val = self.get(key).await?;
         (*val).as_any().downcast_ref::<T>().cloned()
@@ -291,8 +290,10 @@ mod cache_tests {
     async fn construct_and_get_cache() {
         let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
-        let from_cache = cache.get_val::<String>("key").await;
-        assert_eq!(from_cache, Some(String::from("val")));
+        assert_eq!(
+            cache.get_val::<String>("key").await,
+            Some(String::from("val"))
+        );
     }
 
     #[tokio::test]
