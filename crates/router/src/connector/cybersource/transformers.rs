@@ -1148,22 +1148,21 @@ impl<F, T>
         ),
     ) -> Self {
         Self {
-            response: Err(types::ErrorResponse {
-                code: error_response
-                    .error_information
-                    .reason
-                    .clone()
-                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                message: error_response
-                    .error_information
-                    .reason
-                    .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                reason: error_response.error_information.message.clone(),
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: Some(error_response.id.clone()),
-            }),
+            response: {
+                let error_reason = &error_response.error_information.reason;
+                Err(types::ErrorResponse {
+                    code: error_reason
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_reason
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: error_response.error_information.message.clone(),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                })
+            },
             ..item.data
         }
     }
@@ -1259,26 +1258,25 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.message,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id.clone()),
-                }),
-                status: enums::AttemptStatus::Failure,
-                ..item.data
-            }),
+            CybersourcePaymentsResponse::ErrorInformation(error_response) => {
+                let error_reason = &error_response.error_information.reason;
+                Ok(Self {
+                    response: Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                    }),
+                    status: enums::AttemptStatus::Failure,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -1421,22 +1419,21 @@ impl<F, T>
                 })
             }
             CybersourceSetupMandatesResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.message,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id.clone()),
-                }),
+                response: {
+                    let error_reason = &error_response.error_information.reason;
+                    Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                    })
+                },
                 status: enums::AttemptStatus::Failure,
                 ..item.data
             }),
@@ -1759,15 +1756,15 @@ impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorR
             .clone()
             .and_then(|error_details| error_details.message);
 
-        let error_code = error_data
+        let error_reason = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
 
         Self {
-            code: error_code
+            code: error_reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_code
+            message: error_reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: error_message.clone(),

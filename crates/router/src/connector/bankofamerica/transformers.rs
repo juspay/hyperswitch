@@ -754,22 +754,22 @@ impl<F>
                 })
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.message,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
-                }),
+                response: {
+                    let error_reason = &error_response.error_information.reason;
+
+                    Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id),
+                    })
+                },
                 status: enums::AttemptStatus::Failure,
                 ..item.data
             }),
@@ -808,22 +808,21 @@ impl<F>
                 })
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.message,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
-                }),
+                response: {
+                    let error_reason = &error_response.error_information.reason;
+                    Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id),
+                    })
+                },
                 ..item.data
             }),
         }
@@ -861,22 +860,21 @@ impl<F>
                 })
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_response
-                        .error_information
-                        .reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.message,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
-                }),
+                response: {
+                    let error_reason = &error_response.error_information.reason;
+                    Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id),
+                    })
+                },
                 ..item.data
             }),
         }
@@ -1231,21 +1229,21 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
             String,
         ),
     ) -> Self {
-        let error_reason = error_data
+        let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.message);
-        let error_data = error_data
+        let error_reason = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
 
         Self {
-            code: error_data
+            code: error_reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_data
+            message: error_reason
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason: error_message.clone(),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
