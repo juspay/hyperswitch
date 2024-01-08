@@ -67,7 +67,6 @@ pub struct SessionFlowRoutingInput<'a> {
 pub struct SessionRoutingPmTypeInput<'a> {
     state: &'a AppState,
     key_store: &'a domain::MerchantKeyStore,
-    merchant_last_modified: i64,
     attempt_id: &'a str,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
@@ -678,11 +677,6 @@ pub async fn perform_session_flow_routing(
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
-    let merchant_last_modified = session_input
-        .merchant_account
-        .modified_at
-        .assume_utc()
-        .unix_timestamp();
 
     #[cfg(feature = "business_profile_routing")]
     let routing_algorithm: MerchantAccountRoutingAlgorithm = {
@@ -800,7 +794,6 @@ pub async fn perform_session_flow_routing(
         let session_pm_input = SessionRoutingPmTypeInput {
             state: session_input.state,
             key_store: session_input.key_store,
-            merchant_last_modified,
             attempt_id: &session_input.payment_attempt.attempt_id,
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
