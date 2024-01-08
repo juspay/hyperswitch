@@ -437,9 +437,7 @@ impl
             let response_value: serde_json::Value = serde_json::from_slice(&res.response)
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-            let response_string: String = response_value
-                .parse_value("String")
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let response_string = response_value.to_string();
 
             Ok(types::MandateRevokeRouterData {
                 response: Err(types::ErrorResponse {
