@@ -1087,6 +1087,7 @@ pub struct CybersourceClientReferenceResponse {
     id: String,
     status: CybersourcePaymentStatus,
     client_reference_information: ClientReferenceInformation,
+    processor_information: Option<ClientProcessorInformation>,
     token_information: Option<CybersourceTokenInformation>,
     error_information: Option<CybersourceErrorInformation>,
 }
@@ -1116,6 +1117,19 @@ pub enum CybersourceSetupMandatesResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
     code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientProcessorInformation {
+    avs: Option<Avs>,
+}
+
+#[derive(Debug, Clone, Serialize,  Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Avs {
+    code: String,
+    code_raw: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1251,7 +1265,10 @@ fn get_payment_response(
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: None,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata: match &info_response.processor_information{
+                    Some(processor_information) => Some(serde_json::json!(processor_information.avs)),
+                    None => None,
+                },
                 network_txn_id: None,
                 connector_response_reference_id: Some(
                     info_response
