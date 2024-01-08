@@ -393,7 +393,7 @@ pub async fn refresh_routing_cache_v1(
         }
     };
 
-    ROUTING_CACHE.push(key, cached_algorithm).await;
+    ROUTING_CACHE.push(key, Arc::new(cached_algorithm)).await;
 
     Ok(())
 }
@@ -513,7 +513,7 @@ pub async fn refresh_kgraph_cache(
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
         .attach_printable("when construction kgraph")?;
 
-    KGRAPH_CACHE.push(key, kgraph).await;
+    KGRAPH_CACHE.push(key, Arc::new(kgraph)).await;
 
     Ok(())
 }

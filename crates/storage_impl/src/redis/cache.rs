@@ -5,6 +5,7 @@ use common_utils::{
     ext_traits::AsyncExt,
 };
 use data_models::errors::StorageError;
+use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
@@ -54,7 +55,7 @@ pub static KGRAPH_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
-pub trait Cacheable: Any + Send + Sync {
+pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -100,14 +101,14 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
 
 impl<T> Cacheable for T
 where
-    T: Any + Send + Sync,
+    T: Any + Send + Sync + Clone,
 {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-// dyn_clone::clone_trait_object!(Cacheable);
+dyn_clone::clone_trait_object!(Cacheable);
 
 pub struct Cache {
     inner: MokaCache<String, Arc<dyn Cacheable>>,
@@ -140,23 +141,19 @@ impl Cache {
         }
     }
 
-    /// Insert value is a double pointer to the object in order to not enforce the Clone trait bound on the respective type.
-    ///
-    /// While retrieving the value, a pointer to the type is returned
     pub async fn push<T: Cacheable>(&self, key: String, val: T) {
-        self.insert(key, Arc::new(Arc::new(val))).await;
+        self.insert(key, Arc::new(val)).await;
     }
 
     /// On Success, An Arc pointer to the object is returned
-    pub async fn get_val<T: Cacheable>(&self, key: &str) -> Option<Arc<T>> {
+    pub async fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
         let val = self.get(key).await?;
-        (*val).as_any().downcast_ref::<Arc<T>>().cloned()
+        (*val).as_any().downcast_ref::<T>().cloned()
     }
 
     /// Check if a key exists in cache
     pub async fn exists(&self, key: &str) -> bool {
-        let val = self.get(key).await;
-        val.is_some()
+        self.contains_key(key)
     }
 
     pub async fn remove(&self, key: &str) {
@@ -216,10 +213,7 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
-    let cache_val = cache
-        .get_val::<T>(key)
-        .await
-        .and_then(|val| (*val).as_any().downcast_ref::<T>().cloned());
+    let cache_val = cache.get_val::<T>(key).await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {
@@ -297,10 +291,7 @@ mod cache_tests {
     async fn construct_and_get_cache() {
         let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
-        let from_cache = cache
-            .get_val::<String>("key")
-            .await
-            .and_then(|val| (*val).as_any().downcast_ref::<String>().cloned());
+        let from_cache = cache.get_val::<String>("key").await;
         assert_eq!(from_cache, Some(String::from("val")));
     }
 
