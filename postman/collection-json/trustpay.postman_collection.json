@@ -4841,10 +4841,6 @@
 											{
 												"key": "Accept",
 												"value": "application/json"
-											},
-											{
-												"key": "api-key",
-												"value": "dev_bNchjiIlLuw1HUeVMIVpbTQnlUOG9kbbccZfd4ess4qUTKZJKQIOPgx4zW82MBFD"
 											}
 										],
 										"url": {
