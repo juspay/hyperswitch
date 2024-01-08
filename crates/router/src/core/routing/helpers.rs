@@ -245,12 +245,13 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     #[cfg(feature = "business_profile_routing")]
     let profile_id = current_business_profile.profile_id.clone();
+    #[cfg(feature = "business_profile_routing")]
     let routing_cache_key = redis_cache::CacheKind::Routing(
         format!("routing_config_{merchant_id}_{profile_id}").into(),
     );
 
     #[cfg(not(feature = "business_profile_routing"))]
-    let routing_cache_key = format!("dsl_{merchant_id}");
+    let routing_cache_key = redis_cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
 
     let business_profile_update = BusinessProfileUpdateInternal {
         profile_name: None,
