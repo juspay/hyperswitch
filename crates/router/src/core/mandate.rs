@@ -110,7 +110,6 @@ pub async fn revoke_mandate(
 
             let router_data = utils::construct_mandate_revoke_router_data(
                 mandate.connector.as_ref(),
-                req.clone(),
                 merchant_connector_account,
                 &merchant_account,
                 mandate.clone(),
@@ -149,14 +148,14 @@ pub async fn revoke_mandate(
                     ))
                 }
 
-                Err(err) => Ok(services::ApplicationResponse::Json(
-                    mandates::MandateRevokedResponse {
-                        mandate_id: mandate.mandate_id,
-                        status: mandate.mandate_status,
-                        error_code: None,
-                        error_message: Some(err.message),
-                    },
-                )),
+                Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector: mandate.connector,
+                    status_code: err.status_code,
+                    reason: err.reason,
+                })
+                .into_report(),
             }
         }
         common_enums::MandateStatus::Revoked => {

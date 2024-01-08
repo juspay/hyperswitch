@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{enums as api_enums, payments};
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MandateId {
     pub mandate_id: String,
 }
