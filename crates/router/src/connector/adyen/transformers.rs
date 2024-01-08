@@ -2164,10 +2164,14 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Eps(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Eps,
-                    issuer: bank_name
-                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
-                        .transpose()?
-                        .map(|adyen_bank_name| adyen_bank_name.0),
+                    issuer: Some(
+                        AdyenTestBankNames::try_from(&bank_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "eps.bank_name",
+                            },
+                        )?)?
+                        .0,
+                    ),
                 })),
             ),
             api_models::payments::BankRedirectData::Giropay { .. } => Ok(

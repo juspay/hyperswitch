@@ -1425,6 +1425,7 @@ dependencies = [
  "error-stack",
  "luhn",
  "masking",
+ "router_env",
  "serde",
  "serde_json",
  "thiserror",
@@ -1725,6 +1726,17 @@ dependencies = [
  "serde",
  "serde_json",
  "toml 0.7.4",
+]
+
+[[package]]
+name = "connector_configs"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "serde",
+ "serde_with",
+ "toml 0.7.4",
+ "utoipa",
 ]
 
 [[package]]
@@ -2386,6 +2398,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "connector_configs",
  "currency_conversion",
  "euclid",
  "getrandom 0.2.11",

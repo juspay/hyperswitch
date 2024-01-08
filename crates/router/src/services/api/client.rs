@@ -10,6 +10,7 @@ use router_env::tracing_actix_web::RequestId;
 use super::{request::Maskable, Request};
 use crate::{
     configs::settings::{Locker, Proxy},
+    consts::LOCKER_HEALTH_CALL_PATH,
     core::{
         errors::{ApiClientError, CustomResult},
         payments,
@@ -119,6 +120,7 @@ pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
         format!("{locker_host_rs}/cards/add"),
         format!("{locker_host_rs}/cards/retrieve"),
         format!("{locker_host_rs}/cards/delete"),
+        format!("{locker_host_rs}{}", LOCKER_HEALTH_CALL_PATH),
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),

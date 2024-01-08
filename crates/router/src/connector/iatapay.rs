@@ -479,7 +479,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let connector_router_data = iatapay::IatapayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.payment_amount,
+            req.request.refund_amount,
             req,
         ))?;
         let connector_req = iatapay::IatapayRefundRequest::try_from(&connector_router_data)?;
@@ -570,9 +570,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
