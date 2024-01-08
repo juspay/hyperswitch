@@ -359,6 +359,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_merchant_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
@@ -497,6 +498,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+    }
+
+    fn is_merchant_initiated_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
     }
 }
 
