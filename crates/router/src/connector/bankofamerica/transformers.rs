@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
@@ -323,8 +321,9 @@ impl From<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
 
 impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
     fn foreign_from(metadata: Value) -> Self {
-        let hashmap: HashMap<String, Value> =
-            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let hashmap: std::collections::BTreeMap<String, Value> =
+            serde_json::from_str(&metadata.to_string())
+                .unwrap_or(std::collections::BTreeMap::new());
         let mut vector: Self = Self::new();
         let mut iter = 1;
         for (key, value) in hashmap {
