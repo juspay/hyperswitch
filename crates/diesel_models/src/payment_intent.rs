@@ -288,9 +288,9 @@ impl PaymentIntentUpdate {
             payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
             updated_by,
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
-
-            incremental_authorization_allowed,
-            authorization_count,
+            incremental_authorization_allowed: incremental_authorization_allowed
+                .or(source.incremental_authorization_allowed),
+            authorization_count: authorization_count.or(source.authorization_count),
             session_expiry,
             ..source
         }
