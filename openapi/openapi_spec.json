@@ -10275,6 +10275,7 @@
         "required": [
           "status",
           "amount",
+          "net_amount",
           "currency",
           "payment_method",
           "attempt_count"
@@ -10308,6 +10309,12 @@
             "format": "int64",
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 100
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "example": 110
           },
           "amount_capturable": {
             "type": "integer",

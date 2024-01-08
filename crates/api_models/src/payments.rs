@@ -2037,6 +2037,11 @@ pub struct PaymentsResponse {
     #[schema(example = 100)]
     pub amount: i64,
 
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,  
+    /// If no surcharge_details, net_amount = amount
+    #[schema(example = 110)]
+    pub net_amount: i64,
+
     /// The maximum amount that could be captured from the payment
     #[schema(minimum = 100, example = 6540)]
     pub amount_capturable: Option<i64>,
