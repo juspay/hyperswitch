@@ -77,18 +77,6 @@ macro_rules! fallback_reverse_lookup_not_found {
 }
 
 #[macro_export]
-macro_rules! combine_options {
-    ($($option:ident),+) => {{
-        $(let _ = $option;)*
-        let option_tuple = ($($option),*);
-        match option_tuple {
-            ($(Some($option),)*) => Some(($($option,)*)),
-            _ => None
-        }
-    }};
-}
-
-#[macro_export]
 macro_rules! collect_missing_value_keys {
     [$(($key:literal, $option:expr)),+] => {
         {
