@@ -88,12 +88,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         let business_profile = if let Some(business_profile) =
-            core_utils::validate_and_get_business_profile(
-                db,
-                request.profile_id.as_ref(),
-                merchant_id,
-            )
-            .await?
+            core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
+                .await?
         {
             business_profile
         } else {
