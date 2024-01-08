@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::request::RequestContent;
+use common_utils::{ext_traits::ValueExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -434,7 +434,24 @@ impl
             })
         } else {
             // If http_code != 204 || http_code != 4xx, we dont know any other response scenario yet.
-            Err(errors::ConnectorError::ResponseHandlingFailed).into_report()
+            let response_value: serde_json::Value = serde_json::from_slice(&res.response)
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let response_string: String = response_value
+                .parse_value("String")
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+            Ok(types::MandateRevokeRouterData {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: response_string.clone(),
+                    reason: Some(response_string),
+                    status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
         }
     }
     fn get_error_response(
