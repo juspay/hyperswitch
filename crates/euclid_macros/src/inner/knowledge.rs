@@ -417,7 +417,10 @@ impl GenContext {
                 .position(|v| *v == node_id)
                 .ok_or_else(|| "Error deciding cycle order".to_string())?;
 
-            let cycle_order = order[position..].to_vec();
+            let cycle_order = order
+                .get(position..)
+                .ok_or_else(|| "Error getting cycle order".to_string())?
+                .to_vec();
             Ok(Some(cycle_order))
         } else if visited.contains(&node_id) {
             Ok(None)
