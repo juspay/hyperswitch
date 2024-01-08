@@ -294,8 +294,9 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(strum::Display)]
 pub enum VoltPaymentStatus {
     NewPayment,
     Completed,
@@ -320,7 +321,7 @@ pub enum VoltPaymentsResponseData {
     PsyncResponse(VoltPsyncResponse),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
@@ -342,38 +343,66 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            VoltPaymentsResponseData::PsyncResponse(payment_response) => Ok(Self {
-                status: enums::AttemptStatus::from(payment_response.status),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        payment_response.id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: payment_response
-                        .merchant_internal_reference
-                        .or(Some(payment_response.id)),
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
-            VoltPaymentsResponseData::WebhookResponse(webhook_response) => Ok(Self {
-                status: enums::AttemptStatus::from(webhook_response.status),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        webhook_response.payment,
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: webhook_response.merchant_internal_reference,
-                    incremental_authorization_allowed: None,
-                }),
-                ..item.data
-            }),
+            VoltPaymentsResponseData::PsyncResponse(payment_response) => {
+                let status = enums::AttemptStatus::from(payment_response.status.clone());
+                Ok(Self {
+                    status,
+                    response: if is_payment_failure(status) {
+                        Err(types::ErrorResponse {
+                            code: payment_response.status.clone().to_string(),
+                            message: payment_response.status.clone().to_string(),
+                            reason: Some(payment_response.status.to_string()),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(payment_response.id),
+                        })
+                    } else {
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                payment_response.id.clone(),
+                            ),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: payment_response
+                                .merchant_internal_reference
+                                .or(Some(payment_response.id)),
+                            incremental_authorization_allowed: None,
+                        })
+                    },
+                    ..item.data
+                })
+            }
+            VoltPaymentsResponseData::WebhookResponse(webhook_response) => {
+                let detailed_status = webhook_response.detailed_status;
+                Ok(Self {
+                    status: enums::AttemptStatus::from(webhook_response.status),
+                    response: match detailed_status {
+                        Some(detailed_status) => Err(types::ErrorResponse {
+                            code: detailed_status.to_string(),
+                            message: detailed_status.to_string(),
+                            reason: Some(detailed_status.to_string()),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: webhook_response.merchant_internal_reference,
+                        }),
+                        None => Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                webhook_response.payment,
+                            ),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: webhook_response
+                                .merchant_internal_reference,
+                            incremental_authorization_allowed: None,
+                        }),
+                    },
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -484,6 +513,7 @@ pub enum VoltWebhookStatus {
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(strum::Display)]
 pub enum VoltDetailedStatus {
     RefusedByRisk,
     RefusedByBank,
@@ -534,4 +564,33 @@ pub struct VoltErrorException {
 pub struct VoltErrorList {
     pub property: String,
     pub message: String,
+}
+
+fn is_payment_failure(status: enums::AttemptStatus) -> bool {
+    match status {
+        common_enums::AttemptStatus::AuthenticationFailed
+        | common_enums::AttemptStatus::AuthorizationFailed
+        | common_enums::AttemptStatus::CaptureFailed
+        | common_enums::AttemptStatus::VoidFailed
+        | common_enums::AttemptStatus::Failure => true,
+        common_enums::AttemptStatus::Started
+        | common_enums::AttemptStatus::RouterDeclined
+        | common_enums::AttemptStatus::AuthenticationPending
+        | common_enums::AttemptStatus::AuthenticationSuccessful
+        | common_enums::AttemptStatus::Authorized
+        | common_enums::AttemptStatus::Charged
+        | common_enums::AttemptStatus::Authorizing
+        | common_enums::AttemptStatus::CodInitiated
+        | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidInitiated
+        | common_enums::AttemptStatus::CaptureInitiated
+        | common_enums::AttemptStatus::AutoRefunded
+        | common_enums::AttemptStatus::PartialCharged
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::PaymentMethodAwaited
+        | common_enums::AttemptStatus::ConfirmationAwaited
+        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+    }
 }
