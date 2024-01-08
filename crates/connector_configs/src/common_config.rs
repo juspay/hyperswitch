@@ -83,6 +83,49 @@ pub struct ApiModelMetaData {
     pub apple_pay_combined: Option<ApplePayData>,
 }
 
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, ToSchema, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CardProvider {
+    pub payment_method_type: api_models::enums::CardNetwork,
+    /// List of currencies accepted or has the processing capabilities of the processor
+    #[schema(example = json!(
+            {
+                "type": "specific_accepted",
+                "list": ["USD", "INR"]
+            }
+        ), value_type = Option<AcceptedCurrencies>)]
+    pub accepted_currencies: Option<api_models::admin::AcceptedCurrencies>,
+    #[schema(example = json!(
+        {
+            "type": "specific_accepted",
+            "list": ["UK", "AU"]
+        }
+    ), value_type = Option<AcceptedCountries>)]
+    pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
+}
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, ToSchema, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Provider {
+    pub payment_method_type: api_models::enums::PaymentMethodType,
+    /// List of currencies accepted or has the processing capabilities of the processor
+    #[schema(example = json!(
+            {
+                "type": "specific_accepted",
+                "list": ["USD", "INR"]
+            }
+        ), value_type = Option<AcceptedCurrencies>)]
+    pub accepted_currencies: Option<api_models::admin::AcceptedCurrencies>,
+    #[schema(example = json!(
+        {
+            "type": "specific_accepted",
+            "list": ["UK", "AU"]
+        }
+    ), value_type = Option<AcceptedCountries>)]
+    pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ConnectorApiIntegrationPayload {
@@ -105,8 +148,8 @@ pub struct ConnectorApiIntegrationPayload {
 pub struct DashboardPaymentMethodPayload {
     pub payment_method: api_models::enums::PaymentMethod,
     pub payment_method_type: String,
-    pub provider: Option<Vec<api_models::enums::PaymentMethodType>>,
-    pub card_provider: Option<Vec<api_models::enums::CardNetwork>>,
+    pub provider: Option<Vec<Provider>>,
+    pub card_provider: Option<Vec<CardProvider>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
