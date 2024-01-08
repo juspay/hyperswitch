@@ -369,7 +369,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(webhook_response.reference),
+                    connector_response_reference_id: webhook_response.merchant_internal_reference,
                     incremental_authorization_allowed: None,
                 }),
                 ..item.data
@@ -466,7 +466,6 @@ pub struct VoltWebhookBodyEventType {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltWebhookObjectResource {
-    pub reference: String,
     pub payment: String,
     pub merchant_internal_reference: Option<String>,
     pub status: VoltWebhookStatus,

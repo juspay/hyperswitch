@@ -639,18 +639,17 @@ impl api::IncomingWebhook for Volt {
             .body
             .parse_struct("VoltWebhookBodyReference")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match webhook_body.merchant_internal_reference {
+        let reference = match webhook_body.merchant_internal_reference {
             Some(merchant_internal_reference) => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        merchant_internal_reference,
-                    ),
-                ))
+                api_models::payments::PaymentIdType::PaymentAttemptId(merchant_internal_reference)
             }
-            None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.payment),
-            )),
-        }
+            None => {
+                api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.payment)
+            }
+        };
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            reference,
+        ))
     }
 
     fn get_webhook_event_type(
