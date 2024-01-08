@@ -17,7 +17,7 @@ use api_models::{
     surcharge_decision_configs as api_surcharge_decision_configs,
 };
 use common_utils::{
-    combine_options, consts,
+    consts,
     ext_traits::{AsyncExt, StringExt, ValueExt},
     generate_id,
 };
@@ -1700,10 +1700,12 @@ pub async fn list_payment_methods(
             payment_method_types: bank_transfer_payment_method_types,
         });
     }
-    let payment_attempt_ref = payment_attempt.as_ref();
     let merchant_surcharge_configs =
-        if let Some((payment_attempt, payment_intent, business_profile)) =
-            combine_options!(payment_attempt_ref, payment_intent, business_profile)
+        if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
+            .as_ref()
+            .zip(payment_intent)
+            .zip(business_profile)
+            .map(|((pa, pi), bp)| (pa, pi, bp))
         {
             Box::pin(call_surcharge_decision_management(
                 state,
@@ -2573,8 +2575,10 @@ pub async fn list_customer_payment_method(
     )
     .await?;
 
-    if let Some((payment_attempt, payment_intent, business_profile)) =
-        combine_options!(payment_attempt, payment_intent, business_profile)
+    if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
+        .zip(payment_intent)
+        .zip(business_profile)
+        .map(|((pa, pi), bp)| (pa, pi, bp))
     {
         call_surcharge_decision_management_for_saved_card(
             state,
