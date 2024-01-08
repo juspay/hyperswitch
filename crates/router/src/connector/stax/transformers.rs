@@ -225,7 +225,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             api::PaymentMethodData::Card(card_data) => {
                 let stax_card_data = StaxTokenizeData {
                     card_exp: card_data
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     person_name: card_data
                         .card_holder_name
                         .unwrap_or(Secret::new("".to_string())),
