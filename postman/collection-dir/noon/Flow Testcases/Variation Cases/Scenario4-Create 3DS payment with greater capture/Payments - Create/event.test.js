@@ -44,18 +44,6 @@ if (jsonData?.payment_id) {
   );
 }
 
-// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id
-if (jsonData?.mandate_id) {
-  pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
-  console.log(
-    "- use {{mandate_id}} as collection variable for value",
-    jsonData.mandate_id,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
-  );
-}
 
 // pm.collectionVariables - Set client_secret as variable for jsonData.client_secret
 if (jsonData?.client_secret) {
