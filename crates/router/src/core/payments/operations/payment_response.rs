@@ -24,7 +24,7 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{self, enums, payment_attempt::AttemptStatusExt},
+        storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse,
     },
@@ -499,15 +499,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_message: Some(Some(err.message)),
                             error_code: Some(Some(err.code)),
                             error_reason: Some(err.reason),
-                            amount_capturable: if status.is_terminal_status()
-                                || router_data
-                                    .status
-                                    .maps_to_intent_status(enums::IntentStatus::Processing)
-                            {
-                                Some(0)
-                            } else {
-                                None
-                            },
+                            amount_capturable: router_data.get_amount_capturable(&payment_data),
                             updated_by: storage_scheme.to_string(),
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
@@ -619,6 +611,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 connector: None,
                                 connector_transaction_id: connector_transaction_id.clone(),
                                 authentication_type: None,
+                                amount_capturable: router_data.get_amount_capturable(&payment_data),
                                 payment_method_id: Some(router_data.payment_method_id),
                                 mandate_id: payment_data
                                     .mandate_id
@@ -632,15 +625,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 unified_code: error_status.clone(),
                                 unified_message: error_status,
                                 connector_response_reference_id,
-                                amount_capturable: if router_data.status.is_terminal_status()
-                                    || router_data
-                                        .status
-                                        .maps_to_intent_status(enums::IntentStatus::Processing)
-                                {
-                                    Some(0)
-                                } else {
-                                    None
-                                },
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
