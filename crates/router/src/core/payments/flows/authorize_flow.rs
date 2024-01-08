@@ -76,12 +76,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .connector
             .validate_capture_method(self.request.capture_method)
             .to_payment_failed_response()?;
-        if self.request.surcharge_details.is_some() {
-            connector
-                .connector
-                .validate_if_surcharge_implemented()
-                .to_payment_failed_response()?;
-        }
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();

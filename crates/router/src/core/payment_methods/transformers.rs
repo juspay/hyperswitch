@@ -313,9 +313,6 @@ pub async fn mk_add_locker_request_hs<'a>(
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
-
-    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = match locker_choice {
         api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
         api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
@@ -323,7 +320,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
 
@@ -459,9 +456,6 @@ pub async fn mk_get_card_request_hs(
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
-
-    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = match target_locker {
         api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
         api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
@@ -469,7 +463,7 @@ pub async fn mk_get_card_request_hs(
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
 
@@ -537,13 +531,11 @@ pub async fn mk_delete_card_request_hs(
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
 
-    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
 
@@ -602,14 +594,12 @@ pub fn mk_crud_locker_request(
     path: &str,
     req: api::TokenizePayloadEncrypted,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let body = utils::Encode::<api::TokenizePayloadEncrypted>::encode_to_value(&req)
-        .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.set_body(RequestContent::Json(Box::new(body.to_string())));
+    request.set_body(RequestContent::Json(Box::new(req)));
     Ok(request)
 }
 

@@ -20,6 +20,9 @@ async fn main() -> DrainerResult<()> {
     let shutdown_intervals = conf.drainer.shutdown_interval;
     let loop_interval = conf.drainer.loop_interval;
 
+    #[cfg(feature = "vergen")]
+    println!("Starting drainer (Version: {})", router_env::git_tag!());
+
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),

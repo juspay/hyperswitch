@@ -24,10 +24,7 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{
-            self, enums,
-            payment_attempt::{AttemptStatusExt, PaymentAttemptExt},
-        },
+        storage::{self, enums, payment_attempt::AttemptStatusExt},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse,
     },
@@ -474,20 +471,26 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         flow_name.clone(),
                     )
                     .await;
-                    let status =
+                    let status = match err.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None =>
                         // mark previous attempt status for technical failures in PSync flow
-                        if flow_name == "PSync" {
-                            match err.status_code {
-                                // marking failure for 2xx because this is genuine payment failure
-                                200..=299 => storage::enums::AttemptStatus::Failure,
-                                _ => router_data.status,
+                        {
+                            if flow_name == "PSync" {
+                                match err.status_code {
+                                    // marking failure for 2xx because this is genuine payment failure
+                                    200..=299 => storage::enums::AttemptStatus::Failure,
+                                    _ => router_data.status,
+                                }
+                            } else {
+                                match err.status_code {
+                                    500..=511 => storage::enums::AttemptStatus::Pending,
+                                    _ => storage::enums::AttemptStatus::Failure,
+                                }
                             }
-                        } else {
-                            match err.status_code {
-                                500..=511 => storage::enums::AttemptStatus::Pending,
-                                _ => storage::enums::AttemptStatus::Failure,
-                            }
-                        };
+                        }
+                    };
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {

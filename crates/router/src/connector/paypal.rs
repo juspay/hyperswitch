@@ -265,10 +265,6 @@ impl ConnectorValidation for Paypal {
             ),
         }
     }
-
-    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
 }
 
 impl
@@ -390,6 +386,20 @@ impl
         types::PaymentsResponseData,
     > for Paypal
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Paypal".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -423,10 +433,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request
-                .surcharge_details
-                .as_ref()
-                .map_or(req.request.amount, |surcharge| surcharge.final_amount),
+            req.request.amount,
             req,
         ))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
@@ -725,9 +732,6 @@ impl
                     self, req, connectors,
                 )?)
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

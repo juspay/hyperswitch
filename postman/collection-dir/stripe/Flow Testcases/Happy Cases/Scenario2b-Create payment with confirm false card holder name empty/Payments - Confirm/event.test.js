@@ -1,6 +1,6 @@
-// Validate status 4xx
-pm.test("[POST]::/payments - Status code is 4xx", function () {
-  pm.response.to.be.error;
+// Validate status 2xx
+pm.test("[POST]::/payments - Status code is 2xx", function () {
+  pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
@@ -63,20 +63,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "error"
-pm.test(
-  "[POST]::/payments/:id/confirm - Content check if 'error' exists",
-  function () {
-    pm.expect(typeof jsonData.error !== "undefined").to.be.true;
-  },
-);
-
-// Response body should have value "connector error" for "error type"
-if (jsonData?.error?.type) {
+// Response body should have value "succeeded" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'error.type' matches 'invalid_request'",
+    "[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.error.type).to.eql("invalid_request");
+      pm.expect(jsonData.status).to.eql("succeeded");
     },
   );
 }
