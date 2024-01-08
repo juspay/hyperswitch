@@ -232,15 +232,15 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let (account_numbers, accounts_info) = (item.response.numbers, item.response.accounts);
         let mut bank_account_vec = Vec::new();
-        let mut id_to_suptype = HashMap::new();
+        let mut id_to_subtype = HashMap::new();
 
         accounts_info.into_iter().for_each(|acc| {
-            id_to_suptype.insert(acc.account_id, (acc.subtype, acc.name));
+            id_to_subtype.insert(acc.account_id, (acc.subtype, acc.name));
         });
 
         account_numbers.ach.into_iter().for_each(|ach| {
             let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_suptype.get(&ach.account_id) {
+                if let Some((_type, name)) = id_to_subtype.get(&ach.account_id) {
                     (_type.to_owned(), Some(name.clone()))
                 } else {
                     (None, None)
@@ -265,7 +265,7 @@ impl<F, T>
 
         account_numbers.bacs.into_iter().for_each(|bacs| {
             let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_suptype.get(&bacs.account_id) {
+                if let Some((_type, name)) = id_to_subtype.get(&bacs.account_id) {
                     (_type.to_owned(), Some(name.clone()))
                 } else {
                     (None, None)
@@ -290,7 +290,7 @@ impl<F, T>
 
         account_numbers.international.into_iter().for_each(|sepa| {
             let (acc_type, acc_name) =
-                if let Some((_type, name)) = id_to_suptype.get(&sepa.account_id) {
+                if let Some((_type, name)) = id_to_subtype.get(&sepa.account_id) {
                     (_type.to_owned(), Some(name.clone()))
                 } else {
                     (None, None)
