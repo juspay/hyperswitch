@@ -1,5 +1,5 @@
 use api_models::user as user_api;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use diesel_models::user_role::UserRole;
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -55,22 +55,6 @@ impl UserFromToken {
     }
 }
 
-pub async fn get_merchant_ids_for_user(state: AppState, user_id: &str) -> UserResult<Vec<String>> {
-    Ok(state
-        .store
-        .list_user_roles_by_user_id(user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|ele| {
-            if ele.status == UserStatus::Active {
-                return Some(ele.merchant_id);
-            }
-            None
-        })
-        .collect())
-}
-
 pub async fn generate_jwt_auth_token(
     state: AppState,
     user: &UserFromStorage,
@@ -87,18 +71,19 @@ pub async fn generate_jwt_auth_token(
     Ok(Secret::new(token))
 }
 
-pub async fn generate_jwt_auth_token_with_custom_merchant_id(
+pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     state: AppState,
     user: &UserFromStorage,
-    user_role: &UserRole,
     merchant_id: String,
+    org_id: String,
+    role_id: String,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
-        user_role.role_id.clone(),
+        role_id,
         &state.conf,
-        user_role.org_id.to_owned(),
+        org_id,
     )
     .await?;
     Ok(Secret::new(token))
