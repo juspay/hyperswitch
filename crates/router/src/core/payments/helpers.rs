@@ -952,7 +952,7 @@ pub fn payment_attempt_status_fsm(
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::AttemptStatus::Pending,
+            Some(true) => storage_enums::AttemptStatus::PaymentMethodAwaited,
             _ => storage_enums::AttemptStatus::ConfirmationAwaited,
         },
         None => storage_enums::AttemptStatus::PaymentMethodAwaited,
@@ -965,7 +965,7 @@ pub fn payment_intent_status_fsm(
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::IntentStatus::RequiresCustomerAction,
+            Some(true) => storage_enums::IntentStatus::RequiresPaymentMethod,
             _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
@@ -3587,8 +3587,12 @@ impl ApplePayData {
             .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
-        let ciphertext = &data[..data.len() - 16];
-        let tag = &data[data.len() - 16..];
+        let ciphertext = data
+            .get(..data.len() - 16)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let tag = data
+            .get(data.len() - 16..)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let cipher = Cipher::aes_256_gcm();
         let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
             .into_report()

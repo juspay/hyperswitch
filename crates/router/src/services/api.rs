@@ -377,7 +377,17 @@ where
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        None,
+                        response
+                            .as_ref()
+                            .map(|response| {
+                                response
+                                    .as_ref()
+                                    .map_or_else(|value| value, |value| value)
+                                    .response
+                                    .escape_ascii()
+                                    .to_string()
+                            })
+                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
@@ -790,6 +800,7 @@ pub enum RedirectForm {
         currency: Currency,
         public_key: Secret<String>,
         customer_vault_id: String,
+        order_id: String,
     },
 }
 
@@ -949,7 +960,7 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
-        Some(request.method().to_string()),
+        request.method(),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -1161,6 +1172,14 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
+        .content_type(mime::APPLICATION_JSON)
+        .body(response)
+}
+
+pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
+    response: T,
+) -> HttpResponse {
+    HttpResponse::InternalServerError()
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
@@ -1535,6 +1554,7 @@ pub fn build_redirection_form(
             currency,
             public_key,
             customer_vault_id,
+            order_id,
         } => {
             let public_key_val = public_key.peek();
             maud::html! {
@@ -1557,16 +1577,16 @@ pub fn build_redirection_form(
                     var responseForm = document.createElement('form');
                     responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
                     responseForm.method='POST';
-            
+
                     const threeDSsecureInterface = threeDS.createUI(options);
                     threeDSsecureInterface.start('body');
-            
+
                     threeDSsecureInterface.on('challenge', function(e) {{
                         console.log('Challenged');
                     }});
-            
+
                     threeDSsecureInterface.on('complete', function(e) {{
-                        
+
                         var item1=document.createElement('input');
                         item1.type='hidden';
                         item1.name='cavv';
@@ -1591,26 +1611,24 @@ pub fn build_redirection_form(
                         item4.value=e.threeDsVersion;
                         responseForm.appendChild(item4);
 
+                        var item5=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='orderId';
+                        item4.value='{order_id}';
+                        responseForm.appendChild(item5);
+
                         document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
-            
+
                     threeDSsecureInterface.on('failure', function(e) {{
                         responseForm.submit();
                     }});
-            
+
             </script>"
             )))
                 }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_mime_essence() {
-        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }
 }
 
@@ -1661,5 +1679,13 @@ pub fn get_404_not_found_page(
             crate::logger::warn!("{tera_error}");
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_mime_essence() {
+        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }
 }
