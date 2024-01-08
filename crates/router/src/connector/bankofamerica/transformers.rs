@@ -350,6 +350,17 @@ pub struct ClientProcessorInformation {
     avs: Option<Avs>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientRiskInformation {
+    rules: Option<Vec<ClientRiskInformationRules>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ClientRiskInformationRules {
+    name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
@@ -673,6 +684,7 @@ pub struct BankOfAmericaClientReferenceResponse {
     status: BankofamericaPaymentStatus,
     client_reference_information: ClientReferenceInformation,
     processor_information: Option<ClientProcessorInformation>,
+    risk_information: Option<ClientRiskInformation>,
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
@@ -708,10 +720,28 @@ fn get_error_response_if_failure(
             None => (consts::NO_ERROR_MESSAGE.to_string(), None),
         };
 
+        let avs_message = info_response
+            .risk_information
+            .clone()
+            .map(|client_risk_information| {
+                client_risk_information.rules.map(|rules| {
+                    rules
+                        .iter()
+                        .map(|risk_info| format!(" | {}", risk_info.name))
+                        .collect::<Vec<String>>()
+                        .join("")
+                })
+            });
+
         Some(types::ErrorResponse {
             code: consts::NO_ERROR_CODE.to_string(),
             message,
-            reason,
+            reason: Some(
+                reason.unwrap_or("".to_string())
+                    + &avs_message
+                        .unwrap_or(Some("".to_string()))
+                        .unwrap_or("".to_string()),
+            ),
             status_code: http_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(info_response.id.clone()),
