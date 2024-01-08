@@ -366,6 +366,7 @@ attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
+outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 
 [analytics]
 source = "sqlx"
