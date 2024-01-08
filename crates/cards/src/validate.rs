@@ -1,6 +1,7 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+#[cfg(not(target_arch = "wasm32"))]
 use router_env::logger;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
@@ -89,6 +90,7 @@ where
         if let Some(value) = val_str.get(..6) {
             write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
         } else {
+            #[cfg(not(target_arch = "wasm32"))]
             logger::error!("Invalid card number {val_str}");
             WithType::fmt(val, f)
         }
