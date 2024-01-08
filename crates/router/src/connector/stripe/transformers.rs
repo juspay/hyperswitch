@@ -135,7 +135,7 @@ pub struct PaymentIntentRequest {
 pub struct StripeMetadata {
     // merchant_reference_id
     #[serde(rename(serialize = "metadata[order_id]"))]
-    pub order_id: String,
+    pub order_id: Option<String>,
     // to check whether the order_id is refund_id or payemnt_id
     // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
     // it is set as string instead of bool because stripe pass it as string even if we set it as bool
@@ -1083,15 +1083,24 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
 }
 
 impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
-    type Error = errors::ConnectorError;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(bank_redirection_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
         match bank_redirection_data {
             payments::BankRedirectData::Eps {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                ..Self::default()
+            } => Ok({
+                let billing_data = billing_details.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_details",
+                    },
+                )?;
+                Self {
+                    name: Some(connector_util::BankRedirectBillingData::get_billing_name(
+                        &billing_data,
+                    )?),
+                    ..Self::default()
+                }
             }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
@@ -1861,7 +1870,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
             meta_data: StripeMetadata {
-                order_id,
+                order_id: Some(order_id),
                 is_refund_id_as_reference: None,
             },
             return_url: item
@@ -2336,7 +2345,7 @@ pub fn get_connector_metadata(
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                let bank_instructions = response.financial_addresses.get(0);
+                let bank_instructions = response.financial_addresses.first();
                 let (sepa_bank_instructions, bacs_bank_instructions) =
                     bank_instructions.map_or((None, None), |financial_address| {
                         (
@@ -2696,7 +2705,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
             amount: Some(amount),
             payment_intent,
             meta_data: StripeMetadata {
-                order_id: item.request.refund_id.clone(),
+                order_id: Some(item.request.refund_id.clone()),
                 is_refund_id_as_reference: Some("true".to_string()),
             },
         })
@@ -3203,7 +3212,7 @@ pub struct WebhookPaymentMethodDetails {
     pub payment_method: WebhookPaymentMethodType,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
@@ -3218,7 +3227,7 @@ pub struct WebhookEventObjectData {
     pub metadata: Option<StripeMetadata>,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]
+#[derive(Debug, Clone, Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventObjectType {
     PaymentIntent,
@@ -3280,7 +3289,7 @@ pub enum WebhookEventType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, strum::Display, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventStatus {
     WarningNeedsResponse,
@@ -3304,7 +3313,7 @@ pub enum WebhookEventStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct EvidenceDetails {
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub due_by: PrimitiveDateTime,
@@ -3649,7 +3658,10 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.first_name");
+        assert_eq!(
+            *missing_fields.first().unwrap(),
+            "shipping.address.first_name"
+        );
     }
 
     #[test]
@@ -3674,7 +3686,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.line1");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.line1");
     }
 
     #[test]
@@ -3699,7 +3711,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.country");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.country");
     }
 
     #[test]
@@ -3723,7 +3735,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.zip");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.zip");
     }
 
     #[test]

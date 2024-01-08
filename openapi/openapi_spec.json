@@ -3413,13 +3413,17 @@
               "eps": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "bank_name",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
