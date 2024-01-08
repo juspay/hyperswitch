@@ -344,6 +344,19 @@ pub struct ClientReferenceInformation {
     code: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientProcessorInformation {
+    avs: Option<Avs>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Avs {
+    code: String,
+    code_raw: String,
+}
+
 impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -659,6 +672,7 @@ pub struct BankOfAmericaClientReferenceResponse {
     id: String,
     status: BankofamericaPaymentStatus,
     client_reference_information: ClientReferenceInformation,
+    processor_information: Option<ClientProcessorInformation>,
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
@@ -750,7 +764,10 @@ fn get_payment_response(
             resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
             redirection_data: None,
             mandate_reference: None,
-            connector_metadata: None,
+            connector_metadata: info_response
+                .processor_information
+                .as_ref()
+                .map(|processor_information| serde_json::json!(processor_information.avs)),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 info_response
@@ -1241,8 +1258,8 @@ pub struct BankOfAmericaAuthenticationErrorResponse {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaErrorResponse {
-    StandardError(BankOfAmericaStandardErrorResponse),
     AuthenticationError(BankOfAmericaAuthenticationErrorResponse),
+    StandardError(BankOfAmericaStandardErrorResponse),
 }
 
 #[derive(Debug, Deserialize, Clone)]
