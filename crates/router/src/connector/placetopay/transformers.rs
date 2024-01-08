@@ -131,7 +131,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     number: req_card.card_number.clone(),
                     expiration: req_card
                         .clone()
-                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvv: req_card.card_cvc.clone(),
                 };
                 Ok(Self {
