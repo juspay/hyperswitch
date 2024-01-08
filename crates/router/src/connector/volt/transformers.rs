@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
+    consts,
     core::errors,
     services,
     types::{self, api, storage::enums as storage_enums},
@@ -375,19 +376,29 @@ impl<F, T>
                 })
             }
             VoltPaymentsResponseData::WebhookResponse(webhook_response) => {
-                let detailed_status = webhook_response.detailed_status;
+                let detailed_status = webhook_response.detailed_status.clone();
+                let status = enums::AttemptStatus::from(webhook_response.status);
                 Ok(Self {
-                    status: enums::AttemptStatus::from(webhook_response.status),
-                    response: match detailed_status {
-                        Some(detailed_status) => Err(types::ErrorResponse {
-                            code: detailed_status.to_string(),
-                            message: detailed_status.to_string(),
-                            reason: Some(detailed_status.to_string()),
+                    status,
+                    response: if is_payment_failure(status) {
+                        Err(types::ErrorResponse {
+                            code: detailed_status
+                                .clone()
+                                .map(|volt_status| volt_status.to_string())
+                                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_owned()),
+                            message: detailed_status
+                                .clone()
+                                .map(|volt_status| volt_status.to_string())
+                                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
+                            reason: detailed_status
+                                .clone()
+                                .map(|volt_status| volt_status.to_string()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: webhook_response.merchant_internal_reference,
-                        }),
-                        None => Ok(types::PaymentsResponseData::TransactionResponse {
+                            connector_transaction_id: Some(webhook_response.payment),
+                        })
+                    } else {
+                        Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 webhook_response.payment,
                             ),
@@ -398,7 +409,7 @@ impl<F, T>
                             connector_response_reference_id: webhook_response
                                 .merchant_internal_reference,
                             incremental_authorization_allowed: None,
-                        }),
+                        })
                     },
                     ..item.data
                 })
