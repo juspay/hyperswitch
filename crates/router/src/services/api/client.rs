@@ -122,10 +122,6 @@ pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),
-        format!("{basilisk_host}/tokenize"),
-        format!("{basilisk_host}/tokenize/get"),
-        format!("{basilisk_host}/tokenize/delete"),
-        format!("{basilisk_host}/tokenize/delete/token"),
     ]
 }
 
