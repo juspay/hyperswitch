@@ -146,10 +146,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            api_models::payments::BankRedirectData::Eps { .. } => {
+            api_models::payments::BankRedirectData::Eps { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Eps,
-                    bank_account_country: Some(api_models::enums::CountryAlpha2::AT),
+                    bank_account_country: Some(country.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "eps.country",
+                        },
+                    )?),
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -254,7 +258,9 @@ impl TryFrom<api_models::payments::Card> for PaymentDetails {
     fn try_from(card_data: api_models::payments::Card) -> Result<Self, Self::Error> {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
-            card_holder: card_data.card_holder_name,
+            card_holder: card_data
+                .card_holder_name
+                .unwrap_or(Secret::new("".to_string())),
             card_expiry_month: card_data.card_exp_month,
             card_expiry_year: card_data.card_exp_year,
             card_cvv: card_data.card_cvc,
@@ -410,10 +416,9 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.router_data.payment_method),
-                connector: "Aci",
-            })?,
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Aci"),
+            ))?,
         }
     }
 }

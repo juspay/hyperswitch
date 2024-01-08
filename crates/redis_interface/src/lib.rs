@@ -24,14 +24,14 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use fred::interfaces::ClientLike;
 pub use fred::interfaces::PubsubInterface;
+use fred::{interfaces::ClientLike, prelude::EventInterface};
 use router_env::logger;
 
-pub use self::{commands::*, types::*};
+pub use self::types::*;
 
 pub struct RedisConnectionPool {
-    pub pool: fred::pool::RedisPool,
+    pub pool: fred::prelude::RedisPool,
     config: RedisConfig,
     pub subscriber: SubscriberClient,
     pub publisher: RedisClient,
@@ -53,8 +53,10 @@ impl RedisClient {
     pub async fn new(
         config: fred::types::RedisConfig,
         reconnect_policy: fred::types::ReconnectPolicy,
+        perf: fred::types::PerformanceConfig,
     ) -> CustomResult<Self, errors::RedisError> {
-        let client = fred::prelude::RedisClient::new(config, None, Some(reconnect_policy));
+        let client =
+            fred::prelude::RedisClient::new(config, Some(perf), None, Some(reconnect_policy));
         client.connect();
         client
             .wait_for_connect()
@@ -73,8 +75,10 @@ impl SubscriberClient {
     pub async fn new(
         config: fred::types::RedisConfig,
         reconnect_policy: fred::types::ReconnectPolicy,
+        perf: fred::types::PerformanceConfig,
     ) -> CustomResult<Self, errors::RedisError> {
-        let client = fred::clients::SubscriberClient::new(config, None, Some(reconnect_policy));
+        let client =
+            fred::clients::SubscriberClient::new(config, Some(perf), None, Some(reconnect_policy));
         client.connect();
         client
             .wait_for_connect()
@@ -117,6 +121,17 @@ impl RedisConnectionPool {
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
+        let perf = fred::types::PerformanceConfig {
+            auto_pipeline: conf.auto_pipeline,
+            default_command_timeout: std::time::Duration::from_secs(conf.default_command_timeout),
+            max_feed_count: conf.max_feed_count,
+            backpressure: fred::types::BackpressureConfig {
+                disable_auto_backpressure: conf.disable_auto_backpressure,
+                max_in_flight_commands: conf.max_in_flight_commands,
+                policy: fred::types::BackpressurePolicy::Drain,
+            },
+        };
+
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
         }
@@ -127,13 +142,21 @@ impl RedisConnectionPool {
             conf.reconnect_delay,
         );
 
-        let subscriber = SubscriberClient::new(config.clone(), reconnect_policy.clone()).await?;
+        let subscriber =
+            SubscriberClient::new(config.clone(), reconnect_policy.clone(), perf.clone()).await?;
 
-        let publisher = RedisClient::new(config.clone(), reconnect_policy.clone()).await?;
+        let publisher =
+            RedisClient::new(config.clone(), reconnect_policy.clone(), perf.clone()).await?;
 
-        let pool = fred::pool::RedisPool::new(config, None, Some(reconnect_policy), conf.pool_size)
-            .into_report()
-            .change_context(errors::RedisError::RedisConnectionError)?;
+        let pool = fred::prelude::RedisPool::new(
+            config,
+            Some(perf),
+            None,
+            Some(reconnect_policy),
+            conf.pool_size,
+        )
+        .into_report()
+        .change_context(errors::RedisError::RedisConnectionError)?;
 
         pool.connect();
         pool.wait_for_connect()
@@ -153,16 +176,28 @@ impl RedisConnectionPool {
     }
 
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
-        while let Ok(redis_error) = self.pool.on_error().recv().await {
-            logger::error!(?redis_error, "Redis protocol or connection error");
-            logger::error!("current state: {:#?}", self.pool.state());
-            if self.pool.state() == fred::types::ClientState::Disconnected {
-                if tx.send(()).is_err() {
-                    logger::error!("The redis shutdown signal sender failed to signal");
+        use futures::StreamExt;
+        use tokio_stream::wrappers::BroadcastStream;
+
+        let error_rxs: Vec<BroadcastStream<fred::error::RedisError>> = self
+            .pool
+            .clients()
+            .iter()
+            .map(|client| BroadcastStream::new(client.error_rx()))
+            .collect();
+
+        let mut error_rx = futures::stream::select_all(error_rxs);
+        loop {
+            if let Some(Ok(error)) = error_rx.next().await {
+                logger::error!(?error, "Redis protocol or connection error");
+                if self.pool.state() == fred::types::ClientState::Disconnected {
+                    if tx.send(()).is_err() {
+                        logger::error!("The redis shutdown signal sender failed to signal");
+                    }
+                    self.is_redis_available
+                        .store(false, atomic::Ordering::SeqCst);
+                    break;
                 }
-                self.is_redis_available
-                    .store(false, atomic::Ordering::SeqCst);
-                break;
             }
         }
     }

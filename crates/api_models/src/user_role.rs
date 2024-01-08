@@ -32,6 +32,8 @@ pub enum Permission {
     DisputeWrite,
     MandateRead,
     MandateWrite,
+    CustomerRead,
+    CustomerWrite,
     FileRead,
     FileWrite,
     Analytics,
@@ -53,6 +55,7 @@ pub enum PermissionModule {
     Routing,
     Analytics,
     Mandates,
+    Customer,
     Disputes,
     Files,
     ThreeDsDecisionManager,
@@ -79,4 +82,10 @@ pub struct PermissionInfo {
 pub struct UpdateUserRoleRequest {
     pub user_id: String,
     pub role_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub enum UserStatus {
+    Active,
+    InvitationSent,
 }

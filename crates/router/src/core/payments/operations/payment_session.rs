@@ -66,18 +66,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "create a session token for",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
-        helpers::authenticate_client_secret(
-            Some(&request.client_secret),
-            &payment_intent,
-            intent_fulfillment_time,
-        )?;
+        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -93,7 +82,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_attempt.payment_method = Some(storage_enums::PaymentMethod::Wallet);
 
-        let amount = payment_intent.amount.into();
+        let amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
@@ -195,6 +184,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

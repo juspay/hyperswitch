@@ -4,6 +4,7 @@ use crate::services::ApplicationResponse;
 
 pub type UserResult<T> = CustomResult<T, UserErrors>;
 pub type UserResponse<T> = CustomResult<ApplicationResponse<T>, UserErrors>;
+pub mod sample_data;
 
 #[derive(Debug, thiserror::Error)]
 pub enum UserErrors {
@@ -11,8 +12,14 @@ pub enum UserErrors {
     InternalServerError,
     #[error("InvalidCredentials")]
     InvalidCredentials,
+    #[error("UserNotFound")]
+    UserNotFound,
     #[error("UserExists")]
     UserExists,
+    #[error("LinkInvalid")]
+    LinkInvalid,
+    #[error("UnverifiedUser")]
+    UnverifiedUser,
     #[error("InvalidOldPassword")]
     InvalidOldPassword,
     #[error("EmailParsingError")]
@@ -21,6 +28,8 @@ pub enum UserErrors {
     NameParsingError,
     #[error("PasswordParsingError")]
     PasswordParsingError,
+    #[error("UserAlreadyVerified")]
+    UserAlreadyVerified,
     #[error("CompanyNameParsingError")]
     CompanyNameParsingError,
     #[error("MerchantAccountCreationError: {0}")]
@@ -43,6 +52,8 @@ pub enum UserErrors {
     InvalidMetadataRequest,
     #[error("MerchantIdParsingError")]
     MerchantIdParsingError,
+    #[error("ChangePasswordError")]
+    ChangePasswordError,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -59,10 +70,25 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "Incorrect email or password",
                 None,
             )),
+            Self::UserNotFound => AER::Unauthorized(ApiError::new(
+                sub_code,
+                2,
+                "Email doesn’t exist. Register",
+                None,
+            )),
             Self::UserExists => AER::BadRequest(ApiError::new(
                 sub_code,
                 3,
                 "An account already exists with this email",
+                None,
+            )),
+            Self::LinkInvalid => {
+                AER::Unauthorized(ApiError::new(sub_code, 4, "Invalid or expired link", None))
+            }
+            Self::UnverifiedUser => AER::Unauthorized(ApiError::new(
+                sub_code,
+                5,
+                "Kindly verify your account",
                 None,
             )),
             Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
@@ -79,6 +105,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::PasswordParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 9, "Invalid Password", None))
+            }
+            Self::UserAlreadyVerified => {
+                AER::Unauthorized(ApiError::new(sub_code, 11, "User already verified", None))
             }
             Self::CompanyNameParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 14, "Invalid Company Name", None))
@@ -122,6 +151,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantIdParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 28, "Invalid Merchant Id", None))
             }
+            Self::ChangePasswordError => AER::BadRequest(ApiError::new(
+                sub_code,
+                29,
+                "Old and new password cannot be same",
+                None,
+            )),
         }
     }
 }

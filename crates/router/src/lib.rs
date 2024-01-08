@@ -35,6 +35,7 @@ use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
+pub(crate) use self::macros::*;
 use crate::{configs::settings, core::errors};
 
 #[cfg(feature = "mimalloc")]
@@ -146,6 +147,7 @@ pub fn mk_app(
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
+            .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]

@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::enums::AuthenticationType;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -27,7 +27,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -158,6 +158,20 @@ impl
         types::PaymentsResponseData,
     > for Powertranz
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Powertranz".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -196,14 +210,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzPaymentsRequest::try_from(req)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<powertranz::PowertranzPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = powertranz::PowertranzPaymentsRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -221,7 +230,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -283,19 +292,14 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let redirect_payload: powertranz::RedirectResponsePayload = req
             .request
             .get_redirect_response_payload()?
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let spi_token = format!(r#""{}""#, redirect_payload.spi_token);
-        let powertranz_req =
-            types::RequestBody::log_and_get_request_body(&spi_token, |spi_token| {
-                Ok(spi_token.to_string())
-            })
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+        Ok(RequestContent::Json(Box::new(spi_token)))
     }
 
     fn build_request(
@@ -313,7 +317,7 @@ impl
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -377,14 +381,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<powertranz::PowertranzBaseRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -400,7 +399,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -454,14 +453,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<powertranz::PowertranzBaseRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
@@ -491,7 +485,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -533,14 +527,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzBaseRequest::try_from(req)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<powertranz::PowertranzBaseRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = powertranz::PowertranzBaseRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -555,7 +544,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

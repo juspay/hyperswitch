@@ -100,6 +100,7 @@ pub struct Settings {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    pub payment_method_auth: PaymentMethodAuth,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -113,9 +114,19 @@ pub struct Settings {
     pub analytics: AnalyticsConfig,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
+    #[cfg(feature = "frm")]
+    pub frm: Frm,
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     pub events: EventsConfig,
+    #[cfg(feature = "olap")]
+    pub connector_onboarding: ConnectorOnboarding,
+}
+
+#[cfg(feature = "frm")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Frm {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -142,6 +153,12 @@ pub struct ForexApi {
     pub api_timeout: u64,
     /// in ms
     pub redis_lock_timeout: u64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodAuth {
+    pub redis_expiry: i64,
+    pub pm_auth_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -539,7 +556,7 @@ impl From<Database> for storage_impl::config::Database {
             dbname: val.dbname,
             pool_size: val.pool_size,
             connection_timeout: val.connection_timeout,
-            queue_strategy: val.queue_strategy.into(),
+            queue_strategy: val.queue_strategy,
             min_idle: val.min_idle,
             max_lifetime: val.max_lifetime,
         }
@@ -597,10 +614,13 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
+    pub placetopay: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
+    pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
@@ -774,6 +794,7 @@ impl Settings {
                     .list_separator(",")
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
+                    .with_list_parse_key("events.kafka.brokers")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
@@ -876,11 +897,26 @@ impl<'de> Deserialize<'de> for LockSettings {
             redis_lock_expiry_seconds,
             delay_between_retries_in_milliseconds,
         } = Inner::deserialize(deserializer)?;
-        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
+        let redis_lock_expiry_milliseconds = redis_lock_expiry_seconds * 1000;
         Ok(Self {
             redis_lock_expiry_seconds,
             delay_between_retries_in_milliseconds,
-            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_milliseconds / delay_between_retries_in_milliseconds,
         })
     }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorOnboarding {
+    pub paypal: PayPalOnboarding,
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PayPalOnboarding {
+    pub client_id: masking::Secret<String>,
+    pub client_secret: masking::Secret<String>,
+    pub partner_id: masking::Secret<String>,
+    pub enabled: bool,
 }
