@@ -331,7 +331,9 @@ pub fn decide_payout_connector(
             connector_name,
             api::GetToken::Connector,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Connector not supported for payout transactions".to_string(),
+        })
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         return Ok(api::PayoutConnectorCallType::Single(connector_data));
@@ -347,7 +349,9 @@ pub fn decide_payout_connector(
             &connector_name,
             api::GetToken::Connector,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Connector not supported for payout transactions".to_string(),
+        })
         .attach_printable("Invalid connector name received in routing algorithm")?;
 
         routing_data.routed_through = Some(connector_name);
@@ -365,7 +369,9 @@ pub fn decide_payout_connector(
             &connector_name,
             api::GetToken::Connector,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Connector not supported for payout transactions".to_string(),
+        })
         .attach_printable("Invalid connector name received in routing algorithm")?;
 
         routing_data.routed_through = Some(connector_name);
