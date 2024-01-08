@@ -1156,7 +1156,7 @@ impl<F, T>
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                 message: error_response
                     .error_information
-                    .message
+                    .reason
                     .clone()
                     .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                 reason: error_response.error_information.message.clone(),
@@ -1264,10 +1264,11 @@ impl<F>
                     code: error_response
                         .error_information
                         .reason
+                        .clone()
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_response
                         .error_information
-                        .message
+                        .reason
                         .clone()
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: error_response.error_information.message,
@@ -1424,10 +1425,11 @@ impl<F, T>
                     code: error_response
                         .error_information
                         .reason
+                        .clone()
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_response
                         .error_information
-                        .message
+                        .reason
                         .clone()
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: error_response.error_information.message,
@@ -1757,12 +1759,15 @@ impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorR
             .clone()
             .and_then(|error_details| error_details.message);
 
+        let error_code = error_data
+            .clone()
+            .and_then(|error_details| error_details.reason);
+
         Self {
-            code: error_data
+            code: error_code
                 .clone()
-                .and_then(|error_details| error_details.reason)
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message
+            message: error_code
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: error_message.clone(),
