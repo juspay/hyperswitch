@@ -741,7 +741,7 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentLinkAction {
     PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLink404NotFound(PaymentLinkErrorData),
+    PaymentLinkStatus(PaymentLinkStatusData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -752,7 +752,7 @@ pub struct PaymentLinkFormData {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkErrorData {
+pub struct PaymentLinkStatusData {
     pub js_script: String,
     pub css_script: String,
 }
@@ -1077,8 +1077,8 @@ where
                         ),
                     }
                 }
-                PaymentLinkAction::PaymentLink404NotFound(payment_link_data) => {
-                    match get_404_not_found_page(payment_link_data) {
+                PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
+                    match get_payment_link_status(payment_link_data) {
                         Ok(rendered_html) => http_response_html_data(rendered_html),
                         Err(_) => http_response_err(
                             r#"{
@@ -1662,18 +1662,18 @@ fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
 
-pub fn get_404_not_found_page(
-    payment_link_data: PaymentLinkErrorData,
+pub fn get_payment_link_status(
+    payment_link_data: PaymentLinkStatusData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let html_template = include_str!("../core/payment_link/404_not_found.html").to_string();
+    let html_template = include_str!("../core/payment_link/status.html").to_string();
     let mut tera = Tera::default();
-    let _ = tera.add_raw_template("payment_link_404_not_found", &html_template);
+    let _ = tera.add_raw_template("payment_link_status", &html_template);
 
     let mut context = Context::new();
     context.insert("css_color_scheme", &payment_link_data.css_script);
     context.insert("payment_details_js_script", &payment_link_data.js_script);
 
-    match tera.render("payment_link_404_not_found", &context) {
+    match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),
         Err(tera_error) => {
             crate::logger::warn!("{tera_error}");

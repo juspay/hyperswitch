@@ -127,21 +127,22 @@ pub async fn intiate_payment_link_flow(
         curr_time,
         session_expiry,
     ) {
-        let payment_details = api_models::payments::PaymentLinkErrorDetails {
+        let payment_details = api_models::payments::PaymentLinkStatusDetails {
             payment_id: payment_intent.payment_id,
             merchant_name,
             merchant_logo: payment_link_config.clone().logo,
             created: payment_link.created_at,
+            status: payment_intent.status,
         };
         let js_script = get_js_script(
-            api_models::payments::PaymentLinkData::PaymentLinkErrorDetails(payment_details),
+            api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
         )?;
-        let payment_link_error_data = services::PaymentLinkErrorData {
+        let payment_link_error_data = services::PaymentLinkStatusData {
             js_script,
             css_script,
         };
         return Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
-            services::api::PaymentLinkAction::PaymentLink404NotFound(payment_link_error_data),
+            services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
         )));
     };
 

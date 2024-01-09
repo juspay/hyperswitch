@@ -3357,7 +3357,7 @@ pub struct PaymentLinkInitiateRequest {
 #[serde(untagged)]
 pub enum PaymentLinkData {
     PaymentLinkDetails(PaymentLinkDetails),
-    PaymentLinkErrorDetails(PaymentLinkErrorDetails),
+    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -3379,12 +3379,13 @@ pub struct PaymentLinkDetails {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct PaymentLinkErrorDetails {
+pub struct PaymentLinkStatusDetails {
     pub payment_id: String,
     pub merchant_logo: String,
     pub merchant_name: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
+    pub status: api_enums::IntentStatus,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
