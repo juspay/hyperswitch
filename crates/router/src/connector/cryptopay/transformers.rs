@@ -3,7 +3,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CryptoData},
+    connector::utils::{self, is_payment_failure, CryptoData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -152,14 +152,24 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .data
-            .hosted_page_url
-            .map(|x| services::RedirectForm::from((x, services::Method::Get)));
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.data.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+        let status = enums::AttemptStatus::from(item.response.data.status.clone());
+        let response = if is_payment_failure(status) {
+            let payment_response = &item.response.data;
+            Err(types::ErrorResponse {
+                code: payment_response.name.clone().unwrap_or_default(),
+                message: payment_response.status_context.clone().unwrap_or_default(),
+                reason: payment_response.status_context.clone(),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(payment_response.id.clone()),
+            })
+        } else {
+            let redirection_data = item
+                .response
+                .data
+                .hosted_page_url
+                .map(|x| services::RedirectForm::from((x, services::Method::Get)));
+            Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.data.id.clone(),
                 ),
@@ -173,7 +183,11 @@ impl<F, T>
                     .custom_id
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
-            }),
+            })
+        };
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
