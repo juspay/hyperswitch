@@ -50,7 +50,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
-        let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
         let (currency, amount);
@@ -122,18 +121,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            &payment_intent,
-            intent_fulfillment_time,
-        )?;
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
@@ -161,7 +149,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .await
         });
 
-        let store = state.clone().store;
+        let store = state.store.clone();
+
         let m_payment_id = payment_intent.payment_id.clone();
         let m_merchant_id = merchant_id.clone();
 
@@ -538,12 +527,13 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data, key_store).await?;
+            helpers::make_pm_data(Box::new(self), state, payment_data, key_store, customer).await?;
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -774,6 +764,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_metadata = metadata.clone();
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
+        let session_expiry = m_payment_data_payment_intent.session_expiry;
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -797,6 +788,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
+                        session_expiry,
                     },
                     storage_scheme,
                 )
