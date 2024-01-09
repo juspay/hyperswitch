@@ -1082,10 +1082,15 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
     }
 }
 
-impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
+impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddress {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(bank_redirection_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bank_redirection_data, is_customer_initiated_mandate_payment): (
+            &payments::BankRedirectData,
+            Option<bool>,
+        ),
+    ) -> Result<Self, Self::Error> {
         match bank_redirection_data {
             payments::BankRedirectData::Eps {
                 billing_details, ..
@@ -1110,11 +1115,36 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                email: billing_details.email.clone(),
-                ..Self::default()
-            }),
+            } => {
+                let billing_name = billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.billing_name.clone());
+
+                let billing_email = billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.email.clone());
+                match is_customer_initiated_mandate_payment {
+                    Some(true) => Ok(Self {
+                        name: Some(billing_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_name",
+                            },
+                        )?),
+
+                        email: Some(billing_email.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_email",
+                            },
+                        )?),
+                        ..Self::default()
+                    }),
+                    Some(false) | None => Ok(Self {
+                        name: billing_name,
+                        email: billing_email,
+                        ..Self::default()
+                    }),
+                }
+            }
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
@@ -1239,6 +1269,7 @@ fn create_stripe_payment_method(
     payment_method_data: &api_models::payments::PaymentMethodData,
     auth_type: enums::AuthenticationType,
     payment_method_token: Option<types::PaymentMethodToken>,
+    is_customer_initiated_mandate_payment: Option<bool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1271,7 +1302,10 @@ fn create_stripe_payment_method(
             ))
         }
         payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            let billing_address = StripeBillingAddress::try_from(bank_redirect_data)?;
+            let billing_address = StripeBillingAddress::try_from((
+                bank_redirect_data,
+                is_customer_initiated_mandate_payment,
+            ))?;
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
             let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
 
@@ -1760,6 +1794,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             &item.request.payment_method_data,
                             item.auth_type,
                             item.payment_method_token.clone(),
+                            Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                                &item.request,
+                            )),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -1966,6 +2003,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             &item.request.payment_method_data,
             item.auth_type,
             item.payment_method_token.clone(),
+            None,
         )?;
         Ok(Self {
             token_data: payment_data.0,
