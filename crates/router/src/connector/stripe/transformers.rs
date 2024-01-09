@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{collections::HashMap, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{
@@ -9,8 +9,9 @@ use common_utils::{
 };
 use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
@@ -105,7 +106,7 @@ pub struct PaymentIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     #[serde(flatten)]
-    pub meta_data: StripeMetadata,
+    pub meta_data: HashMap<String, Value>,
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<Secret<String>>,
@@ -218,6 +219,8 @@ pub struct ChargesRequest {
     pub currency: String,
     pub customer: Secret<String>,
     pub source: Secret<String>,
+    #[serde(flatten)]
+    pub meta_data: Option<HashMap<String, Value>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -1864,15 +1867,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     None
                 }
             });
+
+        let meta_data = item.request.metadata.clone().map_or(HashMap::from([
+            (
+                "metadata[order_id]".to_string(),
+                serde_json::Value::String(order_id.clone()),
+            )
+        ]),|metadata| {
+            let mut merchant_defined_metadata =
+                get_merchant_defined_metadata(metadata.peek().to_owned());
+            merchant_defined_metadata.insert(
+                "metadata[order_id]".to_string(),
+                serde_json::Value::String(order_id),
+            );
+            merchant_defined_metadata
+        });
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
-            meta_data: StripeMetadata {
-                order_id: Some(order_id),
-                is_refund_id_as_reference: None,
-            },
+            meta_data,
             return_url: item
                 .request
                 .router_return_url
@@ -2341,7 +2357,7 @@ impl<F, T>
 pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
     amount: i64,
-) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+) -> CustomResult<Option<Value>, errors::ConnectorError> {
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
@@ -3044,11 +3060,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+
         Ok(Self {
             amount: value.request.amount.to_string(),
             currency: value.request.currency.to_string(),
             customer: Secret::new(value.get_connector_customer_id()?),
             source: Secret::new(value.get_preprocessing_id()?),
+            meta_data:  value.request.metadata.clone().map(|metadata| get_merchant_defined_metadata(metadata.peek().to_owned()))
         })
     }
 }
@@ -3155,7 +3173,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct WebhookEventDataResource {
-    pub object: serde_json::Value,
+    pub object: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3790,4 +3808,16 @@ mod test_validate_shipping_address_against_payment_method {
             phone: Some(Secret::new(String::from("pbone number"))),
         }
     }
+}
+
+fn get_merchant_defined_metadata(metadata: Value) -> HashMap<String, Value> {
+    let hashmap: HashMap<String, Value> =
+        serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+    let mut request_hash_map = HashMap::new();
+
+    for (key, value) in hashmap {
+        request_hash_map.insert(format!("metadata[{}]", key), value);
+    }
+
+    request_hash_map
 }
