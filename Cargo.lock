@@ -569,9 +569,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.73"
+version = "0.1.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc00ceb34980c03614e35a3a4e218276a0a824e911d07651cd0d858a51e8c0f0"
+checksum = "a66537f1bb974b254c98ed142ff995236e81b9d0fe4db0575f46612cb15eb0f9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2266,6 +2266,7 @@ name = "drainer"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
+ "async-trait",
  "bb8",
  "clap",
  "common_utils",
