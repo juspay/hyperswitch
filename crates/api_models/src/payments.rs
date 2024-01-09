@@ -1921,6 +1921,7 @@ pub enum NextActionFromConnectorMetaData {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
+// the enum order shouldn't be changed as this is being used during serialization and deserialization
 pub enum QrCodeInformation {
     QrCodeUrl {
         image_data_url: Url,

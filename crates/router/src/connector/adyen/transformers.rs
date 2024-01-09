@@ -341,10 +341,18 @@ pub struct PresentToShopperResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QrCodeResponseResponse {
+    additional_data: AdyenAdditionalData,
     result_code: AdyenStatus,
     action: AdyenQrCodeAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenAdditionalData {
+    #[serde(rename = "pix.expirationDate")]
+    pix_expiry_date: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3298,28 +3306,51 @@ pub fn get_qr_metadata(
     let image_data = crate_utils::QrImage::new_from_data(response.action.qr_code_data.to_owned())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let image_data_url = Url::parse(image_data.data.as_str())
-        .ok()
-        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-    let qr_code_url = response
-        .action
-        .qr_code_url
-        .clone()
-        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
+    let qr_code_url = response.action.qr_code_url.clone();
+    let display_to_timestamp = response.additional_data.pix_expiry_date;
+    if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
+    {
+        let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
+            payments::QrCodeInformation::QrCodeUrl {
+                image_data_url,
+                qr_code_url,
+                display_to_timestamp,
+            },
+        );
+        Some(common_utils::ext_traits::Encode::<
+            payments::NextActionFromConnectorMetaData,
+        >::encode_to_value(&qr_code_info))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else if let (None, Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone()) {
+        let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
+            payments::QrCodeInformation::QrCodeImageUrl {
+                qr_code_url,
+                display_to_timestamp,
+            },
+        );
+        Some(common_utils::ext_traits::Encode::<
+            payments::NextActionFromConnectorMetaData,
+        >::encode_to_value(&qr_code_info))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else if let (Some(image_data_url), None) = (image_data_url, qr_code_url) {
+        let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
+            payments::QrCodeInformation::QrDataUrl {
+                image_data_url,
+                display_to_timestamp,
+            },
+        );
 
-    let qr_code_instructions = payments::NextActionFromConnectorMetaData::QrCodeInformation(
-        payments::QrCodeInformation::QrCodeUrl {
-            image_data_url,
-            qr_code_url,
-            display_to_timestamp: None,
-        },
-    );
-
-    Some(common_utils::ext_traits::Encode::<
-        payments::NextActionFromConnectorMetaData,
-    >::encode_to_value(&qr_code_instructions))
-    .transpose()
-    .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(common_utils::ext_traits::Encode::<
+            payments::NextActionFromConnectorMetaData,
+        >::encode_to_value(&qr_code_info))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
