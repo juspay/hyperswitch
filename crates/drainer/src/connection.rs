@@ -9,7 +9,6 @@ use masking::PeekInterface;
 
 use crate::settings::Database;
 
-
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 #[allow(clippy::expect_used)]
