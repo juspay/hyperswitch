@@ -55,6 +55,7 @@ impl Cybersource {
         } = auth;
         let is_post_method = matches!(http_method, services::Method::Post);
         let is_patch_method = matches!(http_method, services::Method::Patch);
+        let is_delete_method = matches!(http_method, services::Method::Delete);
         let digest_str = if is_post_method || is_patch_method {
             "digest "
         } else {
@@ -65,6 +66,8 @@ impl Cybersource {
             format!("(request-target): post {resource}\ndigest: SHA-256={payload}\n")
         } else if is_patch_method {
             format!("(request-target): patch {resource}\ndigest: SHA-256={payload}\n")
+        } else if is_delete_method {
+            format!("(request-target): delete {resource}\n")
         } else {
             format!("(request-target): get {resource}\n")
         };
@@ -158,6 +161,28 @@ impl ConnectorCommon for Cybersource {
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: response.response.rmsg.clone(),
                     reason: Some(response.response.rmsg),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            transformers::CybersourceErrorResponse::NotAvailableError(response) => {
+                let error_response = response
+                    .errors
+                    .iter()
+                    .map(|error_info| {
+                        format!(
+                            "{}: {}",
+                            error_info.error_type.clone().unwrap_or("".to_string()),
+                            error_info.message.clone().unwrap_or("".to_string())
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join(" & ");
+                Ok(types::ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.clone(),
+                    reason: Some(error_response),
                     attempt_status: None,
                     connector_transaction_id: None,
                 })
@@ -261,6 +286,7 @@ impl api::PaymentIncrementalAuthorization for Cybersource {}
 impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
+impl api::ConnectorMandateRevoke for Cybersource {}
 
 impl
     ConnectorIntegration<
@@ -347,6 +373,92 @@ impl
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::MandateRevoke,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    > for Cybersource
+{
+    fn get_headers(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_http_method(&self) -> services::Method {
+        services::Method::Delete
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}tms/v1/paymentinstruments/{}",
+            self.base_url(connectors),
+            connector_utils::RevokeMandateRequestData::get_connector_mandate_id(&req.request)?
+        ))
+    }
+    fn build_request(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Delete)
+                .url(&types::MandateRevokeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::MandateRevokeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::MandateRevokeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
+        if matches!(res.status_code, 204) {
+            Ok(types::MandateRevokeRouterData {
+                response: Ok(types::MandateRevokeResponseData {
+                    mandate_status: common_enums::MandateStatus::Revoked,
+                }),
+                ..data.clone()
+            })
+        } else {
+            // If http_code != 204 || http_code != 4xx, we dont know any other response scenario yet.
+            let response_value: serde_json::Value = serde_json::from_slice(&res.response)
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let response_string = response_value.to_string();
+
+            Ok(types::MandateRevokeRouterData {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: response_string.clone(),
+                    reason: Some(response_string),
+                    status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Cybersource
 {

@@ -1271,7 +1271,7 @@ impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
         lock_utils::ApiIdentifier: From<F>,
     {
         match self.resource_id {
-            payment_types::PaymentIdType::PaymentIntentId(ref id) => {
+            payment_types::PaymentIdType::PaymentIntentId(ref id) if self.force_sync => {
                 api_locking::LockAction::Hold {
                     input: api_locking::LockingInput {
                         unique_locking_key: id.to_owned(),
