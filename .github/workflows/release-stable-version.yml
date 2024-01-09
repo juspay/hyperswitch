@@ -1,0 +1,154 @@
+name: Release a stable version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: The part of the semantic version to bump.
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+
+jobs:
+  create-semver-tag:
+    name: Create a SemVer tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if the input is valid CalVer tag
+        shell: bash
+        run: |
+          if [[ ${{github.ref}} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.([0-9]+))?(-(.+))?$ ]]; then
+            echo "${{github.ref}} is a valid CalVer tag."
+          else
+            echo "::error::${{github.ref}} is not a valid CalVer tag."
+            exit 1
+          fi
+
+      - name: Check if user is authorized to trigger workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+        run: |
+          echo "::add-mask::${GH_TOKEN}"
+
+          function is_user_team_member() {
+            username="${1}"
+            team_slug="${2}"
+            org_name=${{ github.repository_owner }}
+
+            # We obtain HTTP status code since the API returns:
+            # - 200 status code if the user is a member of the specified team
+            # - 404 status code if the user is not a member of the specified team
+            #
+            # We cannot use the GitHub CLI since it does not seem to provide a way to obtain
+            # only the HTTP status code (yet).
+            status_code="$(
+              curl \
+                --location \
+                --silent \
+                --output /dev/null \
+                --write-out '%{http_code}' \
+                --header 'Accept: application/vnd.github+json' \
+                --header 'X-GitHub-Api-Version: 2022-11-28' \
+                --header "Authorization: Bearer ${GH_TOKEN}" \
+                "https://api.github.com/orgs/${org_name}/teams/${team_slug}/memberships/${username}"
+            )"
+
+            # Returns a boolean value, allowing it to be directly used in if conditions
+            [[ status_code -eq 200 ]]
+          }
+
+          allowed_teams=('hyperswitch-admins' 'hyperswitch-maintainers')
+          is_user_authorized=false
+          username=${{ github.triggering_actor }}
+
+          for team in "${allowed_teams[@]}"; do
+            if is_user_team_member "${username}" "${team}"; then
+              is_user_authorized=true
+              break
+            fi
+          done
+
+          if ${is_user_authorized}; then
+            echo "${username} is authorized to trigger workflow"
+          else
+            printf -v allowed_teams_comma_separated '%s, ' "${allowed_teams[@]}"
+            echo "::error::${username} is not authorized to trigger workflow; must be a member of one of these teams: ${allowed_teams_comma_separated%, }"
+            exit 1
+          fi
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install git-cliff
+        uses: baptiste0928/cargo-install@v2.2.0
+        with:
+          crate: git-cliff
+          version: 1.4.0
+
+      - name: Install convco
+        uses: baptiste0928/cargo-install@v2.2.0
+        with:
+          crate: convco
+          version: 0.5.0
+
+      - name: Obtain previous and next tag information
+        shell: bash
+        run: |
+          PREVIOUS_TAG="v$(convco version --prefix 'v')"
+          NEXT_TAG="v$(convco version --prefix 'v' "--${{ inputs.bump_type }}")"
+
+          echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> $GITHUB_ENV
+          echo "NEXT_TAG=${NEXT_TAG}" >> $GITHUB_ENV
+
+        # We make use of GitHub API calls to create the tag to have signed tags
+      - name: Create SemVer tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+        run: |
+          # Create a lightweight tag to point to the checked out CalVer tag
+          gh api \
+            --method POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/{owner}/{repo}/git/refs' \
+            --raw-field "ref=refs/tags/${NEXT_TAG}" \
+            --raw-field 'sha=${{ github.sha }}'
+
+      - name: Generate changelog
+        shell: bash
+        run: |
+          # Override git-cliff tag pattern to only consider SemVer tags
+          export GIT_CLIFF__GIT__TAG_PATTERN='v[0-9]*'
+
+          # Update heading format in git-cliff changelog template to include date
+          sed -i 's/## {{ version }}/## {{ version | trim_start_matches(pat="v") }} ({{ timestamp | date(format="%Y-%m-%d") }})/' .github/git-cliff-changelog.toml
+
+          # Generate changelog content and store it in `release-notes.md`
+          git-cliff --config '.github/git-cliff-changelog.toml' --strip header --tag "${NEXT_TAG}" "${PREVIOUS_TAG}^.." \
+            | sed "/## ${PREVIOUS_TAG}\$/,\$d" > release-notes.md
+
+      - name: Upload changelog as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes.md
+          path: release-notes.md
+          if-no-files-found: error

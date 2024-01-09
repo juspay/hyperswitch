@@ -42,10 +42,10 @@ impl PaymentLinkInterface for Store {
 
     async fn insert_payment_link(
         &self,
-        payment_link_object: storage::PaymentLinkNew,
+        payment_link_config: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        payment_link_object
+        payment_link_config
             .insert(&conn)
             .await
             .map_err(Into::into)

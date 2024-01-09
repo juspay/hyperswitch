@@ -640,9 +640,23 @@ pub async fn create_merchant_account(
 pub async fn list_merchant_ids_for_user(
     state: AppState,
     user: auth::UserFromToken,
-) -> UserResponse<Vec<String>> {
+) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
+    let merchant_ids = utils::user_role::get_merchant_ids_for_user(&state, &user.user_id).await?;
+
+    let merchant_accounts = state
+        .store
+        .list_multiple_merchant_accounts(merchant_ids)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
     Ok(ApplicationResponse::Json(
-        utils::user_role::get_merchant_ids_for_user(state, &user.user_id).await?,
+        merchant_accounts
+            .into_iter()
+            .map(|acc| user_api::UserMerchantAccount {
+                merchant_id: acc.merchant_id,
+                merchant_name: acc.merchant_name,
+            })
+            .collect(),
     ))
 }
 
