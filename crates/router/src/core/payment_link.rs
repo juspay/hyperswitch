@@ -100,7 +100,7 @@ pub async fn intiate_payment_link_flow(
 
     let (pub_key, currency, client_secret) = validate_sdk_requirements(
         merchant_account.publishable_key,
-        payment_intent.currency.clone(),
+        payment_intent.currency,
         payment_intent.client_secret.clone(),
     )?;
     let amount = currency
@@ -150,7 +150,7 @@ pub async fn intiate_payment_link_flow(
             merchant_logo: payment_link_config.clone().logo,
             created: payment_link.created_at,
             intent_status: payment_intent.status,
-            payment_link_status: payment_link_status,
+            payment_link_status,
             error_code: payment_attempt.error_code,
             error_message: payment_attempt.error_message,
         };
