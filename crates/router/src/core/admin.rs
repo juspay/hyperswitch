@@ -140,17 +140,6 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let payment_link_config = req
-        .payment_link_config
-        .as_ref()
-        .map(|pl_metadata| {
-            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
-        })
-        .transpose()?;
-
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
             .await
@@ -199,15 +188,15 @@ pub async fn create_merchant_account(
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
+            intent_fulfillment_time: None,
             frm_routing_algorithm: req.frm_routing_algorithm,
-            intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id,
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
-            payment_link_config,
+            payment_link_config: None,
         })
     }
     .await
@@ -429,6 +418,8 @@ pub async fn update_business_profile_cascade(
             frm_routing_algorithm: None,
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
+            payment_link_config: None,
+            session_expiry: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -581,10 +572,10 @@ pub async fn merchant_account_update(
         publishable_key: None,
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
-        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        intent_fulfillment_time: None,
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
-        payment_link_config: req.payment_link_config,
+        payment_link_config: None,
     };
 
     let response = db
@@ -1426,6 +1417,9 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
+    }
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1539,6 +1533,10 @@ pub async fn update_business_profile(
         })?
     }
 
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
+    }
+
     let webhook_details = request
         .webhook_details
         .as_ref()
@@ -1561,6 +1559,17 @@ pub async fn update_business_profile(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let payment_link_config = request
+        .payment_link_config
+        .as_ref()
+        .map(|pl_metadata| {
+            utils::Encode::<admin_types::BusinessPaymentLinkConfig>::encode_to_value(pl_metadata)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()?;
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -1576,6 +1585,8 @@ pub async fn update_business_profile(
         payout_routing_algorithm: request.payout_routing_algorithm,
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
+        payment_link_config,
+        session_expiry: request.session_expiry.map(i64::from),
     };
 
     let updated_business_profile = db

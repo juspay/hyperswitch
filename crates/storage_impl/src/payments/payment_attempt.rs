@@ -332,6 +332,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let payment_attempt = payment_attempt.populate_derived_fields();
+                let payment_attempt = payment_attempt.populate_derived_fields();
                 let key = format!(
                     "mid_{}_pid_{}",
                     payment_attempt.merchant_id, payment_attempt.payment_id

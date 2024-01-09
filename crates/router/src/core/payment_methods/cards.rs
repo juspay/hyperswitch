@@ -21,7 +21,10 @@ use common_utils::{
     ext_traits::{AsyncExt, StringExt, ValueExt},
     generate_id,
 };
-use diesel_models::{encryption::Encryption, enums as storage_enums, payment_method};
+use diesel_models::{
+    business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
+    payment_method,
+};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -44,6 +47,7 @@ use crate::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
         },
+        utils as core_utils,
     },
     db, logger,
     pii::prelude::*,
@@ -1077,6 +1081,12 @@ pub async fn list_payment_methods(
         })
         .await
         .transpose()?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        profile_id.as_ref(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
 
     // filter out connectors based on the business country
     let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id);
@@ -1690,13 +1700,18 @@ pub async fn list_payment_methods(
             payment_method_types: bank_transfer_payment_method_types,
         });
     }
-
     let merchant_surcharge_configs =
-        if let Some((attempt, payment_intent)) = payment_attempt.as_ref().zip(payment_intent) {
+        if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
+            .as_ref()
+            .zip(payment_intent)
+            .zip(business_profile)
+            .map(|((pa, pi), bp)| (pa, pi, bp))
+        {
             Box::pin(call_surcharge_decision_management(
                 state,
                 &merchant_account,
-                attempt,
+                &business_profile,
+                payment_attempt,
                 payment_intent,
                 billing_address,
                 &mut payment_method_responses,
@@ -1705,7 +1720,6 @@ pub async fn list_payment_methods(
         } else {
             api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
         };
-
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
@@ -1747,6 +1761,7 @@ pub async fn list_payment_methods(
 pub async fn call_surcharge_decision_management(
     state: routes::AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     billing_address: Option<domain::Address>,
@@ -1777,7 +1792,7 @@ pub async fn call_surcharge_decision_management(
             .attach_printable("error performing surcharge decision operation")?;
         if !surcharge_results.is_empty_result() {
             surcharge_results
-                .persist_individual_surcharge_details_in_redis(&state, merchant_account)
+                .persist_individual_surcharge_details_in_redis(&state, business_profile)
                 .await?;
             let _ = state
                 .store
@@ -1800,6 +1815,7 @@ pub async fn call_surcharge_decision_management(
 pub async fn call_surcharge_decision_management_for_saved_card(
     state: &routes::AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
@@ -1827,7 +1843,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .attach_printable("error performing surcharge decision operation")?;
         if !surcharge_results.is_empty_result() {
             surcharge_results
-                .persist_individual_surcharge_details_in_redis(state, merchant_account)
+                .persist_individual_surcharge_details_in_redis(state, business_profile)
                 .await?;
             let _ = state
                 .store
@@ -2536,10 +2552,38 @@ pub async fn list_customer_payment_method(
         .await
         .transpose()?;
 
-    if let Some((payment_attempt, payment_intent)) = payment_attempt.zip(payment_intent) {
+    let profile_id = payment_intent
+        .as_ref()
+        .async_map(|payment_intent| async {
+            crate::core::utils::get_profile_id_from_business_details(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                &merchant_account,
+                payment_intent.profile_id.as_ref(),
+                db,
+                false,
+            )
+            .await
+            .attach_printable("Could not find profile id from business details")
+        })
+        .await
+        .transpose()?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        profile_id.as_ref(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
+    if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
+        .zip(payment_intent)
+        .zip(business_profile)
+        .map(|((pa, pi), bp)| (pa, pi, bp))
+    {
         call_surcharge_decision_management_for_saved_card(
             state,
             &merchant_account,
+            &business_profile,
             &payment_attempt,
             payment_intent,
             &mut response,

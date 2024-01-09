@@ -270,6 +270,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidConnectorConfiguration {config} => {
                 AER::BadRequest(ApiError::new("IR", 24, format!("Merchant connector account is configured with invalid {config}"), None))
             }
+            Self::CurrencyConversionFailed => {
+                AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to minor unit", None))
+            }
         }
     }
 }

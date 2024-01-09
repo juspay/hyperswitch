@@ -86,18 +86,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "update",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            &payment_intent,
-            intent_fulfillment_time,
-        )?;
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
         let (
             token,
             payment_method,
@@ -595,11 +584,12 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let session_expiry = payment_data.payment_intent.session_expiry;
 
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                payment_data.payment_intent,
+                payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::Update {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
@@ -618,6 +608,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
+                    session_expiry,
                 },
                 storage_scheme,
             )
@@ -646,6 +637,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
+        if let Some(session_expiry) = &request.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
         let payment_id = request
             .payment_id
             .clone()

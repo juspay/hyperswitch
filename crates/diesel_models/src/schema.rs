@@ -83,6 +83,8 @@ diesel::table! {
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
+        payment_link_config -> Nullable<Jsonb>,
+        session_expiry -> Nullable<Int8>,
     }
 }
 
@@ -195,8 +197,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        data_key -> Varchar,
+        data_key -> DashboardMetadata,
         data_value -> Json,
         #[max_length = 64]
         created_by -> Varchar,
@@ -707,6 +708,7 @@ diesel::table! {
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
+        session_expiry -> Nullable<Timestamp>,
     }
 }
 
@@ -733,6 +735,8 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 255]
         description -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -979,14 +983,13 @@ diesel::table! {
         role_id -> Varchar,
         #[max_length = 64]
         org_id -> Varchar,
-        #[max_length = 64]
-        status -> Varchar,
+        status -> UserStatus,
         #[max_length = 64]
         created_by -> Varchar,
         #[max_length = 64]
         last_modified_by -> Varchar,
         created_at -> Timestamp,
-        last_modified_at -> Timestamp,
+        last_modified -> Timestamp,
     }
 }
 

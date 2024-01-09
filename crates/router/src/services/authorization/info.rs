@@ -38,6 +38,7 @@ pub enum PermissionModule {
     Routing,
     Analytics,
     Mandates,
+    Customer,
     Disputes,
     Files,
     ThreeDsDecisionManager,
@@ -55,6 +56,7 @@ impl PermissionModule {
             Self::Forex => "Forex module permissions allow the user to view and query the forex rates",
             Self::Analytics => "Permission to view and analyse the data relating to payments, refunds, sdk etc.",
             Self::Mandates => "Everything related to mandates - like creating and viewing mandate related information are within this module",
+            Self::Customer => "Everything related to customers - like creating and viewing customer related information are within this module",
             Self::Disputes => "Everything related to disputes - like creating and viewing dispute related information are within this module",
             Self::Files => "Permissions for uploading, deleting and viewing files for disputes",
             Self::ThreeDsDecisionManager => "View and configure 3DS decision rules configured for a merchant",
@@ -131,6 +133,14 @@ impl ModuleInfo {
                 permissions: PermissionInfo::new(&[
                     Permission::MandateRead,
                     Permission::MandateWrite,
+                ]),
+            },
+            PermissionModule::Customer => Self {
+                module: module_name,
+                description,
+                permissions: PermissionInfo::new(&[
+                    Permission::CustomerRead,
+                    Permission::CustomerWrite,
                 ]),
             },
             PermissionModule::Disputes => Self {

@@ -68,6 +68,7 @@ impl CashtocodeTest {
             customer_id: Some("John Doe".to_owned()),
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         })
     }
 

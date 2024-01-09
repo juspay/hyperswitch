@@ -118,6 +118,20 @@ impl
     > for Authorizedotnet
 {
     // Issue: #173
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Authorizedotnet".to_string(),
+        )
+        .into())
+    }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
@@ -889,7 +903,12 @@ fn get_error_response(
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
-            let message = &response.messages.message[0].text;
+            let message = &response
+                .messages
+                .message
+                .first()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .text;
             Ok(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: message.to_string(),

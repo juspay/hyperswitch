@@ -23,7 +23,6 @@ use openssl::{
     symm::{decrypt_aead, Cipher},
 };
 use router_env::{instrument, logger, tracing};
-use time::Duration;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -958,7 +957,7 @@ pub fn payment_attempt_status_fsm(
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::AttemptStatus::Pending,
+            Some(true) => storage_enums::AttemptStatus::PaymentMethodAwaited,
             _ => storage_enums::AttemptStatus::ConfirmationAwaited,
         },
         None => storage_enums::AttemptStatus::PaymentMethodAwaited,
@@ -971,7 +970,7 @@ pub fn payment_intent_status_fsm(
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::IntentStatus::RequiresCustomerAction,
+            Some(true) => storage_enums::IntentStatus::RequiresPaymentMethod,
             _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
@@ -2382,49 +2381,28 @@ pub fn generate_mandate(
 pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
-    merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
             if req_cs != pi_cs {
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
-                //This is done to check whether the merchant_account's intent fulfillment time has expired or not
-                let payment_intent_fulfillment_deadline =
-                    payment_intent.created_at.saturating_add(Duration::seconds(
-                        merchant_intent_fulfillment_time
-                            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
-                    ));
                 let current_timestamp = common_utils::date_time::now();
-                fp_utils::when(
-                    current_timestamp > payment_intent_fulfillment_deadline,
-                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                )
+
+                let session_expiry = payment_intent.session_expiry.unwrap_or(
+                    payment_intent
+                        .created_at
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                );
+
+                fp_utils::when(current_timestamp > session_expiry, || {
+                    Err(errors::ApiErrorResponse::ClientSecretExpired)
+                })
             }
         }
         // If there is no client in payment intent, then it has expired
         (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
-    }
-}
-
-pub async fn get_merchant_fullfillment_time(
-    payment_link_id: Option<String>,
-    intent_fulfillment_time: Option<i64>,
-    db: &dyn StorageInterface,
-) -> RouterResult<Option<i64>> {
-    if let Some(payment_link_id) = payment_link_id {
-        let payment_link_db = db
-            .find_payment_link_by_payment_link_id(&payment_link_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
-
-        let curr_time = common_utils::date_time::now();
-        Ok(payment_link_db
-            .fulfilment_time
-            .map(|merchant_expiry_time| (merchant_expiry_time - curr_time).whole_seconds()))
-    } else {
-        Ok(intent_fulfillment_time)
     }
 }
 
@@ -2500,14 +2478,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let intent_fulfillment_time = get_merchant_fullfillment_time(
-                payment_intent.payment_link_id.clone(),
-                merchant_account.intent_fulfillment_time,
-                db,
-            )
-            .await?;
-
-            authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
+            authenticate_client_secret(Some(&cs), &payment_intent)?;
             Ok(payment_intent)
         })
         .await
@@ -2639,15 +2610,14 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            session_expiry: Some(
+                common_utils::date_time::now()
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+            ),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(900);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_ok()); // Check if the result is an Ok variant
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
+        // Check if the result is an Ok variant
     }
 
     #[test]
@@ -2669,7 +2639,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2694,15 +2664,13 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            session_expiry: Some(
+                common_utils::date_time::now()
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+            ),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
     }
 
     #[test]
@@ -2724,7 +2692,7 @@ mod tests {
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
@@ -2749,15 +2717,13 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
+            session_expiry: Some(
+                common_utils::date_time::now()
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+            ),
         };
         let req_cs = Some("1".to_string());
-        let merchant_fulfillment_time = Some(10);
-        assert!(authenticate_client_secret(
-            req_cs.as_ref(),
-            &payment_intent,
-            merchant_fulfillment_time,
-        )
-        .is_err())
+        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
     }
 }
 
@@ -3128,6 +3094,8 @@ impl AttemptType {
 
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
+            surcharge_amount: None,
+            tax_amount: None,
             surcharge_amount: None,
             tax_amount: None,
             payment_method_id: None,
@@ -3627,8 +3595,12 @@ impl ApplePayData {
             .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
-        let ciphertext = &data[..data.len() - 16];
-        let tag = &data[data.len() - 16..];
+        let ciphertext = data
+            .get(..data.len() - 16)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let tag = data
+            .get(data.len() - 16..)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let cipher = Cipher::aes_256_gcm();
         let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
             .into_report()
@@ -3734,22 +3706,11 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    payment_link_object: &api_models::payments::PaymentLinkObject,
     confirm: Option<bool>,
-    order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(cnf) = confirm {
         if !cnf {
-            let current_time = Some(common_utils::date_time::now());
-            if current_time > payment_link_object.link_expiry {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "link_expiry time cannot be less than current time".to_string(),
-                });
-            } else if order_details.is_none() {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "cannot create payment link without order details".to_string(),
-                });
-            }
+            return Ok(());
         } else {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "cannot confirm a payment while creating a payment link".to_string(),
@@ -3815,6 +3776,17 @@ pub fn validate_order_details_amount(
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Total sum of order details doesn't match amount in payment request"
                 .to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+// This function validates the client secret expiry set by the merchant in the request
+pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErrorResponse> {
+    if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
         })
     } else {
         Ok(())
