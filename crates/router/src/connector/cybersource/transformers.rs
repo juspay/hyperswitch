@@ -1203,6 +1203,7 @@ fn get_error_response_if_failure(
     if utils::is_payment_failure(status) {
         Some(types::ErrorResponse::from((
             &info_response.error_information,
+            &info_response.risk_information,
             http_code,
             info_response.id.clone(),
         )))
@@ -1800,6 +1801,56 @@ impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorR
             .clone()
             .and_then(|error_details| error_details.message);
 
+        let error_reason = error_data
+            .clone()
+            .and_then(|error_details| error_details.reason);
+
+        Self {
+            code: error_reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: error_message.clone(),
+            status_code,
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            connector_transaction_id: Some(transaction_id.clone()),
+        }
+    }
+}
+
+impl
+    From<(
+        &Option<CybersourceErrorInformation>,
+        &Option<ClientRiskInformation>,
+        u16,
+        String,
+    )> for types::ErrorResponse
+{
+    fn from(
+        (error_data, risk_information, status_code, transaction_id): (
+            &Option<CybersourceErrorInformation>,
+            &Option<ClientRiskInformation>,
+            u16,
+            String,
+        ),
+    ) -> Self {
+        let avs_message = risk_information
+            .clone()
+            .map(|client_risk_information| {
+                client_risk_information.rules.map(|rules| {
+                    rules
+                        .iter()
+                        .map(|risk_info| format!(" | {}", risk_info.name))
+                        .collect::<Vec<String>>()
+                        .join("")
+                })
+            })
+            .unwrap_or(Some("".to_string()));
+        let error_message = error_data.clone().map(|error_details| {
+            error_details.message.unwrap_or("".to_string()) + &avs_message.unwrap_or("".to_string())
+        });
         let error_reason = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
