@@ -720,8 +720,8 @@ diesel::table! {
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
-        fingerprint_id -> Nullable<Text>,
         session_expiry -> Nullable<Timestamp>,
+        fingerprint_id -> Nullable<Text>,
     }
 }
 
