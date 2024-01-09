@@ -1868,20 +1868,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 }
             });
 
-        let meta_data = item.request.metadata.clone().map_or(HashMap::from([
-            (
+        let meta_data = item.request.metadata.clone().map_or(
+            HashMap::from([(
                 "metadata[order_id]".to_string(),
                 serde_json::Value::String(order_id.clone()),
-            )
-        ]),|metadata| {
-            let mut merchant_defined_metadata =
-                get_merchant_defined_metadata(metadata.peek().to_owned());
-            merchant_defined_metadata.insert(
-                "metadata[order_id]".to_string(),
-                serde_json::Value::String(order_id),
-            );
-            merchant_defined_metadata
-        });
+            )]),
+            |metadata| {
+                let mut merchant_defined_metadata =
+                    get_merchant_defined_metadata(metadata.peek().to_owned());
+                merchant_defined_metadata.insert(
+                    "metadata[order_id]".to_string(),
+                    serde_json::Value::String(order_id),
+                );
+                merchant_defined_metadata
+            },
+        );
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -3060,13 +3061,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-
         Ok(Self {
             amount: value.request.amount.to_string(),
             currency: value.request.currency.to_string(),
             customer: Secret::new(value.get_connector_customer_id()?),
             source: Secret::new(value.get_preprocessing_id()?),
-            meta_data:  value.request.metadata.clone().map(|metadata| get_merchant_defined_metadata(metadata.peek().to_owned()))
+            meta_data: value
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| get_merchant_defined_metadata(metadata.peek().to_owned())),
         })
     }
 }
