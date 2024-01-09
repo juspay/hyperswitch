@@ -57,6 +57,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
+                enums::IntentStatus::Cancelled,
                 enums::IntentStatus::Failed,
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::Processing,
