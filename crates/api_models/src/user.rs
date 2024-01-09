@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -132,4 +132,10 @@ pub type VerifyEmailResponse = DashboardEntryResponse;
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UserMerchantAccount {
+    pub merchant_id: String,
+    pub merchant_name: OptionalEncryptableName,
 }
