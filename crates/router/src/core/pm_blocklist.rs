@@ -1,4 +1,4 @@
-#[cfg(all(feature = "oltp", feature = "kms"))]
+#[cfg(feature = "oltp")]
 pub mod utils;
 
 use api_models::pm_blocklist;

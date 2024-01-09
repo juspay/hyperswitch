@@ -29,7 +29,6 @@ pub mod payout_attempt;
 pub mod payouts;
 pub mod pm_blocklist;
 pub mod pm_fingerprint;
-mod query;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;

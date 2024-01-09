@@ -8,6 +8,7 @@ use common_utils::{
 };
 use diesel_models::pm_blocklist;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "kms")]
 use external_services::kms;
 use router_env::logger;
 use storage_impl::errors::StorageError;
@@ -51,11 +52,14 @@ pub async fn delete_from_blocklist_lookup_db(
                     .store
                     .delete_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                         merchant_id.clone(),
+                        #[cfg(feature = "kms")]
                         kms::get_kms_client(&state.conf.kms)
                             .await
                             .decrypt(fingerprint.kms_hash)
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
+                            #[cfg(not(feature = "kms"))]
+                            fingerprint.kms_hash,
                     );
                 lookup_entries.push((query_future, pm_hash.clone()));
             }
@@ -189,29 +193,38 @@ pub async fn insert_to_blocklist_lookup_db(
                     if pm_hash.len() < 6 {
                         return Err(StorageError::EncryptionError.into());
                     }
-                    let card_bin = &pm_hash[..6];
-                    duplicate_check_insert_bin(
-                        card_bin,
-                        state,
-                        merchant_id.clone(),
-                        merchant_secret.clone(),
-                        pm_type,
-                    )
-                    .await
+                    if let Some(card_bin) = pm_hash.get(..6){
+                        duplicate_check_insert_bin(
+                            card_bin,
+                            state,
+                            merchant_id.clone(),
+                            merchant_secret.clone(),
+                            pm_type,
+                        )
+                        .await
+                    } else {
+                        logger::error!("Invalid card bin {pm_hash}");
+                        Err(StorageError::EncryptionError.into())
+                    }
                 }
+
                 "extended_cardbin" => {
                     if pm_hash.len() < 8 {
                         return Err(StorageError::EncryptionError.into());
                     }
-                    let extended_bin = &pm_hash[..8];
-                    duplicate_check_insert_bin(
-                        extended_bin,
-                        state,
-                        merchant_id.clone(),
-                        merchant_secret.clone(),
-                        pm_type,
-                    )
-                    .await
+                    if let Some(extended_bin) = pm_hash.get(..8){
+                        duplicate_check_insert_bin(
+                            extended_bin,
+                            state,
+                            merchant_id.clone(),
+                            merchant_secret.clone(),
+                            pm_type,
+                        )
+                        .await
+                    } else {
+                        logger::error!("Invalid extended bin {pm_hash}");
+                        Err(StorageError::EncryptionError.into())
+                    }
                 }
                 _ => {
                     // For fingerprint we are getting the fingerprint id already
@@ -224,6 +237,7 @@ pub async fn insert_to_blocklist_lookup_db(
                         ))?
                         .kms_hash;
 
+                    #[cfg(feature = "kms")]
                     let kms_decrypted_hash = kms::get_kms_client(&state.conf.kms)
                         .await
                         .decrypt(kms_hash)
@@ -242,7 +256,10 @@ pub async fn insert_to_blocklist_lookup_db(
                             .store
                             .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                                 merchant_id.clone(),
+                                #[cfg(feature = "kms")]
                                 kms_decrypted_hash.clone(),
+                                #[cfg(not(feature = "kms"))]
+                                kms_hash.clone()
                             )
                             .await
                             .is_ok()
@@ -258,7 +275,10 @@ pub async fn insert_to_blocklist_lookup_db(
                             .insert_blocklist_lookup_entry(
                                 diesel_models::blocklist_lookup::BlocklistLookupNew {
                                     merchant_id: merchant_id.clone(),
-                                    kms_decrypted_hash,
+                                    #[cfg(feature = "kms")]
+                                    kms_decrypted_hash: kms_decrypted_hash.clone(),
+                                    #[cfg(not(feature = "kms"))]
+                                    kms_decrypted_hash: kms_hash,
                                 },
                             )
                             .await;
@@ -353,6 +373,7 @@ async fn duplicate_check_insert_bin(
         })
         .into_report()
     } else {
+        #[cfg(feature = "kms")]
         let kms_hash = kms::get_kms_client(&state.conf.kms)
             .await
             .encrypt(encoded_hash.as_bytes())
@@ -363,7 +384,10 @@ async fn duplicate_check_insert_bin(
             .store
             .insert_pm_fingerprint_entry(diesel_models::pm_fingerprint::PmFingerprintNew {
                 fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
+                #[cfg(feature = "kms")]
                 kms_hash,
+                #[cfg(not(feature = "kms"))]
+                kms_hash: encoded_hash.clone(),
             })
             .await
             .change_context(errors::StorageError::ValueNotFound(
