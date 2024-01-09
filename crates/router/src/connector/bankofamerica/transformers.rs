@@ -736,7 +736,7 @@ fn get_payment_response(
             connector_metadata: info_response
                 .processor_information
                 .as_ref()
-                .map(|processor_information| serde_json::json!(processor_information.avs)),
+                .map(|processor_information| serde_json::json!({"avs_response": processor_information.avs})),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 info_response
@@ -1258,21 +1258,21 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
             String,
         ),
     ) -> Self {
-        let error_message = error_data
+        let error_reason = error_data
             .clone()
             .and_then(|error_details| error_details.message);
-        let error_reason = error_data
+        let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
 
         Self {
-            code: error_reason
+            code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_reason
+            message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_message.clone(),
+            reason: error_reason.clone(),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
@@ -1308,21 +1308,21 @@ impl
                 })
             })
             .unwrap_or(Some("".to_string()));
-        let error_message = error_data.clone().map(|error_details| {
+        let error_reason = error_data.clone().map(|error_details| {
             error_details.message.unwrap_or("".to_string()) + &avs_message.unwrap_or("".to_string())
         });
-        let error_reason = error_data
+        let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
 
         Self {
-            code: error_reason
+            code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_reason
+            message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_message.clone(),
+            reason: error_reason.clone(),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
