@@ -594,7 +594,6 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
-    fn connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -623,16 +622,6 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
-    }
-    fn connector_mandate_id(&self) -> Option<String> {
-        self.mandate_id
-            .as_ref()
-            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.connector_mandate_id.clone(),
-                _ => None,
-            })
     }
 }
 
