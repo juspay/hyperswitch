@@ -87,6 +87,10 @@ impl ConnectorCommon for Powertranz {
         "application/json"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.powertranz.base_url.as_ref()
     }
