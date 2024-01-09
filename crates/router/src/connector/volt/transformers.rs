@@ -424,7 +424,7 @@ impl From<VoltWebhookStatus> for enums::AttemptStatus {
         match status {
             VoltWebhookStatus::Completed | VoltWebhookStatus::Received => Self::Charged,
             VoltWebhookStatus::Failed | VoltWebhookStatus::NotReceived => Self::Failure,
-            VoltWebhookStatus::Pending => Self::AuthenticationPending,
+            VoltWebhookStatus::Pending => Self::Pending,
         }
     }
 }
