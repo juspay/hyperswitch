@@ -1086,7 +1086,7 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (bank_redirection_data, is_merchant_initiated_mandate_payment): (
+        (bank_redirection_data, is_customer_initiated_mandate_payment): (
             &payments::BankRedirectData,
             Option<bool>,
         ),
@@ -1123,7 +1123,7 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
                 let billing_email = billing_details
                     .clone()
                     .and_then(|billing_data| billing_data.email.clone());
-                match is_merchant_initiated_mandate_payment {
+                match is_customer_initiated_mandate_payment {
                     Some(true) => Ok(Self {
                         name: Some(billing_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
@@ -1269,7 +1269,7 @@ fn create_stripe_payment_method(
     payment_method_data: &api_models::payments::PaymentMethodData,
     auth_type: enums::AuthenticationType,
     payment_method_token: Option<types::PaymentMethodToken>,
-    is_merchant_initiated_mandate_payment: Option<bool>,
+    is_customer_initiated_mandate_payment: Option<bool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1304,7 +1304,7 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
             let billing_address = StripeBillingAddress::try_from((
                 bank_redirect_data,
-                is_merchant_initiated_mandate_payment,
+                is_customer_initiated_mandate_payment,
             ))?;
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
             let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
@@ -1794,7 +1794,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             &item.request.payment_method_data,
                             item.auth_type,
                             item.payment_method_token.clone(),
-                            Some(connector_util::PaymentsAuthorizeRequestData::is_merchant_initiated_mandate_payment(
+                            Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                                 &item.request,
                             )),
                         )?;
