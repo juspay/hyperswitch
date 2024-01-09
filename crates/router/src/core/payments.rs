@@ -1808,7 +1808,7 @@ where
 
             let apple_pay_flow = decide_apple_pay_flow(
                 payment_method_type,
-                Some(&merchant_connector_account),
+                Some(merchant_connector_account),
             );
 
             let is_connector_tokenization_enabled =
