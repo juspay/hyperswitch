@@ -7931,8 +7931,7 @@
         "type": "object",
         "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
         "required": [
-          "condition",
-          "nested"
+          "condition"
         ],
         "properties": {
           "condition": {
@@ -7944,8 +7943,9 @@
           "nested": {
             "type": "array",
             "items": {
-              "type": "object"
-            }
+              "$ref": "#/components/schemas/IfStatement"
+            },
+            "nullable": true
           }
         }
       },

@@ -119,7 +119,6 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
-    #[schema(value_type=Vec<Object>)] // This is to avoid circular reference
     pub nested: Option<Vec<IfStatement>>,
 }
 
