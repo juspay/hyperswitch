@@ -395,19 +395,20 @@ impl<F, T>
                                 .map(|volt_status| volt_status.to_string()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(webhook_response.payment),
+                            connector_transaction_id: Some(webhook_response.payment.clone()),
                         })
                     } else {
                         Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                webhook_response.payment,
+                                webhook_response.payment.clone(),
                             ),
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: webhook_response
-                                .merchant_internal_reference,
+                                .merchant_internal_reference
+                                .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
                         })
                     },
