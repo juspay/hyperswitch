@@ -3380,12 +3380,17 @@ pub struct PaymentLinkDetails {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkStatusDetails {
+    pub amount: String,
+    pub currency: api_enums::Currency,
     pub payment_id: String,
     pub merchant_logo: String,
     pub merchant_name: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
-    pub status: api_enums::IntentStatus,
+    pub intent_status: api_enums::IntentStatus,
+    pub payment_link_status: PaymentLinkStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3463,7 +3468,8 @@ pub struct OrderDetailsWithStringAmount {
     pub product_img_link: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(PartialEq, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentLinkStatus {
     Active,
     Expired,

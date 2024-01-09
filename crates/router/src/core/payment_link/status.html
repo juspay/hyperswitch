@@ -31,70 +31,119 @@
         justify-content: center;
       }
 
-      .wrapper {
+      .hyper-checkout-status-wrap {
         display: flex;
         flex-flow: column;
-        background-color: #f2f2f2;
-        border-radius: 4px;
-        min-width: 350px;
-        max-width: 60vw;
-        border: 1px solid #eaeaea;
+        font-family: "Montserrat";
+        width: auto;
+        min-width: 400px;
+        max-width: 800px;
+        background-color: white;
+        border-radius: 5px;
       }
 
-      .header,
-      .main {
-        padding: 30px;
+      #hyper-checkout-status-header {
+        max-width: 1200px;
+        border-radius: 3px;
+        border-bottom: 1px solid #e6e6e6;
       }
 
-      .header {
+      #hyper-checkout-status-header,
+      #hyper-checkout-status-content {
         display: flex;
-        border-bottom: 1px solid #f2f2f2;
-      }
-
-      #merchant-logo {
-        height: 48px;
-      }
-
-      #merchant-name {
-        font-size: 32px;
-        font-weight: 600;
-        align-self: center;
-        margin-left: 20px;
-      }
-
-      .main {
-        display: flex;
-        flex-flow: column;
-      }
-
-      .main-header {
-        margin-bottom: 40px;
         align-items: center;
-        text-align: start;
+        justify-content: space-between;
+        font-size: 24px;
+        font-weight: 600;
+        padding: 15px 20px;
       }
 
-      .info {
-        overflow: scroll;
-        display: flex;
-        flex-flow: row;
-        align-self: center;
-        margin-bottom: 15px;
-        min-width: 350px;
+      .hyper-checkout-status-amount {
+        font-family: "Montserrat";
+        font-size: 35px;
+        font-weight: 700;
       }
 
-      .info:last-child {
-        margin-bottom: 0;
+      .hyper-checkout-status-merchant-logo {
+        border: 1px solid #e6e6e6;
+        border-radius: 5px;
+        padding: 9px;
+        height: 48px;
+        width: 48px;
       }
 
-      .label {
+      #hyper-checkout-status-content {
+        height: 100%;
+        flex-flow: column;
+        min-height: 500px;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .hyper-checkout-status-image {
+        height: 200px;
+        width: 200px;
+      }
+
+      .hyper-checkout-status-text {
+        text-align: center;
+        font-size: 21px;
+        font-weight: 600;
+        margin-top: 20px;
+      }
+
+      .hyper-checkout-status-message {
+        text-align: center;
+        font-size: 12px !important;
+        margin-top: 10px;
         font-size: 14px;
-        font-weight: 550;
-        min-width: 12ch;
-        text-align: start;
+        font-weight: 500;
+        max-width: 400px;
       }
 
-      .value {
-        font-size: 15px;
+      .hyper-checkout-status-details {
+        display: flex;
+        flex-flow: column;
+        margin-top: 20px;
+        border-radius: 3px;
+        border: 1px solid #e6e6e6;
+        max-width: calc(100vw - 40px);
+      }
+
+      .hyper-checkout-status-item {
+        display: flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-bottom: 1px solid #e6e6e6;
+        word-wrap: break-word;
+      }
+
+      .hyper-checkout-status-item:last-child {
+        border-bottom: 0;
+      }
+
+      .hyper-checkout-item-header {
+        min-width: 13ch;
+        font-size: 12px;
+      }
+
+      .hyper-checkout-item-value {
+        font-size: 12px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        word-wrap: break-word;
+        font-weight: 400;
+        text-align: center;
+      }
+
+      .ellipsis-container-2 {
+        height: 2.5em;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        text-overflow: ellipsis;
+        white-space: normal;
       }
 
       @media only screen and (max-width: 1136px) {
@@ -129,55 +178,177 @@
           document.head.appendChild(link);
         }
 
-        // Inject information
-        injectContext(paymentDetails);
+        var statusDetails = {
+          imageSource: "",
+          message: "",
+          status: "",
+          items: [],
+        };
+
+        var paymentId = createItem("Ref Id", paymentDetails.payment_id);
+        statusDetails.items.push(paymentId);
+
+        // Decide screen to render
+        switch (paymentDetails.payment_link_status) {
+          case "expired": {
+            statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+            statusDetails.status = "Payment Link Expired!";
+            statusDetails.message = "This payment link is expired.";
+            break;
+          }
+
+          default: {
+            statusDetails.status = paymentDetails.intent_status;
+            // Render status screen
+            switch (paymentDetails.intent_status) {
+              case "succeeded": {
+                statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.png";
+                statusDetails.message =
+                  "We have successfully received your payment";
+                break;
+              }
+
+              case "processing": {
+                statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+                statusDetails.message =
+                  "Sorry! Your payment is taking longer than expected. Please check back again in sometime.";
+                statusDetails.status = "Payment Pending";
+                break;
+              }
+
+              case "failed": {
+                statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+                statusDetails.status = "Payment Failed!";
+                var errorCodeNode = createItem(
+                  "Error code",
+                  paymentDetails.error_code
+                );
+                var errorMessageNode = createItem(
+                  "Error message",
+                  paymentDetails.error_message
+                );
+                // @ts-ignore
+                statusDetails.items.push(errorMessageNode, errorCodeNode);
+                break;
+              }
+
+              case "cancelled": {
+                statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+                statusDetails.status = "Payment Cancelled";
+                break;
+              }
+
+              case "requires_merchant_action": {
+                statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+                statusDetails.status = "Payment under review";
+                break;
+              }
+
+              case "requires_capture": {
+                statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+                statusDetails.status = "Payment Pending";
+                break;
+              }
+
+              case "partially_captured": {
+                statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+                statusDetails.message = "Partial payment was captured.";
+                statusDetails.status = "Partial Payment Pending";
+                break;
+              }
+
+              default:
+                statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+                statusDetails.status = "Something went wrong";
+                // Error details
+                if (typeof paymentDetails.error === "object") {
+                  var errorCodeNode = createItem(
+                    "Error Code",
+                    paymentDetails.error.code
+                  );
+                  var errorMessageNode = createItem(
+                    "Error Message",
+                    paymentDetails.error.message
+                  );
+                  // @ts-ignore
+                  statusDetails.items.push(errorMessageNode, errorCodeNode);
+                }
+            }
+          }
+        }
+
+        // Form header
+        var hyperCheckoutImageNode = document.createElement("img");
+        var hyperCheckoutAmountNode = document.createElement("div");
+
+        hyperCheckoutImageNode.src = paymentDetails.merchant_logo;
+        hyperCheckoutImageNode.className =
+          "hyper-checkout-status-merchant-logo";
+        hyperCheckoutAmountNode.innerText =
+          paymentDetails.currency + " " + paymentDetails.amount;
+        hyperCheckoutAmountNode.className = "hyper-checkout-status-amount";
+        var hyperCheckoutHeaderNode = document.getElementById(
+          "hyper-checkout-status-header"
+        );
+        if (hyperCheckoutHeaderNode instanceof HTMLDivElement) {
+          hyperCheckoutHeaderNode.append(
+            hyperCheckoutAmountNode,
+            hyperCheckoutImageNode
+          );
+        }
+
+        // Form and append items
+        var hyperCheckoutStatusTextNode = document.createElement("div");
+        hyperCheckoutStatusTextNode.innerText = statusDetails.status;
+        hyperCheckoutStatusTextNode.className = "hyper-checkout-status-text";
+
+        var merchantLogoNode = document.createElement("img");
+        merchantLogoNode.src = statusDetails.imageSource;
+        merchantLogoNode.className = "hyper-checkout-status-image";
+
+        var hyperCheckoutStatusMessageNode = document.createElement("div");
+        hyperCheckoutStatusMessageNode.innerText = statusDetails.message;
+
+        var hyperCheckoutDetailsNode = document.createElement("div");
+        hyperCheckoutDetailsNode.className = "hyper-checkout-status-details";
+        if (hyperCheckoutDetailsNode instanceof HTMLDivElement) {
+          hyperCheckoutDetailsNode.append(...statusDetails.items);
+        }
+
+        var hyperCheckoutContentNode = document.getElementById(
+          "hyper-checkout-status-content"
+        );
+        if (hyperCheckoutContentNode instanceof HTMLDivElement) {
+          hyperCheckoutContentNode.prepend(
+            merchantLogoNode,
+            hyperCheckoutStatusTextNode,
+            hyperCheckoutDetailsNode
+          );
+        }
       }
 
-      function injectContext(paymentDetails) {
-        // Logo
-        var merchantLogoImageNode = document.getElementById("merchant-logo");
-        if (merchantLogoImageNode instanceof HTMLImageElement) {
-          merchantLogoImageNode.src = paymentDetails.merchant_logo;
-        }
-
-        // Name
-        var merchantNameNode = document.getElementById("merchant-name");
-        if (merchantNameNode instanceof HTMLDivElement) {
-          merchantNameNode.innerHTML = paymentDetails.merchant_name;
-        }
-
-        // Payment ID
-        var paymentIdNode = document.getElementById("payment-id");
-        if (paymentIdNode instanceof HTMLSpanElement) {
-          paymentIdNode.innerHTML = paymentDetails.payment_id;
-        }
-
-        // Created at
-        var createdAtNode = document.getElementById("created-at");
-        if (createdAtNode instanceof HTMLSpanElement) {
-          createdAtNode.innerHTML = paymentDetails.created;
-        }
+      function createItem(heading, value) {
+        var itemNode = document.createElement("div");
+        itemNode.className = "hyper-checkout-status-item";
+        var headerNode = document.createElement("div");
+        headerNode.className = "hyper-checkout-item-header";
+        headerNode.innerText = heading;
+        var valueNode = document.createElement("div");
+        valueNode.classList.add("hyper-checkout-item-value");
+        // valueNode.classList.add("ellipsis-container-2");
+        valueNode.innerText = value;
+        itemNode.append(headerNode);
+        itemNode.append(valueNode);
+        return itemNode;
       }
     </script>
   </head>
 
   <body onload="boot()">
     <div>
-      <div class="wrapper">
-        <div class="header">
-          <img id="merchant-logo" src="" alt="" />
-          <div id="merchant-name"></div>
-        </div>
-        <div class="main">
-          <div class="main-header">
-            Sorry, this page does not exist. Use below information for further
-            investigation
-          </div>
-          <div class="info">
-            <span class="label">Payment ID</span>
-            <span class="value" id="payment-id"></span>
-          </div>
-        </div>
+      <div class="hyper-checkout-status-wrap">
+        <div id="hyper-checkout-status-header"></div>
+        <div id="hyper-checkout-status-content"></div>
       </div>
     </div>
   </body>
