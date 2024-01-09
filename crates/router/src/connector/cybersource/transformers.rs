@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
@@ -543,8 +541,9 @@ fn build_bill_to(
 
 impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
     fn foreign_from(metadata: Value) -> Self {
-        let hashmap: HashMap<String, Value> =
-            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let hashmap: std::collections::BTreeMap<String, Value> =
+            serde_json::from_str(&metadata.to_string())
+                .unwrap_or(std::collections::BTreeMap::new());
         let mut vector: Self = Self::new();
         let mut iter = 1;
         for (key, value) in hashmap {
@@ -1148,18 +1147,21 @@ impl<F, T>
         ),
     ) -> Self {
         Self {
-            response: Err(types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: error_response
-                    .error_information
-                    .message
-                    .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                reason: error_response.error_information.reason.clone(),
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: Some(error_response.id.clone()),
-            }),
+            response: {
+                let error_reason = &error_response.error_information.reason;
+                Err(types::ErrorResponse {
+                    code: error_reason
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_reason
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: error_response.error_information.message.clone(),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                })
+            },
             ..item.data
         }
     }
@@ -1172,57 +1174,14 @@ fn get_error_response_if_failure(
         u16,
     ),
 ) -> Option<types::ErrorResponse> {
-    if is_payment_failure(status) {
-        let (message, reason) = match info_response.error_information.as_ref() {
-            Some(error_info) => (
-                error_info
-                    .message
-                    .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                error_info.reason.clone(),
-            ),
-            None => (consts::NO_ERROR_MESSAGE.to_string(), None),
-        };
-
-        Some(types::ErrorResponse {
-            code: consts::NO_ERROR_CODE.to_string(),
-            message,
-            reason,
-            status_code: http_code,
-            attempt_status: Some(enums::AttemptStatus::Failure),
-            connector_transaction_id: Some(info_response.id.clone()),
-        })
+    if utils::is_payment_failure(status) {
+        Some(types::ErrorResponse::from((
+            &info_response.error_information,
+            http_code,
+            info_response.id.clone(),
+        )))
     } else {
         None
-    }
-}
-
-fn is_payment_failure(status: enums::AttemptStatus) -> bool {
-    match status {
-        common_enums::AttemptStatus::AuthenticationFailed
-        | common_enums::AttemptStatus::AuthorizationFailed
-        | common_enums::AttemptStatus::CaptureFailed
-        | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
-        common_enums::AttemptStatus::Started
-        | common_enums::AttemptStatus::RouterDeclined
-        | common_enums::AttemptStatus::AuthenticationPending
-        | common_enums::AttemptStatus::AuthenticationSuccessful
-        | common_enums::AttemptStatus::Authorized
-        | common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::Authorizing
-        | common_enums::AttemptStatus::CodInitiated
-        | common_enums::AttemptStatus::Voided
-        | common_enums::AttemptStatus::VoidInitiated
-        | common_enums::AttemptStatus::CaptureInitiated
-        | common_enums::AttemptStatus::AutoRefunded
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable
-        | common_enums::AttemptStatus::Unresolved
-        | common_enums::AttemptStatus::Pending
-        | common_enums::AttemptStatus::PaymentMethodAwaited
-        | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
     }
 }
 
@@ -1298,21 +1257,25 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id.clone()),
-                }),
-                status: enums::AttemptStatus::Failure,
-                ..item.data
-            }),
+            CybersourcePaymentsResponse::ErrorInformation(error_response) => {
+                let error_reason = &error_response.error_information.reason;
+                Ok(Self {
+                    response: Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                    }),
+                    status: enums::AttemptStatus::Failure,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -1455,17 +1418,21 @@ impl<F, T>
                 })
             }
             CybersourceSetupMandatesResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id.clone()),
-                }),
+                response: {
+                    let error_reason = &error_response.error_information.reason;
+                    Err(types::ErrorResponse {
+                        code: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_reason
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: error_response.error_information.message,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                    })
+                },
                 status: enums::AttemptStatus::Failure,
                 ..item.data
             }),
@@ -1570,25 +1537,13 @@ impl<F>
                 ));
                 let incremental_authorization_allowed =
                     Some(status == enums::AttemptStatus::Authorized);
-                if is_payment_failure(status) {
-                    let (message, reason) = match app_response.error_information {
-                        Some(error_info) => (
-                            error_info
-                                .message
-                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                            error_info.reason,
-                        ),
-                        None => (consts::NO_ERROR_MESSAGE.to_string(), None),
-                    };
+                if utils::is_payment_failure(status) {
                     Ok(Self {
-                        response: Err(types::ErrorResponse {
-                            code: consts::NO_ERROR_CODE.to_string(),
-                            message,
-                            reason,
-                            status_code: item.http_code,
-                            attempt_status: Some(enums::AttemptStatus::Failure),
-                            connector_transaction_id: Some(app_response.id),
-                        }),
+                        response: Err(types::ErrorResponse::from((
+                            &app_response.error_information,
+                            item.http_code,
+                            app_response.id.clone(),
+                        ))),
                         status: enums::AttemptStatus::Failure,
                         ..item.data
                     })
@@ -1744,6 +1699,20 @@ pub struct CybersourceStandardErrorResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CybersourceNotAvailableErrorResponse {
+    pub errors: Vec<CybersourceNotAvailableErrorObject>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceNotAvailableErrorObject {
+    #[serde(rename = "type")]
+    pub error_type: Option<String>,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CybersourceServerErrorResponse {
     pub status: Option<String>,
     pub message: Option<String>,
@@ -1766,8 +1735,10 @@ pub struct CybersourceAuthenticationErrorResponse {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum CybersourceErrorResponse {
-    StandardError(CybersourceStandardErrorResponse),
     AuthenticationError(CybersourceAuthenticationErrorResponse),
+    //If the request resource is not available/exists in cybersource
+    NotAvailableError(CybersourceNotAvailableErrorResponse),
+    StandardError(CybersourceStandardErrorResponse),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -1786,4 +1757,35 @@ pub struct ErrorInformation {
 #[derive(Debug, Default, Deserialize)]
 pub struct AuthenticationErrorInformation {
     pub rmsg: String,
+}
+
+impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorResponse {
+    fn from(
+        (error_data, status_code, transaction_id): (
+            &Option<CybersourceErrorInformation>,
+            u16,
+            String,
+        ),
+    ) -> Self {
+        let error_message = error_data
+            .clone()
+            .and_then(|error_details| error_details.message);
+
+        let error_reason = error_data
+            .clone()
+            .and_then(|error_details| error_details.reason);
+
+        Self {
+            code: error_reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_reason
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: error_message.clone(),
+            status_code,
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            connector_transaction_id: Some(transaction_id.clone()),
+        }
+    }
 }
