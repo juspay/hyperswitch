@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.105.0+hotfix.4 (2024-01-09)
+
+### Bug Fixes
+
+- **connector:** [BOA/CYB] Fix Metadata Error ([#3287](https://github.com/juspay/hyperswitch/pull/3287)) ([`3f89570`](https://github.com/juspay/hyperswitch/commit/3f89570e0fc7f9459e048dd40a5ef661695f6844))
+- Fix(users): Added merchant name is list merchants ([#3294](https://github.com/juspay/hyperswitch/pull/3294)) ([`a4e0c84`](https://github.com/juspay/hyperswitch/commit/a4e0c84e7fe330b6288bd01e31289ade74e22d7c))
+
+**Full Changelog:** [`v1.105.0+hotfix.3...v1.105.0+hotfix.4`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.3...v1.105.0+hotfix.4)
+
+- - -
+
 ## 1.105.0+hotfix.3 (2024-01-05)
 
 ### Features
