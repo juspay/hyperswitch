@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-#[cfg(all(feature = "kms", feature = "olap"))]
+#[cfg(all(feature = "olap", any(feature = "hashicorp-vault", feature = "kms")))]
 use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(all(feature = "olap", feature = "kms"))]
@@ -142,6 +144,12 @@ impl AppState {
         Box::pin(async move {
             #[cfg(feature = "kms")]
             let kms_client = kms::get_kms_client(&conf.kms).await;
+            #[cfg(feature = "hashicorp-vault")]
+            #[allow(clippy::expect_used)]
+            let hc_client =
+                external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                    .await
+                    .expect("Failed while creating hashicorp_client");
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -149,6 +157,7 @@ impl AppState {
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");
+
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -176,6 +185,22 @@ impl AppState {
                 ),
             };
 
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            match conf.analytics {
+                AnalyticsConfig::Clickhouse { .. } => {}
+                AnalyticsConfig::Sqlx { ref mut sqlx }
+                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
+                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
+                    sqlx.password = sqlx
+                        .password
+                        .clone()
+                        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                        .await
+                        .expect("Failed while fetching from hashicorp vault");
+                }
+            };
+
             #[cfg(all(feature = "kms", feature = "olap"))]
             #[allow(clippy::expect_used)]
             match conf.analytics {
@@ -191,6 +216,16 @@ impl AppState {
                 }
             };
 
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.connector_onboarding = conf
+                    .connector_onboarding
+                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
+
             #[cfg(all(feature = "kms", feature = "olap"))]
             #[allow(clippy::expect_used)]
             {
@@ -203,6 +238,17 @@ impl AppState {
 
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
+
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.jwekey = conf
+                    .jwekey
+                    .clone()
+                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
 
             #[cfg(feature = "kms")]
             #[allow(clippy::expect_used)]

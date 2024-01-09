@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, Responder};
-use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -8,6 +7,9 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api as api_types,
 };
+
+#[cfg(feature = "hashicorp-vault")]
+use error_stack::ResultExt;
 
 /// API Key - Create
 ///

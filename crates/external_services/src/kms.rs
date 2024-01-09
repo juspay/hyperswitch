@@ -193,7 +193,7 @@ pub struct KmsValue(Secret<String>);
 #[cfg(feature = "hashicorp-vault")]
 #[async_trait::async_trait]
 impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
-    async fn decrypt_inner<En>(
+    async fn fetch_inner<En>(
         self,
         client: &super::hashicorp_vault::HashiCorpVault,
     ) -> error_stack::Result<Self, super::hashicorp_vault::HashiCorpError>
@@ -212,7 +212,7 @@ impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
                 >,
             > + 'a,
     {
-        self.0.decrypt_inner::<En>(client).await.map(KmsValue)
+        self.0.fetch_inner::<En>(client).await.map(KmsValue)
     }
 }
 

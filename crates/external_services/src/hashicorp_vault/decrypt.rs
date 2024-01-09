@@ -12,7 +12,7 @@ pub trait VaultFetch: Sized {
     /// An `Result<Self, super::HashiCorpError>` representing the decrypted instance if successful,
     /// or an `super::HashiCorpError` with details about the encountered error.
     ///
-    async fn decrypt_inner<En>(
+    async fn fetch_inner<En>(
         self,
         client: &super::HashiCorpVault,
     ) -> error_stack::Result<Self, super::HashiCorpError>
@@ -30,7 +30,7 @@ pub trait VaultFetch: Sized {
 
 #[async_trait::async_trait]
 impl VaultFetch for masking::Secret<String> {
-    async fn decrypt_inner<En>(
+    async fn fetch_inner<En>(
         self,
         client: &super::HashiCorpVault,
     ) -> error_stack::Result<Self, super::HashiCorpError>
@@ -38,16 +38,13 @@ impl VaultFetch for masking::Secret<String> {
         for<'a> En: super::Engine<
                 ReturnType<'a, String> = Pin<
                     Box<
-                        dyn std::future::Future<
-                                Output = error_stack::Result<String, super::HashiCorpError>,
-                            > + Send
+                        dyn Future<Output = error_stack::Result<String, super::HashiCorpError>>
+                            + Send
                             + 'a,
                     >,
                 >,
             > + 'a,
     {
-        client
-            .fetch::<En, masking::Secret<String>>(self.expose())
-            .await
+        client.fetch::<En, Self>(self.expose()).await
     }
 }

@@ -4,10 +4,12 @@ use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, Report, ResultExt};
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
+#[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
+#[cfg(feature = "hashicorp-vault")]
+use masking::ExposeInterface;
 #[cfg(feature = "kms")]
 use external_services::kms;
-use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -204,7 +206,7 @@ async fn create_applepay_session_token(
                                         .apple_pay_merchant_cert
                                         .clone(),
                                 )
-                                .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                                .fetch_inner::<hashicorp_vault::Kv2>(client)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?
                                 .expose(),
@@ -215,7 +217,7 @@ async fn create_applepay_session_token(
                                         .apple_pay_merchant_cert_key
                                         .clone(),
                                 )
-                                .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                                .fetch_inner::<hashicorp_vault::Kv2>(client)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?
                                 .expose(),
@@ -226,7 +228,7 @@ async fn create_applepay_session_token(
                                         .common_merchant_identifier
                                         .clone(),
                                 )
-                                .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                                .fetch_inner::<hashicorp_vault::Kv2>(client)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?
                                 .expose(),
@@ -235,7 +237,7 @@ async fn create_applepay_session_token(
 
                         #[cfg(not(feature = "hashicorp-vault"))]
                         {
-                            Ok((
+                            Ok::<_, Report<errors::ApiErrorResponse>>((
                                 state
                                     .conf
                                     .applepay_decrypt_keys

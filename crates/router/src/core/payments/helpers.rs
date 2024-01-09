@@ -15,6 +15,7 @@ use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
+#[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms;
@@ -3476,7 +3477,7 @@ impl ApplePayData {
             #[cfg(feature = "hashicorp-vault")]
             let output =
                 masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
-                    .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                    .fetch_inner::<hashicorp_vault::Kv2>(client)
                     .await
                     .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
                     .expose();
@@ -3559,10 +3560,11 @@ impl ApplePayData {
             #[cfg(feature = "hashicorp-vault")]
             let output =
                 masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
-                    .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                    .fetch_inner::<hashicorp_vault::Kv2>(client)
                     .await
                     .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+                    .attach_printable("Failed while creating client")?
+                    .expose();
 
             #[cfg(not(feature = "hashicorp-vault"))]
             let output = state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone();
@@ -3579,7 +3581,7 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
         #[cfg(not(feature = "kms"))]
-        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key.peek();
+        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()

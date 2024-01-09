@@ -38,6 +38,8 @@ ROOT_DIR := $(realpath $(ROOT_DIR_WITH_SLASH))
 #
 # Usage :
 #	make build
+check:
+	cargo c
 
 build :
 	cargo build

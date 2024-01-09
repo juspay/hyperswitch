@@ -6,7 +6,9 @@ use error_stack::{report, IntoReport, ResultExt};
 use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms;
-use masking::{ExposeInterface, PeekInterface, StrongSecret};
+#[cfg(not(feature = "kms"))]
+use masking::ExposeInterface;
+use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "email")]
@@ -49,9 +51,16 @@ pub async fn get_hash_key(
                 }
                 #[cfg(not(feature = "kms"))]
                 {
-                    api_key_config.hash_key.clone()
+                    masking::Secret::<_, masking::WithType>::new(api_key_config.hash_key.clone())
                 }
             };
+
+            #[cfg(feature = "hashicorp-vault")]
+            let hash_key = hash_key
+                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
             #[cfg(feature = "kms")]
             let hash_key = hash_key
                 .decrypt_inner(kms_client)
@@ -60,14 +69,7 @@ pub async fn get_hash_key(
                 .attach_printable("Failed to KMS decrypt API key hashing key")?;
 
             #[cfg(not(feature = "kms"))]
-            let hash_key = hash_key;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let hash_key = masking::Secret::new(hash_key)
-                .decrypt_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                .expose();
+            let hash_key = hash_key.expose();
 
             <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
                 hex::decode(hash_key)

@@ -1,13 +1,14 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
+#[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::{self, decrypt::VaultFetch, Kv2};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
-use masking::ExposeInterface;
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 
 use crate::settings::Database;
+
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
@@ -31,24 +32,21 @@ pub async fn diesel_make_pg_pool(
     #[cfg(feature = "kms")] kms_client: &'static kms::KmsClient,
     #[cfg(feature = "hashicorp-vault")] hashicorp_client: &'static hashicorp_vault::HashiCorpVault,
 ) -> PgPool {
+    let password = database.password.clone();
     #[cfg(feature = "hashicorp-vault")]
-    let password = database
-        .password
-        .clone()
-        .decrypt_inner::<Kv2>(hashicorp_client)
+    let password = password
+        .fetch_inner::<Kv2>(hashicorp_client)
         .await
-        .expect("Failed while fetching db password")
-        .expose();
+        .expect("Failed while fetching db password");
 
     #[cfg(feature = "kms")]
-    let password = database
-        .password
+    let password = password
         .decrypt_inner(kms_client)
         .await
         .expect("Failed to decrypt password");
 
-    #[cfg(all(not(feature = "kms"), not(feature = "hashicorp-vault")))]
-    let password = &database.password.peek();
+    #[cfg(not(feature = "kms"))]
+    let password = &password.peek();
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",

@@ -5,6 +5,7 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
+#[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::{self, decrypt::VaultFetch};
 use hex;
 pub mod helpers;
@@ -354,14 +355,14 @@ async fn store_bank_details_in_payment_methods(
 
         #[cfg(feature = "hashicorp-vault")]
         let output = masking::Secret::new(state.conf.payment_method_auth.pm_auth_key.clone())
-            .decrypt_inner::<hashicorp_vault::Kv2>(client)
+            .fetch_inner::<hashicorp_vault::Kv2>(client)
             .await
-            .change_context(ApiErrorResponse::InternalServerError)?;
+            .change_context(ApiErrorResponse::InternalServerError)?.expose();
 
         #[cfg(not(feature = "hashicorp-vault"))]
         let output = state.conf.payment_method_auth.pm_auth_key.clone();
 
-        Ok::<_, error_stack::Report<ApiErrorResponse>>(output.expose())
+        Ok::<_, error_stack::Report<ApiErrorResponse>>(output)
     }
     .await?;
 

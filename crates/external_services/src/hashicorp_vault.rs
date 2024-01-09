@@ -1,3 +1,5 @@
+//! Interactions with the HashiCorp Vault
+
 use std::{collections::HashMap, future::Future, pin::Pin};
 
 use error_stack::{Report, ResultExt};

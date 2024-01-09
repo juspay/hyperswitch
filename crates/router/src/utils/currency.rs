@@ -4,6 +4,7 @@ use api_models::enums;
 use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
 use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::{self, decrypt::VaultFetch};
 #[cfg(feature = "kms")]
 use external_services::kms;
@@ -438,14 +439,14 @@ async fn fetch_forex_rates(
             .change_context(ForexCacheError::KmsDecryptionFailed)?;
 
         #[cfg(not(feature = "hashicorp-vault"))]
-        let output = state.conf.forex_api.api_key.clone().peek().clone();
+        let output = state.conf.forex_api.api_key.clone();
         #[cfg(feature = "hashicorp-vault")]
         let output = state
             .conf
             .forex_api
             .api_key
             .clone()
-            .decrypt_inner::<hashicorp_vault::Kv2>(client)
+            .fetch_inner::<hashicorp_vault::Kv2>(client)
             .await
             .change_context(ForexCacheError::KmsDecryptionFailed)?;
 
@@ -526,14 +527,14 @@ pub async fn fallback_fetch_forex_rates(
             .change_context(ForexCacheError::KmsDecryptionFailed)?;
 
         #[cfg(not(feature = "hashicorp-vault"))]
-        let output = state.conf.forex_api.fallback_api_key.clone().peek().clone();
+        let output = state.conf.forex_api.fallback_api_key.clone();
         #[cfg(feature = "hashicorp-vault")]
         let output = state
             .conf
             .forex_api
             .fallback_api_key
             .clone()
-            .decrypt_inner::<hashicorp_vault::Kv2>(client)
+            .fetch_inner::<hashicorp_vault::Kv2>(client)
             .await
             .change_context(ForexCacheError::KmsDecryptionFailed)?;
 

@@ -8,7 +8,6 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["hashicorp-vault"]
 kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 email = ["dep:aws-config"]
 hashicorp-vault = [ "dep:vaultrs" ]
