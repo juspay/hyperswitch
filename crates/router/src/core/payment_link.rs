@@ -109,9 +109,10 @@ pub async fn intiate_payment_link_flow(
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
 
-    let curr_time = common_utils::date_time::now();
     let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
-        curr_time.saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
+        payment_intent
+            .created_at
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
     });
 
     // converting first letter of merchant name to upperCase
@@ -253,11 +254,11 @@ pub async fn list_payment_link(
 }
 
 pub fn check_payment_link_status(
-    max_age: PrimitiveDateTime,
+    payment_link_expiry: PrimitiveDateTime,
 ) -> api_models::payments::PaymentLinkStatus {
     let curr_time = common_utils::date_time::now();
 
-    if curr_time > max_age {
+    if curr_time > payment_link_expiry {
         api_models::payments::PaymentLinkStatus::Expired
     } else {
         api_models::payments::PaymentLinkStatus::Active

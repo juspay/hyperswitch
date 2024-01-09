@@ -1083,7 +1083,7 @@ where
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
-                                    "message": "Payment link not found"
+                                    "message": "Error while rendering payment link status page"
                                 }
                             }"#,
                         ),

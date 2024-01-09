@@ -8756,8 +8756,8 @@
       "PaymentLinkStatus": {
         "type": "string",
         "enum": [
-          "Active",
-          "Expired"
+          "active",
+          "expired"
         ]
       },
       "PaymentListConstraints": {
