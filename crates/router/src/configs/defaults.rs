@@ -4547,18 +4547,12 @@ impl Default for super::settings::RequiredFields {
                                                 display_name: "country".to_string(),
                                                 field_type: enums::FieldType::UserAddressCountry {
                                                     options: vec![
-                                                            "ES".to_string(),
-                                                            "GB".to_string(),
-                                                            "SE".to_string(),
                                                             "AT".to_string(),
-                                                            "NL".to_string(),
-                                                            "DE".to_string(),
-                                                            "CH".to_string(),
                                                             "BE".to_string(),
-                                                            "FR".to_string(),
-                                                            "FI".to_string(),
+                                                            "DE".to_string(),
+                                                            "ES".to_string(),
                                                             "IT".to_string(),
-                                                            "PL".to_string(),
+                                                            "NL".to_string(),
                                                         ]
                                                 },
                                                 value: None,
@@ -4622,7 +4616,16 @@ impl Default for super::settings::RequiredFields {
                                                     display_name: "country".to_string(),
                                                     field_type: enums::FieldType::UserAddressCountry{
                                                         options: vec![
+                                                            "ES".to_string(),
+                                                            "GB".to_string(),
+                                                            "IT".to_string(),
+                                                            "DE".to_string(),
+                                                            "FR".to_string(),
                                                             "AT".to_string(),
+                                                            "BE".to_string(),
+                                                            "NL".to_string(),
+                                                            "BE".to_string(),
+                                                            "SK".to_string(),
                                                         ]
                                                     },
                                                     value: None,
@@ -4645,16 +4648,10 @@ impl Default for super::settings::RequiredFields {
                                                     options: vec![
                                                             "ES".to_string(),
                                                             "GB".to_string(),
-                                                            "SE".to_string(),
                                                             "AT".to_string(),
                                                             "NL".to_string(),
                                                             "DE".to_string(),
-                                                            "CH".to_string(),
                                                             "BE".to_string(),
-                                                            "FR".to_string(),
-                                                            "FI".to_string(),
-                                                            "IT".to_string(),
-                                                            "PL".to_string(),
                                                         ]
                                                 },
                                                 value: None,
@@ -4705,34 +4702,7 @@ impl Default for super::settings::RequiredFields {
                                             )
                                         ]),
                                         non_mandate: HashMap::new(),
-                                        common: HashMap::from([
-                                            (
-                                                "payment_method_data.bank_redirect.sofort.preferred_language".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.sofort.preferred_language".to_string(),
-                                                    display_name: "preferred_language".to_string(),
-                                                    field_type: enums::FieldType::Text,
-                                                    value: None,
-                                                }
-                                            ),
-                                            ("payment_method_data.bank_redirect.sofort.country".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_redirect.sofort.country".to_string(),
-                                                display_name: "country".to_string(),
-                                                field_type: enums::FieldType::UserCountry {
-                                                    options: vec![
-                                                            "ES".to_string(),
-                                                            "AT".to_string(),
-                                                            "NL".to_string(),
-                                                            "DE".to_string(),
-                                                            "BE".to_string(),
-                                                            "IT".to_string(),
-                                                        ]
-                                                },
-                                                value: None,
-                                            }
-                                        ),
-                                        ])
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
