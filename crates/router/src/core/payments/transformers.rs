@@ -547,7 +547,7 @@ where
                 if third_party_sdk_session_next_action(&payment_attempt, operation) {
                     next_action_response = Some(
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken {
-                            session_token: payment_data.sessions_token.get(0).cloned(),
+                            session_token: payment_data.sessions_token.first().cloned(),
                         },
                     )
                 }
@@ -565,6 +565,7 @@ where
                 });
                 services::ApplicationResponse::JsonWithHeaders((
                     response
+                        .set_net_amount(payment_attempt.net_amount)
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
@@ -714,6 +715,7 @@ where
         }
         None => services::ApplicationResponse::JsonWithHeaders((
             api::PaymentsResponse {
+                net_amount: payment_attempt.net_amount,
                 payment_id: Some(payment_attempt.payment_id),
                 merchant_id: Some(payment_attempt.merchant_id),
                 status: payment_intent.status,

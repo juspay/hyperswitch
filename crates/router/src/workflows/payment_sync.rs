@@ -301,7 +301,10 @@ mod tests {
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
-            vec![cpt_default.start_after, cpt_default.frequency[0]]
+            vec![
+                cpt_default.start_after,
+                *cpt_default.frequency.first().unwrap()
+            ]
         );
     }
 }

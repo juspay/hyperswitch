@@ -229,17 +229,7 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
-    let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-        payment_intent.payment_link_id.clone(),
-        merchant_account.intent_fulfillment_time,
-        db,
-    )
-    .await?;
-    helpers::authenticate_client_secret(
-        request.client_secret.as_ref(),
-        &payment_intent,
-        intent_fulfillment_time,
-    )?;
+    helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
     let payment_id_str = payment_attempt.payment_id.clone();
 
