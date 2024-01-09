@@ -582,7 +582,17 @@ pub struct AccessTokenRequestData {
 }
 
 pub trait Capturable {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        None
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -591,7 +601,7 @@ pub trait Capturable {
 }
 
 impl Capturable for PaymentsAuthorizeData {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
@@ -601,41 +611,149 @@ impl Capturable for PaymentsAuthorizeData {
             .map(|surcharge_details| surcharge_details.final_amount);
         final_amount.or(Some(self.amount))
     }
+
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        match payment_data
+            .payment_attempt
+            .capture_method
+            .unwrap_or_default()
+        {
+            common_enums::CaptureMethod::Automatic => {
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                if matches!(intent_status, common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Processing) {
+                    Some(0)
+                } else {
+                    None
+                }
+            },
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            // In case of manual multiple, amount capturable must be inferred from all captures.
+            common_enums::CaptureMethod::ManualMultiple |
+            // Scheduled capture is not supported as of now
+            common_enums::CaptureMethod::Scheduled => None,
+        }
+    }
 }
 
 impl Capturable for PaymentsCaptureData {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         Some(self.amount_to_capture)
     }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        if matches!(
+            intent_status,
+            common_enums::IntentStatus::Succeeded
+                | common_enums::IntentStatus::PartiallyCaptured
+                | common_enums::IntentStatus::Processing
+        ) {
+            Some(0)
+        } else {
+            None
+        }
+    }
 }
 
 impl Capturable for CompleteAuthorizeData {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         Some(self.amount)
     }
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        match payment_data
+            .payment_attempt
+            .capture_method
+            .unwrap_or_default()
+        {
+            common_enums::CaptureMethod::Automatic => {
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                if matches!(intent_status, common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Failed |common_enums::IntentStatus::Processing) {
+                    Some(0)
+                } else {
+                    None
+                }
+            },
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            // In case of manual multiple, amount capturable must be inferred from all captures.
+            common_enums::CaptureMethod::ManualMultiple |
+            // Scheduled capture is not supported as of now
+            common_enums::CaptureMethod::Scheduled => None,
+        }
+    }
 }
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsCancelData {
-    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         // return previously captured amount
         payment_data.payment_intent.amount_captured
     }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        if matches!(
+            intent_status,
+            common_enums::IntentStatus::Cancelled
+                | common_enums::IntentStatus::Processing
+                | common_enums::IntentStatus::PartiallyCaptured
+        ) {
+            Some(0)
+        } else {
+            None
+        }
+    }
 }
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsIncrementalAuthorizationData {}
+impl Capturable for PaymentsIncrementalAuthorizationData {
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        Some(self.total_amount)
+    }
+}
 impl Capturable for PaymentsSyncData {
-    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
