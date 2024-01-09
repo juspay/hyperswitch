@@ -223,7 +223,20 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        // auth error have different structure than common error
+        let response: volt::VoltAuthErrorResponse = res
+            .response
+            .parse_struct("VoltAuthErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.code.to_string(),
+            message: response.message.clone(),
+            reason: Some(response.message),
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
     }
 }
 

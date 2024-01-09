@@ -110,6 +110,7 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,6 +163,7 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
+        session_expiry: Option<PrimitiveDateTime>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -226,6 +228,7 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -249,6 +252,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                session_expiry,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -268,6 +272,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                session_expiry,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
