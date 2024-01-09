@@ -83,6 +83,7 @@ attempt_analytics_topic = "topic" # Kafka topic to be used for PaymentAttempt ev
 refund_analytics_topic  = "topic" # Kafka topic to be used for Refund events
 api_logs_topic          = "topic" # Kafka topic to be used for incoming api events
 connector_logs_topic    = "topic" # Kafka topic to be used for connector api events
+outgoing_webhook_analytics_topic = "topic" # Kafka topic to be used for outgoing webhook events
 
 [file_upload_config]
 bucket_name = "bucket"
