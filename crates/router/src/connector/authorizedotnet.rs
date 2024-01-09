@@ -903,7 +903,12 @@ fn get_error_response(
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
-            let message = &response.messages.message[0].text;
+            let message = &response
+                .messages
+                .message
+                .first()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .text;
             Ok(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: message.to_string(),

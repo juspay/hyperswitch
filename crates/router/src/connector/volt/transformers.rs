@@ -410,6 +410,12 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct VoltAuthErrorResponse {
+    pub code: u64,
+    pub message: String,
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltErrorException {
