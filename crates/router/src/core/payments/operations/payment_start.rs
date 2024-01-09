@@ -278,6 +278,7 @@ where
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -289,7 +290,14 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
+            helpers::make_pm_data(
+                Box::new(self),
+                state,
+                payment_data,
+                merchant_key_store,
+                customer,
+            )
+            .await
         } else {
             Ok((Box::new(self), None))
         }

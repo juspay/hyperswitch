@@ -1532,6 +1532,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1621,6 +1622,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
+                customer,
             )
             .await
             .attach_printable("in 'make_pm_data'")?;
@@ -3089,8 +3091,8 @@ impl AttemptType {
 
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
-            surcharge_amount: old_payment_attempt.surcharge_amount,
-            tax_amount: old_payment_attempt.tax_amount,
+            surcharge_amount: None,
+            tax_amount: None,
             payment_method_id: None,
             payment_method: None,
             capture_method: old_payment_attempt.capture_method,
@@ -3133,6 +3135,7 @@ impl AttemptType {
             merchant_connector_id: None,
             unified_code: None,
             unified_message: None,
+            net_amount: old_payment_attempt.amount,
         }
     }
 

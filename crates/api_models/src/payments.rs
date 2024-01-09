@@ -1213,7 +1213,7 @@ pub enum BankRedirectData {
     },
     Ideal {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
@@ -2036,6 +2036,11 @@ pub struct PaymentsResponse {
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(example = 100)]
     pub amount: i64,
+
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,  
+    /// If no surcharge_details, net_amount = amount
+    #[schema(example = 110)]
+    pub net_amount: i64,
 
     /// The maximum amount that could be captured from the payment
     #[schema(minimum = 100, example = 6540)]
