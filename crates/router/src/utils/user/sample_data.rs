@@ -146,6 +146,8 @@ pub async fn generate_sample_data(
                         common_utils::date_time::now() - time::Duration::days(7)
                     }),
                 );
+        let session_expiry =
+            created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
         // After some set of payments sample data will have a failed attempt
         let is_failed_payment =
@@ -198,6 +200,7 @@ pub async fn generate_sample_data(
             incremental_authorization_allowed: Default::default(),
             authorization_count: Default::default(),
             fingerprint_id: None,
+            session_expiry: Some(session_expiry),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

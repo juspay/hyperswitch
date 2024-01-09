@@ -111,6 +111,7 @@ pub struct PaymentIntentNew {
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
     pub fingerprint_id: Option<String>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -164,6 +165,7 @@ pub enum PaymentIntentUpdate {
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
         fingerprint_id: Option<String>,
+        session_expiry: Option<PrimitiveDateTime>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -229,6 +231,7 @@ pub struct PaymentIntentUpdateInternal {
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
     pub fingerprint_id: Option<String>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -253,6 +256,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_confirm_source,
                 updated_by,
                 fingerprint_id,
+                session_expiry,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -273,6 +277,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_confirm_source,
                 updated_by,
                 fingerprint_id,
+                session_expiry,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

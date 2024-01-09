@@ -377,7 +377,17 @@ where
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        None,
+                        response
+                            .as_ref()
+                            .map(|response| {
+                                response
+                                    .as_ref()
+                                    .map_or_else(|value| value, |value| value)
+                                    .response
+                                    .escape_ascii()
+                                    .to_string()
+                            })
+                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
@@ -938,7 +948,7 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
-        Some(request.method().to_string()),
+        request.method(),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -1621,7 +1631,7 @@ pub fn build_payment_link_html(
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
-    format!("<script src=\"{sdk_url}\"></script>")
+    format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
 
 #[cfg(test)]

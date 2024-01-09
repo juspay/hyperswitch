@@ -95,6 +95,8 @@ diesel::table! {
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
+        payment_link_config -> Nullable<Jsonb>,
+        session_expiry -> Nullable<Int8>,
     }
 }
 
@@ -653,6 +655,7 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        net_amount -> Nullable<Int8>,
     }
 }
 
@@ -718,6 +721,7 @@ diesel::table! {
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
         fingerprint_id -> Nullable<Text>,
+        session_expiry -> Nullable<Timestamp>,
     }
 }
 
@@ -744,6 +748,8 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 255]
         description -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
