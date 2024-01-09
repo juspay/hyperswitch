@@ -13,6 +13,9 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use josekit::jwe;
@@ -3462,15 +3465,38 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        let apple_pay_ppc = async {
+            #[cfg(feature = "hashicorp-vault")]
+            let client =
+                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
+                    .await
+                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+                    .attach_printable("Failed while creating client")?;
+
+            #[cfg(feature = "hashicorp-vault")]
+            let output =
+                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
+                    .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                    .await
+                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
+                    .expose();
+
+            #[cfg(not(feature = "hashicorp-vault"))]
+            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc.clone();
+
+            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
+        }
+        .await?;
+
         #[cfg(feature = "kms")]
         let cert_data = kms::get_kms_client(&state.conf.kms)
             .await
-            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
+            .decrypt(&apple_pay_ppc)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
         #[cfg(not(feature = "kms"))]
-        let cert_data = &state.conf.applepay_decrypt_keys.apple_pay_ppc;
+        let cert_data = &apple_pay_ppc;
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3522,15 +3548,38 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
+        let apple_pay_ppc_key = async {
+            #[cfg(feature = "hashicorp-vault")]
+            let client =
+                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
+                    .await
+                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+                    .attach_printable("Failed while creating client")?;
+
+            #[cfg(feature = "hashicorp-vault")]
+            let output =
+                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
+                    .decrypt_inner::<hashicorp_vault::Kv2>(client)
+                    .await
+                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+                    .attach_printable("Failed while creating client")?;
+
+            #[cfg(not(feature = "hashicorp-vault"))]
+            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone();
+
+            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
+        }
+        .await?;
+
         #[cfg(feature = "kms")]
         let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
             .await
-            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
+            .decrypt(&apple_pay_ppc_key)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
         #[cfg(not(feature = "kms"))]
-        let decrypted_apple_pay_ppc_key = &state.conf.applepay_decrypt_keys.apple_pay_ppc_key;
+        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key.peek();
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()

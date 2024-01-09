@@ -24,6 +24,10 @@ impl Store {
                 test_transaction,
                 #[cfg(feature = "kms")]
                 external_services::kms::get_kms_client(&config.kms).await,
+                #[cfg(feature = "hashicorp-vault")]
+                external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
+                    .await
+                    .expect("Failed while getting hashicorp client"),
             )
             .await,
             redis_conn: Arc::new(crate::connection::redis_connection(config).await),

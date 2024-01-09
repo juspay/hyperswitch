@@ -1,7 +1,9 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
+use external_services::hashicorp_vault::{self, decrypt::VaultFetch, Kv2};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+use masking::ExposeInterface;
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 
@@ -27,7 +29,17 @@ pub async fn diesel_make_pg_pool(
     database: &Database,
     _test_transaction: bool,
     #[cfg(feature = "kms")] kms_client: &'static kms::KmsClient,
+    #[cfg(feature = "hashicorp-vault")] hashicorp_client: &'static hashicorp_vault::HashiCorpVault,
 ) -> PgPool {
+    #[cfg(feature = "hashicorp-vault")]
+    let password = database
+        .password
+        .clone()
+        .decrypt_inner::<Kv2>(hashicorp_client)
+        .await
+        .expect("Failed while fetching db password")
+        .expose();
+
     #[cfg(feature = "kms")]
     let password = database
         .password
@@ -35,7 +47,7 @@ pub async fn diesel_make_pg_pool(
         .await
         .expect("Failed to decrypt password");
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(all(not(feature = "kms"), not(feature = "hashicorp-vault")))]
     let password = &database.password.peek();
 
     let database_url = format!(

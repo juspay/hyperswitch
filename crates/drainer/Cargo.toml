@@ -8,8 +8,10 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+default = ["hashicorp-vault"]
 release = ["kms", "vergen"]
 kms = ["external_services/kms"]
+hashicorp-vault = ["external_services/hashicorp-vault"]
 vergen = ["router_env/vergen"]
 
 [dependencies]

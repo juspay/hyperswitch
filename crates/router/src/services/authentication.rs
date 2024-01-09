@@ -194,6 +194,10 @@ where
                 &config.api_keys,
                 #[cfg(feature = "kms")]
                 kms::get_kms_client(&config.kms).await,
+                #[cfg(feature = "hashicorp-vault")]
+                external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
             )
             .await?
         };
