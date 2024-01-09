@@ -1623,7 +1623,7 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
 
 fn decide_apple_pay_flow(
     payment_method_type: &Option<api_models::enums::PaymentMethodType>,
-    merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
+    merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<enums::ApplePayFlow> {
     payment_method_type.and_then(|pmt| match pmt {
         api_models::enums::PaymentMethodType::ApplePay => {
@@ -1634,9 +1634,9 @@ fn decide_apple_pay_flow(
 }
 
 fn check_apple_pay_metadata(
-    merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
+    merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<enums::ApplePayFlow> {
-    merchant_connector_account.clone().and_then(|mca| {
+    merchant_connector_account.and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
             let parsed_metadata = apple_pay_metadata
@@ -1808,7 +1808,7 @@ where
 
             let apple_pay_flow = decide_apple_pay_flow(
                 payment_method_type,
-                &Some(merchant_connector_account.clone()),
+                Some(&merchant_connector_account),
             );
 
             let is_connector_tokenization_enabled =
