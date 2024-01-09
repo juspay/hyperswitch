@@ -341,18 +341,10 @@ pub struct PresentToShopperResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QrCodeResponseResponse {
-    additional_data: AdyenAdditionalData,
     result_code: AdyenStatus,
     action: AdyenQrCodeAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenAdditionalData {
-    #[serde(rename = "pix.expirationDate")]
-    pix_expiry_date: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3308,14 +3300,13 @@ pub fn get_qr_metadata(
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let qr_code_url = response.action.qr_code_url.clone();
-    let display_to_timestamp = response.additional_data.pix_expiry_date;
     if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
     {
         let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
             payments::QrCodeInformation::QrCodeUrl {
                 image_data_url,
                 qr_code_url,
-                display_to_timestamp,
+                display_to_timestamp: None,
             },
         );
         Some(common_utils::ext_traits::Encode::<
@@ -3327,7 +3318,7 @@ pub fn get_qr_metadata(
         let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
             payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
-                display_to_timestamp,
+                display_to_timestamp: None,
             },
         );
         Some(common_utils::ext_traits::Encode::<
@@ -3339,7 +3330,7 @@ pub fn get_qr_metadata(
         let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
             payments::QrCodeInformation::QrDataUrl {
                 image_data_url,
-                display_to_timestamp,
+                display_to_timestamp: None,
             },
         );
 
