@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
@@ -543,8 +541,9 @@ fn build_bill_to(
 
 impl ForeignFrom<Value> for Vec<MerchantDefinedInformation> {
     fn foreign_from(metadata: Value) -> Self {
-        let hashmap: HashMap<String, Value> =
-            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let hashmap: std::collections::BTreeMap<String, Value> =
+            serde_json::from_str(&metadata.to_string())
+                .unwrap_or(std::collections::BTreeMap::new());
         let mut vector: Self = Self::new();
         let mut iter = 1;
         for (key, value) in hashmap {
@@ -1744,6 +1743,20 @@ pub struct CybersourceStandardErrorResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CybersourceNotAvailableErrorResponse {
+    pub errors: Vec<CybersourceNotAvailableErrorObject>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceNotAvailableErrorObject {
+    #[serde(rename = "type")]
+    pub error_type: Option<String>,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CybersourceServerErrorResponse {
     pub status: Option<String>,
     pub message: Option<String>,
@@ -1766,8 +1779,10 @@ pub struct CybersourceAuthenticationErrorResponse {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum CybersourceErrorResponse {
-    StandardError(CybersourceStandardErrorResponse),
     AuthenticationError(CybersourceAuthenticationErrorResponse),
+    //If the request resource is not available/exists in cybersource
+    NotAvailableError(CybersourceNotAvailableErrorResponse),
+    StandardError(CybersourceStandardErrorResponse),
 }
 
 #[derive(Debug, Deserialize, Clone)]
