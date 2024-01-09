@@ -306,21 +306,21 @@ where
                             // Panic Safety: we are first checking if the object is present... only if present, we try to fetch index 0
                             let frm_configs_object = FrmConfigsObject {
                                 frm_enabled_gateway: filtered_frm_config
-                                    .get(0)
+                                    .first()
                                     .and_then(|c| c.gateway),
                                 frm_enabled_pm: filtered_payment_methods
-                                    .get(0)
+                                    .first()
                                     .and_then(|pm| pm.payment_method),
                                 frm_enabled_pm_type: filtered_payment_method_types
-                                    .get(0)
+                                    .first()
                                     .and_then(|pmt| pmt.payment_method_type),
                                 frm_action: filtered_payment_method_types
                                     // .clone()
-                                    .get(0)
+                                    .first()
                                     .map(|pmt| pmt.action.clone())
                                     .unwrap_or(api_enums::FrmAction::ManualReview),
                                 frm_preferred_flow_type: filtered_payment_method_types
-                                    .get(0)
+                                    .first()
                                     .map(|pmt| pmt.flow.clone())
                                     .unwrap_or(api_enums::FrmPreferredFlowTypes::Pre),
                             };

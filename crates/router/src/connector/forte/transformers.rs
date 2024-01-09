@@ -83,7 +83,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     name_on_card: ccard
                         .card_holder_name
                         .clone()
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                        .unwrap_or(Secret::new("".to_string())),
                     account_number: ccard.card_number.clone(),
                     expire_month: ccard.card_exp_month.clone(),
                     expire_year: ccard.card_exp_year.clone(),

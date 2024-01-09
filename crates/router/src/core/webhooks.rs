@@ -25,7 +25,10 @@ use crate::{
         payments, refunds,
     },
     db::StorageInterface,
-    events::api_logs::ApiEvent,
+    events::{
+        api_logs::ApiEvent,
+        outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+    },
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
     services::{self, authentication as auth},
@@ -731,20 +734,46 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     if state.conf.webhooks.outgoing_enabled {
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
-            event_id: event.event_id,
+            event_id: event.event_id.clone(),
             event_type: event.event_type,
-            content,
+            content: content.clone(),
             timestamp: event.created_at,
         };
-
+        let state_clone = state.clone();
         // Using a tokio spawn here and not arbiter because not all caller of this function
         // may have an actix arbiter
         tokio::spawn(async move {
+            let mut error = None;
             let result =
                 trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, state).await;
 
             if let Err(e) = result {
+                error.replace(
+                    serde_json::to_value(e.current_context())
+                        .into_report()
+                        .attach_printable("Failed to serialize json error response")
+                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        .ok()
+                        .into(),
+                );
                 logger::error!(?e);
+            }
+            let outgoing_webhook_event_type = content.get_outgoing_webhook_event_type();
+            let webhook_event = OutgoingWebhookEvent::new(
+                merchant_account.merchant_id.clone(),
+                event.event_id.clone(),
+                event_type,
+                outgoing_webhook_event_type,
+                error.is_some(),
+                error,
+            );
+            match webhook_event.clone().try_into() {
+                Ok(event) => {
+                    state_clone.event_handler().log_event(event);
+                }
+                Err(err) => {
+                    logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
+                }
             }
         });
     }
@@ -909,7 +938,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodR
         None,
         api_event,
         req,
-        Some(req.method().to_string()),
+        req.method(),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
