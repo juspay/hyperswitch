@@ -275,6 +275,7 @@ bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
 shift4.payment_method = "card"
 stripe.payment_method = "bank_transfer"
+nmi.payment_method = "card"
 
 [tokenization]
 braintree = { long_lived_token = false, payment_method = "card" }
