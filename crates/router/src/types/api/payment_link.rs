@@ -1,6 +1,7 @@
 pub use api_models::payments::RetrievePaymentLinkResponse;
 
 use crate::{
+    consts::DEFAULT_SESSION_EXPIRY,
     core::{errors::RouterResult, payment_link},
     types::storage::{self},
 };
@@ -13,7 +14,11 @@ pub(crate) trait PaymentLinkResponseExt: Sized {
 #[async_trait::async_trait]
 impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
     async fn from_db_payment_link(payment_link: storage::PaymentLink) -> RouterResult<Self> {
-        let status = payment_link::check_payment_link_status(payment_link.fulfilment_time);
+        let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
+            common_utils::date_time::now()
+                .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
+        });
+        let status = payment_link::check_payment_link_status(session_expiry);
         Ok(Self {
             link_to_pay: payment_link.link_to_pay,
             payment_link_id: payment_link.payment_link_id,

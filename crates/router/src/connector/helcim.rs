@@ -203,20 +203,25 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::SetupMandateRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(types::SetupMandateType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Helcim".to_string())
+                .into(),
+        )
+
+        // Ok(Some(
+        //     services::RequestBuilder::new()
+        //         .method(services::Method::Post)
+        //         .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+        //         .attach_default_headers()
+        //         .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+        //         .set_body(types::SetupMandateType::get_request_body(
+        //             self, req, connectors,
+        //         )?)
+        //         .build(),
+        // ))
     }
     fn handle_response(
         &self,
@@ -698,9 +703,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }

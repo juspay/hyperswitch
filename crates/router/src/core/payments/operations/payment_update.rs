@@ -584,7 +584,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let expiry = payment_data.payment_intent.expiry;
+        let session_expiry = payment_data.payment_intent.session_expiry;
 
         payment_data.payment_intent = state
             .store
@@ -608,7 +608,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
-                    expiry,
+                    session_expiry,
                 },
                 storage_scheme,
             )
@@ -637,8 +637,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-            helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+        if let Some(session_expiry) = &request.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
         let payment_id = request
             .payment_id

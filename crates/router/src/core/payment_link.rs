@@ -1,8 +1,8 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_FULFILLMENT_TIME, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
+        DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
 };
@@ -33,7 +33,12 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let status = check_payment_link_status(payment_link_config.fulfilment_time);
+    let session_expiry = payment_link_config.fulfilment_time.unwrap_or_else(|| {
+        common_utils::date_time::now()
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
+    });
+
+    let status = check_payment_link_status(session_expiry);
 
     let response = api_models::payments::RetrievePaymentLinkResponse::foreign_from((
         payment_link_config,
@@ -114,10 +119,10 @@ pub async fn intiate_payment_link_flow(
     )?;
     let order_details = validate_order_details(payment_intent.order_details, currency)?;
 
-    let curr_time = common_utils::date_time::now();
-    let expiry = payment_link
-        .fulfilment_time
-        .unwrap_or(curr_time.saturating_add(time::Duration::seconds(DEFAULT_FULFILLMENT_TIME)));
+    let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
+        common_utils::date_time::now()
+            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
+    });
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
@@ -132,7 +137,7 @@ pub async fn intiate_payment_link_flow(
         merchant_name,
         order_details,
         return_url,
-        expiry,
+        session_expiry,
         pub_key,
         client_secret,
         merchant_logo: payment_link_config.clone().logo,
@@ -215,9 +220,9 @@ pub async fn list_payment_link(
 }
 
 pub fn check_payment_link_status(
-    max_age: Option<PrimitiveDateTime>,
+    max_age: PrimitiveDateTime,
 ) -> api_models::payments::PaymentLinkStatus {
-    let curr_time = Some(common_utils::date_time::now());
+    let curr_time = common_utils::date_time::now();
 
     if curr_time > max_age {
         api_models::payments::PaymentLinkStatus::Expired
@@ -278,16 +283,6 @@ fn validate_order_details(
     Ok(updated_order_details)
 }
 
-pub fn extract_business_payment_link_config(
-    pl_config: serde_json::Value,
-) -> Result<admin_types::BusinessPaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
-    serde_json::from_value::<admin_types::BusinessPaymentLinkConfig>(pl_config.clone())
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
-        })
-}
-
 pub fn extract_payment_link_config(
     pl_config: serde_json::Value,
 ) -> Result<api_models::admin::PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
@@ -306,7 +301,13 @@ pub fn get_payment_link_config_based_on_priority(
 ) -> Result<(admin_types::PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>>
 {
     let (domain_name, business_config) = if let Some(business_config) = business_link_config {
-        let extracted_value = extract_business_payment_link_config(business_config)?;
+        let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
+            .parse_value("BusinessPaymentLinkConfig")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_link_config",
+            })
+            .attach_printable("Invalid payment_link_config given in business config")?;
+
         (
             extracted_value
                 .domain_name
@@ -319,45 +320,43 @@ pub fn get_payment_link_config_based_on_priority(
         (default_domain_name, None)
     };
 
-    let pc_config = payment_create_link_config.map(|pc_config| pc_config.config);
-
-    let theme = pc_config
-        .clone()
-        .and_then(|pc_config| pc_config.theme)
+    let theme = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.theme.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.theme)
+                .as_ref()
+                .and_then(|business_config| business_config.theme.clone())
         })
         .unwrap_or(DEFAULT_BACKGROUND_COLOR.to_string());
 
-    let logo = pc_config
-        .clone()
-        .and_then(|pc_config| pc_config.logo)
+    let logo = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.logo.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.logo)
+                .as_ref()
+                .and_then(|business_config| business_config.logo.clone())
         })
         .unwrap_or(DEFAULT_MERCHANT_LOGO.to_string());
 
-    let seller_name = pc_config
-        .clone()
-        .and_then(|pc_config| pc_config.seller_name)
+    let seller_name = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.seller_name.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.seller_name)
+                .as_ref()
+                .and_then(|business_config| business_config.seller_name.clone())
         })
         .unwrap_or(merchant_name.clone());
 
-    let sdk_layout = pc_config
-        .clone()
-        .and_then(|pc_config| pc_config.sdk_layout)
+    let sdk_layout = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.sdk_layout.clone())
         .or_else(|| {
             business_config
-                .clone()
-                .and_then(|business_config| business_config.sdk_layout)
+                .as_ref()
+                .and_then(|business_config| business_config.sdk_layout.clone())
         })
         .unwrap_or(DEFAULT_SDK_LAYOUT.to_owned());
 
@@ -375,7 +374,9 @@ fn capitalize_first_char(s: &str) -> String {
     if let Some(first_char) = s.chars().next() {
         let capitalized = first_char.to_uppercase();
         let mut result = capitalized.to_string();
-        result.push_str(&s[1..]);
+        if let Some(remaining) = s.get(1..) {
+            result.push_str(remaining);
+        }
         result
     } else {
         s.to_owned()

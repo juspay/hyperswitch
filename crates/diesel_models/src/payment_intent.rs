@@ -55,7 +55,7 @@ pub struct PaymentIntent {
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub expiry: Option<PrimitiveDateTime>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(
@@ -106,7 +106,7 @@ pub struct PaymentIntentNew {
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub expiry: Option<PrimitiveDateTime>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,7 +159,7 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
-        expiry: Option<PrimitiveDateTime>,
+        session_expiry: Option<PrimitiveDateTime>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -225,7 +225,7 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub expiry: Option<PrimitiveDateTime>,
+    pub session_expiry: Option<PrimitiveDateTime>,
 }
 
 impl PaymentIntentUpdate {
@@ -258,7 +258,7 @@ impl PaymentIntentUpdate {
             surcharge_applicable,
             incremental_authorization_allowed,
             authorization_count,
-            expiry,
+            session_expiry,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -288,10 +288,10 @@ impl PaymentIntentUpdate {
             payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
             updated_by,
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
-
-            incremental_authorization_allowed,
-            authorization_count,
-            expiry,
+            incremental_authorization_allowed: incremental_authorization_allowed
+                .or(source.incremental_authorization_allowed),
+            authorization_count: authorization_count.or(source.authorization_count),
+            session_expiry,
             ..source
         }
     }
@@ -318,7 +318,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                expiry,
+                session_expiry,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -338,7 +338,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                expiry,
+                session_expiry,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

@@ -182,8 +182,6 @@ pub struct MerchantAccountUpdate {
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
-
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -346,7 +344,7 @@ pub mod payout_routing_algorithm {
         where
             A: de::MapAccess<'de>,
         {
-            let mut output = serde_json::Value::Object(Map::new());
+            let mut output = Map::new();
             let mut routing_data: String = "".to_string();
             let mut routing_type: String = "".to_string();
 
@@ -354,14 +352,20 @@ pub mod payout_routing_algorithm {
                 match key {
                     "type" => {
                         routing_type = map.next_value()?;
-                        output["type"] = serde_json::Value::String(routing_type.to_owned());
+                        output.insert(
+                            "type".to_string(),
+                            serde_json::Value::String(routing_type.to_owned()),
+                        );
                     }
                     "data" => {
                         routing_data = map.next_value()?;
-                        output["data"] = serde_json::Value::String(routing_data.to_owned());
+                        output.insert(
+                            "data".to_string(),
+                            serde_json::Value::String(routing_data.to_owned()),
+                        );
                     }
                     f => {
-                        output[f] = map.next_value()?;
+                        output.insert(f.to_string(), map.next_value()?);
                     }
                 }
             }
@@ -379,7 +383,7 @@ pub mod payout_routing_algorithm {
                 }
                 u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
             }?;
-            Ok(output)
+            Ok(serde_json::Value::Object(output))
         }
     }
 
@@ -1010,6 +1014,10 @@ pub struct BusinessProfileCreate {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
@@ -1077,6 +1085,10 @@ pub struct BusinessProfileResponse {
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<i64>,
+
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
 }
@@ -1136,6 +1148,10 @@ pub struct BusinessProfileUpdate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,

@@ -39,4 +39,24 @@ impl MerchantKeyStore {
         )
         .await
     }
+
+    #[instrument(skip(conn))]
+    pub async fn list_multiple_key_stores(
+        conn: &PgPooledConn,
+        merchant_ids: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as diesel::Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id.eq_any(merchant_ids),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
 }

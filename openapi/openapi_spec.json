@@ -3413,13 +3413,17 @@
               "eps": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "bank_name",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
@@ -6742,6 +6746,18 @@
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "example": "E0001",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "example": "Failed while verifying the card",
+            "nullable": true
           }
         }
       },
@@ -7228,9 +7244,6 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
-          },
-          "payment_link_config": {
-            "nullable": true
           }
         }
       },
@@ -8588,7 +8601,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
               }
             ],
             "nullable": true
@@ -8667,8 +8680,7 @@
         "required": [
           "theme",
           "logo",
-          "seller_name",
-          "sdk_layout"
+          "seller_name"
         ],
         "properties": {
           "theme": {
@@ -8682,10 +8694,6 @@
           "seller_name": {
             "type": "string",
             "description": "Custom merchant name for payment link"
-          },
-          "sdk_layout": {
-            "type": "string",
-            "description": "Custom layout for sdk"
           }
         }
       },
@@ -8710,13 +8718,6 @@
             "type": "string",
             "description": "Custom merchant name for payment link",
             "example": "hyperswitch",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "sdk_layout": {
-            "type": "string",
-            "description": "Custom layout for sdk",
-            "example": "accordion",
             "nullable": true,
             "maxLength": 255
           }
@@ -9866,7 +9867,7 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
-          "intent_fulfillment_time": {
+          "session_expiry": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
@@ -10255,7 +10256,7 @@
             "description": "Request for an incremental authorization",
             "nullable": true
           },
-          "intent_fulfillment_time": {
+          "session_expiry": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
@@ -10274,6 +10275,7 @@
         "required": [
           "status",
           "amount",
+          "net_amount",
           "currency",
           "payment_method",
           "attempt_count"
@@ -10307,6 +10309,12 @@
             "format": "int64",
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 100
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "example": 110
           },
           "amount_capturable": {
             "type": "integer",

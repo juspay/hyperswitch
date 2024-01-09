@@ -952,7 +952,7 @@ pub fn payment_attempt_status_fsm(
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::AttemptStatus::Pending,
+            Some(true) => storage_enums::AttemptStatus::PaymentMethodAwaited,
             _ => storage_enums::AttemptStatus::ConfirmationAwaited,
         },
         None => storage_enums::AttemptStatus::PaymentMethodAwaited,
@@ -965,7 +965,7 @@ pub fn payment_intent_status_fsm(
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
         Some(_) => match confirm {
-            Some(true) => storage_enums::IntentStatus::RequiresCustomerAction,
+            Some(true) => storage_enums::IntentStatus::RequiresPaymentMethod,
             _ => storage_enums::IntentStatus::RequiresConfirmation,
         },
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
@@ -2384,13 +2384,13 @@ pub fn authenticate_client_secret(
             } else {
                 let current_timestamp = common_utils::date_time::now();
 
-                let expiry = payment_intent.expiry.unwrap_or(
+                let session_expiry = payment_intent.session_expiry.unwrap_or(
                     payment_intent
                         .created_at
-                        .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
                 );
 
-                fp_utils::when(current_timestamp > expiry, || {
+                fp_utils::when(current_timestamp > session_expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
                 })
             }
@@ -2605,9 +2605,9 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -2659,9 +2659,9 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -2712,9 +2712,9 @@ mod tests {
             ),
             incremental_authorization_allowed: None,
             authorization_count: None,
-            expiry: Some(
+            session_expiry: Some(
                 common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_FULFILLMENT_TIME)),
+                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
         };
         let req_cs = Some("1".to_string());
@@ -3089,8 +3089,8 @@ impl AttemptType {
 
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
-            surcharge_amount: old_payment_attempt.surcharge_amount,
-            tax_amount: old_payment_attempt.tax_amount,
+            surcharge_amount: None,
+            tax_amount: None,
             payment_method_id: None,
             payment_method: None,
             capture_method: old_payment_attempt.capture_method,
@@ -3133,6 +3133,7 @@ impl AttemptType {
             merchant_connector_id: None,
             unified_code: None,
             unified_message: None,
+            net_amount: old_payment_attempt.amount,
         }
     }
 
@@ -3587,8 +3588,12 @@ impl ApplePayData {
             .into_report()
             .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
-        let ciphertext = &data[..data.len() - 16];
-        let tag = &data[data.len() - 16..];
+        let ciphertext = data
+            .get(..data.len() - 16)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let tag = data
+            .get(data.len() - 16..)
+            .ok_or(errors::ApplePayDecryptionError::DecryptionFailed)?;
         let cipher = Cipher::aes_256_gcm();
         let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
             .into_report()
@@ -3770,13 +3775,11 @@ pub fn validate_order_details_amount(
     }
 }
 
-pub fn validate_intent_fulfillment_time(
-    intent_fulfillment_time: u32,
-) -> Result<(), errors::ApiErrorResponse> {
-    if !(60..=7890000).contains(&intent_fulfillment_time) {
+// This function validates the client secret expiry set by the merchant in the request
+pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErrorResponse> {
+    if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "intent_fulfillment_time should be between 60(1 min) to 7890000(3 months)."
-                .to_string(),
+            message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
         })
     } else {
         Ok(())

@@ -323,7 +323,7 @@ pub struct PaymentsRequest {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
+    pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
@@ -1184,7 +1184,7 @@ pub enum BankRedirectData {
     },
     Eps {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
@@ -2036,6 +2036,11 @@ pub struct PaymentsResponse {
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(example = 100)]
     pub amount: i64,
+
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,  
+    /// If no surcharge_details, net_amount = amount
+    #[schema(example = 110)]
+    pub net_amount: i64,
 
     /// The maximum amount that could be captured from the payment
     #[schema(minimum = 100, example = 6540)]
@@ -3015,7 +3020,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: api_enums::CountryAlpha2,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -3361,7 +3366,7 @@ pub struct PaymentLinkDetails {
     pub client_secret: String,
     pub payment_id: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub expiry: PrimitiveDateTime,
+    pub session_expiry: PrimitiveDateTime,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
@@ -3429,7 +3434,7 @@ pub struct PaymentLinkListResponse {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
     pub config: admin::PaymentLinkConfigRequest,
 }
 

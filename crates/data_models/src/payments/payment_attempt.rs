@@ -107,6 +107,7 @@ pub struct PaymentAttempt {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
+    pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
@@ -183,6 +184,9 @@ pub struct PaymentAttemptNew {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
+    /// amount + surcharge_amount + tax_amount  
+    /// This field will always be derived before updating in the Database
+    pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
@@ -228,6 +232,19 @@ pub struct PaymentAttemptNew {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+}
+
+impl PaymentAttemptNew {
+    /// returns amount + surcharge_amount + tax_amount
+    pub fn calculate_net_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+
+    pub fn populate_derived_fields(self) -> Self {
+        let mut payment_attempt_new = self;
+        payment_attempt_new.net_amount = payment_attempt_new.calculate_net_amount();
+        payment_attempt_new
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

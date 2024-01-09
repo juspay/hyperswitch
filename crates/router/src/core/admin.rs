@@ -419,6 +419,7 @@ pub async fn update_business_profile_cascade(
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
             payment_link_config: None,
+            session_expiry: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1416,8 +1417,8 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
     let db = state.store.as_ref();
     let key_store = db
@@ -1519,9 +1520,6 @@ pub async fn update_business_profile(
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
     let db = state.store.as_ref();
-    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
-    }
     let business_profile = db
         .find_business_profile_by_profile_id(profile_id)
         .await
@@ -1535,8 +1533,8 @@ pub async fn update_business_profile(
         })?
     }
 
-    if let Some(intent_fulfillment_time) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_time(intent_fulfillment_time.to_owned())?;
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
     }
 
     let webhook_details = request
@@ -1588,6 +1586,7 @@ pub async fn update_business_profile(
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
+        session_expiry: request.session_expiry.map(i64::from),
     };
 
     let updated_business_profile = db
