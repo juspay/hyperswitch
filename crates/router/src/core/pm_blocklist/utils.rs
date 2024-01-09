@@ -58,8 +58,8 @@ pub async fn delete_from_blocklist_lookup_db(
                             .decrypt(fingerprint.kms_hash)
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
-                            #[cfg(not(feature = "kms"))]
-                            fingerprint.kms_hash,
+                        #[cfg(not(feature = "kms"))]
+                        fingerprint.kms_hash,
                     );
                 lookup_entries.push((query_future, pm_hash.clone()));
             }
@@ -193,7 +193,7 @@ pub async fn insert_to_blocklist_lookup_db(
                     if pm_hash.len() < 6 {
                         return Err(StorageError::EncryptionError.into());
                     }
-                    if let Some(card_bin) = pm_hash.get(..6){
+                    if let Some(card_bin) = pm_hash.get(..6) {
                         duplicate_check_insert_bin(
                             card_bin,
                             state,
@@ -212,7 +212,7 @@ pub async fn insert_to_blocklist_lookup_db(
                     if pm_hash.len() < 8 {
                         return Err(StorageError::EncryptionError.into());
                     }
-                    if let Some(extended_bin) = pm_hash.get(..8){
+                    if let Some(extended_bin) = pm_hash.get(..8) {
                         duplicate_check_insert_bin(
                             extended_bin,
                             state,
@@ -259,7 +259,7 @@ pub async fn insert_to_blocklist_lookup_db(
                                 #[cfg(feature = "kms")]
                                 kms_decrypted_hash.clone(),
                                 #[cfg(not(feature = "kms"))]
-                                kms_hash.clone()
+                                kms_hash.clone(),
                             )
                             .await
                             .is_ok()
