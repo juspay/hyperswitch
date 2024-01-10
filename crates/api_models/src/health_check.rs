@@ -4,3 +4,9 @@ pub struct RouterHealthCheckResponse {
     pub redis: String,
     pub locker: String,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SchedulerHealthCheckResponse {
+    pub database: String,
+    pub redis: String,
+}
