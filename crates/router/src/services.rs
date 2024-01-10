@@ -19,8 +19,7 @@ use error_stack::{IntoReport, ResultExt};
 use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
-use masking::PeekInterface;
-use masking::StrongSecret;
+use masking::{PeekInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
 use storage_impl::RouterStore;

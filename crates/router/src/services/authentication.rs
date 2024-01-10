@@ -5,13 +5,11 @@ use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-
-#[cfg(feature = "hashicorp-vault")]
-use masking::ExposeInterface;
-
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+#[cfg(feature = "hashicorp-vault")]
+use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
