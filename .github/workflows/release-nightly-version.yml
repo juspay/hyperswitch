@@ -80,6 +80,7 @@ jobs:
 
       - name: Set git configuration
         shell: bash
+        if: ${{ env.POSTMAN_COLLECTION_FILES_UPDATED == 'true' }}
         run: |
           git config --local user.name 'github-actions'
           git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
