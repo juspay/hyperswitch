@@ -22,6 +22,7 @@ use crate::{
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
     },
     sdk_events::events::SdkEventsResult,
+    connector_events::events::ConnectorEventsResult,
     types::TableEngine,
 };
 
@@ -120,6 +121,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             }
             AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
             AnalyticsCollection::ApiEvents => TableEngine::BasicTree,
+            AnalyticsCollection::ConnectorEvents => TableEngine::BasicTree,
         }
     }
 }
@@ -145,6 +147,7 @@ impl super::sdk_events::events::SdkEventsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
+impl super::connector_events::events::ConnectorEventLogAnalytics for ClickhouseClient {}
 
 #[derive(Debug, serde::Serialize)]
 struct CkhQuery {
@@ -178,6 +181,18 @@ impl TryInto<SdkEventsResult> for serde_json::Value {
             .into_report()
             .change_context(ParsingError::StructParseFailure(
                 "Failed to parse SdkEventsResult in clickhouse results",
+            ))
+    }
+}
+
+impl TryInto<ConnectorEventsResult> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<ConnectorEventsResult, Self::Error> {
+        serde_json::from_value(self)
+            .into_report()
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse ConnectorEventsResult in clickhouse results",
             ))
     }
 }
@@ -326,6 +341,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::SdkEvents => Ok("sdk_events_dist".to_string()),
             Self::ApiEvents => Ok("api_audit_log".to_string()),
             Self::PaymentIntent => Ok("payment_intents_dist".to_string()),
+            Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
         }
     }
 }

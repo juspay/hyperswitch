@@ -15,9 +15,10 @@ use common_utils::{
     impl_misc_api_event_type,
 };
 
+#[allow(unused_imports)]
 use crate::{
     admin::*,
-    analytics::{api_event::*, sdk_events::*, *},
+    analytics::{api_event::*, sdk_events::*, *, connector_events::ConnectorEventsRequest},
     api_keys::*,
     cards_info::*,
     disputes::*,
@@ -89,7 +90,8 @@ impl_misc_api_event_type!(
     ApiLogsRequest,
     GetApiEventMetricRequest,
     SdkEventsRequest,
-    ReportRequest
+    ReportRequest,
+    ConnectorEventsRequest
 );
 
 #[cfg(feature = "stripe")]

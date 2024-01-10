@@ -26,6 +26,7 @@ pub enum AnalyticsCollection {
     SdkEvents,
     ApiEvents,
     PaymentIntent,
+    ConnectorEvents,
 }
 
 #[allow(dead_code)]
