@@ -3,6 +3,12 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
+
+#[cfg(feature = "hashicorp-vault")]
+use masking::ExposeInterface;
+
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -257,9 +263,14 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
+            #[cfg(not(feature = "kms"))]
+            let admin_api_key = secrets.admin_api_key.clone();
+
             #[cfg(feature = "kms")]
             let admin_api_key = secrets
                 .kms_encrypted_admin_api_key
@@ -268,8 +279,13 @@ pub async fn get_admin_api_key(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt admin API key")?;
 
-            #[cfg(not(feature = "kms"))]
-            let admin_api_key = secrets.admin_api_key.clone();
+            #[cfg(feature = "hashicorp-vault")]
+            let admin_api_key = masking::Secret::new(admin_api_key)
+                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt admin API key")?
+                .expose();
 
             Ok(StrongSecret::new(admin_api_key))
         })
@@ -297,8 +313,15 @@ where
             &conf.secrets,
             #[cfg(feature = "kms")]
             kms::get_kms_client(&conf.kms).await,
+            #[cfg(feature = "hashicorp-vault")]
+            external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting admin api key")?,
         )
         .await?;
+
+        println!("{:?} {:?}", admin_api_key.peek(), request_admin_api_key);
 
         if request_admin_api_key != admin_api_key.peek() {
             Err(report!(errors::ApiErrorResponse::Unauthorized)

@@ -190,6 +190,18 @@ impl KmsConfig {
 #[serde(transparent)]
 pub struct KmsValue(Secret<String>);
 
+impl From<String> for KmsValue {
+    fn from(value: String) -> Self {
+        Self(Secret::new(value))
+    }
+}
+
+impl From<Secret<String>> for KmsValue {
+    fn from(value: Secret<String>) -> Self {
+        Self(value)
+    }
+}
+
 #[cfg(feature = "hashicorp-vault")]
 #[async_trait::async_trait]
 impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
