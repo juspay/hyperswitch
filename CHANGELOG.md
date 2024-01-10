@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.105.0+hotfix.5 (2024-01-10)
+
+### Refactors
+
+- Removed basilisk feature ([#3300](https://github.com/juspay/hyperswitch/pull/3300)) ([`e6f0c99`](https://github.com/juspay/hyperswitch/commit/e6f0c994bb4c3865f869a2cd783944d7274d55ab))
+
+**Full Changelog:** [`v1.105.0+hotfix.4...v1.105.0+hotfix.5`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.4...v1.105.0+hotfix.5)
+
+- - -
+
 ## 1.105.0+hotfix.4 (2024-01-09)
 
 ### Bug Fixes
