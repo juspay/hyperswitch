@@ -58,12 +58,6 @@ mock_locker = true
 basilisk_host = ""
 
 [jwekey]
-locker_key_identifier1 = ""
-locker_key_identifier2 = ""
-locker_encryption_key1 = ""
-locker_encryption_key2 = ""
-locker_decryption_key1 = ""
-locker_decryption_key2 = ""
 vault_encryption_key = ""
 rust_locker_encryption_key = ""
 vault_private_key = ""
