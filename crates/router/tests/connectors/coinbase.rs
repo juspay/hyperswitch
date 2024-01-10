@@ -256,7 +256,7 @@ fn coinbase_payments_request_try_from_works() {
             .unwrap_err()
             .current_context(),
         &ConnectorError::InvalidConnectorConfig {
-            config: "`pricing_type` not present in `CoinbaseConnectorMeta`"
+            config: "metadata"
         },
     );
 
@@ -268,7 +268,7 @@ fn coinbase_payments_request_try_from_works() {
         .unwrap_err()
         .current_context(),
         &ConnectorError::InvalidConnectorConfig {
-            config: "`pricing_type` not present in `CoinbaseConnectorMeta`"
+            config: "metadata"
         },
     );
 
@@ -280,7 +280,7 @@ fn coinbase_payments_request_try_from_works() {
         .unwrap_err()
         .current_context(),
         &ConnectorError::InvalidConnectorConfig {
-            config: "`pricing_type` not present in `CoinbaseConnectorMeta`"
+            config: "metadata"
         },
     );
 

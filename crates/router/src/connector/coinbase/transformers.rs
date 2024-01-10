@@ -257,7 +257,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinbaseConnectorMeta {
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         utils::to_connector_meta_from_secret(meta_data.clone()).change_context(
             errors::ConnectorError::InvalidConnectorConfig {
-                config: "`pricing_type` not present in `CoinbaseConnectorMeta`",
+                config: "metadata",
             },
         )
     }
