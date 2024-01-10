@@ -152,7 +152,10 @@ pub async fn list_blocked_pm_from_db(
                 blocked_extended_bins: extended_bin
                     .iter()
                     .map(|extended_bin| {
-                        (extended_bin.fingerprint.clone(), extended_bin.metadata.clone())
+                        (
+                            extended_bin.fingerprint.clone(),
+                            extended_bin.metadata.clone(),
+                        )
                     })
                     .collect::<Vec<_>>(),
             })

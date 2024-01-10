@@ -717,7 +717,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         // Validate Blocklist
         let merchant_id = payment_data.payment_attempt.merchant_id;
-        let merchant_fingerprint_secret = core_utils::get_merchant_fingerprint_secret(merchant_id, &state).await?;
+        let merchant_fingerprint_secret =
+            core_utils::get_merchant_fingerprint_secret(merchant_id, &state).await?;
 
         // Hashed Fingerprint to check whether or not this payment should be blocked.
         let fingerprint_hash = payment_data
@@ -790,21 +791,20 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         let cardbin_encoded_hash = cardbin_hash.map(|id| hex::encode(id));
 
-        let extended_cardbin_encoded_hash =
-            extended_cardbin_hash.map(|id| hex::encode(id));
+        let extended_cardbin_encoded_hash = extended_cardbin_hash.map(|id| hex::encode(id));
 
         let fingerprint_encoded_hash = fingerprint_hash.map(|id| hex::encode(id));
         let mut fingerprint_id = None;
 
         //validating the payment method.
         let mut is_pm_blocklisted = false;
-        let find_for_fingerprint = if let Some(fingerprint_encoded_hash) = fingerprint_encoded_hash {
-            db
-                .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
-                    merchant_id.clone(),
-                    fingerprint_encoded_hash
-                        .clone()
-                ).await
+        let find_for_fingerprint = if let Some(fingerprint_encoded_hash) = fingerprint_encoded_hash
+        {
+            db.find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
+                merchant_id.clone(),
+                fingerprint_encoded_hash.clone(),
+            )
+            .await
         } else {
             None
         };
@@ -812,23 +812,23 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let find_for_cardbin = if let Some(cardbin_encoded_hash) = cardbin_encoded_hash {
             db.find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
                 merchant_id.clone(),
-                cardbin_encoded_hash
-                    .clone()
-            ).await
+                cardbin_encoded_hash.clone(),
+            )
+            .await
         } else {
             None
         };
 
-        let find_for_extended_cardbin = if let Some(extended_cardbin_encoded_hash) = extended_cardbin_encoded_hash {
-            db
-            .find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
-                merchant_id.clone(),
-                extended_cardbin_encoded_hash
-                    .clone()
-            ).await
-        } else {
-            None
-        };
+        let find_for_extended_cardbin =
+            if let Some(extended_cardbin_encoded_hash) = extended_cardbin_encoded_hash {
+                db.find_blocklist_lookup_entry_by_merchant_id_kms_decrypted_hash(
+                    merchant_id.clone(),
+                    extended_cardbin_encoded_hash.clone(),
+                )
+                .await
+            } else {
+                None
+            };
 
         let (is_fingerprint_blocked, is_cardbin_blocked, is_extended_cardbin_blocked) = tokio::join!(
             find_for_fingerprint,
@@ -857,23 +857,23 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                fingerprint_id =
-                    db.insert_pm_fingerprint_entry(
-                        diesel_models::pm_fingerprint::PmFingerprintNew {
-                            fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
-                            #[cfg(feature = "kms")]
-                            encrypted_fingerprint,
-                            #[cfg(not(feature = "kms"))]
-                            encrypted_fingerprint: fingerprint_encoded_hash
-                                .clone()
-                                .unwrap_or_else(|| {
-                                        logger::error!("Unable to save fingerprint_id");
-                                        "".to_string()
-                                    }),
-                        },
-                    )
+                fingerprint_id = db
+                    .insert_pm_fingerprint_entry(diesel_models::pm_fingerprint::PmFingerprintNew {
+                        fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
+                        #[cfg(feature = "kms")]
+                        encrypted_fingerprint,
+                        #[cfg(not(feature = "kms"))]
+                        encrypted_fingerprint: fingerprint_encoded_hash.clone().unwrap_or_else(
+                            || {
+                                logger::error!("Unable to save fingerprint_id");
+                                "".to_string()
+                            },
+                        ),
+                    })
                     .await
-                    .map_err(|err| {logger::error!(error=?err, "fingerprint_id not found");})
+                    .map_err(|err| {
+                        logger::error!(error=?err, "fingerprint_id not found");
+                    })
                     .ok()
                     .map(|fingerprint| fingerprint.fingerprint_id)
             }
