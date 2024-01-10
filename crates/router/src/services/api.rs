@@ -1494,7 +1494,7 @@ pub fn build_redirection_form(
                     }
 
                 // This is the iframe recommended by cybersource but the redirection happens inside this iframe once otp
-                // is recieved and we lose control of the redirection on user client browser, so to avoid that we have removed this iframe and directly consumed it.
+                // is received and we lose control of the redirection on user client browser, so to avoid that we have removed this iframe and directly consumed it.
                 // (PreEscaped(r#"<iframe id="step_up_iframe" style="border: none; margin-left: auto; margin-right: auto; display: block" height="800px" width="400px" name="stepUpIframe"></iframe>"#))
                 (PreEscaped(format!("<form id=\"step_up_form\" method=\"POST\" action=\"{step_up_url}\">
                 <input id=\"step_up_form_jwt_input\" type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
