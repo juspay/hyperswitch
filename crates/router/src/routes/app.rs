@@ -3,10 +3,11 @@ use std::sync::Arc;
 use actix_web::{web, Scope};
 #[cfg(all(feature = "aws_kms", feature = "olap"))]
 use analytics::AnalyticsConfig;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
+#[cfg(feature = "aws_kms")]
+use external_services::kms::aws_kms;
+use external_services::kms::{self, decrypt::KmsDecrypt, Encryption, EncryptionScheme};
 #[cfg(all(feature = "olap", feature = "aws_kms"))]
 use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
@@ -140,8 +141,7 @@ impl AppState {
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         Box::pin(async move {
-            #[cfg(feature = "aws_kms")]
-            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
+            let kms_client = kms::get_kms_client(&conf.kms).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -183,7 +183,7 @@ impl AppState {
                 AnalyticsConfig::Sqlx { ref mut sqlx }
                 | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
                 | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
-                    sqlx.password = aws_kms_client
+                    sqlx.password = kms_client
                         .decrypt(&sqlx.password.peek())
                         .await
                         .expect("Failed to decrypt password")
@@ -196,7 +196,7 @@ impl AppState {
             {
                 conf.connector_onboarding = conf
                     .connector_onboarding
-                    .decrypt_inner(aws_kms_client)
+                    .decrypt_inner(&kms_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }
@@ -209,7 +209,7 @@ impl AppState {
             let kms_secrets = settings::ActiveKmsSecrets {
                 jwekey: conf.jwekey.clone().into(),
             }
-            .decrypt_inner(aws_kms_client)
+            .decrypt_inner(&kms_client)
             .await
             .expect("Failed while performing AWS KMS decryption");
 

@@ -1,7 +1,8 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+use external_services::kms::aws_kms;
+use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "aws_kms"))]
 use masking::PeekInterface;
 
@@ -26,12 +27,12 @@ pub async fn redis_connection(
 pub async fn diesel_make_pg_pool(
     database: &Database,
     _test_transaction: bool,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &'static aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] kms_client: &'static kms::EncryptionScheme,
 ) -> PgPool {
     #[cfg(feature = "aws_kms")]
     let password = database
         .password
-        .decrypt_inner(aws_kms_client)
+        .decrypt_inner(kms_client)
         .await
         .expect("Failed to decrypt password");
 

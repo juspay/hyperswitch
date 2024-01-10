@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+use external_services::kms::aws_kms::{self, decrypt::AwsKmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;

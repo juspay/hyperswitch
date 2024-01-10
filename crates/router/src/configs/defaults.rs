@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms::AwsKmsValue;
+use external_services::kms::KmsValue;
 
 use super::settings::{ConnectorFields, Password, PaymentMethodType, RequiredFieldFinal};
 
@@ -5282,7 +5282,7 @@ impl Default for super::settings::ApiKeys {
     fn default() -> Self {
         Self {
             #[cfg(feature = "aws_kms")]
-            kms_encrypted_hash_key: AwsKmsValue::default(),
+            kms_encrypted_hash_key: KmsValue::default(),
 
             // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
             // hashes of API keys

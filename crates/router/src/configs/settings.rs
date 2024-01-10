@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
@@ -9,10 +10,9 @@ use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
+use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -27,10 +27,7 @@ use crate::{
     env::{self, logger, Env},
     events::EventsConfig,
 };
-#[cfg(feature = "aws_kms")]
-pub type Password = aws_kms::AwsKmsValue;
-#[cfg(not(feature = "aws_kms"))]
-pub type Password = masking::Secret<String>;
+pub type Password = kms::KmsValue;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -61,6 +58,23 @@ pub struct ActiveKmsSecrets {
     pub jwekey: masking::Secret<Jwekey>,
 }
 
+trait EncryptionState {}
+
+#[derive(Debug)]
+struct Decryptable<T, S: EncryptionState> {
+    inner: T,
+    marker: PhantomData<S>,
+}
+
+#[derive(Debug)]
+struct Decrypted {}
+
+#[derive(Debug)]
+struct Encrypted {}
+
+impl EncryptionState for Decrypted {}
+impl EncryptionState for Encrypted {}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Settings {
@@ -86,8 +100,7 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
-    #[cfg(feature = "aws_kms")]
-    pub kms: aws_kms::AwsKmsConfig,
+    pub kms: kms::KmsConfig,
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
@@ -466,11 +479,11 @@ pub struct Secrets {
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_jwt_secret: aws_kms::AwsKmsValue,
+    pub kms_encrypted_jwt_secret: kms::KmsValue,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_admin_api_key: kms::KmsValue,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_recon_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -701,7 +714,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_hash_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_hash_key: kms::KmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys

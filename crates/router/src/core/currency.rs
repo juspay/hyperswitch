@@ -17,7 +17,6 @@ pub async fn retrieve_forex(
             state.conf.forex_api.call_delay,
             state.conf.forex_api.local_fetch_retry_delay,
             state.conf.forex_api.local_fetch_retry_count,
-            #[cfg(feature = "aws_kms")]
             &state.conf.kms,
         )
         .await
@@ -42,7 +41,6 @@ pub async fn convert_forex(
             amount,
             to_currency,
             from_currency,
-            #[cfg(feature = "aws_kms")]
             &state.conf.kms,
         ))
         .await

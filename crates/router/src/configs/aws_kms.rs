@@ -1,17 +1,17 @@
 use common_utils::errors::CustomResult;
-use external_services::aws_kms::{decrypt::AwsKmsDecrypt, AwsKmsClient, AwsKmsError};
+use external_services::kms::{decrypt::KmsDecrypt, Encryption, EncryptionScheme, KmsError};
 use masking::ExposeInterface;
 
 use crate::configs::settings;
 
 #[async_trait::async_trait]
-impl AwsKmsDecrypt for settings::Jwekey {
+impl KmsDecrypt for settings::Jwekey {
     type Output = Self;
 
     async fn decrypt_inner(
         mut self,
-        aws_kms_client: &AwsKmsClient,
-    ) -> CustomResult<Self::Output, AwsKmsError> {
+        kms_client: &EncryptionScheme,
+    ) -> CustomResult<Self::Output, KmsError> {
         (
             self.locker_encryption_key1,
             self.locker_encryption_key2,
@@ -22,50 +22,45 @@ impl AwsKmsDecrypt for settings::Jwekey {
             self.vault_private_key,
             self.tunnel_private_key,
         ) = tokio::try_join!(
-            aws_kms_client.decrypt(self.locker_encryption_key1),
-            aws_kms_client.decrypt(self.locker_encryption_key2),
-            aws_kms_client.decrypt(self.locker_decryption_key1),
-            aws_kms_client.decrypt(self.locker_decryption_key2),
-            aws_kms_client.decrypt(self.vault_encryption_key),
-            aws_kms_client.decrypt(self.rust_locker_encryption_key),
-            aws_kms_client.decrypt(self.vault_private_key),
-            aws_kms_client.decrypt(self.tunnel_private_key),
+            kms_client.decrypt(self.locker_encryption_key1),
+            kms_client.decrypt(self.locker_encryption_key2),
+            kms_client.decrypt(self.locker_decryption_key1),
+            kms_client.decrypt(self.locker_decryption_key2),
+            kms_client.decrypt(self.vault_encryption_key),
+            kms_client.decrypt(self.rust_locker_encryption_key),
+            kms_client.decrypt(self.vault_private_key),
+            kms_client.decrypt(self.tunnel_private_key),
         )?;
         Ok(self)
     }
 }
 
 #[async_trait::async_trait]
-impl AwsKmsDecrypt for settings::ActiveKmsSecrets {
+impl KmsDecrypt for settings::ActiveKmsSecrets {
     type Output = Self;
     async fn decrypt_inner(
         mut self,
-        aws_kms_client: &AwsKmsClient,
-    ) -> CustomResult<Self::Output, AwsKmsError> {
-        self.jwekey = self
-            .jwekey
-            .expose()
-            .decrypt_inner(aws_kms_client)
-            .await?
-            .into();
+        kms_client: &EncryptionScheme,
+    ) -> CustomResult<Self::Output, KmsError> {
+        self.jwekey = self.jwekey.expose().decrypt_inner(kms_client).await?.into();
         Ok(self)
     }
 }
 
 #[async_trait::async_trait]
-impl AwsKmsDecrypt for settings::Database {
+impl KmsDecrypt for settings::Database {
     type Output = storage_impl::config::Database;
 
     async fn decrypt_inner(
         mut self,
-        aws_kms_client: &AwsKmsClient,
-    ) -> CustomResult<Self::Output, AwsKmsError> {
+        kms_client: &EncryptionScheme,
+    ) -> CustomResult<Self::Output, KmsError> {
         Ok(storage_impl::config::Database {
             host: self.host,
             port: self.port,
             dbname: self.dbname,
             username: self.username,
-            password: self.password.decrypt_inner(aws_kms_client).await?.into(),
+            password: self.password.decrypt_inner(kms_client).await?.into(),
             pool_size: self.pool_size,
             connection_timeout: self.connection_timeout,
             queue_strategy: self.queue_strategy,
@@ -77,39 +72,33 @@ impl AwsKmsDecrypt for settings::Database {
 
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
-impl AwsKmsDecrypt for settings::PayPalOnboarding {
+impl KmsDecrypt for settings::PayPalOnboarding {
     type Output = Self;
 
     async fn decrypt_inner(
         mut self,
-        aws_kms_client: &AwsKmsClient,
-    ) -> CustomResult<Self::Output, AwsKmsError> {
-        self.client_id = aws_kms_client
-            .decrypt(self.client_id.expose())
-            .await?
-            .into();
-        self.client_secret = aws_kms_client
+        kms_client: &EncryptionScheme,
+    ) -> CustomResult<Self::Output, KmsError> {
+        self.client_id = kms_client.decrypt(self.client_id.expose()).await?.into();
+        self.client_secret = kms_client
             .decrypt(self.client_secret.expose())
             .await?
             .into();
-        self.partner_id = aws_kms_client
-            .decrypt(self.partner_id.expose())
-            .await?
-            .into();
+        self.partner_id = kms_client.decrypt(self.partner_id.expose()).await?.into();
         Ok(self)
     }
 }
 
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
-impl AwsKmsDecrypt for settings::ConnectorOnboarding {
+impl KmsDecrypt for settings::ConnectorOnboarding {
     type Output = Self;
 
     async fn decrypt_inner(
         mut self,
-        aws_kms_client: &AwsKmsClient,
-    ) -> CustomResult<Self::Output, AwsKmsError> {
-        self.paypal = self.paypal.decrypt_inner(aws_kms_client).await?;
+        kms_client: &EncryptionScheme,
+    ) -> CustomResult<Self::Output, KmsError> {
+        self.paypal = self.paypal.decrypt_inner(kms_client).await?;
         Ok(self)
     }
 }

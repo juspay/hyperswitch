@@ -6,8 +6,8 @@
 #[cfg(feature = "email")]
 pub mod email;
 
-#[cfg(feature = "aws_kms")]
-pub mod aws_kms;
+#[allow(missing_docs)]
+pub mod kms;
 
 /// Crate specific constants
 #[cfg(feature = "aws_kms")]
@@ -17,7 +17,7 @@ pub mod consts {
         base64::engine::general_purpose::STANDARD;
 }
 
-/// Metrics for interactions with external systems.
+/// Metrics for interactions with external systems.-
 #[cfg(feature = "aws_kms")]
 pub mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};

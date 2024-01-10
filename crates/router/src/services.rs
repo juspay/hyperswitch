@@ -16,7 +16,8 @@ use data_models::errors::StorageError;
 use data_models::errors::StorageResult;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+use external_services::kms::aws_kms::{self, decrypt::AwsKmsDecrypt};
+use external_services::kms::decrypt::KmsDecrypt;
 #[cfg(not(feature = "aws_kms"))]
 use masking::PeekInterface;
 use masking::StrongSecret;
