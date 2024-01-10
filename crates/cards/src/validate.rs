@@ -35,6 +35,9 @@ impl CardNumber {
             .rev()
             .collect::<String>()
     }
+    pub fn get_card_extended_bin(self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
 }
 
 impl FromStr for CardNumber {
