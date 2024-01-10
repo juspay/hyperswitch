@@ -1166,21 +1166,19 @@ pub enum NmiWebhookEventType {
 impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
     fn foreign_from(status: NmiWebhookEventType) -> Self {
         match status {
-            NmiWebhookEventType::SaleSuccess | NmiWebhookEventType::CaptureSuccess => {
-                Self::PaymentIntentSuccess
-            }
-            NmiWebhookEventType::SaleFailure | NmiWebhookEventType::CaptureFailure => {
-                Self::PaymentIntentFailure
-            }
+            NmiWebhookEventType::SaleSuccess => Self::PaymentIntentSuccess,
+            NmiWebhookEventType::SaleFailure => Self::PaymentIntentFailure,
             NmiWebhookEventType::RefundSuccess => Self::RefundSuccess,
             NmiWebhookEventType::RefundFailure => Self::RefundFailure,
             NmiWebhookEventType::VoidSuccess => Self::PaymentIntentCancelled,
+            NmiWebhookEventType::AuthSuccess => Self::PaymentIntentAuthorizationSuccess,
+            NmiWebhookEventType::CaptureSuccess => Self::PaymentIntentCaptureSuccess,
+            NmiWebhookEventType::AuthFailure => Self::PaymentIntentAuthorizationFailure,
+            NmiWebhookEventType::CaptureFailure => Self::PaymentIntentCaptureFailure,
+            NmiWebhookEventType::VoidFailure => Self::PaymentIntentCancelFailure,
             NmiWebhookEventType::SaleUnknown
             | NmiWebhookEventType::RefundUnknown
-            | NmiWebhookEventType::AuthSuccess
-            | NmiWebhookEventType::AuthFailure
             | NmiWebhookEventType::AuthUnknown
-            | NmiWebhookEventType::VoidFailure
             | NmiWebhookEventType::VoidUnknown
             | NmiWebhookEventType::CaptureUnknown => Self::EventNotSupported,
         }

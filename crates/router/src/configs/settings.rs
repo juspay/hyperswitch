@@ -499,12 +499,6 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    pub locker_key_identifier1: String,
-    pub locker_key_identifier2: String,
-    pub locker_encryption_key1: String,
-    pub locker_encryption_key2: String,
-    pub locker_decryption_key1: String,
-    pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub rust_locker_encryption_key: String,
     pub vault_private_key: String,

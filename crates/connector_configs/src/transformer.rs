@@ -10,7 +10,7 @@ use api_models::{
 
 use crate::common_config::{
     ApiModelMetaData, ConnectorApiIntegrationPayload, DashboardMetaData, DashboardRequestPayload,
-    GoogleApiModelData, GooglePayData, PaymentMethodsEnabled,
+    GoogleApiModelData, GooglePayData, PaymentMethodsEnabled, Provider,
 };
 
 impl DashboardRequestPayload {
@@ -63,23 +63,23 @@ impl DashboardRequestPayload {
     }
     pub fn transform_payment_method(
         connector: Connector,
-        provider: Vec<PaymentMethodType>,
+        provider: Vec<Provider>,
         payment_method: PaymentMethod,
     ) -> Vec<payment_methods::RequestPaymentMethodTypes> {
         let mut payment_method_types = Vec::new();
         for method_type in provider {
             let data = payment_methods::RequestPaymentMethodTypes {
-                payment_method_type: method_type,
+                payment_method_type: method_type.payment_method_type,
                 card_networks: None,
                 minimum_amount: Some(0),
                 maximum_amount: Some(68607706),
                 recurring_enabled: true,
                 installment_payment_enabled: false,
-                accepted_currencies: None,
-                accepted_countries: None,
+                accepted_currencies: method_type.accepted_currencies,
+                accepted_countries: method_type.accepted_countries,
                 payment_experience: Self::get_payment_experience(
                     connector,
-                    method_type,
+                    method_type.payment_method_type,
                     payment_method,
                 ),
             };
@@ -109,7 +109,7 @@ impl DashboardRequestPayload {
                                 for method in card_provider {
                                     let data = payment_methods::RequestPaymentMethodTypes {
                                         payment_method_type: payment_type,
-                                        card_networks: Some(vec![method]),
+                                        card_networks: Some(vec![method.payment_method_type]),
                                         minimum_amount: Some(0),
                                         maximum_amount: Some(68607706),
                                         recurring_enabled: true,
