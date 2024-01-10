@@ -628,10 +628,18 @@ impl Capturable for PaymentsAuthorizeData {
         {
             common_enums::CaptureMethod::Automatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
-                if matches!(intent_status, common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Processing) {
-                    Some(0)
-                } else {
-                    None
+                match intent_status {
+                    common_enums::IntentStatus::Succeeded
+                    | common_enums::IntentStatus::Failed
+                    | common_enums::IntentStatus::Processing => Some(0),
+                    common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::RequiresCustomerAction
+                    | common_enums::IntentStatus::RequiresMerchantAction
+                    | common_enums::IntentStatus::RequiresPaymentMethod
+                    | common_enums::IntentStatus::RequiresConfirmation
+                    | common_enums::IntentStatus::RequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
@@ -659,15 +667,18 @@ impl Capturable for PaymentsCaptureData {
         F: Clone,
     {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
-        if matches!(
-            intent_status,
+        match intent_status {
             common_enums::IntentStatus::Succeeded
-                | common_enums::IntentStatus::PartiallyCaptured
-                | common_enums::IntentStatus::Processing
-        ) {
-            Some(0)
-        } else {
-            None
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Processing => Some(0),
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
@@ -694,10 +705,18 @@ impl Capturable for CompleteAuthorizeData {
         {
             common_enums::CaptureMethod::Automatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
-                if matches!(intent_status, common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Failed |common_enums::IntentStatus::Processing) {
-                    Some(0)
-                } else {
-                    None
+                match intent_status {
+                    common_enums::IntentStatus::Succeeded|
+                    common_enums::IntentStatus::Failed|
+                    common_enums::IntentStatus::Processing => Some(0),
+                    common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::RequiresCustomerAction
+                    | common_enums::IntentStatus::RequiresMerchantAction
+                    | common_enums::IntentStatus::RequiresPaymentMethod
+                    | common_enums::IntentStatus::RequiresConfirmation
+                    | common_enums::IntentStatus::RequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
@@ -726,15 +745,18 @@ impl Capturable for PaymentsCancelData {
         F: Clone,
     {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
-        if matches!(
-            intent_status,
+        match intent_status {
             common_enums::IntentStatus::Cancelled
-                | common_enums::IntentStatus::Processing
-                | common_enums::IntentStatus::PartiallyCaptured
-        ) {
-            Some(0)
-        } else {
-            None
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
@@ -762,6 +784,20 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        if attempt_status.is_terminal_status() {
+            Some(0)
+        } else {
+            None
+        }
     }
 }
 

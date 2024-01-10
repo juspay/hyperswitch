@@ -5,7 +5,6 @@ use api_models::{
     payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
 use base64::Engine;
-use common_enums::IntentStatus;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
@@ -29,9 +28,8 @@ use crate::{
     },
     pii::PeekInterface,
     types::{
-        self, api,
-        transformers::{ForeignFrom, ForeignTryFrom},
-        ApplePayPredecryptData, BrowserInformation, PaymentsCancelData, ResponseId,
+        self, api, transformers::ForeignTryFrom, ApplePayPredecryptData, BrowserInformation,
+        PaymentsCancelData, ResponseId,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -95,9 +93,6 @@ pub trait PaymentResponseRouterData {
     ) -> enums::AttemptStatus
     where
         F: Clone;
-    fn get_amount_capturable<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
-    where
-        F: Clone;
 }
 
 impl<Flow, Request, Response> PaymentResponseRouterData
@@ -133,31 +128,6 @@ where
                 }
             }
             _ => self.status,
-        }
-    }
-    fn get_amount_capturable<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
-    where
-        F: Clone,
-    {
-        let intent_status =
-            IntentStatus::foreign_from(self.get_attempt_status_for_db_update(payment_data));
-        match intent_status {
-            IntentStatus::RequiresCapture => Some(payment_data.payment_attempt.get_total_amount()),
-
-            IntentStatus::Processing
-            | IntentStatus::RequiresCustomerAction
-            | IntentStatus::RequiresMerchantAction
-            | IntentStatus::RequiresPaymentMethod
-            | IntentStatus::RequiresConfirmation
-            // terminal statuses
-            | IntentStatus::PartiallyCaptured
-            | IntentStatus::Succeeded
-            | IntentStatus::Failed
-            | IntentStatus::Cancelled => Some(0),
-
-            // In case of multiple partial captures, amount capturable must be inferred from capture objects
-            // this happens during payment response handling
-            IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
