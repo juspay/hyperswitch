@@ -1335,7 +1335,7 @@ pub struct CybersourceConsumerAuthInformationResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ClientAuthSetupInfoResposne {
+pub struct ClientAuthSetupInfoResponse {
     id: String,
     client_reference_information: ClientReferenceInformation,
     consumer_authentication_information: CybersourceConsumerAuthInformationResponse,
@@ -1344,7 +1344,7 @@ pub struct ClientAuthSetupInfoResposne {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum CybersourceAuthSetupResponse {
-    ClientAuthSetupInfo(ClientAuthSetupInfoResposne),
+    ClientAuthSetupInfo(ClientAuthSetupInfoResponse),
     ErrorInformation(CybersourceErrorInformationResponse),
 }
 
