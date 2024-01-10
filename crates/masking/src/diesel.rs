@@ -2,7 +2,6 @@
 //! Diesel-related.
 //!
 
-pub use diesel::Expression;
 use diesel::{
     backend::Backend,
     deserialize::{self, FromSql, Queryable},

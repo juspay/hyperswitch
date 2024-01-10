@@ -3,7 +3,7 @@
 //!
 
 pub use erased_serde::Serialize as ErasedSerialize;
-pub use serde::{de, ser, Deserialize, Serialize, Serializer};
+pub use serde::{de, Deserialize, Serialize, Serializer};
 use serde_json::{value::Serializer as JsonValueSerializer, Value};
 
 use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};

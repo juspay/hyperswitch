@@ -386,6 +386,8 @@ pay_later.klarna = { connector_list = "adyen" }     # Mandate supported payment 
 bank_debit.ach = { connector_list = "gocardless" }  # Mandate supported payment method type and connector for bank_debit
 bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
 bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = {connector_list = "stripe,adyen"} # Mandate supported payment method type and connector for bank_redirect
+
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -471,7 +473,7 @@ apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"         #Merchant Cer
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" #Private key generate by RSA:2048 algorithm
 
 [payment_link]
-sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
 
 [payment_method_auth]
 redis_expiry = 900
@@ -524,9 +526,10 @@ enabled = true # Switch to enable or disable PayPal onboarding
 source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                       # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"   # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"  # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"   # Kafka topic to be used for Refund events
-api_logs_topic = "topic"           # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"     # Kafka topic to be used for connector api events
+brokers = []                              # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"          # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"         # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"          # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                  # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"            # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"     # Kafka topic to be used for outgoing webhook events

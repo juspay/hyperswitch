@@ -385,7 +385,7 @@ fn get_payment_method_data(
         api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
             number: ccard.card_number.clone(),
             expiry_month: ccard.card_exp_month.clone(),
-            expiry_year: ccard.get_card_expiry_year_2_digit(),
+            expiry_year: ccard.get_card_expiry_year_2_digit()?,
             cvv: ccard.card_cvc.clone(),
             account_type: None,
             authcode: None,

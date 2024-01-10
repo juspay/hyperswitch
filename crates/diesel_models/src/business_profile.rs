@@ -32,6 +32,8 @@ pub struct BusinessProfile {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub session_expiry: Option<i64>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -55,6 +57,8 @@ pub struct BusinessProfileNew {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub session_expiry: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -75,6 +79,8 @@ pub struct BusinessProfileUpdateInternal {
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub session_expiry: Option<i64>,
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
@@ -97,6 +103,8 @@ impl From<BusinessProfileNew> for BusinessProfile {
             payout_routing_algorithm: new.payout_routing_algorithm,
             is_recon_enabled: new.is_recon_enabled,
             applepay_verified_domains: new.applepay_verified_domains,
+            payment_link_config: new.payment_link_config,
+            session_expiry: new.session_expiry,
         }
     }
 }
@@ -118,6 +126,8 @@ impl BusinessProfileUpdateInternal {
             payout_routing_algorithm,
             is_recon_enabled,
             applepay_verified_domains,
+            payment_link_config,
+            session_expiry,
         } = self;
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -136,6 +146,8 @@ impl BusinessProfileUpdateInternal {
             payout_routing_algorithm,
             is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
             applepay_verified_domains,
+            payment_link_config,
+            session_expiry,
             ..source
         }
     }
