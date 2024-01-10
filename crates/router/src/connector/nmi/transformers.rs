@@ -1166,12 +1166,8 @@ pub enum NmiWebhookEventType {
 impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
     fn foreign_from(status: NmiWebhookEventType) -> Self {
         match status {
-            NmiWebhookEventType::SaleSuccess | NmiWebhookEventType::CaptureSuccess => {
-                Self::PaymentIntentSuccess
-            }
-            NmiWebhookEventType::SaleFailure | NmiWebhookEventType::CaptureFailure => {
-                Self::PaymentIntentFailure
-            }
+            NmiWebhookEventType::SaleSuccess => Self::PaymentIntentSuccess,
+            NmiWebhookEventType::SaleFailure => Self::PaymentIntentFailure,
             NmiWebhookEventType::RefundSuccess => Self::RefundSuccess,
             NmiWebhookEventType::RefundFailure => Self::RefundFailure,
             NmiWebhookEventType::VoidSuccess => Self::PaymentIntentCancelled,
