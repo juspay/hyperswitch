@@ -19,8 +19,9 @@ use std::{collections::HashMap, marker::PhantomData};
 
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
-    payouts as payout_types,
+    mandates, payouts as payout_types,
 };
+use common_enums::MandateStatus;
 pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
@@ -116,6 +117,11 @@ pub type SetupMandateType = dyn services::ConnectorIntegration<
     api::SetupMandate,
     SetupMandateRequestData,
     PaymentsResponseData,
+>;
+pub type MandateRevokeType = dyn services::ConnectorIntegration<
+    api::MandateRevoke,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
 >;
 pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     api::PreProcessing,
@@ -246,6 +252,9 @@ pub type RetrieveFileRouterData =
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
+pub type MandateRevokeRouterData =
+    RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
@@ -373,8 +382,8 @@ pub struct PayoutsFulfillResponseData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
-    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)  
-    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately  
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```
     /// get_original_amount()
     /// get_surcharge_amount()
@@ -407,6 +416,7 @@ pub struct PaymentsAuthorizeData {
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -956,6 +966,17 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub http_code: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct MandateRevokeRequestData {
+    pub mandate_id: String,
+    pub connector_mandate_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MandateRevokeResponseData {
+    pub mandate_status: MandateStatus,
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -1245,6 +1266,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
+            metadata: None,
         }
     }
 }

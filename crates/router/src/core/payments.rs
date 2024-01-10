@@ -166,6 +166,7 @@ where
         &mut payment_data,
         &validate_result,
         &key_store,
+        &customer,
     )
     .await?;
 
@@ -337,6 +338,7 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
+                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -570,6 +572,7 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -615,7 +618,7 @@ where
             .attach_printable("error performing surcharge decision operation")?;
 
         surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, merchant_account)
+            .persist_individual_surcharge_details_in_redis(state, business_profile)
             .await?;
 
         Ok(if surcharge_results.is_empty_result() {
@@ -1039,6 +1042,7 @@ where
         validate_result,
         &merchant_connector_account,
         key_store,
+        customer,
     )
     .await?;
 
@@ -1752,6 +1756,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -1770,24 +1775,10 @@ where
         .unwrap_or(false);
 
     let payment_data_and_tokenization_action = match connector {
-        Some(connector_name) if is_mandate => {
-            if connector_name == *"cybersource" {
-                let (_operation, payment_method_data) = operation
-                    .to_domain()?
-                    .make_pm_data(
-                        state,
-                        payment_data,
-                        validate_result.storage_scheme,
-                        merchant_key_store,
-                    )
-                    .await?;
-                payment_data.payment_method_data = payment_method_data;
-            }
-            (
-                payment_data.to_owned(),
-                TokenizationAction::SkipConnectorTokenization,
-            )
-        }
+        Some(_) if is_mandate => (
+            payment_data.to_owned(),
+            TokenizationAction::SkipConnectorTokenization,
+        ),
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
@@ -1833,6 +1824,7 @@ where
                             payment_data,
                             validate_result.storage_scheme,
                             merchant_key_store,
+                            customer,
                         )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
@@ -1848,6 +1840,7 @@ where
                             payment_data,
                             validate_result.storage_scheme,
                             merchant_key_store,
+                            customer,
                         )
                         .await?;
 
@@ -1870,7 +1863,7 @@ where
             };
             (payment_data.to_owned(), connector_tokenization_action)
         }
-        Some(_) | None => (
+        _ => (
             payment_data.to_owned(),
             TokenizationAction::SkipConnectorTokenization,
         ),
@@ -1885,6 +1878,7 @@ pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
@@ -1899,6 +1893,7 @@ where
                 payment_data,
                 validate_result.storage_scheme,
                 merchant_key_store,
+                customer,
             )
             .await?;
         payment_data.payment_method_data = payment_method_data;
@@ -2172,10 +2167,7 @@ pub async fn apply_filters_on_payments(
             merchant.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
-        .into_iter()
-        .map(|(pi, pa)| (pi, pa))
-        .collect();
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
