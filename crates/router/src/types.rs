@@ -420,6 +420,7 @@ pub struct PaymentsCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    // This metadata is used to store the metadata shared during the payment intent request.
 }
 
 #[derive(Debug, Clone, Default)]
@@ -535,6 +536,7 @@ pub struct PaymentsCancelData {
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    // This metadata is used to store the metadata shared during the payment intent request.
 }
 
 #[derive(Debug, Default, Clone)]
