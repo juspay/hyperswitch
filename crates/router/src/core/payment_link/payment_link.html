@@ -63,7 +63,6 @@
         width: 100vw;
         display: flex;
         justify-content: center;
-        background-color: white;
         padding: 20px 0;
       }
 
@@ -133,7 +132,6 @@
       #hyper-checkout-cart-image {
         height: 64px;
         width: 64px;
-        border: 1px solid #e6e6e6;
         border-radius: 4px;
         display: flex;
         align-self: flex-start;
@@ -342,10 +340,6 @@
       .hyper-checkout-sdk-header-amount {
         font-weight: 800;
         font-size: 25px;
-      }
-
-      .payNow {
-        margin-top: 10px;
       }
 
       .page-spinner {
@@ -605,9 +599,38 @@
         text-align: center;
       }
 
+      #submit {
+        cursor: pointer;
+        margin-top: 20px;
+        width: 100%;
+        height: 38px;
+        background-color: var(--primary-color);
+        border: 0;
+        border-radius: 4px;
+        font-size: 18px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #submit.disabled {
+        cursor: not-allowed;
+      }
+
+      #submit-spinner {
+        width: 28px;
+        height: 28px;
+        border: 4px solid #fff;
+        border-bottom-color: #ff3d00;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+        animation: loading 1s linear infinite;
+      }
+
       @media only screen and (max-width: 1400px) {
         body {
-          overflow: scroll;
+          overflow-y: scroll;
         }
 
         .hyper-checkout {
@@ -720,6 +743,7 @@
           background-color: transparent;
           width: auto;
           min-width: 300px;
+          box-shadow: none;
         }
 
         #payment-form-wrap {
@@ -748,7 +772,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
     />
   </head>
-  <body>
+  <body class="hide-scrollbar">
     <!-- SVG ICONS -->
     <svg xmlns="http://www.w3.org/2000/svg" display="none">
       <defs>
@@ -920,7 +944,7 @@
         <div></div>
       </div>
     </div>
-    <div class="hyper-checkout">
+    <div class="hyper-checkout hide-scrollbar">
       <div class="main hidden" id="hyper-checkout-status-canvas">
         <div class="hyper-checkout-status-wrap">
           <div id="hyper-checkout-status-header"></div>
@@ -1035,8 +1059,12 @@
               <div></div>
             </div>
           </div>
-          <form id="payment-form">
+          <form id="payment-form" onclick="handleSubmit(); return false;">
             <div id="unified-checkout"></div>
+            <button id="submit" class="hidden">
+              <span id="submit-spinner" class="hidden"></span>
+              <span id="submit-button-text">Pay now</span>
+            </button>
             <div id="payment-message" class="hidden"></div>
           </form>
         </div>
@@ -1060,7 +1088,7 @@
       window.state = {
         prevHeight: window.innerHeight,
         prevWidth: window.innerWidth,
-        isMobileView: window.innerWidth <= 1200,
+        isMobileView: window.innerWidth <= 1400,
         currentScreen: "payment_link",
       };
 
@@ -1088,9 +1116,9 @@
         }
 
         // Render UI
-        renderPaymentDetails();
-        renderSDKHeader();
-        renderCart();
+        renderPaymentDetails(paymentDetails);
+        renderSDKHeader(paymentDetails);
+        renderCart(paymentDetails);
 
         // Deal w loaders
         show("#sdk-spinner");
@@ -1098,7 +1126,7 @@
         hide("#unified-checkout");
 
         // Add event listeners
-        initializeEventListeners();
+        initializeEventListeners(paymentDetails);
 
         // Initialize SDK
         if (window.Hyper) {
@@ -1115,15 +1143,18 @@
       }
       boot();
 
-      function initializeEventListeners() {
-        var primaryColor = window
-          .getComputedStyle(document.documentElement)
-          .getPropertyValue("--primary-color");
+      function initializeEventListeners(paymentDetails) {
+        var primaryColor = paymentDetails.theme;
         var lighterColor = adjustLightness(primaryColor, 1.4);
         var darkerColor = adjustLightness(primaryColor, 0.8);
         var contrastBWColor = invert(primaryColor, true);
+        var contrastingTone =
+          Array.isArray(a) && a.length > 4 ? darkerColor : lighterColor;
         var hyperCheckoutNode = document.getElementById(
           "hyper-checkout-payment"
+        );
+        var hyperCheckoutCartImageNode = document.getElementById(
+          "hyper-checkout-cart-image"
         );
         var hyperCheckoutFooterNode = document.getElementById(
           "hyper-checkout-payment-footer"
@@ -1131,14 +1162,27 @@
         var statusRedirectTextNode = document.getElementById(
           "hyper-checkout-status-redirect-message"
         );
+        var submitButtonNode = document.getElementById("submit");
+        var submitButtonLoaderNode = document.getElementById("submit-spinner");
 
-        if (window.innerWidth <= 1200) {
+        if (submitButtonLoaderNode instanceof HTMLSpanElement) {
+          submitButtonLoaderNode.style.borderBottomColor = contrastingTone;
+        }
+
+        if (submitButtonNode instanceof HTMLButtonElement) {
+          submitButtonNode.style.color = contrastBWColor;
+        }
+
+        if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
+          hyperCheckoutCartImageNode.style.backgroundColor = contrastingTone;
+        }
+
+        if (window.innerWidth <= 1400) {
           statusRedirectTextNode.style.color = "#333333";
           hyperCheckoutNode.style.color = contrastBWColor;
           var a = lighterColor.match(/[fF]/gi);
-          hyperCheckoutFooterNode.style.backgroundColor =
-            Array.isArray(a) && a.length > 4 ? darkerColor : lighterColor;
-        } else if (window.innerWidth > 1200) {
+          hyperCheckoutFooterNode.style.backgroundColor = contrastingTone;
+        } else if (window.innerWidth > 1400) {
           statusRedirectTextNode.style.color = contrastBWColor;
           hyperCheckoutNode.style.color = "#333333";
           hyperCheckoutFooterNode.style.backgroundColor = "#F5F5F5";
@@ -1147,7 +1191,7 @@
         window.addEventListener("resize", function (event) {
           var currentHeight = window.innerHeight;
           var currentWidth = window.innerWidth;
-          if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
+          if (currentWidth <= 1400 && window.state.prevWidth > 1400) {
             hide("#hyper-checkout-cart");
             if (window.state.currentScreen === "payment_link") {
               show("#hyper-footer");
@@ -1162,7 +1206,7 @@
                 error
               );
             }
-          } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
+          } else if (currentWidth > 1400 && window.state.prevWidth <= 1400) {
             if (window.state.currentScreen === "payment_link") {
               hide("#hyper-footer");
             }
@@ -1178,16 +1222,17 @@
 
           window.state.prevHeight = currentHeight;
           window.state.prevWidth = currentWidth;
-          window.state.isMobileView = currentWidth <= 1200;
+          window.state.isMobileView = currentWidth <= 1400;
         });
       }
 
-      function showSDK() {
-        checkStatus()
+      function showSDK(paymentDetails) {
+        checkStatus(paymentDetails)
           .then(function (res) {
             if (res.showSdk) {
               show("#hyper-checkout-sdk");
               show("#hyper-checkout-details");
+              show("#submit");
             } else {
               hide("#hyper-checkout-details");
               hide("#hyper-checkout-sdk");
@@ -1195,6 +1240,8 @@
               hide("#hyper-footer");
               window.state.currentScreen = "status";
             }
+            show("#unified-checkout");
+            hide("#sdk-spinner");
           })
           .catch(function (err) {
             console.error("Failed to check status", err);
@@ -1217,14 +1264,13 @@
             colorBackground: "rgb(255, 255, 255)",
           },
         };
-        hyper = window.Hyper(pub_key);
+        hyper = window.Hyper(pub_key, { isPreloadEnabled: false });
         widgets = hyper.widgets({
           appearance: appearance,
           clientSecret: client_secret,
         });
         var unifiedCheckoutOptions = {
           layout: "tabs",
-          sdkHandleConfirmPayment: true,
           branding: "never",
           wallets: {
             walletReturnUrl: paymentDetails.return_url,
@@ -1237,35 +1283,7 @@
         };
         unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
         mountUnifiedCheckout("#unified-checkout");
-
-        // Add event listener for SDK iframe mutations
-        var orcaIFrame = document.getElementById(
-          "orca-payment-element-iframeRef-unified-checkout"
-        );
-        var callback = function (mutationList, observer) {
-          for (var i = 0; i < mutationList.length; i++) {
-            var mutation = mutationList[i];
-
-            if (
-              mutation.type === "attributes" &&
-              mutation.attributeName === "style"
-            ) {
-              show("#unified-checkout");
-              hide("#sdk-spinner");
-            }
-          }
-        };
-        var observer = new MutationObserver(callback);
-        observer.observe(orcaIFrame, { attributes: true });
-
-        // Handle button press callback
-        var paymentElement = widgets.getElement("payment");
-        if (paymentElement) {
-          paymentElement.on("confirmTriggered", function (event) {
-            handleSubmit(event);
-          });
-        }
-        showSDK();
+        showSDK(paymentDetails);
       }
 
       // Util functions
@@ -1277,6 +1295,14 @@
 
       function handleSubmit(e) {
         var paymentDetails = window.__PAYMENT_DETAILS;
+
+        // Update button loader
+        hide("#submit-button-text");
+        show("#submit-spinner");
+        var submitButtonNode = document.getElementById("submit");
+        submitButtonNode.disabled = true;
+        submitButtonNode.classList.add("disabled");
+
         hyper
           .confirmPayment({
             widgets: widgets,
@@ -1293,9 +1319,6 @@
               } else {
                 showMessage("An unexpected error occurred.");
               }
-
-              // Re-initialize SDK
-              mountUnifiedCheckout("#unified-checkout");
             } else {
               // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your 'return_url'.
               // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the 'return_url'.
@@ -1320,13 +1343,18 @@
           })
           .catch(function (error) {
             console.error("Error confirming payment_intent", error);
+          })
+          .finally(() => {
+            hide("#submit-spinner");
+            show("#submit-button-text");
+            submitButtonNode.disabled = false;
+            submitButtonNode.classList.remove("disabled");
           });
       }
 
       // Fetches the payment status after payment submission
-      function checkStatus() {
+      function checkStatus(paymentDetails) {
         return new window.Promise(function (resolve, reject) {
-          var paymentDetails = window.__PAYMENT_DETAILS;
           var res = {
             showSdk: true,
           };
@@ -1669,9 +1697,7 @@
         return formatted;
       }
 
-      function renderPaymentDetails() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
-
+      function renderPaymentDetails(paymentDetails) {
         // Create price node
         var priceNode = document.createElement("div");
         priceNode.className = "hyper-checkout-payment-price";
@@ -1720,8 +1746,7 @@
         footerNode.append(paymentExpiryNode);
       }
 
-      function renderCart() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
+      function renderCart(paymentDetails) {
         var orderDetails = paymentDetails.order_details;
 
         // Cart items
@@ -1749,7 +1774,9 @@
           if (totalItems > MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
             var expandButtonNode = document.createElement("div");
             expandButtonNode.className = "hyper-checkout-cart-button";
-            expandButtonNode.onclick = handleCartView;
+            expandButtonNode.onclick = () => {
+              handleCartView(paymentDetails);
+            };
             var buttonImageNode = document.createElement("svg");
             buttonImageNode.id = "hyper-checkout-cart-button-arrow";
             buttonImageNode.innerHTML =
@@ -1822,8 +1849,7 @@
         cartItemsNode.append(itemWrapperNode);
       }
 
-      function handleCartView() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
+      function handleCartView(paymentDetails) {
         var orderDetails = paymentDetails.order_details;
         var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
           paymentDetails.max_items_visible_after_collapse;
@@ -1911,9 +1937,7 @@
         show("#hyper-checkout-cart");
       }
 
-      function renderSDKHeader() {
-        var paymentDetails = window.__PAYMENT_DETAILS;
-
+      function renderSDKHeader(paymentDetails) {
         // SDK headers' items
         var sdkHeaderItemNode = document.createElement("div");
         sdkHeaderItemNode.className = "hyper-checkout-sdk-items";

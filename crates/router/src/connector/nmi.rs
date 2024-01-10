@@ -873,6 +873,21 @@ impl api::IncomingWebhook for Nmi {
                     reference_body.event_body.order_id,
                 ),
             ),
+            nmi::NmiActionType::Auth => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
+            nmi::NmiActionType::Capture => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
+            nmi::NmiActionType::Void => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
             nmi::NmiActionType::Refund => api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::RefundId(reference_body.event_body.order_id),
             ),
