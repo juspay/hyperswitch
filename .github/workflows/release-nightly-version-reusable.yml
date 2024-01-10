@@ -3,11 +3,8 @@ name: Create a nightly tag
 on:
   workflow_call:
     secrets:
-      app_id:
-        description: App ID for the GitHub app
-        required: true
-      app_private_key:
-        description: Private key for the GitHub app
+      token:
+        description: GitHub token for authenticating with GitHub
         required: true
     outputs:
       tag:
@@ -31,23 +28,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate GitHub app token
-        id: generate_app_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.app_id }}
-          private-key: ${{ secrets.app_private_key }}
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.token }}
 
       - name: Check if the workflow is run on an allowed branch
         shell: bash
         run: |
-          if [[ "${{github.ref}}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
-            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{github.ref}}'"
+          if [[ "${{ github.ref }}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
+            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{ github.ref }}'"
             exit 1
           fi
 
@@ -139,62 +130,22 @@ jobs:
             }' CHANGELOG.md
           rm release-notes.md
 
-        # We make use of GitHub API calls to commit and tag the changelog instead of the simpler
-        # `git commit`, `git tag` and `git push` commands to have signed commits and tags
-      - name: Commit generated changelog and create tag
+      - name: Set git configuration
         shell: bash
-        env:
-          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
-          HEAD_COMMIT="$(git rev-parse 'HEAD^{commit}')"
+          git config --local user.name 'github-actions'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          # Create a tree based on the HEAD commit of the current branch and updated changelog file
-          TREE_SHA="$(
-            gh api \
-              --method POST \
-              --header 'Accept: application/vnd.github+json' \
-              --header 'X-GitHub-Api-Version: 2022-11-28' \
-              '/repos/{owner}/{repo}/git/trees' \
-              --raw-field base_tree="${HEAD_COMMIT}" \
-              --raw-field 'tree[][path]=CHANGELOG.md' \
-              --raw-field 'tree[][mode]=100644' \
-              --raw-field 'tree[][type]=blob' \
-              --field 'tree[][content]=@CHANGELOG.md' \
-              --jq '.sha'
-          )"
+      - name: Commit, tag and push generated changelog
+        shell: bash
+        run: |
+          git add CHANGELOG.md
+          git commit --message "chore(version): ${NEXT_TAG}"
 
-          # Create a commit to point to the above created tree
-          NEW_COMMIT_SHA="$(
-            gh api \
-              --method POST \
-              --header 'Accept: application/vnd.github+json' \
-              --header 'X-GitHub-Api-Version: 2022-11-28' \
-              '/repos/{owner}/{repo}/git/commits' \
-              --raw-field "message=chore(version): ${NEXT_TAG}" \
-              --raw-field "parents[]=${HEAD_COMMIT}" \
-              --raw-field "tree=${TREE_SHA}" \
-              --jq '.sha'
-          )"
+          git tag "${NEXT_TAG}" HEAD
 
-          # Update the current branch to point to the above created commit
-          # We disable forced update so that the workflow will fail if the branch has been updated since the workflow started
-          # (for example, new commits were pushed to the branch after the workflow execution started).
-          gh api \
-            --method PATCH \
-            --header 'Accept: application/vnd.github+json' \
-            --header 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/{owner}/{repo}/git/refs/heads/${ALLOWED_BRANCH_NAME}" \
-            --raw-field "sha=${NEW_COMMIT_SHA}" \
-            --field 'force=false'
-
-          # Create a lightweight tag to point to the above created commit
-          gh api \
-            --method POST \
-            --header 'Accept: application/vnd.github+json' \
-            --header 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/{owner}/{repo}/git/refs' \
-            --raw-field "ref=refs/tags/${NEXT_TAG}" \
-            --raw-field "sha=${NEW_COMMIT_SHA}"
+          git push origin "${ALLOWED_BRANCH_NAME}"
+          git push origin "${NEXT_TAG}"
 
       - name: Set job outputs
         shell: bash
