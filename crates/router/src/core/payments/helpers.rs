@@ -1532,6 +1532,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1621,6 +1622,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
+                customer,
             )
             .await
             .attach_printable("in 'make_pm_data'")?;
