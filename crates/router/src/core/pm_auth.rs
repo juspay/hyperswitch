@@ -17,8 +17,8 @@ use common_utils::{
 };
 use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-pub use external_services::kms;
+#[cfg(feature = "aws_kms")]
+pub use external_services::aws_kms;
 use helpers::PaymentAuthConnectorDataExt;
 use masking::{ExposeInterface, PeekInterface};
 use pm_auth::{
@@ -345,14 +345,14 @@ async fn store_bank_details_in_payment_methods(
         }
     }
 
-    #[cfg(feature = "kms")]
-    let pm_auth_key = kms::get_kms_client(&state.conf.kms)
+    #[cfg(feature = "aws_kms")]
+    let pm_auth_key = aws_kms::get_aws_kms_client(&state.conf.kms)
         .await
         .decrypt(state.conf.payment_method_auth.pm_auth_key.clone())
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let pm_auth_key = state.conf.payment_method_auth.pm_auth_key.clone();
 
     let mut update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)> =

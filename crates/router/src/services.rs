@@ -11,13 +11,13 @@ pub mod pm_auth;
 #[cfg(feature = "email")]
 pub mod email;
 
-#[cfg(feature = "kms")]
+#[cfg(feature = "aws_kms")]
 use data_models::errors::StorageError;
 use data_models::errors::StorageResult;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms::{self, decrypt::KmsDecrypt};
-#[cfg(not(feature = "kms"))]
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+#[cfg(not(feature = "aws_kms"))]
 use masking::PeekInterface;
 use masking::StrongSecret;
 #[cfg(feature = "kv_store")]
@@ -43,36 +43,36 @@ pub async fn get_store(
     shut_down_signal: oneshot::Sender<()>,
     test_transaction: bool,
 ) -> StorageResult<Store> {
-    #[cfg(feature = "kms")]
-    let kms_client = kms::get_kms_client(&config.kms).await;
+    #[cfg(feature = "aws_kms")]
+    let aws_kms_client = aws_kms::get_aws_kms_client(&config.kms).await;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let master_config = config
         .master_database
         .clone()
-        .decrypt_inner(kms_client)
+        .decrypt_inner(aws_kms_client)
         .await
         .change_context(StorageError::InitializationError)
         .attach_printable("Failed to decrypt master database config")?;
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let master_config = config.master_database.clone().into();
 
-    #[cfg(all(feature = "olap", feature = "kms"))]
+    #[cfg(all(feature = "olap", feature = "aws_kms"))]
     let replica_config = config
         .replica_database
         .clone()
-        .decrypt_inner(kms_client)
+        .decrypt_inner(aws_kms_client)
         .await
         .change_context(StorageError::InitializationError)
         .attach_printable("Failed to decrypt replica database config")?;
 
-    #[cfg(all(feature = "olap", not(feature = "kms")))]
+    #[cfg(all(feature = "olap", not(feature = "aws_kms")))]
     let replica_config = config.replica_database.clone().into();
 
     let master_enc_key = get_master_enc_key(
         config,
-        #[cfg(feature = "kms")]
-        kms_client,
+        #[cfg(feature = "aws_kms")]
+        aws_kms_client,
     )
     .await;
     #[cfg(not(feature = "olap"))]
@@ -107,20 +107,20 @@ pub async fn get_store(
 #[allow(clippy::expect_used)]
 async fn get_master_enc_key(
     conf: &crate::configs::settings::Settings,
-    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
 ) -> StrongSecret<Vec<u8>> {
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let master_enc_key = hex::decode(
         conf.secrets
             .master_enc_key
             .clone()
-            .decrypt_inner(kms_client)
+            .decrypt_inner(aws_kms_client)
             .await
             .expect("Failed to decrypt master enc key"),
     )
     .expect("Failed to decode from hex");
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let master_enc_key =
         hex::decode(conf.secrets.master_enc_key.peek()).expect("Failed to decode from hex");
 
