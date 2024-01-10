@@ -357,7 +357,8 @@ async fn store_bank_details_in_payment_methods(
         let output = masking::Secret::new(state.conf.payment_method_auth.pm_auth_key.clone())
             .fetch_inner::<hashicorp_vault::Kv2>(client)
             .await
-            .change_context(ApiErrorResponse::InternalServerError)?.expose();
+            .change_context(ApiErrorResponse::InternalServerError)?
+            .expose();
 
         #[cfg(not(feature = "hashicorp-vault"))]
         let output = state.conf.payment_method_auth.pm_auth_key.clone();

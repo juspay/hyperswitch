@@ -6,10 +6,10 @@ use error_stack::{IntoReport, Report, ResultExt};
 use external_services::hashicorp_vault;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "hashicorp-vault")]
-use masking::ExposeInterface;
 #[cfg(feature = "kms")]
 use external_services::kms;
+#[cfg(feature = "hashicorp-vault")]
+use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{

@@ -132,7 +132,7 @@ impl HashiCorpVault {
         I: FromEncoded,
     {
         let output = En::read(self, data).await?;
-        I::from_encoded(output).ok_or(error_stack::report!(HashiCorpError::DecodingFailed))
+        I::from_encoded(output).ok_or(error_stack::report!(HashiCorpError::HexDecodingFailed))
     }
 }
 
@@ -183,15 +183,11 @@ pub enum HashiCorpError {
 
     /// Failed while decoding data to hex format
     #[error("Failed while decoding hex data")]
-    DecodingFailed,
+    HexDecodingFailed,
 
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
-
-    /// An error occurred when hex decoding input data.
-    #[error("Failed to hex decode input data")]
-    HexDecodingFailed,
 
     /// An error occurred when KMS decrypting input data.
     #[error("Failed to KMS decrypt input data")]
