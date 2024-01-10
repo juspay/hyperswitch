@@ -344,10 +344,8 @@ impl NewUserMerchant {
                 merchant_details: None,
                 routing_algorithm: None,
                 parent_merchant_id: None,
-                payment_link_config: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
-                intent_fulfillment_time: None,
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,
@@ -556,7 +554,7 @@ impl NewUser {
                 user_id,
                 role_id,
                 created_at: now,
-                last_modified_at: now,
+                last_modified: now,
                 org_id: self
                     .get_new_merchant()
                     .get_new_organization()
@@ -736,6 +734,29 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)
     }
+
+    #[cfg(feature = "email")]
+    pub fn get_verification_days_left(&self, state: AppState) -> UserResult<Option<i64>> {
+        if self.0.is_verified {
+            return Ok(None);
+        }
+
+        let allowed_unverified_duration =
+            time::Duration::days(state.conf.email.allowed_unverified_days);
+
+        let user_created = self.0.created_at.date();
+        let last_date_for_verification = user_created
+            .checked_add(allowed_unverified_duration)
+            .ok_or(UserErrors::InternalServerError)?;
+
+        let today = common_utils::date_time::now().date();
+        if today >= last_date_for_verification {
+            return Err(UserErrors::UnverifiedUser.into());
+        }
+
+        let days_left_for_verification = last_date_for_verification - today;
+        Ok(Some(days_left_for_verification.whole_days()))
+    }
 }
 
 impl TryFrom<info::ModuleInfo> for user_role_api::ModuleInfo {
@@ -765,6 +786,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::Routing => Self::Routing,
             info::PermissionModule::Analytics => Self::Analytics,
             info::PermissionModule::Mandates => Self::Mandates,
+            info::PermissionModule::Customer => Self::Customer,
             info::PermissionModule::Disputes => Self::Disputes,
             info::PermissionModule::Files => Self::Files,
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
@@ -806,7 +828,7 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             role_id,
             status,
             role_name,
-            last_modified_at: user_and_role.1.last_modified_at,
+            last_modified_at: user_and_role.0.last_modified_at,
         })
     }
 }

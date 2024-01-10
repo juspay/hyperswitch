@@ -6,8 +6,10 @@ use storage_impl::errors::ApplicationError;
 use crate::{db::KafkaProducer, services::kafka::KafkaSettings};
 
 pub mod api_logs;
+pub mod connector_api_logs;
 pub mod event_logger;
 pub mod kafka_handler;
+pub mod outgoing_webhook_logs;
 
 pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
     fn log_event(&self, event: RawEvent);
@@ -29,6 +31,8 @@ pub enum EventType {
     PaymentAttempt,
     Refund,
     ApiLogs,
+    ConnectorApiLogs,
+    OutgoingWebhookLogs,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

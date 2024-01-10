@@ -20,6 +20,8 @@ use super::currency;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "oltp")]
+use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
@@ -59,6 +61,7 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
+    pub request_id: Option<RequestId>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -95,7 +98,8 @@ impl AppStateInfo for AppState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string())
+        self.store.add_request_id(request_id.to_string());
+        self.request_id.replace(request_id);
     }
 
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
@@ -224,6 +228,7 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
+                request_id: None,
             }
         })
         .await
@@ -248,9 +253,10 @@ pub struct Health;
 
 impl Health {
     pub fn server(state: AppState) -> Scope {
-        web::scope("")
+        web::scope("health")
             .app_data(web::Data::new(state))
-            .service(web::resource("/health").route(web::get().to(health)))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
     }
 }
 
@@ -555,6 +561,8 @@ impl PaymentMethods {
                     .route(web::post().to(payment_method_update_api))
                     .route(web::delete().to(payment_method_delete_api)),
             )
+            .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
+            .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
     }
 }
 
@@ -859,11 +867,6 @@ impl User {
         route = route
             .service(web::resource("/signin").route(web::post().to(user_signin)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
-            .service(
-                web::resource("/data/merchant")
-                    .route(web::post().to(set_merchant_scoped_dashboard_metadata)),
-            )
-            .service(web::resource("/data").route(web::get().to(get_multiple_dashboard_metadata)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
             .service(
@@ -875,7 +878,12 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
-            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)));
+            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(
+                web::resource("/data")
+                    .route(web::get().to(get_multiple_dashboard_metadata))
+                    .route(web::post().to(set_dashboard_metadata)),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -893,10 +901,15 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("user/invite").route(web::post().to(invite_user)))
+                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
+                )
+                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
+                .service(
+                    web::resource("/verify_email_request")
+                        .route(web::post().to(verify_email_request)),
                 );
         }
         #[cfg(not(feature = "email"))]

@@ -92,7 +92,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount;
+        let amount = payment_attempt.get_total_amount();
 
         let profile_id = payment_intent
             .profile_id
@@ -149,6 +149,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 authorization_id: None,
             }),
             authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -308,6 +309,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
         Option<api::PaymentMethodData>,

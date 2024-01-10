@@ -212,6 +212,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
+            api_models::enums::Connector::Placetopay => Self::Placetopay,
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
@@ -225,6 +226,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Riskified => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "riskified is not a routable connector".to_string(),
                 })
                 .into_report()?
             }
@@ -936,19 +943,27 @@ impl
     }
 }
 
-impl ForeignFrom<(storage::PaymentLink, String)>
-    for api_models::payments::RetrievePaymentLinkResponse
+impl
+    ForeignFrom<(
+        storage::PaymentLink,
+        api_models::payments::PaymentLinkStatus,
+    )> for api_models::payments::RetrievePaymentLinkResponse
 {
-    fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
+    fn foreign_from(
+        (payment_link_config, status): (
+            storage::PaymentLink,
+            api_models::payments::PaymentLinkStatus,
+        ),
+    ) -> Self {
         Self {
-            payment_link_id: payment_link_object.payment_link_id,
-            merchant_id: payment_link_object.merchant_id,
-            link_to_pay: payment_link_object.link_to_pay,
-            amount: payment_link_object.amount,
-            created_at: payment_link_object.created_at,
-            link_expiry: payment_link_object.fulfilment_time,
-            description: payment_link_object.description,
-            currency: payment_link_object.currency,
+            payment_link_id: payment_link_config.payment_link_id,
+            merchant_id: payment_link_config.merchant_id,
+            link_to_pay: payment_link_config.link_to_pay,
+            amount: payment_link_config.amount,
+            created_at: payment_link_config.created_at,
+            expiry: payment_link_config.fulfilment_time,
+            description: payment_link_config.description,
+            currency: payment_link_config.currency,
             status,
         }
     }

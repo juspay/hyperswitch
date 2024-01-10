@@ -29,6 +29,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
@@ -330,6 +331,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
+                let payment_attempt = payment_attempt.populate_derived_fields();
                 let key = format!(
                     "mid_{}_pid_{}",
                     payment_attempt.merchant_id, payment_attempt.payment_id
@@ -342,6 +344,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     attempt_id: payment_attempt.attempt_id.clone(),
                     status: payment_attempt.status,
                     amount: payment_attempt.amount,
+                    net_amount: payment_attempt.net_amount,
                     currency: payment_attempt.currency,
                     save_to_locker: payment_attempt.save_to_locker,
                     connector: payment_attempt.connector.clone(),
@@ -423,7 +426,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(errors::StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
@@ -1034,6 +1037,7 @@ impl DataModelExt for PaymentAttempt {
             attempt_id: self.attempt_id,
             status: self.status,
             amount: self.amount,
+            net_amount: Some(self.net_amount),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
@@ -1080,6 +1084,7 @@ impl DataModelExt for PaymentAttempt {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
@@ -1138,6 +1143,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
+            net_amount: Some(self.net_amount),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1188,6 +1194,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,

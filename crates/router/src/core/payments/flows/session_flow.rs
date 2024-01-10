@@ -1,6 +1,6 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, Report, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
@@ -15,7 +15,7 @@ use crate::{
     routes::{self, metrics},
     services,
     types::{self, api, domain},
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 #[async_trait]
@@ -124,13 +124,6 @@ fn build_apple_pay_session_request(
     apple_pay_merchant_cert: String,
     apple_pay_merchant_cert_key: String,
 ) -> RouterResult<services::Request> {
-    let applepay_session_request = types::RequestBody::log_and_get_request_body(
-        &request,
-        utils::Encode::<payment_types::ApplepaySessionRequest>::encode_to_string_of_json,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encode ApplePay session request to a string of json")?;
-
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
 
@@ -142,7 +135,7 @@ fn build_apple_pay_session_request(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string().into(),
         )])
-        .body(Some(applepay_session_request))
+        .set_body(RequestContent::Json(Box::new(request)))
         .add_certificate(Some(apple_pay_merchant_cert))
         .add_certificate_key(Some(apple_pay_merchant_cert_key))
         .build();
@@ -378,13 +371,7 @@ fn get_apple_pay_payment_request(
     merchant_identifier: &str,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: session_data
-            .country
-            .to_owned()
-            .get_required_value("country_code")
-            .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "country_code",
-            })?,
+        country_code: session_data.country,
         currency_code: session_data.currency,
         total: amount_info,
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),

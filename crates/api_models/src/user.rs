@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -120,4 +120,22 @@ pub struct UserDetails {
     pub status: UserStatus,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: time::PrimitiveDateTime,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VerifyEmailRequest {
+    pub token: Secret<String>,
+}
+
+pub type VerifyEmailResponse = DashboardEntryResponse;
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct SendVerifyEmailRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UserMerchantAccount {
+    pub merchant_id: String,
+    pub merchant_name: OptionalEncryptableName,
 }

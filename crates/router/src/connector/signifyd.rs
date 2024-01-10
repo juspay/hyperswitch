@@ -1,6 +1,8 @@
 pub mod transformers;
 use std::fmt::Debug;
 
+#[cfg(feature = "frm")]
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as signifyd;
@@ -9,7 +11,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -17,9 +19,8 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
-    services,
     types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -125,6 +126,20 @@ impl
         types::PaymentsResponseData,
     > for Signifyd
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Signifyd".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentSession for Signifyd {}
@@ -210,14 +225,9 @@ impl
         &self,
         req: &frm_types::FrmSaleRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = signifyd::SignifydPaymentsSaleRequest::try_from(req)?;
-        let signifyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<signifyd::SignifydPaymentsSaleRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(signifyd_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -231,7 +241,7 @@ impl
                 .url(&frm_types::FrmSaleType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(frm_types::FrmSaleType::get_headers(self, req, connectors)?)
-                .body(frm_types::FrmSaleType::get_request_body(
+                .set_body(frm_types::FrmSaleType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -297,14 +307,9 @@ impl
         &self,
         req: &frm_types::FrmCheckoutRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = signifyd::SignifydPaymentsCheckoutRequest::try_from(req)?;
-        let signifyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<signifyd::SignifydPaymentsCheckoutRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(signifyd_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -320,7 +325,7 @@ impl
                 .headers(frm_types::FrmCheckoutType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmCheckoutType::get_request_body(
+                .set_body(frm_types::FrmCheckoutType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -386,14 +391,9 @@ impl
         &self,
         req: &frm_types::FrmTransactionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = signifyd::SignifydPaymentsTransactionRequest::try_from(req)?;
-        let signifyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<signifyd::SignifydPaymentsTransactionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(signifyd_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -411,7 +411,7 @@ impl
                 .headers(frm_types::FrmTransactionType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmTransactionType::get_request_body(
+                .set_body(frm_types::FrmTransactionType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -477,14 +477,9 @@ impl
         &self,
         req: &frm_types::FrmFulfillmentRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = &req.request.fulfillment_request;
-        let signifyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<transformers::FrmFullfillmentSignifydApiRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(signifyd_req))
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = signifyd::FrmFullfillmentSignifydRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(req_obj.clone())))
     }
 
     fn build_request(
@@ -502,7 +497,7 @@ impl
                 .headers(frm_types::FrmFulfillmentType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmFulfillmentType::get_request_body(
+                .set_body(frm_types::FrmFulfillmentType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -568,14 +563,9 @@ impl
         &self,
         req: &frm_types::FrmRecordReturnRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = signifyd::SignifydPaymentsRecordReturnRequest::try_from(req)?;
-        let signifyd_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<signifyd::SignifydPaymentsRecordReturnRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(signifyd_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -593,7 +583,7 @@ impl
                 .headers(frm_types::FrmRecordReturnType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(frm_types::FrmRecordReturnType::get_request_body(
+                .set_body(frm_types::FrmRecordReturnType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

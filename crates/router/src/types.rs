@@ -10,6 +10,8 @@ pub mod api;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+pub mod pm_auth;
+
 pub mod storage;
 pub mod transformers;
 
@@ -17,9 +19,10 @@ use std::{collections::HashMap, marker::PhantomData};
 
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
-    payouts as payout_types,
+    mandates, payouts as payout_types,
 };
-pub use common_utils::request::RequestBody;
+use common_enums::MandateStatus;
+pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
@@ -36,7 +39,7 @@ use crate::{
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
     services,
-    types::{storage::payment_attempt::PaymentAttemptExt, transformers::ForeignFrom},
+    types::transformers::ForeignFrom,
     utils::OptionExt,
 };
 
@@ -114,6 +117,11 @@ pub type SetupMandateType = dyn services::ConnectorIntegration<
     api::SetupMandate,
     SetupMandateRequestData,
     PaymentsResponseData,
+>;
+pub type MandateRevokeType = dyn services::ConnectorIntegration<
+    api::MandateRevoke,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
 >;
 pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     api::PreProcessing,
@@ -244,6 +252,9 @@ pub type RetrieveFileRouterData =
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
+pub type MandateRevokeRouterData =
+    RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
@@ -306,6 +317,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
+
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -369,6 +382,14 @@ pub struct PayoutsFulfillResponseData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
+    /// ```
+    /// get_original_amount()
+    /// get_surcharge_amount()
+    /// get_tax_on_surcharge_amount()
+    /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
+    /// ```
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
@@ -395,6 +416,7 @@ pub struct PaymentsAuthorizeData {
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -944,6 +966,17 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub http_code: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct MandateRevokeRequestData {
+    pub mandate_id: String,
+    pub connector_mandate_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MandateRevokeResponseData {
+    pub mandate_status: MandateStatus,
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -1233,6 +1266,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
+            metadata: None,
         }
     }
 }
@@ -1280,6 +1314,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
+            frm_metadata: data.frm_metadata.clone(),
         }
     }
 }
@@ -1335,6 +1370,7 @@ impl<F1, F2>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }

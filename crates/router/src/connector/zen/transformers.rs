@@ -222,7 +222,7 @@ impl TryFrom<(&ZenRouterData<&types::PaymentsAuthorizeRouterData>, &Card)> for Z
                 card: Some(ZenCardDetails {
                     number: ccard.card_number.clone(),
                     expiry_date: ccard
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?,
                     cvv: ccard.card_cvc.clone(),
                 }),
                 descriptor: item
@@ -538,7 +538,7 @@ fn get_checkout_signature(
         .pay_wall_secret
         .clone()
         .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-    let mut signature_data = get_signature_data(checkout_request);
+    let mut signature_data = get_signature_data(checkout_request)?;
     signature_data.push_str(&pay_wall_secret);
     let payload_digest = digest::digest(&digest::SHA256, signature_data.as_bytes());
     let mut signature = hex::encode(payload_digest);
@@ -547,7 +547,9 @@ fn get_checkout_signature(
 }
 
 /// Fields should be in alphabetical order
-fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
+fn get_signature_data(
+    checkout_request: &CheckoutRequest,
+) -> Result<String, errors::ConnectorError> {
     let specified_payment_channel = match checkout_request.specified_payment_channel {
         ZenPaymentChannels::PclCard => "pcl_card",
         ZenPaymentChannels::PclGooglepay => "pcl_googlepay",
@@ -568,21 +570,19 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
     ];
     for index in 0..checkout_request.items.len() {
         let prefix = format!("items[{index}].");
+        let checkout_request_items = checkout_request
+            .items
+            .get(index)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         signature_data.push(format!(
             "{prefix}lineamounttotal={}",
-            checkout_request.items[index].line_amount_total
+            checkout_request_items.line_amount_total
         ));
-        signature_data.push(format!(
-            "{prefix}name={}",
-            checkout_request.items[index].name
-        ));
-        signature_data.push(format!(
-            "{prefix}price={}",
-            checkout_request.items[index].price
-        ));
+        signature_data.push(format!("{prefix}name={}", checkout_request_items.name));
+        signature_data.push(format!("{prefix}price={}", checkout_request_items.price));
         signature_data.push(format!(
             "{prefix}quantity={}",
-            checkout_request.items[index].quantity
+            checkout_request_items.quantity
         ));
     }
     signature_data.push(format!(
@@ -598,7 +598,7 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
     ));
     signature_data.push(format!("urlredirect={}", checkout_request.url_redirect));
     let signature = signature_data.join("&");
-    signature.to_lowercase()
+    Ok(signature.to_lowercase())
 }
 
 fn get_customer(
