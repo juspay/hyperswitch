@@ -20,7 +20,7 @@ env:
 
   # The branch name that this workflow is allowed to run on.
   # If the workflow is run on any other branch, this workflow will fail.
-  ALLOWED_BRANCH_NAME: main
+  ALLOWED_BRANCH_NAME: ci-use-git-commands-for-push-release-workflows
 
 jobs:
   create-nightly-tag:
