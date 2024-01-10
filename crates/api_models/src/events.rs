@@ -18,7 +18,7 @@ use common_utils::{
 #[allow(unused_imports)]
 use crate::{
     admin::*,
-    analytics::{api_event::*, sdk_events::*, *, connector_events::ConnectorEventsRequest},
+    analytics::{api_event::*, connector_events::ConnectorEventsRequest, sdk_events::*, *},
     api_keys::*,
     cards_info::*,
     disputes::*,

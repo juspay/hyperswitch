@@ -1,15 +1,9 @@
-
 use api_models::analytics::connector_events::ConnectorEventsRequest;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 
-use crate::{
-    errors::AnalyticsResult,
-    types::FiltersError,
-    AnalyticsProvider,
-};
-
 use super::events::{get_connector_events, ConnectorEventsResult};
+use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 
 pub async fn connector_events_core(
     pool: &AnalyticsProvider,

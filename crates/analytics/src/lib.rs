@@ -7,8 +7,8 @@ mod query;
 pub mod refunds;
 
 pub mod api_event;
-pub mod sdk_events;
 pub mod connector_events;
+pub mod sdk_events;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};

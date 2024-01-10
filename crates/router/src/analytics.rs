@@ -3,9 +3,8 @@ pub use analytics::*;
 pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, errors::AnalyticsError, lambda_utils::invoke_lambda,
-        sdk_events::sdk_events_core,
-        connector_events::connector_events_core,
+        api_event::api_events_core, connector_events::connector_events_core,
+        errors::AnalyticsError, lambda_utils::invoke_lambda, sdk_events::sdk_events_core,
     };
     use api_models::analytics::{
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
@@ -72,7 +71,10 @@ pub mod routes {
                     )
                     .service(web::resource("api_event_logs").route(web::get().to(get_api_events)))
                     .service(web::resource("sdk_event_logs").route(web::post().to(get_sdk_events)))
-                    .service(web::resource("connector_event_logs").route(web::get().to(get_connector_events)))
+                    .service(
+                        web::resource("connector_event_logs")
+                            .route(web::get().to(get_connector_events)),
+                    )
                     .service(
                         web::resource("filters/api_events")
                             .route(web::post().to(get_api_event_filters)),

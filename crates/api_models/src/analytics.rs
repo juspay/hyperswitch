@@ -12,10 +12,10 @@ use self::{
 pub use crate::payments::TimeRange;
 
 pub mod api_event;
+pub mod connector_events;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
-pub mod connector_events;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {

@@ -1,9 +1,7 @@
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum QueryType {
-    Payment {
-        payment_id: String,
-    },
+    Payment { payment_id: String },
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

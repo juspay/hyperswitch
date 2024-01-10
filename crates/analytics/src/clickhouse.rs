@@ -21,8 +21,8 @@ use crate::{
         filters::ApiEventFilter,
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
     },
-    sdk_events::events::SdkEventsResult,
     connector_events::events::ConnectorEventsResult,
+    sdk_events::events::SdkEventsResult,
     types::TableEngine,
 };
 

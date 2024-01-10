@@ -1,5 +1,5 @@
 use api_models::analytics::{
-    connector_events::{QueryType, ConnectorEventsRequest},
+    connector_events::{ConnectorEventsRequest, QueryType},
     Granularity,
 };
 use common_utils::errors::ReportSwitchExt;
@@ -25,7 +25,8 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::ConnectorEvents);
+    let mut query_builder: QueryBuilder<T> =
+        QueryBuilder::new(AnalyticsCollection::ConnectorEvents);
     query_builder.add_select_column("*").switch()?;
 
     query_builder
