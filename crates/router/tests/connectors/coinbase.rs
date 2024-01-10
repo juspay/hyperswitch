@@ -255,9 +255,7 @@ fn coinbase_payments_request_try_from_works() {
         CoinbasePaymentsRequest::try_from(&construct_payment_router_data(None))
             .unwrap_err()
             .current_context(),
-        &ConnectorError::InvalidConnectorConfig {
-            config: "metadata"
-        },
+        &ConnectorError::InvalidConnectorConfig { config: "metadata" },
     );
 
     // `connector_meta_data` as empty json - should fail
@@ -267,9 +265,7 @@ fn coinbase_payments_request_try_from_works() {
         ))))
         .unwrap_err()
         .current_context(),
-        &ConnectorError::InvalidConnectorConfig {
-            config: "metadata"
-        },
+        &ConnectorError::InvalidConnectorConfig { config: "metadata" },
     );
 
     // `connector_meta_data` as json with missing `pricing_type`  - should fail
@@ -279,9 +275,7 @@ fn coinbase_payments_request_try_from_works() {
         ))))
         .unwrap_err()
         .current_context(),
-        &ConnectorError::InvalidConnectorConfig {
-            config: "metadata"
-        },
+        &ConnectorError::InvalidConnectorConfig { config: "metadata" },
     );
 
     // `connector_meta_data` as json with correct `pricing_type`  - ok

@@ -255,11 +255,8 @@ pub struct CoinbaseConnectorMeta {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinbaseConnectorMeta {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        utils::to_connector_meta_from_secret(meta_data.clone()).change_context(
-            errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            },
-        )
+        utils::to_connector_meta_from_secret(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })
     }
 }
 
