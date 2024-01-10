@@ -15,7 +15,8 @@ pub(crate) trait PaymentLinkResponseExt: Sized {
 impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
     async fn from_db_payment_link(payment_link: storage::PaymentLink) -> RouterResult<Self> {
         let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
-            common_utils::date_time::now()
+            payment_link
+                .created_at
                 .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
         });
         let status = payment_link::check_payment_link_status(session_expiry);

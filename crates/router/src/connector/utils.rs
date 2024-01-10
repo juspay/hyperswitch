@@ -371,6 +371,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
@@ -509,6 +510,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+    }
+
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
     }
 }
 
@@ -801,7 +806,7 @@ impl CardData for api::Card {
         let year = self.get_card_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         )))
@@ -812,14 +817,14 @@ impl CardData for api::Card {
             "{}{}{}",
             year.peek(),
             delimiter,
-            self.card_exp_month.peek().clone()
+            self.card_exp_month.peek()
         ))
     }
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         ))
@@ -1206,7 +1211,7 @@ where
 {
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
-    let json = connector_meta_secret.peek().clone();
+    let json = connector_meta_secret.expose();
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 

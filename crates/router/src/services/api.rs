@@ -733,9 +733,15 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
-    PaymenkLinkForm(Box<PaymentLinkFormData>),
+    PaymenkLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentLinkAction {
+    PaymentLinkFormData(PaymentLinkFormData),
+    PaymentLinkStatus(PaymentLinkStatusData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -743,6 +749,12 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkStatusData {
+    pub js_script: String,
+    pub css_script: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1051,16 +1063,32 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match build_payment_link_html(*payment_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
-                Err(_) => http_response_err(
-                    r#"{
-                            "error": {
-                                "message": "Error while rendering payment link html page"
-                            }
-                        }"#,
-                ),
+        Ok(ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
+                    match get_payment_link_status(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
             }
         }
 
@@ -1632,6 +1660,26 @@ pub fn build_payment_link_html(
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+pub fn get_payment_link_status(
+    payment_link_data: PaymentLinkStatusData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/status.html").to_string();
+    let mut tera = Tera::default();
+    let _ = tera.add_raw_template("payment_link_status", &html_template);
+
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    match tera.render("payment_link_status", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
 }
 
 #[cfg(test)]
