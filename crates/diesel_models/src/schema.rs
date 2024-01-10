@@ -65,7 +65,7 @@ diesel::table! {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
-        kms_decrypted_hash -> Text,
+        encrypted_fingerprint -> Text,
     }
 }
 
@@ -874,9 +874,9 @@ diesel::table! {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
-        pm_hash -> Text,
+        fingerprint -> Text,
         #[max_length = 64]
-        pm_type -> Varchar,
+        fingerprint_type -> Varchar,
         metadata -> Nullable<Text>,
     }
 }
@@ -889,7 +889,7 @@ diesel::table! {
         id -> Int4,
         #[max_length = 64]
         fingerprint_id -> Varchar,
-        kms_hash -> Text,
+        encrypted_fingerprint -> Text,
     }
 }
 

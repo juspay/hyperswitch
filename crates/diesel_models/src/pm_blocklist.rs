@@ -7,8 +7,8 @@ use crate::schema::pm_blocklist;
 #[diesel(table_name = pm_blocklist)]
 pub struct PmBlocklistNew {
     pub merchant_id: String,
-    pub pm_hash: String,
-    pub pm_type: String,
+    pub fingerprint: String,
+    pub fingerprint_type: String,
     pub metadata: Option<String>,
 }
 
@@ -18,7 +18,7 @@ pub struct PmBlocklist {
     #[serde(skip)]
     pub id: i32,
     pub merchant_id: String,
-    pub pm_hash: String,
-    pub pm_type: String,
+    pub fingerprint: String,
+    pub fingerprint_type: String,
     pub metadata: Option<String>,
 }

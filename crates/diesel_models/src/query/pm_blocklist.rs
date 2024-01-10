@@ -26,7 +26,7 @@ impl PmBlocklist {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::pm_hash.eq(hash.to_owned())),
+                .and(dsl::fingerprint.eq(hash.to_owned())),
         )
         .await
     }
@@ -41,7 +41,7 @@ impl PmBlocklist {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::pm_type.eq(pm_type.to_owned())),
+                .and(dsl::fingerprint_type.eq(pm_type.to_owned())),
             None,
             None,
             Some(dsl::id.asc()),
@@ -74,7 +74,7 @@ impl PmBlocklist {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::pm_hash.eq(hash.to_owned())),
+                .and(dsl::fingerprint.eq(hash.to_owned())),
         )
         .await
     }

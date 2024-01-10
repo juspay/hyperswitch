@@ -11,7 +11,7 @@ use crate::{
 pub async fn block_payment_method(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<pm_blocklist_model::BlocklistPmRequest>,
+    json_payload: web::Json<pm_blocklist_model::BlocklistType>,
 ) -> HttpResponse {
     let flow = Flow::PmBlockFlow;
     Box::pin(api::server_wrap(

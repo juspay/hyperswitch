@@ -26,7 +26,7 @@ impl BlocklistLookup {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::kms_decrypted_hash.eq(kms_encrypted_hash.to_owned())),
+                .and(dsl::encrypted_fingerprint.eq(kms_encrypted_hash.to_owned())),
         )
         .await
     }
@@ -41,7 +41,7 @@ impl BlocklistLookup {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::kms_decrypted_hash.eq(kms_decrypted_hash.to_owned())),
+                .and(dsl::encrypted_fingerprint.eq(kms_decrypted_hash.to_owned())),
         )
         .await
     }

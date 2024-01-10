@@ -10,15 +10,15 @@ use crate::{core::errors, routes::AppState, services, types::domain};
 pub async fn block_payment_method(
     state: AppState,
     _req: &actix_web::HttpRequest,
-    body: pm_blocklist::BlocklistPmRequest,
+    body: pm_blocklist::BlocklistType,
     merchant_account: domain::MerchantAccount,
 ) -> CustomResult<
     services::ApplicationResponse<pm_blocklist::BlocklistPmResponse>,
     errors::ApiErrorResponse,
 > {
     let blocklist_type: &str;
-    match &body.blocklist_pm {
-        pm_blocklist::BlocklistType::Cardbin(cards) => {
+    match &body {
+        pm_blocklist::BlocklistType::CardBin(cards) => {
             blocklist_type = "cardbin";
             Ok(services::api::ApplicationResponse::Json(
                 utils::insert_to_blocklist_lookup_db(
@@ -35,13 +35,13 @@ pub async fn block_payment_method(
                 )?,
             ))
         }
-        pm_blocklist::BlocklistType::ExtendedCardbin(extended_cardbins) => {
+        pm_blocklist::BlocklistType::ExtendedBin(extended_cardbins) => {
             blocklist_type = "extended_cardbin";
             Ok(services::api::ApplicationResponse::Json(
                 utils::insert_to_blocklist_lookup_db(
                     &state,
                     merchant_account.merchant_id,
-                    extended_cardbins,
+                    &extended_cardbins,
                     blocklist_type,
                 )
                 .await
@@ -58,7 +58,7 @@ pub async fn block_payment_method(
                 utils::insert_to_blocklist_lookup_db(
                     &state,
                     merchant_account.merchant_id,
-                    fingerprints,
+                    &fingerprints,
                     blocklist_type,
                 )
                 .await

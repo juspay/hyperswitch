@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use api_models::pm_blocklist as blacklist_pm;
-use base64::Engine;
 use common_utils::{
     crypto::{self, SignMessage},
     errors::CustomResult,
@@ -19,7 +18,7 @@ use crate::{consts, utils};
 pub async fn delete_from_blocklist_lookup_db(
     state: &AppState,
     merchant_id: String,
-    pm_hashes: &[String],
+    pm_hashes: &Vec<String>,
 ) -> CustomResult<blacklist_pm::UnblockPmResponse, StorageError> {
     let pm_hashes = remove_duplicates(pm_hashes);
     let blocklist_entries = pm_hashes
@@ -55,11 +54,11 @@ pub async fn delete_from_blocklist_lookup_db(
                         #[cfg(feature = "kms")]
                         kms::get_kms_client(&state.conf.kms)
                             .await
-                            .decrypt(fingerprint.kms_hash)
+                            .decrypt(fingerprint.encrypted_fingerprint)
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                         #[cfg(not(feature = "kms"))]
-                        fingerprint.kms_hash,
+                        fingerprint.encrypted_fingerprint,
                     );
                 lookup_entries.push((query_future, pm_hash.clone()));
             }
@@ -144,16 +143,16 @@ pub async fn list_blocked_pm_from_db(
             Ok(blacklist_pm::ListBlockedPmResponse {
                 blocked_fingerprints: fingerprint
                     .iter()
-                    .map(|fingerprint| fingerprint.pm_hash.clone())
+                    .map(|fingerprint| fingerprint.fingerprint.clone())
                     .collect::<Vec<_>>(),
-                blocked_cardbins: cardbin
+                blocked_card_bins: cardbin
                     .iter()
-                    .map(|cardbin| (cardbin.pm_hash.clone(), cardbin.metadata.clone()))
+                    .map(|cardbin| (cardbin.fingerprint.clone(), cardbin.metadata.clone()))
                     .collect::<Vec<_>>(),
-                blocked_extended_cardbins: extended_bin
+                blocked_extended_bins: extended_bin
                     .iter()
                     .map(|extended_bin| {
-                        (extended_bin.pm_hash.clone(), extended_bin.metadata.clone())
+                        (extended_bin.fingerprint.clone(), extended_bin.metadata.clone())
                     })
                     .collect::<Vec<_>>(),
             })
@@ -168,7 +167,7 @@ pub async fn list_blocked_pm_from_db(
 pub async fn insert_to_blocklist_lookup_db(
     state: &AppState,
     merchant_id: String,
-    pm_hashes: &[String],
+    pm_hashes: &Vec<String>,
     pm_type: &str,
 ) -> CustomResult<blacklist_pm::BlocklistPmResponse, StorageError> {
     let pm_hashes = remove_duplicates(pm_hashes);
@@ -235,7 +234,7 @@ pub async fn insert_to_blocklist_lookup_db(
                         .change_context(errors::StorageError::ValueNotFound(
                             pm_hash.clone().to_string(),
                         ))?
-                        .kms_hash;
+                        .encrypted_fingerprint;
 
                     #[cfg(feature = "kms")]
                     let kms_decrypted_hash = kms::get_kms_client(&state.conf.kms)
@@ -276,9 +275,9 @@ pub async fn insert_to_blocklist_lookup_db(
                                 diesel_models::blocklist_lookup::BlocklistLookupNew {
                                     merchant_id: merchant_id.clone(),
                                     #[cfg(feature = "kms")]
-                                    kms_decrypted_hash: kms_decrypted_hash.clone(),
+                                    encrypted_fingerprint: kms_decrypted_hash.clone(),
                                     #[cfg(not(feature = "kms"))]
-                                    kms_decrypted_hash: kms_hash,
+                                    encrypted_fingerprint: kms_hash,
                                 },
                             )
                             .await;
@@ -286,8 +285,8 @@ pub async fn insert_to_blocklist_lookup_db(
                             .store
                             .insert_pm_blocklist_item(pm_blocklist::PmBlocklistNew {
                                 merchant_id: merchant_id.clone(),
-                                pm_hash: pm_hash.clone().to_string(),
-                                pm_type: pm_type.to_string().clone(),
+                                fingerprint: pm_hash.clone().to_string(),
+                                fingerprint_type: pm_type.to_string().clone(),
                                 metadata: None,
                             })
                             .await
@@ -301,7 +300,7 @@ pub async fn insert_to_blocklist_lookup_db(
     let mut all_requested_fingerprints_blocked = true;
     let blocked_pm_futures = futures::future::join_all(new_entries).await;
     blocked_pm_futures.into_iter().for_each(|res| match res {
-        Ok(blocked_pm) => fingerprints_blocked.push(blocked_pm.pm_hash),
+        Ok(blocked_pm) => fingerprints_blocked.push(blocked_pm.fingerprint),
         Err(e) => {
             all_requested_fingerprints_blocked = false;
             logger::error!("Pm Blocklist entry insertion failed {e:?}");
@@ -311,10 +310,10 @@ pub async fn insert_to_blocklist_lookup_db(
     if all_requested_fingerprints_blocked {
         let response = match pm_type {
             "cardbin" => blacklist_pm::BlocklistPmResponse {
-                blocked: blacklist_pm::BlocklistType::Cardbin(fingerprints_blocked),
+                blocked: blacklist_pm::BlocklistType::CardBin(fingerprints_blocked),
             },
             "extended_cardbin" => blacklist_pm::BlocklistPmResponse {
-                blocked: blacklist_pm::BlocklistType::ExtendedCardbin(fingerprints_blocked),
+                blocked: blacklist_pm::BlocklistType::ExtendedBin(fingerprints_blocked),
             },
             _ => blacklist_pm::BlocklistPmResponse {
                 blocked: blacklist_pm::BlocklistType::Fingerprint(fingerprints_blocked),
@@ -326,7 +325,7 @@ pub async fn insert_to_blocklist_lookup_db(
     }
 }
 
-fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &[T]) -> Vec<T> {
+fn remove_duplicates<T: Eq + std::hash::Hash + Clone>(vec: &Vec<T>) -> Vec<T> {
     let mut set = HashSet::new();
 
     vec.iter()
@@ -355,7 +354,7 @@ async fn duplicate_check_insert_bin(
     .change_context(StorageError::EncryptionError)
     .attach_printable("error in bin hash creation")?;
 
-    let encoded_hash = consts::BASE64_ENGINE.encode(hashed_bin.clone());
+    let encoded_hash = hex::encode(hashed_bin.clone());
 
     // Checking for duplicacy
     if state
@@ -385,9 +384,9 @@ async fn duplicate_check_insert_bin(
             .insert_pm_fingerprint_entry(diesel_models::pm_fingerprint::PmFingerprintNew {
                 fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
                 #[cfg(feature = "kms")]
-                kms_hash,
+                encrypted_fingerprint: kms_hash,
                 #[cfg(not(feature = "kms"))]
-                kms_hash: encoded_hash.clone(),
+                encrypted_fingerprint: encoded_hash.clone(),
             })
             .await
             .change_context(errors::StorageError::ValueNotFound(
@@ -399,7 +398,7 @@ async fn duplicate_check_insert_bin(
             .store
             .insert_blocklist_lookup_entry(diesel_models::blocklist_lookup::BlocklistLookupNew {
                 merchant_id: merchant_id.clone(),
-                kms_decrypted_hash: encoded_hash.clone(),
+                encrypted_fingerprint: encoded_hash.clone(),
             })
             .await;
 
@@ -407,8 +406,8 @@ async fn duplicate_check_insert_bin(
             .store
             .insert_pm_blocklist_item(pm_blocklist::PmBlocklistNew {
                 merchant_id: merchant_id.clone(),
-                pm_hash: fingerprint_id.clone().to_string(),
-                pm_type: pm_type.to_string().clone(),
+                fingerprint: fingerprint_id.clone().to_string(),
+                fingerprint_type: pm_type.to_string().clone(),
                 metadata: Some(bin.to_string().clone()),
             })
             .await

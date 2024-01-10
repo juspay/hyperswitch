@@ -7,7 +7,7 @@ use crate::schema::pm_fingerprint;
 #[diesel(table_name = pm_fingerprint)]
 pub struct PmFingerprintNew {
     pub fingerprint_id: String,
-    pub kms_hash: String,
+    pub encrypted_fingerprint: String,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Queryable, Identifiable, Deserialize, Serialize)]
@@ -16,5 +16,5 @@ pub struct PmFingerprint {
     #[serde(skip_serializing)]
     pub id: i32,
     pub fingerprint_id: String,
-    pub kms_hash: String,
+    pub encrypted_fingerprint: String,
 }

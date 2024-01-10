@@ -55,8 +55,8 @@ pub struct PaymentIntent {
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(
@@ -106,9 +106,9 @@ pub struct PaymentIntentNew {
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub fingerprint_id: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,8 +161,8 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
-        fingerprint_id: Option<String>,
         session_expiry: Option<PrimitiveDateTime>,
+        fingerprint_id: Option<String>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -228,8 +228,8 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub incremental_authorization_allowed: Option<bool>,
     pub authorization_count: Option<i32>,
-    pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentIntentUpdate {
@@ -262,8 +262,8 @@ impl PaymentIntentUpdate {
             surcharge_applicable,
             incremental_authorization_allowed,
             authorization_count,
-            fingerprint_id,
             session_expiry,
+            fingerprint_id,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -294,11 +294,11 @@ impl PaymentIntentUpdate {
             updated_by,
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
 
-            fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             incremental_authorization_allowed: incremental_authorization_allowed
                 .or(source.incremental_authorization_allowed),
             authorization_count: authorization_count.or(source.authorization_count),
             session_expiry,
+            fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             ..source
         }
     }
@@ -325,8 +325,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                fingerprint_id,
                 session_expiry,
+                fingerprint_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -346,8 +346,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
-                fingerprint_id,
                 session_expiry,
+                fingerprint_id,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

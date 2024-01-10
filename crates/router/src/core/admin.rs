@@ -48,11 +48,6 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-#[inline]
-pub fn create_merchant_fingerprint() -> String {
-    utils::generate_id(consts::ID_LENGTH, "secret")
-}
-
 pub async fn create_merchant_account(
     state: AppState,
     req: api::MerchantAccountCreate,
@@ -146,10 +141,10 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let fingerprint = Some(create_merchant_fingerprint());
+    let fingerprint = Some(utils::generate_id(consts::ID_LENGTH, "secret"));
     if let Some(fingerprint) = fingerprint {
         db.insert_config(configs::ConfigNew {
-            key: format!("secret_{}", req.merchant_id),
+            key: format!("fingerprint_secret_{}", req.merchant_id),
             config: fingerprint,
         })
         .await
