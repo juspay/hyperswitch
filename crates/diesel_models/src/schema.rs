@@ -61,11 +61,43 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    blocklist (id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        fingerprint_id -> Varchar,
+        data_kind -> BlocklistDataKind,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    blocklist_fingerprint (id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        fingerprint_id -> Varchar,
+        data_kind -> BlocklistDataKind,
+        encrypted_fingerprint -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     blocklist_lookup (id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
-        encrypted_fingerprint -> Text,
+        fingerprint -> Text,
     }
 }
 
@@ -721,7 +753,8 @@ diesel::table! {
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
         session_expiry -> Nullable<Timestamp>,
-        fingerprint_id -> Nullable<Text>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
     }
 }
 
@@ -863,33 +896,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    pm_blocklist (id) {
-        id -> Int4,
-        #[max_length = 64]
-        merchant_id -> Varchar,
-        fingerprint -> Text,
-        #[max_length = 64]
-        fingerprint_type -> Varchar,
-        metadata -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    pm_fingerprint (id) {
-        id -> Int4,
-        #[max_length = 64]
-        fingerprint_id -> Varchar,
-        encrypted_fingerprint -> Text,
     }
 }
 
@@ -1056,6 +1062,8 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    blocklist,
+    blocklist_fingerprint,
     blocklist_lookup,
     business_profile,
     captures,
@@ -1081,8 +1089,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     payment_methods,
     payout_attempt,
     payouts,
-    pm_blocklist,
-    pm_fingerprint,
     process_tracker,
     refund,
     reverse_lookup,

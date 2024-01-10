@@ -1,11 +1,13 @@
 -- Your SQL goes here
 
-CREATE TABLE pm_blocklist (
+CREATE TABLE blocklist (
   id SERIAL PRIMARY KEY,
   merchant_id VARCHAR(64) NOT NULL,
-  fingerprint TEXT NOT NULL,
-  fingerprint_type VARCHAR(64) NOT NULL,
-  metadata TEXT
+  fingerprint_id VARCHAR(64) NOT NULL,
+  data_kind "BlocklistDataKind" NOT NULL,
+  metadata JSONB,
+  created_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX pm_blocklist_merchant_id_pm_hash ON pm_blocklist (merchant_id, fingerprint DESC);
+CREATE UNIQUE INDEX blocklist_unique_fingerprint_id_index ON blocklist (merchant_id, fingerprint_id);
+CREATE INDEX blocklist_merchant_id_data_kind_created_at_index ON blocklist (merchant_id, data_kind, created_at DESC);

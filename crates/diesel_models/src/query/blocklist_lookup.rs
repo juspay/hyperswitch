@@ -17,31 +17,31 @@ impl BlocklistLookupNew {
 
 impl BlocklistLookup {
     #[instrument(skip(conn))]
-    pub async fn find_by_merchant_id_kms_encrypted_hash(
+    pub async fn find_by_merchant_id_fingerprint(
         conn: &PgPooledConn,
-        merchant_id: String,
-        kms_encrypted_hash: String,
+        merchant_id: &str,
+        fingerprint: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::encrypted_fingerprint.eq(kms_encrypted_hash.to_owned())),
+                .and(dsl::fingerprint.eq(fingerprint.to_owned())),
         )
         .await
     }
 
     #[instrument(skip(conn))]
-    pub async fn delete_by_merchant_id_kms_decrypted_hash(
+    pub async fn delete_by_merchant_id_fingerprint(
         conn: &PgPooledConn,
-        merchant_id: String,
-        kms_decrypted_hash: String,
-    ) -> StorageResult<bool> {
-        generics::generic_delete::<<Self as HasTable>::Table, _>(
+        merchant_id: &str,
+        fingerprint: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::encrypted_fingerprint.eq(kms_decrypted_hash.to_owned())),
+                .and(dsl::fingerprint.eq(fingerprint.to_owned())),
         )
         .await
     }

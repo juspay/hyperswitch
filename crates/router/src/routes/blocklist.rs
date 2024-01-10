@@ -1,17 +1,17 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::pm_blocklist as pm_blocklist_model;
+use api_models::blocklist as api_blocklist;
 use router_env::Flow;
 
 use crate::{
-    core::{api_locking, pm_blocklist},
+    core::{api_locking, blocklist},
     routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
-pub async fn block_payment_method(
+pub async fn add_entry_to_blocklist(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<pm_blocklist_model::BlocklistType>,
+    json_payload: web::Json<api_blocklist::AddToBlocklistRequest>,
 ) -> HttpResponse {
     let flow = Flow::PmBlockFlow;
     Box::pin(api::server_wrap(
@@ -20,7 +20,7 @@ pub async fn block_payment_method(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body| {
-            pm_blocklist::block_payment_method(state, &req, body, auth.merchant_account)
+            blocklist::add_entry_to_blocklist(state, auth.merchant_account, body)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -32,10 +32,10 @@ pub async fn block_payment_method(
     .await
 }
 
-pub async fn unblock_payment_method(
+pub async fn remove_entry_from_blocklist(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<pm_blocklist_model::UnblockPmRequest>,
+    json_payload: web::Json<api_blocklist::DeleteFromBlocklistRequest>,
 ) -> HttpResponse {
     let flow = Flow::PmUnblockFlow;
     Box::pin(api::server_wrap(
@@ -44,7 +44,7 @@ pub async fn unblock_payment_method(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body| {
-            pm_blocklist::unblock_payment_method(state, &req, body, auth.merchant_account)
+            blocklist::remove_entry_from_blocklist(state, auth.merchant_account, body)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -59,15 +59,16 @@ pub async fn unblock_payment_method(
 pub async fn list_blocked_payment_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
+    query_payload: web::Query<api_blocklist::ListBlocklistQuery>,
 ) -> HttpResponse {
     let flow = Flow::PmBlocklistListFlow;
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth: auth::AuthenticationData, _| {
-            pm_blocklist::list_blocked_payment_methods(state, &req, auth.merchant_account)
+        query_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, query| {
+            blocklist::list_blocklist_entries(state, auth.merchant_account, query)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,

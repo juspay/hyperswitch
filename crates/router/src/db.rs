@@ -1,6 +1,8 @@
 pub mod address;
 pub mod api_keys;
 pub mod authorization;
+pub mod blocklist;
+pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod cache;
@@ -27,8 +29,6 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
-pub mod pm_blocklist;
-pub mod pm_fingerprint;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod routing_algorithm;
@@ -89,8 +89,8 @@ pub trait StorageInterface:
     + PaymentAttemptInterface
     + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
-    + pm_blocklist::PmBlocklistInterface
-    + pm_fingerprint::PmFingerprintInterface
+    + blocklist::BlocklistInterface
+    + blocklist_fingerprint::BlocklistFingerprintInterface
     + scheduler::SchedulerInterface
     + payout_attempt::PayoutAttemptInterface
     + payouts::PayoutsInterface

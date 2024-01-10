@@ -7,6 +7,8 @@ pub mod cards_info;
 pub mod configs;
 
 pub mod authorization;
+pub mod blocklist;
+pub mod blocklist_fingerprint;
 pub mod customers;
 pub mod dispute;
 pub mod encryption;
@@ -33,8 +35,6 @@ pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
-pub mod pm_blocklist;
-pub mod pm_fingerprint;
 pub mod process_tracker;
 pub mod query;
 pub mod refund;

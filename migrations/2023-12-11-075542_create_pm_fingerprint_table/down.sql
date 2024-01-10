@@ -1,3 +1,5 @@
 -- This file should undo anything in `up.sql`
 
-DROP TABLE pm_fingerprint;
+DROP TABLE blocklist_fingerprint;
+
+DROP TYPE "BlocklistDataKind";

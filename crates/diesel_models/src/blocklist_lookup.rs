@@ -7,7 +7,7 @@ use crate::schema::blocklist_lookup;
 #[diesel(table_name = blocklist_lookup)]
 pub struct BlocklistLookupNew {
     pub merchant_id: String,
-    pub encrypted_fingerprint: String,
+    pub fingerprint: String,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Deserialize, Serialize)]
@@ -16,5 +16,5 @@ pub struct BlocklistLookup {
     #[serde(skip)]
     pub id: i32,
     pub merchant_id: String,
-    pub encrypted_fingerprint: String,
+    pub fingerprint: String,
 }

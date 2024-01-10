@@ -1,6 +1,8 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+#[cfg(feature = "oltp")]
+pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
 pub mod conditional_config;
@@ -25,8 +27,6 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;
-#[cfg(feature = "oltp")]
-pub mod pm_blocklist;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_config;

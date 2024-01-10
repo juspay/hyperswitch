@@ -143,6 +143,7 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
+            .service(routes::Blocklist::server(state.clone()))
             .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
