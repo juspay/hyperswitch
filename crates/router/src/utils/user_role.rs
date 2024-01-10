@@ -18,7 +18,7 @@ pub fn is_internal_role(role_id: &str) -> bool {
         || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
 }
 
-pub async fn get_merchant_ids_for_user(state: AppState, user_id: &str) -> UserResult<Vec<String>> {
+pub async fn get_merchant_ids_for_user(state: &AppState, user_id: &str) -> UserResult<Vec<String>> {
     Ok(state
         .store
         .list_user_roles_by_user_id(user_id)

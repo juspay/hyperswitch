@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.105.0+hotfix.5 (2024-01-10)
+
+### Refactors
+
+- Removed basilisk feature ([#3300](https://github.com/juspay/hyperswitch/pull/3300)) ([`e6f0c99`](https://github.com/juspay/hyperswitch/commit/e6f0c994bb4c3865f869a2cd783944d7274d55ab))
+
+**Full Changelog:** [`v1.105.0+hotfix.4...v1.105.0+hotfix.5`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.4...v1.105.0+hotfix.5)
+
+- - -
+
+## 1.105.0+hotfix.4 (2024-01-09)
+
+### Bug Fixes
+
+- **connector:** [BOA/CYB] Fix Metadata Error ([#3287](https://github.com/juspay/hyperswitch/pull/3287)) ([`3f89570`](https://github.com/juspay/hyperswitch/commit/3f89570e0fc7f9459e048dd40a5ef661695f6844))
+- Fix(users): Added merchant name is list merchants ([#3294](https://github.com/juspay/hyperswitch/pull/3294)) ([`a4e0c84`](https://github.com/juspay/hyperswitch/commit/a4e0c84e7fe330b6288bd01e31289ade74e22d7c))
+
+**Full Changelog:** [`v1.105.0+hotfix.3...v1.105.0+hotfix.4`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.3...v1.105.0+hotfix.4)
+
+- - -
+
+## 1.105.0+hotfix.3 (2024-01-05)
+
+### Features
+
+- **connector:** [BOA] Populate merchant_defined_information with metadata ([#3253](https://github.com/juspay/hyperswitch/pull/3253)) ([`ec08236`](https://github.com/juspay/hyperswitch/commit/ec082369075faf278d30f0330820a92bc8423183))
+
+**Full Changelog:** [`v1.105.0+hotfix.2...v1.105.0+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.2...v1.105.0+hotfix.3)
+
+- - -
+
+## 1.105.0+hotfix.2 (2024-01-04)
+
+### Bug Fixes
+
+- **connector:** [iatapay] change refund amount ([#3243](https://github.com/juspay/hyperswitch/pull/3243)) ([`a9e7b99`](https://github.com/juspay/hyperswitch/commit/a9e7b998a8af31d063f4e00a8eb4ded5b7c7de3f))
+
+**Full Changelog:** [`v1.105.0+hotfix.1...v1.105.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.1...v1.105.0+hotfix.2)
+
+- - -
+
 ## 1.105.0+hotfix.1 (2024-01-04)
 
 ### Bug Fixes
