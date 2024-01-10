@@ -88,7 +88,7 @@ impl VaultFetch for settings::Database {
                 >,
             > + 'a,
     {
-        Ok(settings::Database {
+        Ok(Self {
             host: self.host,
             port: self.port,
             dbname: self.dbname,
