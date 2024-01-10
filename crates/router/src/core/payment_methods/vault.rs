@@ -47,7 +47,7 @@ impl Vaultable for api::Card {
             exp_month: self.card_exp_month.peek().clone(),
             name_on_card: self
                 .card_holder_name
-                .clone()
+                .as_ref()
                 .map(|name| name.peek().clone()),
             nickname: None,
             card_last_four: None,
