@@ -27,7 +27,7 @@ pub trait RefundDbExt: Sized {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        refund_list_details: &api_models::refunds::TimeRange,
+        refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
@@ -50,23 +50,40 @@ impl RefundDbExt for Refund {
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(dsl::modified_at.desc())
             .into_boxed();
+        let mut search_by_pay_or_ref_id = false;
 
-        match &refund_list_details.payment_id {
-            Some(pid) => {
-                filter = filter.filter(dsl::payment_id.eq(pid.to_owned()));
-            }
-            None => {
-                filter = filter.limit(limit).offset(offset);
-            }
+        if let (Some(pid), Some(ref_id)) = (
+            &refund_list_details.payment_id,
+            &refund_list_details.refund_id,
+        ) {
+            search_by_pay_or_ref_id = true;
+            filter = filter
+                .filter(dsl::payment_id.eq(pid.to_owned()))
+                .or_filter(dsl::refund_id.eq(ref_id.to_owned()))
+                .limit(limit)
+                .offset(offset);
         };
-        match &refund_list_details.refund_id {
-            Some(ref_id) => {
-                filter = filter.filter(dsl::refund_id.eq(ref_id.to_owned()));
-            }
-            None => {
-                filter = filter.limit(limit).offset(offset);
-            }
-        };
+
+        if !search_by_pay_or_ref_id {
+            match &refund_list_details.payment_id {
+                Some(pid) => {
+                    filter = filter.filter(dsl::payment_id.eq(pid.to_owned()));
+                }
+                None => {
+                    filter = filter.limit(limit).offset(offset);
+                }
+            };
+        }
+        if !search_by_pay_or_ref_id {
+            match &refund_list_details.refund_id {
+                Some(ref_id) => {
+                    filter = filter.filter(dsl::refund_id.eq(ref_id.to_owned()));
+                }
+                None => {
+                    filter = filter.limit(limit).offset(offset);
+                }
+            };
+        }
         match &refund_list_details.profile_id {
             Some(profile_id) => {
                 filter = filter
@@ -114,7 +131,7 @@ impl RefundDbExt for Refund {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        refund_list_details: &api_models::refunds::TimeRange,
+        refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         let start_time = refund_list_details.start_time;
 
@@ -163,7 +180,7 @@ impl RefundDbExt for Refund {
         let meta = api_models::refunds::RefundListMetaData {
             connector: filter_connector,
             currency: filter_currency,
-            status: filter_status,
+            refund_status: filter_status,
         };
 
         Ok(meta)
@@ -179,12 +196,28 @@ impl RefundDbExt for Refund {
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .into_boxed();
 
-        if let Some(pay_id) = &refund_list_details.payment_id {
-            filter = filter.filter(dsl::payment_id.eq(pay_id.to_owned()));
+        let mut search_by_pay_or_ref_id = false;
+
+        if let (Some(pid), Some(ref_id)) = (
+            &refund_list_details.payment_id,
+            &refund_list_details.refund_id,
+        ) {
+            search_by_pay_or_ref_id = true;
+            filter = filter
+                .filter(dsl::payment_id.eq(pid.to_owned()))
+                .or_filter(dsl::refund_id.eq(ref_id.to_owned()));
+        };
+
+        if !search_by_pay_or_ref_id {
+            if let Some(pay_id) = &refund_list_details.payment_id {
+                filter = filter.filter(dsl::payment_id.eq(pay_id.to_owned()));
+            }
         }
 
-        if let Some(ref_id) = &refund_list_details.refund_id {
-            filter = filter.filter(dsl::refund_id.eq(ref_id.to_owned()));
+        if !search_by_pay_or_ref_id {
+            if let Some(ref_id) = &refund_list_details.refund_id {
+                filter = filter.filter(dsl::refund_id.eq(ref_id.to_owned()));
+            }
         }
         if let Some(profile_id) = &refund_list_details.profile_id {
             filter = filter.filter(dsl::profile_id.eq(profile_id.to_owned()));

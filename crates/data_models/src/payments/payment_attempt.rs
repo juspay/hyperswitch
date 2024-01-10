@@ -36,6 +36,13 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -142,7 +149,21 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
+}
+
+impl PaymentAttempt {
+    pub fn get_total_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+    pub fn get_total_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_amount
+            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or(0))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -202,7 +223,11 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
+    pub authentication_data: Option<serde_json::Value>,
+    pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,6 +245,8 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -227,6 +254,8 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -251,9 +280,9 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        updated_by: String,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
-        updated_by: String,
         merchant_connector_id: Option<String>,
     },
     RejectUpdate {
@@ -282,6 +311,10 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -306,9 +339,13 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
         updated_by: String,
+        unified_code: Option<Option<String>>,
+        unified_message: Option<Option<String>>,
+        connector_transaction_id: Option<String>,
     },
-    MultipleCaptureCountUpdate {
-        multiple_capture_count: i16,
+    CaptureUpdate {
+        amount_to_capture: Option<i64>,
+        multiple_capture_count: Option<i16>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
@@ -324,6 +361,17 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
         updated_by: String,
+    },
+    ConnectorResponse {
+        authentication_data: Option<serde_json::Value>,
+        encoded_data: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector: Option<String>,
+        updated_by: String,
+    },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+        amount_capturable: i64,
     },
 }
 

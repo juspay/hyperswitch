@@ -261,6 +261,7 @@ struct TransactionVoidOrCaptureRequest {
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: AuthorizedotnetAuthType,
     transaction_request: TransactionRequest,
+    ref_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -332,6 +333,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
                 transaction_request,
+                ref_id: item.router_data.connector_request_reference_id.clone(),
             },
         })
     }
@@ -571,6 +573,8 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -606,6 +610,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -614,7 +619,7 @@ impl<F, T>
             Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(get_err_response(item.http_code, item.response.messages)),
+                    response: Err(get_err_response(item.http_code, item.response.messages)?),
                     ..item.data
                 })
             }
@@ -645,6 +650,8 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -674,6 +681,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -681,7 +689,7 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -787,6 +795,8 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 message: error.error_text.clone(),
                 reason: None,
                 status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         });
 
@@ -934,7 +944,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -969,13 +979,14 @@ impl<F, Req>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        incremental_authorization_allowed: None,
                     }),
                     status: payment_status,
                     ..item.data
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -1013,13 +1024,22 @@ impl From<Option<enums::CaptureMethod>> for TransactionType {
     }
 }
 
-fn get_err_response(status_code: u16, message: ResponseMessages) -> types::ErrorResponse {
-    types::ErrorResponse {
-        code: message.message[0].code.clone(),
-        message: message.message[0].text.clone(),
+fn get_err_response(
+    status_code: u16,
+    message: ResponseMessages,
+) -> Result<types::ErrorResponse, errors::ConnectorError> {
+    let response_message = message
+        .message
+        .first()
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    Ok(types::ErrorResponse {
+        code: response_message.code.clone(),
+        message: response_message.text.clone(),
         reason: None,
         status_code,
-    }
+        attempt_status: None,
+        connector_transaction_id: None,
+    })
 }
 
 #[derive(Debug, Deserialize)]

@@ -38,8 +38,9 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     redis::kv_store::{kv_wrapper, KvOperation},
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
@@ -97,6 +98,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_confirm_source: new.payment_confirm_source,
                     updated_by: storage_scheme.to_string(),
                     surcharge_applicable: new.surcharge_applicable,
+                    request_incremental_authorization: new.request_incremental_authorization,
+                    incremental_authorization_allowed: new.incremental_authorization_allowed,
+                    authorization_count: new.authorization_count,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -114,7 +118,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
@@ -146,8 +150,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
-                let updated_intent = payment_intent_update.clone().apply_changeset(this.clone());
-                let diesel_intent = updated_intent.clone().to_storage_model();
+                let diesel_intent_update = payment_intent_update.to_storage_model();
+                let origin_diesel_intent = this.to_storage_model();
+
+                let diesel_intent = diesel_intent_update
+                    .clone()
+                    .apply_changeset(origin_diesel_intent.clone());
                 // Check for database presence as well Maybe use a read replica here ?
 
                 let redis_value =
@@ -158,8 +166,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     op: kv::DBOperation::Update {
                         updatable: kv::Updateable::PaymentIntentUpdate(
                             kv::PaymentIntentUpdateMems {
-                                orig: this.to_storage_model(),
-                                update_data: payment_intent_update.to_storage_model(),
+                                orig: origin_diesel_intent,
+                                update_data: diesel_intent_update,
                             },
                         ),
                     },
@@ -171,11 +179,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(updated_intent)
+                Ok(PaymentIntent::from_storage_model(diesel_intent))
             }
         }
     }
@@ -202,7 +210,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
-                crate::utils::try_redis_get_else_try_database_get(
+                Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
@@ -213,7 +221,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         .try_into_hget()
                     },
                     database_call,
-                )
+                ))
                 .await
             }
         }
@@ -487,12 +495,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 .map(PaymentIntent::from_storage_model)
                 .collect::<Vec<PaymentIntent>>()
         })
-        .into_report()
         .map_err(|er| {
-            let new_err = StorageError::DatabaseError(format!("{er:?}"));
-            er.change_context(new_err)
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
         })
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -639,12 +648,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     })
                     .collect()
             })
-            .into_report()
             .map_err(|er| {
-                let new_er = StorageError::DatabaseError(format!("{er:?}"));
-                er.change_context(new_er)
+                StorageError::DatabaseError(
+                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                        .attach_printable("Error filtering payment records"),
+                )
             })
-            .attach_printable("Error filtering payment records")
+            .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -705,12 +715,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .into_report()
         .map_err(|er| {
-            let new_err = StorageError::DatabaseError(format!("{er:?}"));
-            er.change_context(new_err)
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
         })
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .into_report()
     }
 }
 
@@ -754,6 +765,9 @@ impl DataModelExt for PaymentIntentNew {
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
             surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
         }
     }
 
@@ -794,6 +808,9 @@ impl DataModelExt for PaymentIntentNew {
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
             surcharge_applicable: storage_model.surcharge_applicable,
+            request_incremental_authorization: storage_model.request_incremental_authorization,
+            incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+            authorization_count: storage_model.authorization_count,
         }
     }
 }
@@ -839,6 +856,9 @@ impl DataModelExt for PaymentIntent {
             payment_confirm_source: self.payment_confirm_source,
             updated_by: self.updated_by,
             surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
         }
     }
 
@@ -880,6 +900,9 @@ impl DataModelExt for PaymentIntent {
             payment_confirm_source: storage_model.payment_confirm_source,
             updated_by: storage_model.updated_by,
             surcharge_applicable: storage_model.surcharge_applicable,
+            request_incremental_authorization: storage_model.request_incremental_authorization,
+            incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+            authorization_count: storage_model.authorization_count,
         }
     }
 }
@@ -894,11 +917,13 @@ impl DataModelExt for PaymentIntentUpdate {
                 amount_captured,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
                 amount_captured,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             },
             Self::MetadataUpdate {
                 metadata,
@@ -933,9 +958,15 @@ impl DataModelExt for PaymentIntentUpdate {
                 billing_address_id,
                 updated_by,
             },
-            Self::PGStatusUpdate { status, updated_by } => {
-                DieselPaymentIntentUpdate::PGStatusUpdate { status, updated_by }
-            }
+            Self::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => DieselPaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            },
             Self::Update {
                 amount,
                 currency,
@@ -1015,6 +1046,14 @@ impl DataModelExt for PaymentIntentUpdate {
             } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
+            },
+            Self::IncrementalAuthorizationAmountUpdate { amount } => {
+                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
+            }
+            Self::AuthorizationCountUpdate {
+                authorization_count,
+            } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
             },
         }
     }

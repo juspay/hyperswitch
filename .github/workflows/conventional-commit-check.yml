@@ -45,7 +45,7 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
 
-      - uses: baptiste0928/cargo-install@v2.1.0
+      - uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cocogitto
 
@@ -53,8 +53,10 @@ jobs:
         id: pr_title_check
         if: ${{ github.event_name == 'pull_request_target' }}
         shell: bash
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
         continue-on-error: true
-        run: cog verify '${{ github.event.pull_request.title }}'
+        run: cog verify "$TITLE"
 
       - name: Verify commit message follows conventional commit standards
         id: commit_message_check

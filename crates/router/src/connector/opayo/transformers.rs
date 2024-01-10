@@ -29,7 +29,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card = OpayoCard {
-                    name: req_card.card_holder_name,
+                    name: req_card
+                        .card_holder_name
+                        .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -52,7 +54,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Opayo"),
             )
             .into()),
@@ -122,6 +125,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

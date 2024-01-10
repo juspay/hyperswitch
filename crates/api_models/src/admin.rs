@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_utils::{
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
@@ -357,7 +359,7 @@ pub mod payout_routing_algorithm {
         where
             A: de::MapAccess<'de>,
         {
-            let mut output = serde_json::Value::Object(Map::new());
+            let mut output = Map::new();
             let mut routing_data: String = "".to_string();
             let mut routing_type: String = "".to_string();
 
@@ -365,14 +367,20 @@ pub mod payout_routing_algorithm {
                 match key {
                     "type" => {
                         routing_type = map.next_value()?;
-                        output["type"] = serde_json::Value::String(routing_type.to_owned());
+                        output.insert(
+                            "type".to_string(),
+                            serde_json::Value::String(routing_type.to_owned()),
+                        );
                     }
                     "data" => {
                         routing_data = map.next_value()?;
-                        output["data"] = serde_json::Value::String(routing_data.to_owned());
+                        output.insert(
+                            "data".to_string(),
+                            serde_json::Value::String(routing_data.to_owned()),
+                        );
                     }
                     f => {
-                        output[f] = map.next_value()?;
+                        output.insert(f.to_string(), map.next_value()?);
                     }
                 }
             }
@@ -390,7 +398,7 @@ pub mod payout_routing_algorithm {
                 }
                 u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
             }?;
-            Ok(output)
+            Ok(serde_json::Value::Object(output))
         }
     }
 
@@ -443,72 +451,6 @@ pub mod payout_routing_algorithm {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum RoutingAlgorithm {
-    Single(RoutableConnectorChoice),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum RoutableConnectorChoice {
-    ConnectorName(api_enums::RoutableConnectors),
-    ConnectorId {
-        merchant_connector_id: String,
-        connector: api_enums::RoutableConnectors,
-    },
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(
-    tag = "type",
-    content = "data",
-    rename_all = "snake_case",
-    from = "StraightThroughAlgorithmSerde",
-    into = "StraightThroughAlgorithmSerde"
-)]
-pub enum StraightThroughAlgorithm {
-    Single(RoutableConnectorChoice),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum StraightThroughAlgorithmInner {
-    Single(RoutableConnectorChoice),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum StraightThroughAlgorithmSerde {
-    Direct(StraightThroughAlgorithmInner),
-    Nested {
-        algorithm: StraightThroughAlgorithmInner,
-    },
-}
-
-impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
-    fn from(value: StraightThroughAlgorithmSerde) -> Self {
-        let inner = match value {
-            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
-            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
-        };
-
-        match inner {
-            StraightThroughAlgorithmInner::Single(conn) => Self::Single(conn),
-        }
-    }
-}
-
-impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
-    fn from(value: StraightThroughAlgorithm) -> Self {
-        let inner = match value {
-            StraightThroughAlgorithm::Single(conn) => StraightThroughAlgorithmInner::Single(conn),
-        };
-
-        Self::Nested { algorithm: inner }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
@@ -521,6 +463,11 @@ pub struct PrimaryBusinessDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentLinkConfig {
+    #[schema(
+        max_length = 255,
+        max_length = 255,
+        example = "https://i.imgur.com/RfxPFQo.png"
+    )]
     pub merchant_logo: Option<String>,
     pub color_scheme: Option<PaymentLinkColorSchema>,
 }
@@ -529,9 +476,8 @@ pub struct PaymentLinkConfig {
 #[serde(deny_unknown_fields)]
 
 pub struct PaymentLinkColorSchema {
-    pub primary_color: Option<String>,
-    pub primary_accent_color: Option<String>,
-    pub secondary_color: Option<String>,
+    pub background_primary_color: Option<String>,
+    pub sdk_theme: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -671,6 +617,39 @@ pub struct MerchantConnectorCreate {
     pub profile_id: Option<String>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
+}
+
+// Different patterns of authentication.
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
+pub enum ConnectorAuthType {
+    TemporaryAuth,
+    HeaderKey {
+        api_key: Secret<String>,
+    },
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    MultiAuthKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+    },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
+    },
+    #[default]
+    NoKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -776,6 +755,9 @@ pub struct MerchantConnectorResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: api_enums::ConnectorStatus,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -850,6 +832,9 @@ pub struct MerchantConnectorUpdate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -900,7 +885,7 @@ pub struct PaymentMethodsEnabled {
     pub payment_method: common_enums::PaymentMethod,
 
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
+    #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
@@ -959,6 +944,8 @@ pub struct ToggleKVResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,

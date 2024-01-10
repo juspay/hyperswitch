@@ -1,6 +1,7 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+use router_env::logger;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -72,7 +73,7 @@ impl<'de> Deserialize<'de> for CardNumber {
     }
 }
 
-pub struct CardNumberStrategy;
+pub enum CardNumberStrategy {}
 
 impl<T> Strategy<T> for CardNumberStrategy
 where
@@ -85,7 +86,12 @@ where
             return WithType::fmt(val, f);
         }
 
-        write!(f, "{}{}", &val_str[..6], "*".repeat(val_str.len() - 6))
+        if let Some(value) = val_str.get(..6) {
+            write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
+        } else {
+            logger::error!("Invalid card number {val_str}");
+            WithType::fmt(val, f)
+        }
     }
 }
 
