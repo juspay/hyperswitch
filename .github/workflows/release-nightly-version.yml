@@ -6,10 +6,6 @@ on:
 
   workflow_dispatch:
 
-  push:
-    branches:
-      - ci-use-git-commands-for-push-release-workflows
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -23,7 +19,7 @@ env:
 
   # The branch name that this workflow is allowed to run on.
   # If the workflow is run on any other branch, this workflow will fail.
-  ALLOWED_BRANCH_NAME: ci-use-git-commands-for-push-release-workflows
+  ALLOWED_BRANCH_NAME: main
 
 jobs:
   update-postman-collections:

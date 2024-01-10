@@ -4,28 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## 2024.01.10.1
-
-### Features
-
-- **payment_link:** Add status page for payment link ([#3213](https://github.com/juspay/hyperswitch/pull/3213)) ([`50e4d79`](https://github.com/juspay/hyperswitch/commit/50e4d797da31b570b5920b33d77c24a21d9871e2))
-
-### Bug Fixes
-
-- **euclid_wasm:** Update braintree config prod ([#3288](https://github.com/juspay/hyperswitch/pull/3288)) ([`8830563`](https://github.com/juspay/hyperswitch/commit/8830563748ed20c40b7a21a66e9ad9fd02ddcf0e))
-
-### Refactors
-
-- Removed basilisk feature ([#3281](https://github.com/juspay/hyperswitch/pull/3281)) ([`612f8d9`](https://github.com/juspay/hyperswitch/commit/612f8d9d5f5bcba78aa64c3128cc72be0f2860ea))
-
-### Miscellaneous Tasks
-
-- Nits and small code improvements found during investigation of PR#3168 ([#3259](https://github.com/juspay/hyperswitch/pull/3259)) ([`fe3cf54`](https://github.com/juspay/hyperswitch/commit/fe3cf54781302c733c1682ded2c1735544407a5f))
-
-**Full Changelog:** [`2024.01.10.0...2024.01.10.1`](https://github.com/juspay/hyperswitch/compare/2024.01.10.0...2024.01.10.1)
-
-- - -
-
 ## 2024.01.10.0
 
 ### Features
