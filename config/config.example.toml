@@ -139,12 +139,6 @@ connectors_with_delayed_session_response = "trustpay,payme" # List of connectors
 connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
 
 [jwekey] # 4 priv/pub key pair
-locker_key_identifier1 = ""     # key identifier for key rotation , should be same as basilisk
-locker_key_identifier2 = ""     # key identifier for key rotation , should be same as basilisk
-locker_encryption_key1 = ""     # public key 1 in pem format, corresponding private key in basilisk
-locker_encryption_key2 = ""     # public key 2 in pem format, corresponding private key in basilisk
-locker_decryption_key1 = ""     # private key 1 in pem format, corresponding public key in basilisk
-locker_decryption_key2 = ""     # private key 2 in pem format, corresponding public key in basilisk
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
 rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in basilisk-hs
