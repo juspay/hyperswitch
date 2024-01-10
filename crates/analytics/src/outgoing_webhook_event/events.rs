@@ -81,8 +81,8 @@ pub struct OutgoingWebhookLogsResult {
     pub attempt_id: Option<String>,
     pub dispute_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_id: String,
-    pub content: String,
+    pub mandate_id: Option<String>,
+    pub content: Option<String>,
     pub is_error: bool,
     pub error: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
