@@ -5556,6 +5556,8 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_authorized",
+          "payment_captured",
           "action_required",
           "refund_succeeded",
           "refund_failed",
