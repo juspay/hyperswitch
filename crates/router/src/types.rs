@@ -428,6 +428,7 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -542,6 +543,7 @@ pub struct PaymentsCancelData {
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
