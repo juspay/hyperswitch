@@ -352,11 +352,15 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::ActionRequired)
             }
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::PartiallyCaptured
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Some(storage_enums::EventType::PaymentCaptured)
+            }
+            api_enums::IntentStatus::RequiresCapture => {
+                Some(storage_enums::EventType::PaymentAuthorized)
+            }
             api_enums::IntentStatus::RequiresPaymentMethod
-            | api_enums::IntentStatus::RequiresConfirmation
-            | api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | api_enums::IntentStatus::RequiresConfirmation => None,
         }
     }
 }
@@ -943,19 +947,27 @@ impl
     }
 }
 
-impl ForeignFrom<(storage::PaymentLink, String)>
-    for api_models::payments::RetrievePaymentLinkResponse
+impl
+    ForeignFrom<(
+        storage::PaymentLink,
+        api_models::payments::PaymentLinkStatus,
+    )> for api_models::payments::RetrievePaymentLinkResponse
 {
-    fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
+    fn foreign_from(
+        (payment_link_config, status): (
+            storage::PaymentLink,
+            api_models::payments::PaymentLinkStatus,
+        ),
+    ) -> Self {
         Self {
-            payment_link_id: payment_link_object.payment_link_id,
-            merchant_id: payment_link_object.merchant_id,
-            link_to_pay: payment_link_object.link_to_pay,
-            amount: payment_link_object.amount,
-            created_at: payment_link_object.created_at,
-            link_expiry: payment_link_object.fulfilment_time,
-            description: payment_link_object.description,
-            currency: payment_link_object.currency,
+            payment_link_id: payment_link_config.payment_link_id,
+            merchant_id: payment_link_config.merchant_id,
+            link_to_pay: payment_link_config.link_to_pay,
+            amount: payment_link_config.amount,
+            created_at: payment_link_config.created_at,
+            expiry: payment_link_config.fulfilment_time,
+            description: payment_link_config.description,
+            currency: payment_link_config.currency,
             status,
         }
     }
