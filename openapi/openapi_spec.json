@@ -8686,7 +8686,8 @@
         "required": [
           "theme",
           "logo",
-          "seller_name"
+          "seller_name",
+          "sdk_layout"
         ],
         "properties": {
           "theme": {
@@ -8700,6 +8701,10 @@
           "seller_name": {
             "type": "string",
             "description": "Custom merchant name for payment link"
+          },
+          "sdk_layout": {
+            "type": "string",
+            "description": "Custom layout for sdk"
           }
         }
       },
@@ -8724,6 +8729,13 @@
             "type": "string",
             "description": "Custom merchant name for payment link",
             "example": "hyperswitch",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "sdk_layout": {
+            "type": "string",
+            "description": "Custom layout for sdk",
+            "example": "accordion",
             "nullable": true,
             "maxLength": 255
           }
