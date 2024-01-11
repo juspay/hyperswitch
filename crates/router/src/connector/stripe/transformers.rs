@@ -1115,36 +1115,9 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
-            } => {
-                let billing_name = billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.billing_name.clone());
-
-                let billing_email = billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.email.clone());
-                match is_customer_initiated_mandate_payment {
-                    Some(true) => Ok(Self {
-                        name: Some(billing_name.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_name",
-                            },
-                        )?),
-
-                        email: Some(billing_email.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_email",
-                            },
-                        )?),
-                        ..Self::default()
-                    }),
-                    Some(false) | None => Ok(Self {
-                        name: billing_name,
-                        email: billing_email,
-                        ..Self::default()
-                    }),
-                }
-            }
+            } => Ok(get_stripe_sepaDD_mandate_billing_details(
+                billing_details,
+                is_customer_initiated_mandate_payment )),
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
@@ -1183,15 +1156,10 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             }
             payments::BankRedirectData::Sofort {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.billing_name.clone()),
-                email: billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.email.clone()),
-                ..Self::default()
-            }),
+            } => Ok(get_stripe_sepaDD_mandate_billing_details(
+                billing_details,
+                is_customer_initiated_mandate_payment )),
+
             payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Blik { .. }
             | payments::BankRedirectData::Interac { .. }
@@ -3833,3 +3801,37 @@ mod test_validate_shipping_address_against_payment_method {
         }
     }
 }
+
+fn get_stripe_sepaDD_mandate_billing_details(
+    billing_details : &Option<payments::BankRedirectBilling>,
+    is_customer_initiated_mandate_payment : Option<bool>) -> StripeBillingAddress {
+        let billing_name = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.billing_name.clone());
+
+    let billing_email = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.email.clone());
+    match is_customer_initiated_mandate_payment {
+        Some(true) => Ok(StripeBillingAddress {
+            name: Some(billing_name.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                },
+            )?),
+
+            email: Some(billing_email.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_email",
+                },
+            )?),
+            ..StripeBillingAddress::default()
+        }),
+        Some(false) | None => Ok(StripeBillingAddress {
+            name: billing_name,
+            email: billing_email,
+            ..StripeBillingAddress::default()
+        }),
+    }
+
+    }
