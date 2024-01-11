@@ -452,28 +452,6 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     }
 }
 
-// Type definition for Refund Response
-
-// #[allow(dead_code)]
-// #[derive(Debug, Serialize, Default, Deserialize, Clone)]
-// pub enum RefundStatus {
-//     Succeeded,
-//     Failed,
-//     #[default]
-//     Processing,
-// }
-
-// impl From<RefundStatus> for enums::RefundStatus {
-//     fn from(item: RefundStatus) -> Self {
-//         match item {
-//             RefundStatus::Succeeded => Self::Success,
-//             RefundStatus::Failed => Self::Failure,
-//             RefundStatus::Processing => Self::Pending,
-//             //TODO: Review mapping
-//         }
-//     }
-// }
-
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     id: String,
