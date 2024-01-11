@@ -13,7 +13,7 @@ pub async fn add_entry_to_blocklist(
     req: HttpRequest,
     json_payload: web::Json<api_blocklist::AddToBlocklistRequest>,
 ) -> HttpResponse {
-    let flow = Flow::PmBlockFlow;
+    let flow = Flow::AddToBlocklist;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -24,7 +24,7 @@ pub async fn add_entry_to_blocklist(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -37,7 +37,7 @@ pub async fn remove_entry_from_blocklist(
     req: HttpRequest,
     json_payload: web::Json<api_blocklist::DeleteFromBlocklistRequest>,
 ) -> HttpResponse {
-    let flow = Flow::PmUnblockFlow;
+    let flow = Flow::DeleteFromBlocklist;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -48,7 +48,7 @@ pub async fn remove_entry_from_blocklist(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -61,7 +61,7 @@ pub async fn list_blocked_payment_methods(
     req: HttpRequest,
     query_payload: web::Query<api_blocklist::ListBlocklistQuery>,
 ) -> HttpResponse {
-    let flow = Flow::PmBlocklistListFlow;
+    let flow = Flow::ListBlocklist;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -72,7 +72,7 @@ pub async fn list_blocked_payment_methods(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

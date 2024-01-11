@@ -58,9 +58,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RetrieveForexFlow => Self::Forex,
 
-            Flow::PmBlockFlow => Self::Blocklist,
-            Flow::PmUnblockFlow => Self::Blocklist,
-            Flow::PmBlocklistListFlow => Self::Blocklist,
+            Flow::AddToBlocklist => Self::Blocklist,
+            Flow::DeleteFromBlocklist => Self::Blocklist,
+            Flow::ListBlocklist => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
