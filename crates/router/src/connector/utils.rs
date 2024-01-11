@@ -117,7 +117,7 @@ where
             }
             enums::AttemptStatus::Charged => {
                 let captured_amount =
-                    types::Capturable::get_capture_amount(&self.request, payment_data);
+                    types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount {
                     enums::AttemptStatus::Charged
@@ -273,6 +273,7 @@ pub trait PaymentsPreProcessingData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -316,6 +317,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
     }
 }
 
@@ -592,6 +598,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -615,6 +622,11 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 }
                 .into(),
             )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
     }
 }
 
@@ -1706,6 +1718,45 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
     }
 }
 
+pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
+    match status {
+        common_enums::AttemptStatus::AuthenticationFailed
+        | common_enums::AttemptStatus::AuthorizationFailed
+        | common_enums::AttemptStatus::CaptureFailed
+        | common_enums::AttemptStatus::VoidFailed
+        | common_enums::AttemptStatus::Failure => true,
+        common_enums::AttemptStatus::Started
+        | common_enums::AttemptStatus::RouterDeclined
+        | common_enums::AttemptStatus::AuthenticationPending
+        | common_enums::AttemptStatus::AuthenticationSuccessful
+        | common_enums::AttemptStatus::Authorized
+        | common_enums::AttemptStatus::Charged
+        | common_enums::AttemptStatus::Authorizing
+        | common_enums::AttemptStatus::CodInitiated
+        | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidInitiated
+        | common_enums::AttemptStatus::CaptureInitiated
+        | common_enums::AttemptStatus::AutoRefunded
+        | common_enums::AttemptStatus::PartialCharged
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::PaymentMethodAwaited
+        | common_enums::AttemptStatus::ConfirmationAwaited
+        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+    }
+}
+
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]
@@ -1783,45 +1834,5 @@ mod error_code_error_message_tests {
             })
         );
         assert_eq!(error_code_error_message_none, None);
-    }
-}
-
-pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
-    match status {
-        common_enums::AttemptStatus::AuthenticationFailed
-        | common_enums::AttemptStatus::AuthorizationFailed
-        | common_enums::AttemptStatus::CaptureFailed
-        | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
-        common_enums::AttemptStatus::Started
-        | common_enums::AttemptStatus::RouterDeclined
-        | common_enums::AttemptStatus::AuthenticationPending
-        | common_enums::AttemptStatus::AuthenticationSuccessful
-        | common_enums::AttemptStatus::Authorized
-        | common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::Authorizing
-        | common_enums::AttemptStatus::CodInitiated
-        | common_enums::AttemptStatus::Voided
-        | common_enums::AttemptStatus::VoidInitiated
-        | common_enums::AttemptStatus::CaptureInitiated
-        | common_enums::AttemptStatus::AutoRefunded
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable
-        | common_enums::AttemptStatus::Unresolved
-        | common_enums::AttemptStatus::Pending
-        | common_enums::AttemptStatus::PaymentMethodAwaited
-        | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
-    }
-}
-
-pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
-    match status {
-        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
-            true
-        }
-        common_enums::RefundStatus::ManualReview
-        | common_enums::RefundStatus::Pending
-        | common_enums::RefundStatus::Success => false,
     }
 }
