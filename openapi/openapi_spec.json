@@ -11679,6 +11679,12 @@
           },
           "profile_id": {
             "type": "string",
+            "description": "The id of business profile for this refund",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "The merchant_connector_id of the processor through which this payment went through",
             "nullable": true
           }
         }
