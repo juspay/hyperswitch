@@ -825,6 +825,7 @@ impl PaymentCreate {
             request_incremental_authorization,
             incremental_authorization_allowed: None,
             authorization_count: None,
+            fingerprint_id: None,
             session_expiry: Some(session_expiry),
         })
     }

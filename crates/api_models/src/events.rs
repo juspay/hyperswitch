@@ -18,7 +18,10 @@ use common_utils::{
 #[allow(unused_imports)]
 use crate::{
     admin::*,
-    analytics::{api_event::*, connector_events::ConnectorEventsRequest, sdk_events::*, *},
+    analytics::{
+        api_event::*, connector_events::ConnectorEventsRequest,
+        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, *,
+    },
     api_keys::*,
     cards_info::*,
     disputes::*,
@@ -91,7 +94,8 @@ impl_misc_api_event_type!(
     GetApiEventMetricRequest,
     SdkEventsRequest,
     ReportRequest,
-    ConnectorEventsRequest
+    ConnectorEventsRequest,
+    OutgoingWebhookLogsRequest
 );
 
 #[cfg(feature = "stripe")]

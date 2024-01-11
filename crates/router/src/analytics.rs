@@ -4,7 +4,8 @@ pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
         api_event::api_events_core, connector_events::connector_events_core,
-        errors::AnalyticsError, lambda_utils::invoke_lambda, sdk_events::sdk_events_core,
+        errors::AnalyticsError, lambda_utils::invoke_lambda,
+        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
     };
     use api_models::analytics::{
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
@@ -74,6 +75,10 @@ pub mod routes {
                     .service(
                         web::resource("connector_event_logs")
                             .route(web::get().to(get_connector_events)),
+                    )
+                    .service(
+                        web::resource("outgoing_webhook_event_logs")
+                            .route(web::get().to(get_outgoing_webhook_events)),
                     )
                     .service(
                         web::resource("filters/api_events")
@@ -309,6 +314,30 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req| async move {
                 api_events_core(&state.pool, req, auth.merchant_account.merchant_id)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_outgoing_webhook_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<
+            api_models::analytics::outgoing_webhook_event::OutgoingWebhookLogsRequest,
+        >,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetOutgoingWebhookEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req| async move {
+                outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
             },

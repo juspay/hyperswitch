@@ -2586,6 +2586,7 @@ mod tests {
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
+            fingerprint_id: None,
             off_session: None,
             client_secret: Some("1".to_string()),
             active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
@@ -2638,6 +2639,7 @@ mod tests {
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
+            fingerprint_id: None,
             last_synced: None,
             setup_future_usage: None,
             off_session: None,
@@ -2695,6 +2697,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: None,
+            fingerprint_id: None,
             active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
@@ -3287,6 +3290,7 @@ pub async fn get_additional_payment_data(
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let card_extended_bin = Some(card_data.card_number.clone().get_card_extended_bin());
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
@@ -3306,6 +3310,7 @@ pub async fn get_additional_payment_data(
                         card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
+                        card_extended_bin: card_extended_bin.clone(),
                     },
                 ))
             } else {
@@ -3329,6 +3334,7 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
+                                card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
                                 card_holder_name: card_data.card_holder_name.clone(),
@@ -3344,6 +3350,7 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
+                        card_extended_bin,
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
                         card_holder_name: card_data.card_holder_name.clone(),
