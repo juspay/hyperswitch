@@ -259,9 +259,8 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     }
 }
 
-type CustomPassword = Secret<String>;
 type InviteeUserRequestWithInvitedUserToken =
-    (user_api::InviteUserRequest, UserFromToken, CustomPassword);
+    (user_api::InviteUserRequest, UserFromToken);
 impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
     fn from(_value: InviteeUserRequestWithInvitedUserToken) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
@@ -689,7 +688,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = UserPassword::new(value.2.clone())?;
+        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {

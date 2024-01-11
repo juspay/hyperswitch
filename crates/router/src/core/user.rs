@@ -342,7 +342,6 @@ pub async fn reset_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
-// #[cfg(feature = "email")]
 pub async fn invite_user(
     state: AppState,
     request: user_api::InviteUserRequest,
@@ -403,12 +402,7 @@ pub async fn invite_user(
         .err()
         .unwrap_or(false)
     {
-        let new_user_password: Secret<String> = uuid::Uuid::new_v4().to_string().into();
-        let new_user = domain::NewUser::try_from((
-            request.clone(),
-            user_from_token.clone(),
-            new_user_password.clone(),
-        ))?;
+        let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
         new_user
             .insert_user_in_db(state.store.as_ref())
@@ -465,7 +459,7 @@ pub async fn invite_user(
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
             is_email_sent,
             password: if cfg!(not(feature = "email")) {
-                Some(new_user_password)
+                Some(new_user.get_password().get_secret())
             } else {
                 None
             },
