@@ -259,8 +259,7 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     }
 }
 
-type InviteeUserRequestWithInvitedUserToken =
-    (user_api::InviteUserRequest, UserFromToken);
+type InviteeUserRequestWithInvitedUserToken = (user_api::InviteUserRequest, UserFromToken);
 impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
     fn from(_value: InviteeUserRequestWithInvitedUserToken) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
