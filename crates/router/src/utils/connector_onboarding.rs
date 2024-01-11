@@ -1,7 +1,9 @@
+use diesel_models::{ConfigNew, ConfigUpdate};
 use error_stack::ResultExt;
 
 use super::errors::StorageErrorExt;
 use crate::{
+    consts,
     core::errors::{api_error_response::NotImplementedMessage, ApiErrorResponse, RouterResult},
     routes::{app::settings, AppState},
     types::{self, api::enums},
@@ -65,4 +67,70 @@ pub async fn check_if_connector_exists(
         })?;
 
     Ok(())
+}
+
+pub async fn set_tracking_id_in_configs(
+    state: &AppState,
+    connector_id: &str,
+    connector: enums::Connector,
+) -> RouterResult<()> {
+    let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
+    if state
+        .store
+        .find_config_by_key(&build_key(connector_id, connector))
+        .await
+        .is_ok()
+    {
+        state
+            .store
+            .update_config_by_key(
+                &build_key(connector_id, connector),
+                ConfigUpdate::Update {
+                    config: Some(timestamp),
+                },
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating data in configs table")?;
+    } else {
+        state
+            .store
+            .insert_config(ConfigNew {
+                key: build_key(connector_id, connector),
+                config: timestamp,
+            })
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Error inserting data in configs table")?;
+    }
+
+    Ok(())
+}
+
+pub async fn get_tracking_id_from_configs(
+    state: &AppState,
+    connector_id: &str,
+    connector: enums::Connector,
+) -> RouterResult<String> {
+    let timestamp = state
+        .store
+        .find_config_by_key_unwrap_or(
+            &build_key(connector_id, connector),
+            Some(common_utils::date_time::now_unix_timestamp().to_string()),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting data from configs table")?
+        .config;
+
+    Ok(format!("{}_{}", connector_id, timestamp))
+}
+
+fn build_key(connector_id: &str, connector: enums::Connector) -> String {
+    format!(
+        "{}_{}_{}",
+        consts::CONNECTOR_ONBOARDING_CONFIG_PREFIX,
+        connector,
+        connector_id,
+    )
 }

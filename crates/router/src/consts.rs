@@ -70,3 +70,6 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";
+
+#[cfg(feature = "olap")]
+pub const CONNECTOR_ONBOARDING_CONFIG_PREFIX: &str = "onboarding";

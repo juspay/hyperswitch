@@ -26,12 +26,15 @@ pub async fn get_action_url(
 
     let connector_onboarding_conf = state.conf.connector_onboarding.clone();
     let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
+    let tracking_id =
+        utils::get_tracking_id_from_configs(&state, &request.connector_id, request.connector)
+            .await?;
 
     match (is_enabled, request.connector) {
         (Some(true), enums::Connector::Paypal) => {
             let action_url = Box::pin(paypal::get_action_url_from_paypal(
                 state,
-                request.connector_id,
+                tracking_id,
                 request.return_url,
             ))
             .await?;
@@ -57,12 +60,15 @@ pub async fn sync_onboarding_status(
 
     let connector_onboarding_conf = state.conf.connector_onboarding.clone();
     let is_enabled = utils::is_enabled(request.connector, &connector_onboarding_conf);
+    let tracking_id =
+        utils::get_tracking_id_from_configs(&state, &request.connector_id, request.connector)
+            .await?;
 
     match (is_enabled, request.connector) {
         (Some(true), enums::Connector::Paypal) => {
             let status = Box::pin(paypal::sync_merchant_onboarding_status(
                 state.clone(),
-                request.connector_id.clone(),
+                tracking_id,
             ))
             .await?;
             if let api::OnboardingStatus::PayPal(api::PayPalOnboardingStatus::Success(
@@ -95,4 +101,16 @@ pub async fn sync_onboarding_status(
         }
         .into()),
     }
+}
+
+pub async fn reset_tracking_id(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+    request: api::ResetTrackingIdRequest,
+) -> RouterResponse<()> {
+    utils::check_if_connector_exists(&state, &request.connector_id, &user_from_token.merchant_id)
+        .await?;
+    utils::set_tracking_id_in_configs(&state, &request.connector_id, request.connector).await?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

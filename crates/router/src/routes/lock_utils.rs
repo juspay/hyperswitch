@@ -178,7 +178,9 @@ impl From<Flow> for ApiIdentifier {
                 Self::UserRole
             }
 
-            Flow::GetActionUrl | Flow::SyncOnboardingStatus => Self::ConnectorOnboarding,
+            Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
+                Self::ConnectorOnboarding
+            }
         }
     }
 }
