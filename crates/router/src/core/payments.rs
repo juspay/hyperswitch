@@ -1490,7 +1490,7 @@ where
 
                 (router_data, false)
             } else if connector.connector_name == router_types::Connector::Cybersource
-                && matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+                && is_operation_complete_authorize(&operation)
                 && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
@@ -2120,6 +2120,10 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+}
+
+pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
+    matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
 }
 
 #[cfg(feature = "olap")]
