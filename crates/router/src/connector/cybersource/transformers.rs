@@ -1105,6 +1105,8 @@ pub struct CybersourceClientReferenceResponse {
     id: String,
     status: CybersourcePaymentStatus,
     client_reference_information: ClientReferenceInformation,
+    processor_information: Option<ClientProcessorInformation>,
+    risk_information: Option<ClientRiskInformation>,
     token_information: Option<CybersourceTokenInformation>,
     error_information: Option<CybersourceErrorInformation>,
 }
@@ -1136,6 +1138,30 @@ pub struct ClientReferenceInformation {
     code: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientProcessorInformation {
+    avs: Option<Avs>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Avs {
+    code: String,
+    code_raw: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientRiskInformation {
+    rules: Option<Vec<ClientRiskInformationRules>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ClientRiskInformationRules {
+    name: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
@@ -1152,10 +1178,11 @@ impl<F, T>
     From<(
         &CybersourceErrorInformationResponse,
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
+        Option<enums::AttemptStatus>,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     fn from(
-        (error_response, item): (
+        (error_response, item, transaction_status): (
             &CybersourceErrorInformationResponse,
             types::ResponseRouterData<
                 F,
@@ -1163,25 +1190,35 @@ impl<F, T>
                 T,
                 types::PaymentsResponseData,
             >,
+            Option<enums::AttemptStatus>,
         ),
     ) -> Self {
-        Self {
-            response: {
-                let error_reason = &error_response.error_information.reason;
-                Err(types::ErrorResponse {
-                    code: error_reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_reason
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.message.clone(),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id.clone()),
-                })
+        let error_reason = error_response
+            .error_information
+            .message
+            .to_owned()
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+        let error_message = error_response.error_information.reason.to_owned();
+        let response = Err(types::ErrorResponse {
+            code: error_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(error_reason),
+            status_code: item.http_code,
+            attempt_status: None,
+            connector_transaction_id: Some(error_response.id.clone()),
+        });
+        match transaction_status {
+            Some(status) => Self {
+                response,
+                status,
+                ..item.data
             },
-            ..item.data
+            None => Self {
+                response,
+                ..item.data
+            },
         }
     }
 }
@@ -1196,6 +1233,7 @@ fn get_error_response_if_failure(
     if utils::is_payment_failure(status) {
         Some(types::ErrorResponse::from((
             &info_response.error_information,
+            &info_response.risk_information,
             http_code,
             info_response.id.clone(),
         )))
@@ -1229,7 +1267,10 @@ fn get_payment_response(
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: None,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata: info_response
+                    .processor_information
+                    .as_ref()
+                    .map(|processor_information| serde_json::json!({"avs_response": processor_information.avs})),
                 network_txn_id: None,
                 connector_response_reference_id: Some(
                     info_response
@@ -1276,25 +1317,11 @@ impl<F>
                     ..item.data
                 })
             }
-            CybersourcePaymentsResponse::ErrorInformation(error_response) => {
-                let error_reason = &error_response.error_information.reason;
-                Ok(Self {
-                    response: Err(types::ErrorResponse {
-                        code: error_reason
-                            .clone()
-                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                        message: error_reason
-                            .clone()
-                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                        reason: error_response.error_information.message,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: Some(error_response.id.clone()),
-                    }),
-                    status: enums::AttemptStatus::Failure,
-                    ..item.data
-                })
-            }
+            CybersourcePaymentsResponse::ErrorInformation(ref error_response) => Ok(Self::from((
+                &error_response.clone(),
+                item,
+                Some(enums::AttemptStatus::Failure),
+            ))),
         }
     }
 }
@@ -1330,7 +1357,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::from((&error_response.clone(), item)))
+                Ok(Self::from((&error_response.clone(), item, None)))
             }
         }
     }
@@ -1367,7 +1394,7 @@ impl<F>
                 })
             }
             CybersourcePaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(Self::from((&error_response.clone(), item)))
+                Ok(Self::from((&error_response.clone(), item, None)))
             }
         }
     }
@@ -1556,10 +1583,12 @@ impl<F>
                 ));
                 let incremental_authorization_allowed =
                     Some(status == enums::AttemptStatus::Authorized);
+                let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
                     Ok(Self {
                         response: Err(types::ErrorResponse::from((
                             &app_response.error_information,
+                            &risk_info,
                             item.http_code,
                             app_response.id.clone(),
                         ))),
@@ -1782,30 +1811,53 @@ pub struct AuthenticationErrorInformation {
     pub rmsg: String,
 }
 
-impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorResponse {
+impl
+    From<(
+        &Option<CybersourceErrorInformation>,
+        &Option<ClientRiskInformation>,
+        u16,
+        String,
+    )> for types::ErrorResponse
+{
     fn from(
-        (error_data, status_code, transaction_id): (
+        (error_data, risk_information, status_code, transaction_id): (
             &Option<CybersourceErrorInformation>,
+            &Option<ClientRiskInformation>,
             u16,
             String,
         ),
     ) -> Self {
-        let error_message = error_data
+        let avs_message = risk_information
             .clone()
-            .and_then(|error_details| error_details.message);
-
+            .map(|client_risk_information| {
+                client_risk_information.rules.map(|rules| {
+                    rules
+                        .iter()
+                        .map(|risk_info| format!(" , {}", risk_info.name))
+                        .collect::<Vec<String>>()
+                        .join("")
+                })
+            })
+            .unwrap_or(Some("".to_string()));
         let error_reason = error_data
+            .clone()
+            .map(|error_details| {
+                error_details.message.unwrap_or("".to_string())
+                    + &avs_message.unwrap_or("".to_string())
+            })
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+        let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
 
         Self {
-            code: error_reason
+            code: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_reason
+            message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_message.clone(),
+            reason: Some(error_reason.clone()),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),

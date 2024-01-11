@@ -24,6 +24,8 @@ pub enum StorageError {
     SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Kafka error")]
+    KafkaError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
     #[error("Deserialization failure")]

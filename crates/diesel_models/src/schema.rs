@@ -61,6 +61,50 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    blocklist (id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        fingerprint_id -> Varchar,
+        data_kind -> BlocklistDataKind,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    blocklist_fingerprint (id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        fingerprint_id -> Varchar,
+        data_kind -> BlocklistDataKind,
+        encrypted_fingerprint -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    blocklist_lookup (id) {
+        id -> Int4,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        fingerprint -> Text,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     business_profile (profile_id) {
         #[max_length = 64]
         profile_id -> Varchar,
@@ -709,6 +753,8 @@ diesel::table! {
         incremental_authorization_allowed -> Nullable<Bool>,
         authorization_count -> Nullable<Int4>,
         session_expiry -> Nullable<Timestamp>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
     }
 }
 
@@ -1016,6 +1062,9 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    blocklist,
+    blocklist_fingerprint,
+    blocklist_lookup,
     business_profile,
     captures,
     cards_info,
