@@ -16,11 +16,9 @@ pub async fn connector_events_core(
         ))
         .into_report()
         .attach_printable("SQL Analytics is not implemented for Connector Events"),
-        AnalyticsProvider::Clickhouse(ckh_pool) => {
-            get_connector_events(&merchant_id, req, ckh_pool).await
-        }
-        AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
-        | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
+        AnalyticsProvider::Clickhouse(ckh_pool)
+        | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
+        | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
             get_connector_events(&merchant_id, req, ckh_pool).await
         }
     }
