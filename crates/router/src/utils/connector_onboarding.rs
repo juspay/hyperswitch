@@ -52,7 +52,7 @@ pub async fn check_if_connector_exists(
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _connector = state
         .store
@@ -75,12 +75,12 @@ pub async fn set_tracking_id_in_configs(
     connector: enums::Connector,
 ) -> RouterResult<()> {
     let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
-    if state
+    let find_config = state
         .store
         .find_config_by_key(&build_key(connector_id, connector))
-        .await
-        .is_ok()
-    {
+        .await;
+
+    if find_config.is_ok() {
         state
             .store
             .update_config_by_key(
@@ -92,7 +92,12 @@ pub async fn set_tracking_id_in_configs(
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Error updating data in configs table")?;
-    } else {
+    } else if find_config
+        .as_ref()
+        .map_err(|e| e.current_context().is_db_not_found())
+        .err()
+        .unwrap_or(false)
+    {
         state
             .store
             .insert_config(ConfigNew {
@@ -102,6 +107,8 @@ pub async fn set_tracking_id_in_configs(
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Error inserting data in configs table")?;
+    } else {
+        find_config.change_context(ApiErrorResponse::InternalServerError)?;
     }
 
     Ok(())
