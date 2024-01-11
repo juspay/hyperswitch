@@ -1823,7 +1823,7 @@ impl From<(&Option<CybersourceErrorInformation>, u16, String)> for types::ErrorR
         let error_reason = error_data
             .clone()
             .and_then(|error_details| error_details.message)
-            .unwrap_or(consts::NO_ERROR_CODE.to_string());
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
 
         let error_message = error_data
             .clone()
@@ -1878,7 +1878,7 @@ impl
                 error_details.message.unwrap_or("".to_string())
                     + &avs_message.unwrap_or("".to_string())
             })
-            .unwrap_or(consts::NO_ERROR_CODE.to_string());
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
