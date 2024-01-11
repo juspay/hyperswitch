@@ -40,9 +40,15 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     use rand::distributions::{Distribution, Uniform};
 
     let mut rng = rand::thread_rng();
+
+    // TODO: this can be removed once rand-0.9 is released
+    // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
+    #[allow(unknown_lints)]
+    #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=settings.loop_interval)
         .into_report()
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;
+
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
     let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
