@@ -393,8 +393,6 @@ where
         )
     };
 
-    println!("session_expiry {:?}", payment_intent.session_expiry);
-
     let incremental_authorizations_response = if payment_data.authorizations.is_empty() {
         None
     } else {
