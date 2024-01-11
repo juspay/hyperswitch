@@ -72,7 +72,7 @@ pub async fn list_blocked_payment_methods(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth(Permission::MerchantAccountRead),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
