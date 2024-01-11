@@ -1,3 +1,4 @@
+use common_utils::pii;
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -47,6 +48,7 @@ pub struct CryptopayPaymentsRequest {
     pay_currency: String,
     success_redirect_url: Option<String>,
     unsuccess_redirect_url: Option<String>,
+    metadata: Option<pii::SecretSerdeValue>,
     custom_id: String,
 }
 
@@ -66,6 +68,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     pay_currency,
                     success_redirect_url: item.router_data.request.router_return_url.clone(),
                     unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
+                    metadata: item.router_data.request.metadata.clone(),
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }

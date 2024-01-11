@@ -64,6 +64,7 @@ pub struct NoonOrder {
     reference: String,
     //Short description of the order.
     name: String,
+    nvp: Option<pii::SecretSerdeValue>,
     ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
@@ -348,6 +349,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             category,
             reference: item.connector_request_reference_id.clone(),
             name,
+            nvp: item.request.metadata.clone(),
             ip_address,
         };
         let payment_action = if item.request.is_auto_capture()? {

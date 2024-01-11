@@ -1,6 +1,6 @@
 use api_models::webhooks;
 use cards::CardNumber;
-use common_utils::{errors::CustomResult, ext_traits::XmlExt};
+use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii};
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -403,6 +403,8 @@ pub struct NmiPaymentsRequest {
     currency: enums::Currency,
     #[serde(flatten)]
     payment_method: PaymentMethod,
+    #[serde(rename = "merchant_defined_field_#")]
+    merchant_defined_field: Option<pii::SecretSerdeValue>,
     orderid: String,
 }
 
@@ -451,6 +453,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
             amount,
             currency: item.router_data.request.currency,
             payment_method,
+            merchant_defined_field: item.router_data.request.metadata.clone(),
             orderid: item.router_data.connector_request_reference_id.clone(),
         })
     }
@@ -566,6 +569,7 @@ impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
             amount: 0.0,
             currency: item.request.currency,
             payment_method,
+            merchant_defined_field: None,
             orderid: item.connector_request_reference_id.clone(),
         })
     }
