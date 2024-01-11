@@ -16,10 +16,8 @@ pub async fn outgoing_webhook_events_core(
         ))
         .into_report()
         .attach_printable("SQL Analytics is not implemented for Outgoing Webhook Events"),
-        AnalyticsProvider::Clickhouse(pool) => {
-            get_outgoing_webhook_event(&merchant_id, req, pool).await
-        }
-        AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
+        AnalyticsProvider::Clickhouse(ckh_pool)
+        | AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
             get_outgoing_webhook_event(&merchant_id, req, ckh_pool).await
         }
