@@ -52,18 +52,11 @@ jobs:
       - name: Repository checkout
         uses: actions/checkout@v4
 
-      - name: Decrypt connector auth file
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        env:
-          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
-        shell: bash
-        run: ./scripts/decrypt_connector_auth.sh
-
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
-          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
