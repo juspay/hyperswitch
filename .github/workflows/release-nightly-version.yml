@@ -27,23 +27,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate GitHub app token
-        id: generate_app_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
-          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.AUTO_RELEASE_PAT }}
 
       - name: Check if the workflow is run on an allowed branch
         shell: bash
         run: |
-          if [[ "${{github.ref}}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
-            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{github.ref}}'"
+          if [[ "${{ github.ref }}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
+            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{ github.ref }}'"
             exit 1
           fi
 
@@ -80,66 +74,21 @@ jobs:
             echo "Postman collection files have no modifications"
           fi
 
-      - name: Commit updated Postman collections if modified
+      - name: Set git configuration
         shell: bash
-        env:
-          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         if: ${{ env.POSTMAN_COLLECTION_FILES_UPDATED == 'true' }}
         run: |
-          # Obtain current HEAD commit SHA and use that as base tree SHA for creating a new tree
-          HEAD_COMMIT="$(git rev-parse 'HEAD^{commit}')"
-          UPDATED_TREE_SHA="${HEAD_COMMIT}"
+          git config --local user.name 'github-actions'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          # Obtain the flags to be passed to the GitHub CLI.
-          # Each line contains the flags to be used corresponding to the file.
-          lines="$(
-            git ls-files \
-              --format '--raw-field tree[][path]=%(path) --raw-field tree[][mode]=%(objectmode) --raw-field tree[][type]=%(objecttype) --field tree[][content]=@%(path)' \
-              postman/collection-json
-          )"
+      - name: Commit and push updated Postman collections if modified
+        shell: bash
+        if: ${{ env.POSTMAN_COLLECTION_FILES_UPDATED == 'true' }}
+        run: |
+          git add postman
+          git commit --message 'chore(postman): update Postman collection files'
 
-          # Create a tree based on the HEAD commit of the current branch, using the contents of the updated Postman collections directory
-          while IFS= read -r line; do
-            # Split each line by space to obtain the flags passed to the GitHub CLI as an array
-            IFS=' ' read -ra flags <<< "${line}"
-
-            # Create a tree by updating each collection JSON file.
-            # The SHA of the created tree is used as the base tree SHA for updating the next collection file.
-            UPDATED_TREE_SHA="$(
-              gh api \
-                --method POST \
-                --header 'Accept: application/vnd.github+json' \
-                --header 'X-GitHub-Api-Version: 2022-11-28' \
-                '/repos/{owner}/{repo}/git/trees' \
-                --raw-field base_tree="${UPDATED_TREE_SHA}" \
-                "${flags[@]}" \
-                --jq '.sha'
-            )"
-          done <<< "${lines}"
-
-          # Create a commit to point to the tree with all updated collections
-          NEW_COMMIT_SHA="$(
-            gh api \
-              --method POST \
-              --header 'Accept: application/vnd.github+json' \
-              --header 'X-GitHub-Api-Version: 2022-11-28' \
-              '/repos/{owner}/{repo}/git/commits' \
-              --raw-field "message=chore(postman): update Postman collection files" \
-              --raw-field "parents[]=${HEAD_COMMIT}" \
-              --raw-field "tree=${UPDATED_TREE_SHA}" \
-              --jq '.sha'
-          )"
-
-          # Update the current branch to point to the above created commit.
-          # We disable forced update so that the workflow will fail if the branch has been updated since the workflow started
-          # (for example, new commits were pushed to the branch after the workflow execution started).
-          gh api \
-            --method PATCH \
-            --header 'Accept: application/vnd.github+json' \
-            --header 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/{owner}/{repo}/git/refs/heads/${ALLOWED_BRANCH_NAME}" \
-            --raw-field "sha=${NEW_COMMIT_SHA}" \
-            --field 'force=false'
+          git push origin "${ALLOWED_BRANCH_NAME}"
 
   create-nightly-tag:
     name: Create a nightly tag
@@ -147,5 +96,4 @@ jobs:
     needs:
       - update-postman-collections
     secrets:
-      app_id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
-      app_private_key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+      token: ${{ secrets.AUTO_RELEASE_PAT }}
