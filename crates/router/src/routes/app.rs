@@ -253,9 +253,10 @@ pub struct Health;
 
 impl Health {
     pub fn server(state: AppState) -> Scope {
-        web::scope("")
+        web::scope("health")
             .app_data(web::Data::new(state))
-            .service(web::resource("/health").route(web::get().to(health)))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
     }
 }
 

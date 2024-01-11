@@ -24,6 +24,9 @@ pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 
+/// Payment intent default client secret expiry (in seconds)
+pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
+
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
@@ -73,3 +76,11 @@ pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";
 
 #[cfg(feature = "olap")]
 pub const CONNECTOR_ONBOARDING_CONFIG_PREFIX: &str = "onboarding";
+
+/// Max payment session expiry
+pub const MAX_SESSION_EXPIRY: u32 = 7890000;
+
+/// Min payment session expiry
+pub const MIN_SESSION_EXPIRY: u32 = 60;
+
+pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
