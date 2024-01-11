@@ -1260,7 +1260,8 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
     ) -> Self {
         let error_reason = error_data
             .clone()
-            .and_then(|error_details| error_details.message);
+            .and_then(|error_details| error_details.message)
+            .unwrap_or(consts::NO_ERROR_CODE.to_string());
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -1272,7 +1273,7 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason: Some(error_reason.clone()),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
@@ -1308,9 +1309,13 @@ impl
                 })
             })
             .unwrap_or(Some("".to_string()));
-        let error_reason = error_data.clone().map(|error_details| {
-            error_details.message.unwrap_or("".to_string()) + &avs_message.unwrap_or("".to_string())
-        });
+        let error_reason = error_data
+            .clone()
+            .map(|error_details| {
+                error_details.message.unwrap_or("".to_string())
+                    + &avs_message.unwrap_or("".to_string())
+            })
+            .unwrap_or(consts::NO_ERROR_CODE.to_string());
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -1322,7 +1327,7 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason: Some(error_reason.clone()),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
