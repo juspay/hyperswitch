@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::{enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
@@ -8,6 +10,7 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -17,7 +20,11 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
     utils::{Encode, OptionExt},
 };
 
@@ -63,6 +70,21 @@ pub struct BluesnapPaymentsRequest {
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
     merchant_transaction_id: Option<String>,
+    transaction_meta_data: Option<BluesnapMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapMetadata {
+    meta_data: Vec<RequestMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestMetadata {
+    meta_key: String,
+    meta_value: String,
+    is_visible: String, //Property controlling whether the transaction metadata is visible in the invoice (Y) or hidden (N).
 }
 
 #[derive(Debug, Serialize)]
@@ -241,6 +263,13 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
             _ => BluesnapTxnType::AuthCapture,
         };
+        let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
+            Some(metadata) => Some(BluesnapMetadata {
+                meta_data: Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())?,
+            }),
+            None => None,
+        };
+
         let (payment_method, card_holder_info) = match item
             .router_data
             .request
@@ -405,6 +434,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             }),
             card_holder_info,
             merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
+            transaction_meta_data,
         })
     }
 }
@@ -569,6 +599,7 @@ pub struct BluesnapCompletePaymentsRequest {
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
     merchant_transaction_id: Option<String>,
+    transaction_meta_data: Option<BluesnapMetadata>,
 }
 
 impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -589,6 +620,13 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             })?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
+            Some(metadata) => Some(BluesnapMetadata {
+                meta_data: Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())?,
+            }),
+            None => None,
+        };
 
         let pf_token = item
             .router_data
@@ -637,6 +675,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             )?,
             merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
             pf_token,
+            transaction_meta_data,
         })
     }
 }
@@ -1021,7 +1060,7 @@ pub struct BluesnapWebhookObjectResource {
     reversal_ref_num: Option<String>,
 }
 
-impl TryFrom<BluesnapWebhookObjectResource> for serde_json::Value {
+impl TryFrom<BluesnapWebhookObjectResource> for Value {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(details: BluesnapWebhookObjectResource) -> Result<Self, Self::Error> {
         let (card_transaction_type, processing_status, transaction_id) = match details
@@ -1116,5 +1155,27 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
             error_code: error.code.to_string(),
             error_message: error.error_name.unwrap_or(error.code),
         }
+    }
+}
+
+impl ForeignTryFrom<Value> for Vec<RequestMetadata> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
+        crate::logger::debug!("bbbbbbbbbb{:?}", metadata.clone());
+        let hashmap: HashMap<String, String> = serde_json::from_str(&metadata.to_string())
+            .ok()
+            .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Metadata not in format".to_string(),
+            ))?;
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            crate::logger::debug!("aaaaaaaa{:?}:{:?}", key.clone(), value.clone());
+            vector.push(RequestMetadata {
+                meta_key: key,
+                meta_value: value,
+                is_visible: "Y".to_owned(),
+            });
+        }
+        Ok(vector)
     }
 }
