@@ -1,11 +1,10 @@
 use api_models::user as user_api;
-// #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleNew;
 use diesel_models::{enums::UserStatus, user as storage_user};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::env;
 #[cfg(feature = "email")]
