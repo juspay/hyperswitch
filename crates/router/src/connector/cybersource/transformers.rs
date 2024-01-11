@@ -1842,7 +1842,7 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" | {}", risk_info.name))
+                        .map(|risk_info| format!(" , {}", risk_info.name))
                         .collect::<Vec<String>>()
                         .join("")
                 })
