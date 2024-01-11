@@ -428,6 +428,8 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    // This metadata is used to store the metadata shared during the payment intent request.
 }
 
 #[derive(Debug, Clone, Default)]
@@ -542,6 +544,8 @@ pub struct PaymentsCancelData {
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    // This metadata is used to store the metadata shared during the payment intent request.
 }
 
 #[derive(Debug, Default, Clone)]
