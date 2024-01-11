@@ -2274,6 +2274,9 @@ pub struct PaymentsResponse {
 
     /// List of incremental authorizations happened to the payment
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
+
+    /// Payment Fingerprint
+    pub fingerprint: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3381,6 +3384,7 @@ pub struct PaymentLinkDetails {
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
     pub merchant_description: Option<String>,
+    pub sdk_layout: String,
 }
 
 #[derive(Debug, serde::Serialize)]

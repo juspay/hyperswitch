@@ -26,6 +26,7 @@ pub enum AnalyticsCollection {
     SdkEvents,
     ApiEvents,
     PaymentIntent,
+    OutgoingWebhookEvent,
 }
 
 #[allow(dead_code)]

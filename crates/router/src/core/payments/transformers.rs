@@ -118,7 +118,7 @@ where
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
         &payment_data.payment_attempt.payment_method_type,
-        &Some(merchant_connector_account.clone()),
+        Some(merchant_connector_account),
     );
 
     router_data = types::RouterData {
@@ -706,6 +706,7 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .to_owned(),
@@ -1223,6 +1224,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 None => None,
             },
             browser_info,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
@@ -1257,6 +1259,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             browser_info,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }

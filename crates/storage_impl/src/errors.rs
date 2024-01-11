@@ -55,6 +55,8 @@ pub enum StorageError {
     SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Kafka error")]
+    KafkaError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
     #[error("Deserialization failure")]
@@ -103,6 +105,7 @@ impl Into<DataStorageError> for &StorageError {
             StorageError::KVError => DataStorageError::KVError,
             StorageError::SerializationFailed => DataStorageError::SerializationFailed,
             StorageError::MockDbError => DataStorageError::MockDbError,
+            StorageError::KafkaError => DataStorageError::KafkaError,
             StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
             StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
             StorageError::EncryptionError => DataStorageError::EncryptionError,
