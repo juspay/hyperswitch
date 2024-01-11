@@ -925,7 +925,7 @@ pub struct LockerMigrate;
 #[cfg(feature = "olap")]
 impl LockerMigrate {
     pub fn server(state: AppState) -> Scope {
-        web::scope("locker_migration/{merchant_id}")
+        web::scope("locker_migration/{merchant_id}/{customer_id}/{pm_id}")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),

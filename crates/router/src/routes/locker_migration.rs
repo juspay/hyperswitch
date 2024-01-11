@@ -10,16 +10,16 @@ use crate::{
 pub async fn rust_locker_migration(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String, String)>,
 ) -> HttpResponse {
     let flow = Flow::RustLockerMigration;
-    let merchant_id = path.into_inner();
+    let (merchant_id, customer_id, pm_id) = path.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         &merchant_id,
-        |state, _, _| locker_migration::rust_locker_migration(state, &merchant_id),
+        |state, _, _| locker_migration::rust_locker_migration(state, &merchant_id, &customer_id, &pm_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

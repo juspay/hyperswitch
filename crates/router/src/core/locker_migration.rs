@@ -15,6 +15,8 @@ use crate::{
 pub async fn rust_locker_migration(
     state: AppState,
     merchant_id: &str,
+    customer_id: &str,
+    pm_id: &str,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
 
@@ -33,39 +35,27 @@ pub async fn rust_locker_migration(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let domain_customers = db
-        .list_customers_by_merchant_id(merchant_id, &key_store)
+    let domain_customer = db
+        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let mut customers_moved = 0;
-    let mut cards_moved = 0;
+    let payment_method = db
+        .find_payment_method_by_customer_id_merchant_id_list(customer_id, merchant_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .filter(|pm| pm.customer_id == customer_id && pm.merchant_id == merchant_id)
+        .collect::<Vec<_>>();
 
-    for customer in domain_customers {
-        let result = db
-            .find_payment_method_by_customer_id_merchant_id_list(&customer.customer_id, merchant_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .and_then(|pm| {
-                call_to_locker(
-                    &state,
-                    pm,
-                    &customer.customer_id,
-                    merchant_id,
-                    &merchant_account,
-                )
-            })
-            .await?;
-
-        customers_moved += 1;
-        cards_moved += result;
-    }
+    let count = call_to_locker(&state, payment_method, customer_id, merchant_id, &merchant_account).await?;
 
     Ok(services::api::ApplicationResponse::Json(
         MigrateCardResponse {
             status_code: "200".to_string(),
             status_message: "Card migration completed".to_string(),
-            customers_moved,
-            cards_moved,
+            customers_moved: 0,
+            cards_moved: count,
         },
     ))
 }
@@ -73,7 +63,7 @@ pub async fn rust_locker_migration(
 pub async fn call_to_locker(
     state: &AppState,
     payment_methods: Vec<PaymentMethod>,
-    customer_id: &String,
+    customer_id: &str,
     merchant_id: &str,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
