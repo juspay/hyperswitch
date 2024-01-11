@@ -1221,6 +1221,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 None => None,
             },
             browser_info,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
@@ -1255,6 +1256,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             browser_info,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
