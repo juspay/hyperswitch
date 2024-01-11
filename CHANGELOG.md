@@ -4,6 +4,58 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.11.0
+
+### Features
+
+- **core:** Add new payments webhook events ([#3212](https://github.com/juspay/hyperswitch/pull/3212)) ([`e0e28b8`](https://github.com/juspay/hyperswitch/commit/e0e28b87c0647252918ef110cd7614c46b5cf943))
+- **payment_link:** Add status page for payment link ([#3213](https://github.com/juspay/hyperswitch/pull/3213)) ([`50e4d79`](https://github.com/juspay/hyperswitch/commit/50e4d797da31b570b5920b33d77c24a21d9871e2))
+
+### Bug Fixes
+
+- **euclid_wasm:** Update braintree config prod ([#3288](https://github.com/juspay/hyperswitch/pull/3288)) ([`8830563`](https://github.com/juspay/hyperswitch/commit/8830563748ed20c40b7a21a66e9ad9fd02ddcf0e))
+
+### Refactors
+
+- **connector:** [bluesnap] add connector_txn_id fallback for webhook ([#3315](https://github.com/juspay/hyperswitch/pull/3315)) ([`a69e876`](https://github.com/juspay/hyperswitch/commit/a69e876f8212cb94202686e073005c23b1b2fc35))
+- Removed basilisk feature ([#3281](https://github.com/juspay/hyperswitch/pull/3281)) ([`612f8d9`](https://github.com/juspay/hyperswitch/commit/612f8d9d5f5bcba78aa64c3128cc72be0f2860ea))
+
+### Miscellaneous Tasks
+
+- Nits and small code improvements found during investigation of PR#3168 ([#3259](https://github.com/juspay/hyperswitch/pull/3259)) ([`fe3cf54`](https://github.com/juspay/hyperswitch/commit/fe3cf54781302c733c1682ded2c1735544407a5f))
+
+**Full Changelog:** [`2024.01.10.0...2024.01.11.0`](https://github.com/juspay/hyperswitch/compare/2024.01.10.0...2024.01.11.0)
+
+- - -
+
+## 2024.01.10.0
+
+### Features
+
+- **Connector:** [VOLT] Add support for Payments Webhooks ([#3155](https://github.com/juspay/hyperswitch/pull/3155)) ([`eba7896`](https://github.com/juspay/hyperswitch/commit/eba789640b72cdfbc17d0994d16ce111a1788fe5))
+- **pm_list:** Add required fields for Ideal ([#3183](https://github.com/juspay/hyperswitch/pull/3183)) ([`1c3c5f6`](https://github.com/juspay/hyperswitch/commit/1c3c5f6b0cff9a0037175ba92c002cdf4249108d))
+
+### Bug Fixes
+
+- **connector:**
+  - [BOA/CYB] Fix Metadata Error ([#3283](https://github.com/juspay/hyperswitch/pull/3283)) ([`71044a1`](https://github.com/juspay/hyperswitch/commit/71044a14ed87ac0cd7d2bb2009f0e59c79bd344c))
+  - [BOA, Cybersource] capture error_code ([#3239](https://github.com/juspay/hyperswitch/pull/3239)) ([`ecf51b5`](https://github.com/juspay/hyperswitch/commit/ecf51b5e3a30f055634edfafcd36f64cef535a53))
+- **outgoingwebhookevents:** Throw an error when outgoing webhook events env var not found ([#3291](https://github.com/juspay/hyperswitch/pull/3291)) ([`ee044a0`](https://github.com/juspay/hyperswitch/commit/ee044a0be811a53842c69f64c27d9995d84b7040))
+- **users:** Added merchant name is list merchants ([#3289](https://github.com/juspay/hyperswitch/pull/3289)) ([`8a354f4`](https://github.com/juspay/hyperswitch/commit/8a354f42295a3167d0e846c9522bc091ebdca3f4))
+- **wasm:** Fix failing `wasm-pack build` for `euclid_wasm` ([#3284](https://github.com/juspay/hyperswitch/pull/3284)) ([`5eb6711`](https://github.com/juspay/hyperswitch/commit/5eb67114646674fe227f073e417f26beb97e9a43))
+
+### Refactors
+
+- Pass customer object to `make_pm_data` ([#3246](https://github.com/juspay/hyperswitch/pull/3246)) ([`36c32c3`](https://github.com/juspay/hyperswitch/commit/36c32c377ae788c96b578303eae5d029e3044b7c))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`8fc68ad`](https://github.com/juspay/hyperswitch/commit/8fc68adc7fb6a23d4a2970a05f5739db6010a53d))
+
+**Full Changelog:** [`2024.01.08.0...2024.01.10.0`](https://github.com/juspay/hyperswitch/compare/2024.01.08.0...2024.01.10.0)
+
+- - -
+
 ## 2024.01.08.0
 
 ### Features

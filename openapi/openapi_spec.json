@@ -3477,13 +3477,17 @@
               "ideal": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "bank_name",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
@@ -5556,6 +5560,8 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_authorized",
+          "payment_captured",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -8760,8 +8766,8 @@
       "PaymentLinkStatus": {
         "type": "string",
         "enum": [
-          "Active",
-          "Expired"
+          "active",
+          "expired"
         ]
       },
       "PaymentListConstraints": {
