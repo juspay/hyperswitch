@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.105.0+hotfix.6 (2024-01-11)
+
+### Features
+
+- Feat(connector): [BOA/Cyb] Include merchant metadata in capture and void requests ([#3313](https://github.com/juspay/hyperswitch/pull/3313)) ([`0c48193`](https://github.com/juspay/hyperswitch/commit/0c48193eb9755f53ed112f216236d694ab497ab5))
+
+### Refactors
+
+- **connector:** [bluesnap] add connector_txn_id fallback for webhook ([#3317](https://github.com/juspay/hyperswitch/pull/3317)) ([`833ee62`](https://github.com/juspay/hyperswitch/commit/833ee629f739e0ee3cbbe241e59def50f038c21f))
+- **router:** Flagged order_details validation to skip validation ([#3324](https://github.com/juspay/hyperswitch/pull/3324)) ([`b54603c`](https://github.com/juspay/hyperswitch/commit/b54603c57b35e5af478c8607d0881dfe88d35082))
+
+**Full Changelog:** [`v1.105.0+hotfix.5...v1.105.0+hotfix.6`](https://github.com/juspay/hyperswitch/compare/v1.105.0+hotfix.5...v1.105.0+hotfix.6)
+
+- - -
+
 ## 1.105.0+hotfix.5 (2024-01-10)
 
 ### Refactors
