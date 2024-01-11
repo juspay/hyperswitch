@@ -14,6 +14,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(feature = "olap")]
+use super::blocklist;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
@@ -563,6 +565,23 @@ impl PaymentMethods {
             )
             .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
             .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Blocklist;
+
+#[cfg(feature = "olap")]
+impl Blocklist {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/blocklist")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::get().to(blocklist::list_blocked_payment_methods))
+                    .route(web::post().to(blocklist::add_entry_to_blocklist))
+                    .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
+            )
     }
 }
 
