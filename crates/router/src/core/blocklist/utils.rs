@@ -6,12 +6,11 @@ use external_services::kms;
 
 use super::{errors, AppState};
 use crate::{
+    consts,
     core::errors::{RouterResult, StorageErrorExt},
     types::{storage, transformers::ForeignInto},
     utils,
 };
-
-const FINGERPRINT_SECRET_LENGTH: usize = 64;
 
 pub async fn delete_entry_from_blocklist(
     state: &AppState,
@@ -104,7 +103,7 @@ fn validate_card_bin(bin: &str) -> RouterResult<()> {
     } else {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
-            expected_format: "card bin should be a 6 digit number".to_string(),
+            expected_format: "a 6 digit number".to_string(),
         })
         .into_report()
     }
@@ -116,7 +115,7 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
     } else {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
-            expected_format: "extended bin should be an 8 digit number".to_string(),
+            expected_format: "an 8 digit number".to_string(),
         })
         .into_report()
     }
@@ -239,7 +238,8 @@ pub async fn get_merchant_fingerprint_secret(
         Ok(config) => Ok(config.config),
 
         Err(e) if e.current_context().is_db_not_found() => {
-            let new_fingerprint_secret = utils::generate_id(FINGERPRINT_SECRET_LENGTH, "fs");
+            let new_fingerprint_secret =
+                utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
             let new_config = storage::ConfigNew {
                 key,
                 config: new_fingerprint_secret.clone(),

@@ -141,7 +141,7 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let fingerprint = Some(utils::generate_id(consts::ID_LENGTH, "secret"));
+    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
     if let Some(fingerprint) = fingerprint {
         db.insert_config(configs::ConfigNew {
             key: format!("fingerprint_secret_{}", req.merchant_id),

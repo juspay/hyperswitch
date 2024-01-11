@@ -1100,16 +1100,3 @@ pub fn get_incremental_authorization_allowed_value(
         incremental_authorization_allowed
     }
 }
-
-pub async fn get_merchant_fingerprint_secret(
-    merchant_id: String,
-    state: &AppState,
-) -> CustomResult<String, errors::ApiErrorResponse> {
-    Ok(state
-        .store
-        .find_config_by_key(format!("secret_{}", merchant_id).as_str())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Merchant Secret not found")?
-        .config)
-}
