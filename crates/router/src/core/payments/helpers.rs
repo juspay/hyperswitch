@@ -3610,93 +3610,74 @@ impl ApplePayData {
 
 pub fn get_key_params_for_surcharge_details(
     payment_method_data: &api_models::payments::PaymentMethodData,
-) -> RouterResult<(
+) -> Option<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
     Option<common_enums::CardNetwork>,
 )> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
-            let card_network = card
-                .card_network
-                .clone()
-                .get_required_value("payment_method_data.card.card_network")?;
             // surcharge generated will always be same for credit as well as debit
             // since surcharge conditions cannot be defined on card_type
-            Ok((
+            Some((
                 common_enums::PaymentMethod::Card,
                 common_enums::PaymentMethodType::Credit,
-                Some(card_network),
+                card.card_network.clone(),
             ))
         }
-        api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Ok((
+        api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
             common_enums::PaymentMethod::CardRedirect,
             card_redirect_data.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Wallet(wallet) => Ok((
+        api_models::payments::PaymentMethodData::Wallet(wallet) => Some((
             common_enums::PaymentMethod::Wallet,
             wallet.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::PayLater(pay_later) => Ok((
+        api_models::payments::PaymentMethodData::PayLater(pay_later) => Some((
             common_enums::PaymentMethod::PayLater,
             pay_later.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => Ok((
+        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => Some((
             common_enums::PaymentMethod::BankRedirect,
             bank_redirect.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => Ok((
+        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => Some((
             common_enums::PaymentMethod::BankDebit,
             bank_debit.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => Ok((
+        api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => Some((
             common_enums::PaymentMethod::BankTransfer,
             bank_transfer.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Crypto(crypto) => Ok((
+        api_models::payments::PaymentMethodData::Crypto(crypto) => Some((
             common_enums::PaymentMethod::Crypto,
             crypto.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::MandatePayment => {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            }
-            .into())
-        }
-        api_models::payments::PaymentMethodData::Reward => {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            }
-            .into())
-        }
-        api_models::payments::PaymentMethodData::Upi(_) => Ok((
+        api_models::payments::PaymentMethodData::MandatePayment => None,
+        api_models::payments::PaymentMethodData::Reward => None,
+        api_models::payments::PaymentMethodData::Upi(_) => Some((
             common_enums::PaymentMethod::Upi,
             common_enums::PaymentMethodType::UpiCollect,
             None,
         )),
-        api_models::payments::PaymentMethodData::Voucher(voucher) => Ok((
+        api_models::payments::PaymentMethodData::Voucher(voucher) => Some((
             common_enums::PaymentMethod::Voucher,
             voucher.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::GiftCard(gift_card) => Ok((
+        api_models::payments::PaymentMethodData::GiftCard(gift_card) => Some((
             common_enums::PaymentMethod::GiftCard,
             gift_card.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::CardToken(_) => {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            }
-            .into())
-        }
+        api_models::payments::PaymentMethodData::CardToken(_) => None,
     }
 }
 

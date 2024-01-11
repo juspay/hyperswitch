@@ -509,8 +509,7 @@ where
         let raw_card_key = payment_data
             .payment_method_data
             .as_ref()
-            .map(get_key_params_for_surcharge_details)
-            .transpose()?
+            .and_then(get_key_params_for_surcharge_details)
             .map(|(payment_method, payment_method_type, card_network)| {
                 types::SurchargeKey::PaymentMethodData(
                     payment_method,
