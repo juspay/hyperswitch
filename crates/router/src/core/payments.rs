@@ -1489,6 +1489,22 @@ where
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 (router_data, false)
+            } else if connector.connector_name == router_types::Connector::Cybersource
+                && is_operation_complete_authorize(&operation)
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                let should_continue = matches!(
+                    router_data.response,
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        redirection_data: None,
+                        ..
+                    })
+                ) && router_data.status
+                    != common_enums::AttemptStatus::AuthenticationFailed;
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -2104,6 +2120,10 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+}
+
+pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
+    matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
 }
 
 #[cfg(feature = "olap")]
