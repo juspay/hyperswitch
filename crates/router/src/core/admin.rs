@@ -1160,8 +1160,8 @@ pub async fn update_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-    let connector_name = mca.clone().connector_name;
-    let connector_enum = api_models::enums::Connector::from_str(&connector_name)
+    let connector_name = mca.connector_name.as_ref();
+    let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
