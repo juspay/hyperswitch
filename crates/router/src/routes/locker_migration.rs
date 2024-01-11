@@ -19,7 +19,9 @@ pub async fn rust_locker_migration(
         state,
         &req,
         &merchant_id,
-        |state, _, _| locker_migration::rust_locker_migration(state, &merchant_id, &customer_id, &pm_id),
+        |state, _, _| {
+            locker_migration::rust_locker_migration(state, &merchant_id, &customer_id, &pm_id)
+        },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

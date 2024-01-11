@@ -1,8 +1,7 @@
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
 use common_utils::errors::CustomResult;
 use diesel_models::{enums as storage_enums, PaymentMethod};
-use error_stack::{FutureExt, ResultExt};
-use futures::TryFutureExt;
+use error_stack::ResultExt;
 
 use super::{errors::StorageErrorExt, payment_methods::cards};
 use crate::{
@@ -35,7 +34,7 @@ pub async fn rust_locker_migration(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let domain_customer = db
+    let _domain_customer = db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -45,10 +44,17 @@ pub async fn rust_locker_migration(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .into_iter()
-        .filter(|pm| pm.customer_id == customer_id && pm.merchant_id == merchant_id)
+        .filter(|pm| pm.payment_method_id == pm_id)
         .collect::<Vec<_>>();
 
-    let count = call_to_locker(&state, payment_method, customer_id, merchant_id, &merchant_account).await?;
+    let count = call_to_locker(
+        &state,
+        payment_method,
+        customer_id,
+        merchant_id,
+        &merchant_account,
+    )
+    .await?;
 
     Ok(services::api::ApplicationResponse::Json(
         MigrateCardResponse {
