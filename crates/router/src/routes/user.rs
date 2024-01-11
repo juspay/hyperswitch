@@ -333,7 +333,6 @@ pub async fn reset_password(
     .await
 }
 
-#[cfg(feature = "email")]
 pub async fn invite_user(
     state: web::Data<AppState>,
     req: HttpRequest,

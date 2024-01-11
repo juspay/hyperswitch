@@ -879,6 +879,7 @@ impl User {
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
@@ -901,7 +902,6 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
