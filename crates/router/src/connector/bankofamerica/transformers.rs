@@ -1018,6 +1018,8 @@ pub struct OrderInformation {
 pub struct BankOfAmericaCaptureRequest {
     order_information: OrderInformation,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
 }
 
 impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
@@ -1027,6 +1029,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
@@ -1037,6 +1043,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
             },
+            merchant_defined_information,
         })
     }
 }
@@ -1046,6 +1053,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
 pub struct BankOfAmericaVoidRequest {
     client_reference_information: ClientReferenceInformation,
     reversal_information: ReversalInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    // The connector documentation does not mention the merchantDefinedInformation field for Void requests. But this has been still added because it works!
 }
 
 #[derive(Debug, Serialize)]
@@ -1062,6 +1072,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
@@ -1084,6 +1098,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
                         field_name: "Cancellation Reason",
                     })?,
             },
+            merchant_defined_information,
         })
     }
 }
@@ -1260,7 +1275,8 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
     ) -> Self {
         let error_reason = error_data
             .clone()
-            .and_then(|error_details| error_details.message);
+            .and_then(|error_details| error_details.message)
+            .unwrap_or(consts::NO_ERROR_CODE.to_string());
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -1272,7 +1288,7 @@ impl From<(&Option<BankOfAmericaErrorInformation>, u16, String)> for types::Erro
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason: Some(error_reason.clone()),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
@@ -1302,15 +1318,19 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" | {}", risk_info.name))
+                        .map(|risk_info| format!(" , {}", risk_info.name))
                         .collect::<Vec<String>>()
                         .join("")
                 })
             })
             .unwrap_or(Some("".to_string()));
-        let error_reason = error_data.clone().map(|error_details| {
-            error_details.message.unwrap_or("".to_string()) + &avs_message.unwrap_or("".to_string())
-        });
+        let error_reason = error_data
+            .clone()
+            .map(|error_details| {
+                error_details.message.unwrap_or("".to_string())
+                    + &avs_message.unwrap_or("".to_string())
+            })
+            .unwrap_or(consts::NO_ERROR_CODE.to_string());
         let error_message = error_data
             .clone()
             .and_then(|error_details| error_details.reason);
@@ -1322,7 +1342,7 @@ impl
             message: error_message
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_reason.clone(),
+            reason: Some(error_reason.clone()),
             status_code,
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: Some(transaction_id.clone()),
