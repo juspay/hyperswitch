@@ -80,12 +80,6 @@ fallback_api_key = "YOUR API KEY HERE"
 redis_lock_timeout = 26000
 
 [jwekey]
-locker_key_identifier1 = ""
-locker_key_identifier2 = ""
-locker_encryption_key1 = ""
-locker_encryption_key2 = ""
-locker_decryption_key1 = ""
-locker_decryption_key2 = ""
 vault_encryption_key = ""
 rust_locker_encryption_key = ""
 vault_private_key = ""
@@ -476,6 +470,7 @@ card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,global
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+bank_redirect.ideal = {connector_list = "stripe,adyen"}
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
@@ -493,7 +488,7 @@ apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
 
 [payment_link]
-sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+sdk_url = "http://localhost:9050/HyperLoader.js"
 
 [payment_method_auth]
 redis_expiry = 900
