@@ -24,31 +24,11 @@ impl VaultFetch for settings::Jwekey {
             > + 'a,
     {
         (
-            self.locker_encryption_key1,
-            self.locker_encryption_key2,
-            self.locker_decryption_key1,
-            self.locker_decryption_key2,
             self.vault_encryption_key,
             self.rust_locker_encryption_key,
             self.vault_private_key,
             self.tunnel_private_key,
         ) = (
-            masking::Secret::new(self.locker_encryption_key1)
-                .fetch_inner::<En>(client)
-                .await?
-                .expose(),
-            masking::Secret::new(self.locker_encryption_key2)
-                .fetch_inner::<En>(client)
-                .await?
-                .expose(),
-            masking::Secret::new(self.locker_decryption_key1)
-                .fetch_inner::<En>(client)
-                .await?
-                .expose(),
-            masking::Secret::new(self.locker_decryption_key2)
-                .fetch_inner::<En>(client)
-                .await?
-                .expose(),
             masking::Secret::new(self.vault_encryption_key)
                 .fetch_inner::<En>(client)
                 .await?
