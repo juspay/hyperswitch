@@ -1977,6 +1977,9 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentCanceled => {
                 api::IncomingWebhookEvent::PaymentIntentCancelled
             }
+            stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated => {
+                api::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+            }
             stripe::WebhookEventType::ChargeSucceeded => {
                 if let Some(stripe::WebhookPaymentMethodDetails {
                     payment_method:
@@ -2033,7 +2036,6 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::ChargeRefunded
             | stripe::WebhookEventType::PaymentIntentCreated
             | stripe::WebhookEventType::PaymentIntentProcessing
-            | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
             | stripe::WebhookEventType::SourceTransactionCreated => {
                 api::IncomingWebhookEvent::EventNotSupported
             }

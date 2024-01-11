@@ -359,6 +359,9 @@ key1="Merchant Id"
 api_secret="Private Key"
 [braintree.connector_webhook_details]
 merchant_secret="Source verification key"
+[braintree.metadata]
+merchant_account_id="Merchant Account Id"
+merchant_config_currency="Currency"
 
 [bambora]
 [[bambora.credit]]
