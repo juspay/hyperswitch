@@ -838,6 +838,8 @@ pub struct CybersourcePaymentsCaptureRequest {
     processing_information: ProcessingInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -854,6 +856,10 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCaptureRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            item.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             processing_information: ProcessingInformation {
                 capture_options: Some(CaptureOptions {
@@ -877,6 +883,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCaptureRouterData>>
             client_reference_information: ClientReferenceInformation {
                 code: Some(item.router_data.connector_request_reference_id.clone()),
             },
+            merchant_defined_information,
         })
     }
 }
@@ -922,6 +929,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
 pub struct CybersourceVoidRequest {
     client_reference_information: ClientReferenceInformation,
     reversal_information: ReversalInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    // The connector documentation does not mention the merchantDefinedInformation field for Void requests. But this has been still added because it works!
 }
 
 #[derive(Debug, Serialize)]
@@ -936,6 +946,10 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>> for Cyber
     fn try_from(
         value: &CybersourceRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
@@ -958,6 +972,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCancelRouterData>> for Cyber
                         field_name: "Cancellation Reason",
                     })?,
             },
+            merchant_defined_information,
         })
     }
 }

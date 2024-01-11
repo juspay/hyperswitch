@@ -1018,6 +1018,8 @@ pub struct OrderInformation {
 pub struct BankOfAmericaCaptureRequest {
     order_information: OrderInformation,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
 }
 
 impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
@@ -1027,6 +1029,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
@@ -1037,6 +1043,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
             },
+            merchant_defined_information,
         })
     }
 }
@@ -1046,6 +1053,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
 pub struct BankOfAmericaVoidRequest {
     client_reference_information: ClientReferenceInformation,
     reversal_information: ReversalInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    // The connector documentation does not mention the merchantDefinedInformation field for Void requests. But this has been still added because it works!
 }
 
 #[derive(Debug, Serialize)]
@@ -1062,6 +1072,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
@@ -1084,6 +1098,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
                         field_name: "Cancellation Reason",
                     })?,
             },
+            merchant_defined_information,
         })
     }
 }
