@@ -635,21 +635,44 @@ impl api::IncomingWebhook for Volt {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: volt::VoltWebhookBodyReference = request
-            .body
-            .parse_struct("VoltWebhookBodyReference")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        let reference = match webhook_body.merchant_internal_reference {
-            Some(merchant_internal_reference) => {
-                api_models::payments::PaymentIdType::PaymentAttemptId(merchant_internal_reference)
-            }
-            None => {
-                api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.payment)
-            }
-        };
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            reference,
-        ))
+        let x_volt_type =
+            utils::get_header_key_value(webhook_headers::X_VOLT_TYPE, request.headers)?;
+        if x_volt_type == "refund_confirmed" || x_volt_type == "refund_failed" {
+            let refund_webhook_body: volt::VoltRefundWebhookBodyReference = request
+                .body
+                .parse_struct("VoltRefundWebhookBodyReference")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+            let refund_reference = match refund_webhook_body.external_reference {
+                Some(external_reference) => {
+                    api_models::webhooks::RefundIdType::RefundId(external_reference)
+                }
+                None => api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    refund_webhook_body.refund,
+                ),
+            };
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                refund_reference,
+            ))
+        } else {
+            let webhook_body: volt::VoltPaymentWebhookBodyReference = request
+                .body
+                .parse_struct("VoltPaymentWebhookBodyReference")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            let reference = match webhook_body.merchant_internal_reference {
+                Some(merchant_internal_reference) => {
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        merchant_internal_reference,
+                    )
+                }
+                None => api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.payment,
+                ),
+            };
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                reference,
+            ))
+        }
     }
 
     fn get_webhook_event_type(
@@ -663,7 +686,7 @@ impl api::IncomingWebhook for Volt {
                 .body
                 .parse_struct("VoltWebhookBodyEventType")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-            Ok(api::IncomingWebhookEvent::from(payload.status))
+            Ok(api::IncomingWebhookEvent::from(payload))
         }
     }
 
