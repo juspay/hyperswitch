@@ -921,10 +921,14 @@ impl Currency {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
+    /// Authorize + Capture success
     PaymentSucceeded,
+    /// Authorize + Capture failed
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentAuthorized,
+    PaymentCaptured,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,

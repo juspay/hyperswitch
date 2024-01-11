@@ -3315,7 +3315,7 @@ pub enum WebhookEventType {
     PaymentIntentProcessing,
     #[serde(rename = "payment_intent.requires_action")]
     PaymentIntentRequiresAction,
-    #[serde(rename = "amount_capturable_updated")]
+    #[serde(rename = "payment_intent.amount_capturable_updated")]
     PaymentIntentAmountCapturableUpdated,
     #[serde(rename = "source.chargeable")]
     SourceChargeable,

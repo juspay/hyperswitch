@@ -291,7 +291,7 @@ impl PaymentIntentUpdate {
             incremental_authorization_allowed: incremental_authorization_allowed
                 .or(source.incremental_authorization_allowed),
             authorization_count: authorization_count.or(source.authorization_count),
-            session_expiry,
+            session_expiry: session_expiry.or(source.session_expiry),
             ..source
         }
     }

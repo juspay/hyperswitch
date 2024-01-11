@@ -3381,6 +3381,7 @@ pub struct PaymentLinkDetails {
     pub max_items_visible_after_collapse: i8,
     pub theme: String,
     pub merchant_description: Option<String>,
+    pub sdk_layout: String,
 }
 
 #[derive(Debug, serde::Serialize)]
