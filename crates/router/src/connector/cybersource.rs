@@ -12,6 +12,7 @@ use time::OffsetDateTime;
 use transformers as cybersource;
 use url::Url;
 
+use super::utils::{PaymentsAuthorizeRequestData, RouterData};
 use crate::{
     configs::settings,
     connector::{utils as connector_utils, utils::RefundsRequestData},
@@ -286,6 +287,8 @@ impl api::PaymentIncrementalAuthorization for Cybersource {}
 impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
+impl api::PaymentsPreProcessing for Cybersource {}
+impl api::PaymentsCompleteAuthorize for Cybersource {}
 impl api::ConnectorMandateRevoke for Cybersource {}
 
 impl
@@ -470,6 +473,113 @@ impl api::PaymentSession for Cybersource {}
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Cybersource
 {
+}
+
+impl
+    ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for Cybersource
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let redirect_response = req.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+        match redirect_response.params {
+            Some(param) if !param.clone().peek().is_empty() => Ok(format!(
+                "{}risk/v1/authentications",
+                self.base_url(connectors)
+            )),
+            Some(_) | None => Ok(format!(
+                "{}risk/v1/authentication-results",
+                self.base_url(connectors)
+            )),
+        }
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            req,
+        ))?;
+        let connector_req =
+            cybersource::CybersourcePreProcessingRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPreProcessingRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: cybersource::CybersourcePreProcessingResponse = res
+            .response
+            .parse_struct("Cybersource AuthEnrollmentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
@@ -672,13 +782,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}pts/v2/payments/",
-            api::ConnectorCommon::base_url(self, connectors)
-        ))
+        if req.is_three_ds() && req.request.is_card() {
+            Ok(format!(
+                "{}risk/v1/authentication-setups",
+                api::ConnectorCommon::base_url(self, connectors)
+            ))
+        } else {
+            Ok(format!(
+                "{}pts/v2/payments/",
+                api::ConnectorCommon::base_url(self, connectors)
+            ))
+        }
     }
 
     fn get_request_body(
@@ -692,9 +809,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let connector_req =
-            cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        if req.is_three_ds() && req.request.is_card() {
+            let connector_req =
+                cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        } else {
+            let connector_req =
+                cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        }
     }
 
     fn build_request(
@@ -722,6 +845,106 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        if data.is_three_ds() && data.request.is_card() {
+            let response: cybersource::CybersourceAuthSetupResponse = res
+                .response
+                .parse_struct("Cybersource AuthSetupResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: cybersource::CybersourcePaymentsResponse = res
+                .response
+                .parse_struct("Cybersource PaymentResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Cybersource
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}pts/v2/payments/",
+            api::ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = cybersource::CybersourceRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req =
+            cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourcePaymentsResponse = res
             .response
             .parse_struct("Cybersource PaymentResponse")

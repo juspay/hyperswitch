@@ -490,6 +490,7 @@ pub struct PaymentsPreProcessingData {
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 }
 
 #[derive(Debug, Clone)]
@@ -510,6 +511,8 @@ pub struct CompleteAuthorizeData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+    pub complete_authorize_url: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
