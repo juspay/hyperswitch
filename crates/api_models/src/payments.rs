@@ -299,8 +299,14 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
-    /// payment link object required for generating the payment_link
-    pub payment_link_object: Option<PaymentLinkObject>,
+
+    /// Whether to get the payment link (if applicable)
+    #[schema(default = false, example = true)]
+    pub payment_link: Option<bool>,
+
+    /// custom payment link config for the particular payment
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
+    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
@@ -318,6 +324,11 @@ pub struct PaymentsRequest {
 
     ///Request for an incremental authorization
     pub request_incremental_authorization: Option<bool>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
@@ -1176,6 +1187,7 @@ pub struct AdditionalCardInfo {
     pub bank_code: Option<String>,
     pub last4: Option<String>,
     pub card_isin: Option<String>,
+    pub card_extended_bin: Option<String>,
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -1231,7 +1243,7 @@ pub enum BankRedirectData {
     },
     Eps {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
@@ -1260,7 +1272,7 @@ pub enum BankRedirectData {
     },
     Ideal {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
@@ -1712,6 +1724,7 @@ pub struct CardResponse {
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
     pub card_isin: Option<String>,
+    pub card_extended_bin: Option<String>,
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -1754,7 +1767,7 @@ pub enum VoucherData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
-    Card(CardResponse),
+    Card(Box<CardResponse>),
     BankTransfer,
     Wallet,
     PayLater,
@@ -2085,6 +2098,11 @@ pub struct PaymentsResponse {
     #[schema(example = 100)]
     pub amount: i64,
 
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
+    /// If no surcharge_details, net_amount = amount
+    #[schema(example = 110)]
+    pub net_amount: i64,
+
     /// The maximum amount that could be captured from the payment
     #[schema(minimum = 100, example = 6540)]
     pub amount_capturable: Option<i64>,
@@ -2317,6 +2335,9 @@ pub struct PaymentsResponse {
 
     /// List of incremental authorizations happened to the payment
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
+
+    /// Payment Fingerprint
+    pub fingerprint: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2571,6 +2592,7 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
             card_isin: card.card_isin,
+            card_extended_bin: card.card_extended_bin,
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.card_holder_name,
@@ -2581,7 +2603,7 @@ impl From<AdditionalCardInfo> for CardResponse {
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
-            AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
+            AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater {} => Self::PayLater,
             AdditionalPaymentData::Wallet {} => Self::Wallet,
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
@@ -3368,17 +3390,6 @@ mod tests {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentLinkObject {
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub link_expiry: Option<PrimitiveDateTime>,
-    pub merchant_custom_domain_name: Option<String>,
-    #[schema(value_type = PaymentLinkConfig)]
-    pub payment_link_config: Option<admin::PaymentLinkConfig>,
-    /// Custom merchant name for payment link
-    pub custom_merchant_name: Option<String>,
-}
-
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
@@ -3398,10 +3409,10 @@ pub struct RetrievePaymentLinkResponse {
     pub amount: i64,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub link_expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
-    pub status: String,
+    pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
 }
@@ -3413,20 +3424,44 @@ pub struct PaymentLinkInitiateRequest {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum PaymentLinkData {
+    PaymentLinkDetails(PaymentLinkDetails),
+    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
+}
+
+#[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
     pub amount: String,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
     pub order_details: Option<Vec<OrderDetailsWithStringAmount>>,
     pub max_items_visible_after_collapse: i8,
-    pub sdk_theme: Option<String>,
+    pub theme: String,
+    pub merchant_description: Option<String>,
+    pub sdk_layout: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentLinkStatusDetails {
+    pub amount: String,
+    pub currency: api_enums::Currency,
+    pub payment_id: String,
+    pub merchant_logo: String,
+    pub merchant_name: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+    pub intent_status: api_enums::IntentStatus,
+    pub payment_link_status: PaymentLinkStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3483,6 +3518,13 @@ pub struct PaymentLinkListResponse {
     pub data: Vec<PaymentLinkResponse>,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentCreatePaymentLinkConfig {
+    #[serde(flatten)]
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub config: admin::PaymentLinkConfigRequest,
+}
+
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetailsWithStringAmount {
     /// Name of the product that is being purchased
@@ -3495,4 +3537,11 @@ pub struct OrderDetailsWithStringAmount {
     pub amount: String,
     /// Product Image link
     pub product_img_link: Option<String>,
+}
+
+#[derive(PartialEq, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentLinkStatus {
+    Active,
+    Expired,
 }

@@ -24,7 +24,7 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{self, enums, payment_attempt::AttemptStatusExt},
+        storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse,
     },
@@ -499,15 +499,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_message: Some(Some(err.message)),
                             error_code: Some(Some(err.code)),
                             error_reason: Some(err.reason),
-                            amount_capturable: if status.is_terminal_status()
-                                || router_data
-                                    .status
-                                    .maps_to_intent_status(enums::IntentStatus::Processing)
-                            {
-                                Some(0)
-                            } else {
-                                None
-                            },
+                            amount_capturable: router_data
+                                .request
+                                .get_amount_capturable(&payment_data, status),
                             updated_by: storage_scheme.to_string(),
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
@@ -598,27 +592,33 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data.payment_attempt.merchant_id.clone(),
                 );
 
-                let (capture_updates, payment_attempt_update) =
-                    match payment_data.multiple_capture_data {
-                        Some(multiple_capture_data) => {
-                            let capture_update = storage::CaptureUpdate::ResponseUpdate {
-                                status: enums::CaptureStatus::foreign_try_from(router_data.status)?,
-                                connector_capture_id: connector_transaction_id.clone(),
-                                connector_response_reference_id,
-                            };
-                            let capture_update_list = vec![(
-                                multiple_capture_data.get_latest_capture().clone(),
-                                capture_update,
-                            )];
-                            (Some((multiple_capture_data, capture_update_list)), None)
-                        }
-                        None => (
+                let (capture_updates, payment_attempt_update) = match payment_data
+                    .multiple_capture_data
+                {
+                    Some(multiple_capture_data) => {
+                        let capture_update = storage::CaptureUpdate::ResponseUpdate {
+                            status: enums::CaptureStatus::foreign_try_from(router_data.status)?,
+                            connector_capture_id: connector_transaction_id.clone(),
+                            connector_response_reference_id,
+                        };
+                        let capture_update_list = vec![(
+                            multiple_capture_data.get_latest_capture().clone(),
+                            capture_update,
+                        )];
+                        (Some((multiple_capture_data, capture_update_list)), None)
+                    }
+                    None => {
+                        let status = router_data.get_attempt_status_for_db_update(&payment_data);
+                        (
                             None,
                             Some(storage::PaymentAttemptUpdate::ResponseUpdate {
-                                status: router_data.get_attempt_status_for_db_update(&payment_data),
+                                status,
                                 connector: None,
                                 connector_transaction_id: connector_transaction_id.clone(),
                                 authentication_type: None,
+                                amount_capturable: router_data
+                                    .request
+                                    .get_amount_capturable(&payment_data, status),
                                 payment_method_id: Some(router_data.payment_method_id),
                                 mandate_id: payment_data
                                     .mandate_id
@@ -632,21 +632,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 unified_code: error_status.clone(),
                                 unified_message: error_status,
                                 connector_response_reference_id,
-                                amount_capturable: if router_data.status.is_terminal_status()
-                                    || router_data
-                                        .status
-                                        .maps_to_intent_status(enums::IntentStatus::Processing)
-                                {
-                                    Some(0)
-                                } else {
-                                    None
-                                },
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
                             }),
-                        ),
-                    };
+                        )
+                    }
+                };
 
                 (capture_updates, payment_attempt_update)
             }
@@ -900,7 +892,7 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
         None => {
             //Non multiple capture
-            let amount = request.get_capture_amount(payment_data);
+            let amount = request.get_captured_amount(payment_data);
             amount_captured.or_else(|| {
                 if router_data_status == enums::AttemptStatus::Charged {
                     amount

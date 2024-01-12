@@ -80,7 +80,9 @@ pub async fn revoke_mandate(
         state,
         &req,
         mandate_id,
-        |state, auth, req| mandate::revoke_mandate(state, auth.merchant_account, req),
+        |state, auth, req| {
+            mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )

@@ -214,8 +214,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorWebhookDetails,
         api_models::admin::BusinessProfileCreate,
         api_models::admin::BusinessProfileResponse,
+        api_models::admin::BusinessPaymentLinkConfig,
+        api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,
-        api_models::admin::PaymentLinkColorSchema,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::gsm::GsmCreateRequest,
@@ -350,6 +351,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsIncrementalAuthorizationRequest,
         api_models::payments::IncrementalAuthorizationResponse,
         api_models::payments::BrowserInformation,
+        api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
@@ -399,7 +401,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkObject,
         api_models::routing::RoutingConfigRequest,
         api_models::routing::RoutingDictionaryRecord,
         api_models::routing::RoutingKind,
@@ -425,6 +426,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ast::MetadataValue,
         api_models::routing::ast::NumberComparison,
         api_models::payment_methods::RequestPaymentMethodTypes,
+        api_models::payments::PaymentLinkStatus,
+        api_models::blocklist::BlocklistRequest,
+        api_models::blocklist::BlocklistResponse,
+        api_models::blocklist::ListBlocklistQuery,
+        api_models::enums::BlocklistDataKind
     )),
     modifiers(&SecurityAddon)
 )]
