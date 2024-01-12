@@ -363,7 +363,7 @@ fn get_payment_source(
             name: billing_details
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "sofort.billing_details.name",
+                    field_name: "sofort.billing_details",
                 })?
                 .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
