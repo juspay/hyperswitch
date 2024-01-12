@@ -136,7 +136,6 @@ impl
         let payment_method = item.router_data.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-
             PaymentMethod::Card
             | PaymentMethod::CardRedirect
             | PaymentMethod::PayLater
@@ -154,7 +153,19 @@ impl
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
-            _ => None,
+            api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => None,
         };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
@@ -212,15 +223,9 @@ pub enum IatapayPaymentStatus {
     Initiated,
     Authorized,
     Settled,
-    Tobeinvestigated,
-    Blocked,
-    Cleared,
     Failed,
-    Locked,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
-    #[serde(other)]
-    Unknown,
 }
 
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
@@ -230,7 +235,6 @@ impl From<IatapayPaymentStatus> for enums::AttemptStatus {
             IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
-            _ => Self::Voided,
         }
     }
 }
@@ -472,4 +476,31 @@ pub struct IatapayErrorResponse {
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
     pub path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IatapayWebhookResponse {
+    pub status: IatapayWebhookStatus,
+    pub iata_payment_id: Option<String>,
+    pub iata_refund_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum IatapayWebhookStatus {
+    #[default]
+    Created,
+    Initiated,
+    Authorized,
+    Settled,
+    Cleared,
+    Failed,
+    Tobeinvestigated,
+    Blocked,
+    Locked,
+    #[serde(rename = "UNEXPECTED SETTLED")]
+    UnexpectedSettled,
+    #[serde(other)]
+    Unknown,
 }
