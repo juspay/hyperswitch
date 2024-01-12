@@ -387,7 +387,7 @@
         "tags": [
           "Blocklist"
         ],
-        "operationId": "List Bloked fingerprints of a particular kind",
+        "operationId": "List Blocked fingerprints of a particular kind",
         "parameters": [
           {
             "name": "data_kind",
