@@ -118,7 +118,7 @@ where
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
         &payment_data.payment_attempt.payment_method_type,
-        &Some(merchant_connector_account.clone()),
+        Some(merchant_connector_account),
     );
 
     router_data = types::RouterData {
@@ -547,7 +547,7 @@ where
                 if third_party_sdk_session_next_action(&payment_attempt, operation) {
                     next_action_response = Some(
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken {
-                            session_token: payment_data.sessions_token.get(0).cloned(),
+                            session_token: payment_data.sessions_token.first().cloned(),
                         },
                     )
                 }
@@ -565,6 +565,7 @@ where
                 });
                 services::ApplicationResponse::JsonWithHeaders((
                     response
+                        .set_net_amount(payment_attempt.net_amount)
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
@@ -705,6 +706,7 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .to_owned(),
@@ -714,6 +716,7 @@ where
         }
         None => services::ApplicationResponse::JsonWithHeaders((
             api::PaymentsResponse {
+                net_amount: payment_attempt.net_amount,
                 payment_id: Some(payment_attempt.payment_id),
                 merchant_id: Some(payment_attempt.merchant_id),
                 status: payment_intent.status,
@@ -1076,6 +1079,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
+            metadata: additional_data.payment_data.payment_intent.metadata,
         })
     }
 }
@@ -1220,6 +1224,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 None => None,
             },
             browser_info,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
@@ -1254,6 +1259,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             browser_info,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
@@ -1419,6 +1425,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
@@ -1440,7 +1449,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
-
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -1457,6 +1470,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            complete_authorize_url,
+            metadata: payment_data.payment_intent.metadata,
         })
     }
 }
@@ -1535,6 +1550,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             browser_info,
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
+            redirect_response: None,
         })
     }
 }

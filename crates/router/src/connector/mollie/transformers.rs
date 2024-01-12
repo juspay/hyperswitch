@@ -292,7 +292,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                     .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =
-                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
+                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?;
                 let card_cvv = ccard.card_cvc;
                 let locale = item.request.get_browser_info()?.get_language()?;
                 let testmode =
