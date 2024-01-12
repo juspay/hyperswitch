@@ -1129,6 +1129,7 @@ pub struct AdditionalCardInfo {
     pub bank_code: Option<String>,
     pub last4: Option<String>,
     pub card_isin: Option<String>,
+    pub card_extended_bin: Option<String>,
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -1665,6 +1666,7 @@ pub struct CardResponse {
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
     pub card_isin: Option<String>,
+    pub card_extended_bin: Option<String>,
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -1707,7 +1709,7 @@ pub enum VoucherData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
-    Card(CardResponse),
+    Card(Box<CardResponse>),
     BankTransfer,
     Wallet,
     PayLater,
@@ -2037,7 +2039,7 @@ pub struct PaymentsResponse {
     #[schema(example = 100)]
     pub amount: i64,
 
-    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,  
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
     /// If no surcharge_details, net_amount = amount
     #[schema(example = 110)]
     pub net_amount: i64,
@@ -2531,6 +2533,7 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
             card_isin: card.card_isin,
+            card_extended_bin: card.card_extended_bin,
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.card_holder_name,
@@ -2541,7 +2544,7 @@ impl From<AdditionalCardInfo> for CardResponse {
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
-            AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
+            AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater {} => Self::PayLater,
             AdditionalPaymentData::Wallet {} => Self::Wallet,
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
