@@ -650,6 +650,7 @@ pub async fn validate_and_create_refund(
         .set_attempt_id(payment_attempt.attempt_id.clone())
         .set_refund_reason(req.reason)
         .set_profile_id(payment_intent.profile_id.clone())
+        .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
         .to_owned();
 
     let refund = match db
@@ -776,6 +777,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
+            merchant_connector_id: refund.merchant_connector_id,
         }
     }
 }

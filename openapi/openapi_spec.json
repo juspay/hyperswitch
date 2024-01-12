@@ -474,15 +474,6 @@
             }
           },
           {
-            "name": "customer_id",
-            "in": "path",
-            "description": "The unique identifier for the customer account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "accepted_country",
             "in": "query",
             "description": "The two-letter ISO currency code",
@@ -711,15 +702,6 @@
         "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
-          {
-            "name": "customer_id",
-            "in": "path",
-            "description": "The unique identifier for the customer account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "accepted_country",
             "in": "query",
@@ -3477,13 +3459,17 @@
               "ideal": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "bank_name",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
@@ -5552,6 +5538,8 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_authorized",
+          "payment_captured",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -8680,7 +8668,8 @@
         "required": [
           "theme",
           "logo",
-          "seller_name"
+          "seller_name",
+          "sdk_layout"
         ],
         "properties": {
           "theme": {
@@ -8694,6 +8683,10 @@
           "seller_name": {
             "type": "string",
             "description": "Custom merchant name for payment link"
+          },
+          "sdk_layout": {
+            "type": "string",
+            "description": "Custom layout for sdk"
           }
         }
       },
@@ -8718,6 +8711,13 @@
             "type": "string",
             "description": "Custom merchant name for payment link",
             "example": "hyperswitch",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "sdk_layout": {
+            "type": "string",
+            "description": "Custom layout for sdk",
+            "example": "accordion",
             "nullable": true,
             "maxLength": 255
           }
@@ -8756,8 +8756,8 @@
       "PaymentLinkStatus": {
         "type": "string",
         "enum": [
-          "Active",
-          "Expired"
+          "active",
+          "expired"
         ]
       },
       "PaymentListConstraints": {
@@ -10726,6 +10726,11 @@
             },
             "description": "List of incremental authorizations happened to the payment",
             "nullable": true
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Payment Fingerprint",
+            "nullable": true
           }
         }
       },
@@ -11674,6 +11679,12 @@
           },
           "profile_id": {
             "type": "string",
+            "description": "The id of business profile for this refund",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "The merchant_connector_id of the processor through which this payment went through",
             "nullable": true
           }
         }

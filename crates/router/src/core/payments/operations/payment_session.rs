@@ -312,6 +312,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         Option<api::PaymentMethodData>,

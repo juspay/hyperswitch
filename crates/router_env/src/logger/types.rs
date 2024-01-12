@@ -185,6 +185,12 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Add record to blocklist
+    AddToBlocklist,
+    /// Delete record from blocklist
+    DeleteFromBlocklist,
+    /// List entries from blocklist
+    ListBlocklist,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow

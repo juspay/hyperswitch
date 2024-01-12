@@ -343,6 +343,30 @@ pub struct ClientReferenceInformation {
     code: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientProcessorInformation {
+    avs: Option<Avs>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientRiskInformation {
+    rules: Option<Vec<ClientRiskInformationRules>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ClientRiskInformationRules {
+    name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Avs {
+    code: String,
+    code_raw: String,
+}
+
 impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -658,10 +682,12 @@ pub struct BankOfAmericaClientReferenceResponse {
     id: String,
     status: BankofamericaPaymentStatus,
     client_reference_information: ClientReferenceInformation,
+    processor_information: Option<ClientProcessorInformation>,
+    risk_information: Option<ClientRiskInformation>,
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaErrorInformationResponse {
     id: String,
@@ -674,6 +700,55 @@ pub struct BankOfAmericaErrorInformation {
     message: Option<String>,
 }
 
+impl<F, T>
+    From<(
+        &BankOfAmericaErrorInformationResponse,
+        types::ResponseRouterData<F, BankOfAmericaPaymentsResponse, T, types::PaymentsResponseData>,
+        Option<enums::AttemptStatus>,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    fn from(
+        (error_response, item, transaction_status): (
+            &BankOfAmericaErrorInformationResponse,
+            types::ResponseRouterData<
+                F,
+                BankOfAmericaPaymentsResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            Option<enums::AttemptStatus>,
+        ),
+    ) -> Self {
+        let error_reason = error_response
+            .error_information
+            .message
+            .to_owned()
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+        let error_message = error_response.error_information.reason.to_owned();
+        let response = Err(types::ErrorResponse {
+            code: error_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(error_reason),
+            status_code: item.http_code,
+            attempt_status: None,
+            connector_transaction_id: Some(error_response.id.clone()),
+        });
+        match transaction_status {
+            Some(status) => Self {
+                response,
+                status,
+                ..item.data
+            },
+            None => Self {
+                response,
+                ..item.data
+            },
+        }
+    }
+}
+
 fn get_error_response_if_failure(
     (info_response, status, http_code): (
         &BankOfAmericaClientReferenceResponse,
@@ -681,57 +756,15 @@ fn get_error_response_if_failure(
         u16,
     ),
 ) -> Option<types::ErrorResponse> {
-    if is_payment_failure(status) {
-        let (message, reason) = match info_response.error_information.as_ref() {
-            Some(error_info) => (
-                error_info
-                    .message
-                    .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                error_info.reason.clone(),
-            ),
-            None => (consts::NO_ERROR_MESSAGE.to_string(), None),
-        };
-
-        Some(types::ErrorResponse {
-            code: consts::NO_ERROR_CODE.to_string(),
-            message,
-            reason,
-            status_code: http_code,
-            attempt_status: Some(enums::AttemptStatus::Failure),
-            connector_transaction_id: Some(info_response.id.clone()),
-        })
+    if utils::is_payment_failure(status) {
+        Some(types::ErrorResponse::from((
+            &info_response.error_information,
+            &info_response.risk_information,
+            http_code,
+            info_response.id.clone(),
+        )))
     } else {
         None
-    }
-}
-
-fn is_payment_failure(status: enums::AttemptStatus) -> bool {
-    match status {
-        common_enums::AttemptStatus::AuthenticationFailed
-        | common_enums::AttemptStatus::AuthorizationFailed
-        | common_enums::AttemptStatus::CaptureFailed
-        | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
-        common_enums::AttemptStatus::Started
-        | common_enums::AttemptStatus::RouterDeclined
-        | common_enums::AttemptStatus::AuthenticationPending
-        | common_enums::AttemptStatus::AuthenticationSuccessful
-        | common_enums::AttemptStatus::Authorized
-        | common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::Authorizing
-        | common_enums::AttemptStatus::CodInitiated
-        | common_enums::AttemptStatus::Voided
-        | common_enums::AttemptStatus::VoidInitiated
-        | common_enums::AttemptStatus::CaptureInitiated
-        | common_enums::AttemptStatus::AutoRefunded
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable
-        | common_enums::AttemptStatus::Unresolved
-        | common_enums::AttemptStatus::Pending
-        | common_enums::AttemptStatus::PaymentMethodAwaited
-        | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
     }
 }
 
@@ -749,7 +782,10 @@ fn get_payment_response(
             resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
             redirection_data: None,
             mandate_reference: None,
-            connector_metadata: None,
+            connector_metadata: info_response
+                .processor_information
+                .as_ref()
+                .map(|processor_information| serde_json::json!({"avs_response": processor_information.avs})),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 info_response
@@ -795,21 +831,13 @@ impl<F>
                     ..item.data
                 })
             }
-            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
-                }),
-                status: enums::AttemptStatus::Failure,
-                ..item.data
-            }),
+            BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::from((
+                    &error_response.clone(),
+                    item,
+                    Some(enums::AttemptStatus::Failure),
+                )))
+            }
         }
     }
 }
@@ -844,20 +872,9 @@ impl<F>
                     ..item.data
                 })
             }
-            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
-                }),
-                ..item.data
-            }),
+            BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::from((&error_response.clone(), item, None)))
+            }
         }
     }
 }
@@ -892,20 +909,9 @@ impl<F>
                     ..item.data
                 })
             }
-            BankOfAmericaPaymentsResponse::ErrorInformation(error_response) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: error_response
-                        .error_information
-                        .message
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_information.reason,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(error_response.id),
-                }),
-                ..item.data
-            }),
+            BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
+                Ok(Self::from((&error_response.clone(), item, None)))
+            }
         }
     }
 }
@@ -957,25 +963,15 @@ impl<F>
                     app_response.application_information.status,
                     item.data.request.is_auto_capture()?,
                 ));
-                if is_payment_failure(status) {
-                    let (message, reason) = match app_response.error_information {
-                        Some(error_info) => (
-                            error_info
-                                .message
-                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                            error_info.reason,
-                        ),
-                        None => (consts::NO_ERROR_MESSAGE.to_string(), None),
-                    };
+                let risk_info: Option<ClientRiskInformation> = None;
+                if utils::is_payment_failure(status) {
                     Ok(Self {
-                        response: Err(types::ErrorResponse {
-                            code: consts::NO_ERROR_CODE.to_string(),
-                            message,
-                            reason,
-                            status_code: item.http_code,
-                            attempt_status: Some(enums::AttemptStatus::Failure),
-                            connector_transaction_id: Some(app_response.id),
-                        }),
+                        response: Err(types::ErrorResponse::from((
+                            &app_response.error_information,
+                            &risk_info,
+                            item.http_code,
+                            app_response.id.clone(),
+                        ))),
                         status: enums::AttemptStatus::Failure,
                         ..item.data
                     })
@@ -1030,6 +1026,8 @@ pub struct OrderInformation {
 pub struct BankOfAmericaCaptureRequest {
     order_information: OrderInformation,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
 }
 
 impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
@@ -1039,6 +1037,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
@@ -1049,6 +1051,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
             },
+            merchant_defined_information,
         })
     }
 }
@@ -1058,6 +1061,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCaptureRouterData>>
 pub struct BankOfAmericaVoidRequest {
     client_reference_information: ClientReferenceInformation,
     reversal_information: ReversalInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    // The connector documentation does not mention the merchantDefinedInformation field for Void requests. But this has been still added because it works!
 }
 
 #[derive(Debug, Serialize)]
@@ -1074,6 +1080,10 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
     fn try_from(
         value: &BankOfAmericaRouterData<&types::PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
+        let merchant_defined_information =
+            value.router_data.request.metadata.clone().map(|metadata| {
+                Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
+            });
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
                 code: Some(value.router_data.connector_request_reference_id.clone()),
@@ -1096,6 +1106,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCancelRouterData>>
                         field_name: "Cancellation Reason",
                     })?,
             },
+            merchant_defined_information,
         })
     }
 }
@@ -1240,8 +1251,8 @@ pub struct BankOfAmericaAuthenticationErrorResponse {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaErrorResponse {
-    StandardError(BankOfAmericaStandardErrorResponse),
     AuthenticationError(BankOfAmericaAuthenticationErrorResponse),
+    StandardError(BankOfAmericaStandardErrorResponse),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -1260,4 +1271,58 @@ pub struct ErrorInformation {
 #[derive(Debug, Default, Deserialize)]
 pub struct AuthenticationErrorInformation {
     pub rmsg: String,
+}
+
+impl
+    From<(
+        &Option<BankOfAmericaErrorInformation>,
+        &Option<ClientRiskInformation>,
+        u16,
+        String,
+    )> for types::ErrorResponse
+{
+    fn from(
+        (error_data, risk_information, status_code, transaction_id): (
+            &Option<BankOfAmericaErrorInformation>,
+            &Option<ClientRiskInformation>,
+            u16,
+            String,
+        ),
+    ) -> Self {
+        let avs_message = risk_information
+            .clone()
+            .map(|client_risk_information| {
+                client_risk_information.rules.map(|rules| {
+                    rules
+                        .iter()
+                        .map(|risk_info| format!(" , {}", risk_info.name))
+                        .collect::<Vec<String>>()
+                        .join("")
+                })
+            })
+            .unwrap_or(Some("".to_string()));
+        let error_reason = error_data
+            .clone()
+            .map(|error_details| {
+                error_details.message.unwrap_or("".to_string())
+                    + &avs_message.unwrap_or("".to_string())
+            })
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+        let error_message = error_data
+            .clone()
+            .and_then(|error_details| error_details.reason);
+
+        Self {
+            code: error_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(error_reason.clone()),
+            status_code,
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            connector_transaction_id: Some(transaction_id.clone()),
+        }
+    }
 }
