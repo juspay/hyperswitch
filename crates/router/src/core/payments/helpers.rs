@@ -1532,6 +1532,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1621,6 +1622,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
+                customer,
             )
             .await
             .attach_printable("in 'make_pm_data'")?;
@@ -2584,6 +2586,7 @@ mod tests {
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: None,
+            fingerprint_id: None,
             off_session: None,
             client_secret: Some("1".to_string()),
             active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
@@ -2636,6 +2639,7 @@ mod tests {
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
             modified_at: common_utils::date_time::now(),
+            fingerprint_id: None,
             last_synced: None,
             setup_future_usage: None,
             off_session: None,
@@ -2693,6 +2697,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: None,
+            fingerprint_id: None,
             active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
@@ -3285,6 +3290,7 @@ pub async fn get_additional_payment_data(
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let card_extended_bin = Some(card_data.card_number.clone().get_card_extended_bin());
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
@@ -3304,6 +3310,7 @@ pub async fn get_additional_payment_data(
                         card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
+                        card_extended_bin: card_extended_bin.clone(),
                     },
                 ))
             } else {
@@ -3327,6 +3334,7 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
+                                card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
                                 card_holder_name: card_data.card_holder_name.clone(),
@@ -3342,6 +3350,7 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
+                        card_extended_bin,
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
                         card_holder_name: card_data.card_holder_name.clone(),
@@ -3608,93 +3617,74 @@ impl ApplePayData {
 
 pub fn get_key_params_for_surcharge_details(
     payment_method_data: &api_models::payments::PaymentMethodData,
-) -> RouterResult<(
+) -> Option<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
     Option<common_enums::CardNetwork>,
 )> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
-            let card_network = card
-                .card_network
-                .clone()
-                .get_required_value("payment_method_data.card.card_network")?;
             // surcharge generated will always be same for credit as well as debit
             // since surcharge conditions cannot be defined on card_type
-            Ok((
+            Some((
                 common_enums::PaymentMethod::Card,
                 common_enums::PaymentMethodType::Credit,
-                Some(card_network),
+                card.card_network.clone(),
             ))
         }
-        api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Ok((
+        api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
             common_enums::PaymentMethod::CardRedirect,
             card_redirect_data.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Wallet(wallet) => Ok((
+        api_models::payments::PaymentMethodData::Wallet(wallet) => Some((
             common_enums::PaymentMethod::Wallet,
             wallet.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::PayLater(pay_later) => Ok((
+        api_models::payments::PaymentMethodData::PayLater(pay_later) => Some((
             common_enums::PaymentMethod::PayLater,
             pay_later.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => Ok((
+        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => Some((
             common_enums::PaymentMethod::BankRedirect,
             bank_redirect.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => Ok((
+        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => Some((
             common_enums::PaymentMethod::BankDebit,
             bank_debit.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => Ok((
+        api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => Some((
             common_enums::PaymentMethod::BankTransfer,
             bank_transfer.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Crypto(crypto) => Ok((
+        api_models::payments::PaymentMethodData::Crypto(crypto) => Some((
             common_enums::PaymentMethod::Crypto,
             crypto.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::MandatePayment => {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            }
-            .into())
-        }
-        api_models::payments::PaymentMethodData::Reward => {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            }
-            .into())
-        }
-        api_models::payments::PaymentMethodData::Upi(_) => Ok((
+        api_models::payments::PaymentMethodData::MandatePayment => None,
+        api_models::payments::PaymentMethodData::Reward => None,
+        api_models::payments::PaymentMethodData::Upi(_) => Some((
             common_enums::PaymentMethod::Upi,
             common_enums::PaymentMethodType::UpiCollect,
             None,
         )),
-        api_models::payments::PaymentMethodData::Voucher(voucher) => Ok((
+        api_models::payments::PaymentMethodData::Voucher(voucher) => Some((
             common_enums::PaymentMethod::Voucher,
             voucher.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::GiftCard(gift_card) => Ok((
+        api_models::payments::PaymentMethodData::GiftCard(gift_card) => Some((
             common_enums::PaymentMethod::GiftCard,
             gift_card.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::CardToken(_) => {
-            Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            }
-            .into())
-        }
+        api_models::payments::PaymentMethodData::CardToken(_) => None,
     }
 }
 
@@ -3759,17 +3749,22 @@ pub async fn get_gsm_record(
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: i64,
+    should_validate: bool,
 ) -> Result<(), errors::ApiErrorResponse> {
-    let total_order_details_amount: i64 = order_details
-        .iter()
-        .map(|order| order.amount * i64::from(order.quantity))
-        .sum();
+    if should_validate {
+        let total_order_details_amount: i64 = order_details
+            .iter()
+            .map(|order| order.amount * i64::from(order.quantity))
+            .sum();
 
-    if total_order_details_amount != amount {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Total sum of order details doesn't match amount in payment request"
-                .to_string(),
-        })
+        if total_order_details_amount != amount {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Total sum of order details doesn't match amount in payment request"
+                    .to_string(),
+            })
+        } else {
+            Ok(())
+        }
     } else {
         Ok(())
     }
