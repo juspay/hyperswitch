@@ -91,7 +91,7 @@ pub async fn remove_entry_from_blocklist(
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
-    operation_id = "List Bloked fingerprints of a particular kind",
+    operation_id = "List Blocked fingerprints of a particular kind",
     security(("api_key" = []))
 )]
 pub async fn list_blocked_payment_methods(
