@@ -165,9 +165,7 @@ impl BlocklistInterface for KafkaStore {
         &self,
         pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .insert_blocklist_entry(pm_blocklist)
-            .await
+        self.diesel_store.insert_blocklist_entry(pm_blocklist).await
     }
 
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
@@ -176,9 +174,7 @@ impl BlocklistInterface for KafkaStore {
         fingerprint: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
-            .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id,
-                fingerprint
-            )
+            .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
             .await
     }
 
@@ -188,9 +184,7 @@ impl BlocklistInterface for KafkaStore {
         fingerprint: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
-            .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id,
-                fingerprint
-            )
+            .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
             .await
     }
 
@@ -202,11 +196,7 @@ impl BlocklistInterface for KafkaStore {
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         self.diesel_store
-            .list_blocklist_entries_by_merchant_id_data_kind(merchant_id,
-                data_kind,
-                limit,
-                offset,
-            )
+            .list_blocklist_entries_by_merchant_id_data_kind(merchant_id, data_kind, limit, offset)
             .await
     }
 

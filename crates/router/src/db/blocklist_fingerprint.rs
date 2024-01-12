@@ -93,10 +93,7 @@ impl BlocklistFingerprintInterface for KafkaStore {
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
         self.diesel_store
-            .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
-                merchant_id,
-                fingerprint
-            )
+            .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
             .await
     }
 }

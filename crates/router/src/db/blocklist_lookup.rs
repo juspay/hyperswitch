@@ -115,9 +115,7 @@ impl BlocklistLookupInterface for KafkaStore {
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         self.diesel_store
-            .find_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id,
-                fingerprint
-            )
+            .find_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
             .await
     }
 
@@ -127,10 +125,7 @@ impl BlocklistLookupInterface for KafkaStore {
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         self.diesel_store
-            .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id,
-                fingerprint
-            )
+            .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
             .await
-        
     }
 }
