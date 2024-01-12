@@ -138,8 +138,7 @@ impl RequestBuilder {
     }
 
     pub fn headers(mut self, headers: Vec<(String, Maskable<String>)>) -> Self {
-        let mut h = headers.into_iter().map(|(h, v)| (h, v));
-        self.headers.extend(&mut h);
+        self.headers.extend(headers);
         self
     }
 

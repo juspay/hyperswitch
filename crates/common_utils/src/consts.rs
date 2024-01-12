@@ -33,11 +33,8 @@ pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
-/// SDK Default Theme const
-pub const DEFAULT_SDK_THEME: &str = "#7EA8F6";
-
 /// Default Payment Link Background color
-pub const DEFAULT_BACKGROUND_COLOR: &str = "#E5E5E5";
+pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 
 /// Default product Img Link
 pub const DEFAULT_PRODUCT_IMG: &str = "https://i.imgur.com/On3VtKF.png";
@@ -50,3 +47,9 @@ pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/to
 
 /// Variable which store the card token for Prophetpay
 pub const PROPHETPAY_TOKEN: &str = "cctoken";
+
+/// Default SDK Layout
+pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
+
+/// Payment intent default client secret expiry (in seconds)
+pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
