@@ -76,7 +76,7 @@ pub struct BluesnapMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
 pub struct RequestMetadata {
     meta_key: Option<String>,
     meta_value: Option<String>,
