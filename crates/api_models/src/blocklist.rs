@@ -16,6 +16,7 @@ pub type DeleteFromBlocklistRequest = BlocklistRequest;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
     pub fingerprint_id: String,
+    #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
@@ -26,6 +27,7 @@ pub type DeleteFromBlocklistResponse = BlocklistResponse;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ListBlocklistQuery {
+    #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(default = "default_list_limit")]
     pub limit: u16,

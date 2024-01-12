@@ -11,7 +11,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/blocklist",
-    request_body = AddToBlocklist,
+    request_body = BlocklistRequest,
     responses(
         (status = 200, description = "Fingerprint Blocked", body = BlocklistResponse),
         (status = 400, description = "Invalid Data")
@@ -47,7 +47,7 @@ pub async fn add_entry_to_blocklist(
 #[utoipa::path(
     delete,
     path = "/blocklist",
-    request_body = DeleteFromBlocklistRequest,
+    request_body = BlocklistRequest,
     responses(
         (status = 200, description = "Fingerprint Unblocked", body = BlocklistResponse),
         (status = 400, description = "Invalid Data")
@@ -84,7 +84,7 @@ pub async fn remove_entry_from_blocklist(
     get,
     path = "/blocklist",
     params (
-        ("data_kind" = BlocklistDataKind, Path, description = "Kind of the fingerprint list requested"),
+        ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
     ),
     responses(
         (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
