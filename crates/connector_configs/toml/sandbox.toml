@@ -639,6 +639,8 @@ merchant_id_classic="MerchantId Classic"
 password_evoucher="Password Evoucher"
 username_evoucher="Username Evoucher"
 merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [checkout]
 [[checkout.credit]]
@@ -2081,6 +2083,8 @@ api_key = "Username"
 api_secret = "Password"
 key1 = "Client ID"
 key2 = "Client Secret"
+[volt.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [worldline]
 [[worldline.credit]]
