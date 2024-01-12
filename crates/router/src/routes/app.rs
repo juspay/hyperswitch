@@ -40,7 +40,7 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
-#[cfg(all(feature = "recon", feature = "oltp"))]
+#[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;

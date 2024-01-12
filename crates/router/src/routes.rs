@@ -55,13 +55,14 @@ pub use self::app::DummyConnector;
 pub use self::app::Forex;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
+#[cfg(all(feature = "olap", feature = "recon"))]
+pub use self::app::Recon;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
     Disputes, EphemeralKey, Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Recon, Refunds, User,
-    Webhooks,
+    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

@@ -9,16 +9,17 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
+use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
-use super::{
-    authorization::{self, permissions::Permission},
-    recon::ReconToken,
-};
+#[cfg(feature = "recon")]
+use super::recon::ReconToken;
 #[cfg(feature = "olap")]
 use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
+#[cfg(feature = "recon")]
+use crate::routes::AppState;
 use crate::{
     configs::settings,
     core::{
@@ -26,7 +27,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt, RouterResult},
     },
     db::StorageInterface,
-    routes::{app::AppStateInfo, AppState},
+    routes::app::AppStateInfo,
     services::api,
     types::domain,
     utils::OptionExt,

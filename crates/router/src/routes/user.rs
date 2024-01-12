@@ -389,6 +389,7 @@ pub async fn verify_email_request(
     .await
 }
 
+#[cfg(feature = "recon")]
 pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
     let flow = Flow::ReconVerifyToken;
     Box::pin(api::server_wrap(
