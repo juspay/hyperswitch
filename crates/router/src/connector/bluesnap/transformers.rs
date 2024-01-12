@@ -1,4 +1,6 @@
 
+use std::collections::HashMap;
+
 use api_models::{enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
@@ -19,8 +21,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    routes::metrics,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom}},
     utils::{Encode, OptionExt},
 };
 
@@ -76,11 +77,10 @@ pub struct BluesnapMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+#[serde(rename_all = "camelCase")]
 pub struct RequestMetadata {
     meta_key: Option<String>,
     meta_value: Option<String>,
-    meta_description: Option<String>,
     is_visible: Option<String>,
 }
 
@@ -261,9 +261,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             _ => BluesnapTxnType::AuthCapture,
         };
         let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())
-                .ok()
-                .map(|meta_data| BluesnapMetadata { meta_data }),
+            Some(metadata) => Some( BluesnapMetadata {meta_data : Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()) }),
             None => None,
         };
 
@@ -619,10 +617,9 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())
-                .ok()
-                .map(|meta_data| BluesnapMetadata { meta_data }),
-            None => None,
+            Some(metadata) => Some( BluesnapMetadata {meta_data : Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()) }),
+
+            None => None
         };
 
         let pf_token = item
@@ -1155,23 +1152,18 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     }
 }
 
-impl ForeignTryFrom<Value> for Vec<RequestMetadata> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
-        let merchant_metadata: Result<Vec<RequestMetadata>, _> =
-            serde_json::from_str(&metadata.to_string());
-        match merchant_metadata {
-            Ok(metadata_vector) => Ok(metadata_vector),
-            Err(_) => {
-                metrics::REQUEST_BUILD_FAILURE.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::request::add_attributes("connector", "bluesnap")],
-                );
-                Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "Metadata is not in the expected format",
-                })?
-            }
+impl ForeignFrom<Value> for Vec<RequestMetadata> {
+    fn foreign_from(metadata: Value) -> Self {
+        let hashmap: HashMap<Option<String>, Option<Value>> =
+            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            vector.push(RequestMetadata {
+                meta_key : key,
+                meta_value: value.map(|field_value| field_value.to_string()),
+                is_visible: Some("Y".to_string())
+            });
         }
+        vector
     }
 }
