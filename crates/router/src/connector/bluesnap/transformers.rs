@@ -20,11 +20,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::ForeignTryFrom,
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::{Encode, OptionExt},
 };
 
