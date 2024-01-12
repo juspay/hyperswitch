@@ -185,6 +185,12 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Add record to blocklist
+    AddToBlocklist,
+    /// Delete record from blocklist
+    DeleteFromBlocklist,
+    /// List entries from blocklist
+    ListBlocklist,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -249,6 +255,12 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// User Sign Up
+    UserSignUp,
+    /// User Sign Up
+    UserSignUpWithMerchantId,
+    /// User Sign In
+    UserSignIn,
     /// User connect account
     UserConnectAccount,
     /// Upsert Decision Manager Config
@@ -257,6 +269,8 @@ pub enum Flow {
     DecisionManagerDeleteConfig,
     /// Retrieve Decision Manager Config
     DecisionManagerRetrieveConfig,
+    /// Manual payment fulfillment acknowledgement
+    FrmFulfillment,
     /// Change password flow
     ChangePassword,
     /// Set Dashboard Metadata flow
@@ -287,6 +301,26 @@ pub enum Flow {
     UserMerchantAccountList,
     /// Get users for merchant account
     GetUserDetails,
+    /// PaymentMethodAuth Link token create
+    PmAuthLinkTokenCreate,
+    /// PaymentMethodAuth Exchange token create
+    PmAuthExchangeToken,
+    /// Get reset password link
+    ForgotPassword,
+    /// Reset password using link
+    ResetPassword,
+    /// Invite users
+    InviteUser,
+    /// Incremental Authorization flow
+    PaymentsIncrementalAuthorization,
+    /// Get action URL for connector onboarding
+    GetActionUrl,
+    /// Sync connector onboarding status
+    SyncOnboardingStatus,
+    /// Verify email Token
+    VerifyEmail,
+    /// Send verify email
+    VerifyEmailRequest,
 }
 
 ///

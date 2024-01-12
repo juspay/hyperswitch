@@ -1,3 +1,5 @@
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
 pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
@@ -191,16 +193,6 @@ impl QrImage {
         Ok(Self {
             data: image_data_source,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
     }
 }
 
@@ -800,5 +792,15 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
     }
 }

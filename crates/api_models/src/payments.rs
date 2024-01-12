@@ -16,7 +16,6 @@ use crate::{
     admin, disputes,
     enums::{self as api_enums},
     ephemeral_key::EphemeralKeyCreateResponse,
-    payment_methods::{Surcharge, SurchargeDetailsResponse},
     refunds,
 };
 
@@ -297,8 +296,14 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
-    /// payment link object required for generating the payment_link
-    pub payment_link_object: Option<PaymentLinkObject>,
+
+    /// Whether to get the payment link (if applicable)
+    #[schema(default = false, example = true)]
+    pub payment_link: Option<bool>,
+
+    /// custom payment link config for the particular payment
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
+    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
@@ -314,15 +319,21 @@ pub struct PaymentsRequest {
 
     ///Request for an incremental authorization
     pub request_incremental_authorization: Option<bool>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// additional data related to some frm connectors
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 impl PaymentsRequest {
     pub fn get_total_capturable_amount(&self) -> Option<i64> {
         let surcharge_amount = self
             .surcharge_details
-            .map(|surcharge_details| {
-                surcharge_details.surcharge_amount + surcharge_details.tax_amount.unwrap_or(0)
-            })
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .unwrap_or(0);
         self.amount
             .map(|amount| i64::from(amount) + surcharge_amount)
@@ -339,17 +350,6 @@ pub struct RequestSurchargeDetails {
 impl RequestSurchargeDetails {
     pub fn is_surcharge_zero(&self) -> bool {
         self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
-    }
-    pub fn get_surcharge_details_object(&self, original_amount: i64) -> SurchargeDetailsResponse {
-        let surcharge_amount = self.surcharge_amount;
-        let tax_on_surcharge_amount = self.tax_amount.unwrap_or(0);
-        SurchargeDetailsResponse {
-            surcharge: Surcharge::Fixed(self.surcharge_amount),
-            tax_on_surcharge: None,
-            surcharge_amount,
-            tax_on_surcharge_amount,
-            final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
-        }
     }
     pub fn get_total_surcharge_amount(&self) -> i64 {
         self.surcharge_amount + self.tax_amount.unwrap_or(0)
@@ -694,7 +694,7 @@ pub struct Card {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
@@ -719,6 +719,33 @@ pub struct Card {
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
     pub nick_name: Option<Secret<String>>,
+}
+
+impl Card {
+    fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_cvc: self.card_cvc.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, Default)]
@@ -892,6 +919,21 @@ impl PaymentMethodData {
             | Self::Voucher(_)
             | Self::GiftCard(_)
             | Self::CardToken(_) => None,
+        }
+    }
+    pub fn apply_additional_payment_data(
+        &self,
+        additional_payment_data: AdditionalPaymentData,
+    ) -> Self {
+        if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
+            match self {
+                Self::Card(card) => {
+                    Self::Card(card.apply_additional_card_info(*additional_card_info))
+                }
+                _ => self.to_owned(),
+            }
+        } else {
+            self.to_owned()
         }
     }
 }
@@ -1087,6 +1129,7 @@ pub struct AdditionalCardInfo {
     pub bank_code: Option<String>,
     pub last4: Option<String>,
     pub card_isin: Option<String>,
+    pub card_extended_bin: Option<String>,
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -1142,7 +1185,7 @@ pub enum BankRedirectData {
     },
     Eps {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
@@ -1171,7 +1214,7 @@ pub enum BankRedirectData {
     },
     Ideal {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
@@ -1623,6 +1666,7 @@ pub struct CardResponse {
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
     pub card_isin: Option<String>,
+    pub card_extended_bin: Option<String>,
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -1665,7 +1709,7 @@ pub enum VoucherData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
-    Card(CardResponse),
+    Card(Box<CardResponse>),
     BankTransfer,
     Wallet,
     PayLater,
@@ -1995,6 +2039,11 @@ pub struct PaymentsResponse {
     #[schema(example = 100)]
     pub amount: i64,
 
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
+    /// If no surcharge_details, net_amount = amount
+    #[schema(example = 110)]
+    pub net_amount: i64,
+
     /// The maximum amount that could be captured from the payment
     #[schema(minimum = 100, example = 6540)]
     pub amount_capturable: Option<i64>,
@@ -2221,6 +2270,15 @@ pub struct PaymentsResponse {
 
     /// If true incremental authorization can be performed on this payment
     pub incremental_authorization_allowed: Option<bool>,
+
+    /// Total number of authorizations happened in an incremental_authorization payment
+    pub authorization_count: Option<i32>,
+
+    /// List of incremental authorizations happened to the payment
+    pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
+
+    /// Payment Fingerprint
+    pub fingerprint: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -2289,6 +2347,24 @@ pub struct PaymentListResponse {
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct IncrementalAuthorizationResponse {
+    /// The unique identifier of authorization
+    pub authorization_id: String,
+    /// Amount the authorization has been made for
+    pub amount: i64,
+    #[schema(value_type= AuthorizationStatus)]
+    /// The status of the authorization
+    pub status: common_enums::AuthorizationStatus,
+    /// Error code sent by the connector for authorization
+    pub error_code: Option<String>,
+    /// Error message sent by the connector for authorization
+    pub error_message: Option<String>,
+    /// Previously authorized amount for the payment
+    pub previously_authorized_amount: i64,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListResponseV2 {
     /// The number of payments included in the list for given constraints
@@ -2457,6 +2533,7 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
             card_isin: card.card_isin,
+            card_extended_bin: card.card_extended_bin,
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.card_holder_name,
@@ -2467,7 +2544,7 @@ impl From<AdditionalCardInfo> for CardResponse {
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
-            AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
+            AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater {} => Self::PayLater,
             AdditionalPaymentData::Wallet {} => Self::Wallet,
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
@@ -2544,8 +2621,30 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    // Does the order includes shipping
+    pub requires_shipping: Option<bool>,
     /// The image URL of the product
     pub product_img_link: Option<String>,
+    /// ID of the product that is being purchased
+    pub product_id: Option<String>,
+    /// Category of the product that is being purchased
+    pub category: Option<String>,
+    /// Brand of the product that is being purchased
+    pub brand: Option<String>,
+    /// Type of the product that is being purchased
+    pub product_type: Option<ProductType>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProductType {
+    #[default]
+    Physical,
+    Digital,
+    Travel,
+    Ride,
+    Event,
+    Accommodation,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2556,8 +2655,18 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    // Does the order include shipping
+    pub requires_shipping: Option<bool>,
     /// The image URL of the product
     pub product_img_link: Option<String>,
+    /// ID of the product that is being purchased
+    pub product_id: Option<String>,
+    /// Category of the product that is being purchased
+    pub category: Option<String>,
+    /// Brand of the product that is being purchased
+    pub brand: Option<String>,
+    /// Type of the product that is being purchased
+    pub product_type: Option<ProductType>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2917,7 +3026,7 @@ pub struct SecretInfoToInitiateSdk {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: api_enums::CountryAlpha2,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -2995,6 +3104,18 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = MerchantConnectorDetailsWrap)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsIncrementalAuthorizationRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// The total amount including previously authorized amount and additional amount
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: i64,
+    /// Reason for incremental authorization
+    pub reason: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -3210,17 +3331,6 @@ mod tests {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
-pub struct PaymentLinkObject {
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub link_expiry: Option<PrimitiveDateTime>,
-    pub merchant_custom_domain_name: Option<String>,
-    #[schema(value_type = PaymentLinkConfig)]
-    pub payment_link_config: Option<admin::PaymentLinkConfig>,
-    /// Custom merchant name for payment link
-    pub custom_merchant_name: Option<String>,
-}
-
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
@@ -3240,10 +3350,10 @@ pub struct RetrievePaymentLinkResponse {
     pub amount: i64,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub link_expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub expiry: Option<PrimitiveDateTime>,
     pub description: Option<String>,
-    pub status: String,
+    pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
 }
@@ -3255,20 +3365,44 @@ pub struct PaymentLinkInitiateRequest {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum PaymentLinkData {
+    PaymentLinkDetails(PaymentLinkDetails),
+    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
+}
+
+#[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
-    pub amount: i64,
+    pub amount: String,
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
     pub merchant_logo: String,
     pub return_url: String,
     pub merchant_name: String,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithStringAmount>>,
     pub max_items_visible_after_collapse: i8,
-    pub sdk_theme: Option<String>,
+    pub theme: String,
+    pub merchant_description: Option<String>,
+    pub sdk_layout: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentLinkStatusDetails {
+    pub amount: String,
+    pub currency: api_enums::Currency,
+    pub payment_id: String,
+    pub merchant_logo: String,
+    pub merchant_name: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+    pub intent_status: api_enums::IntentStatus,
+    pub payment_link_status: PaymentLinkStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3323,4 +3457,32 @@ pub struct PaymentLinkListResponse {
     pub size: usize,
     // The list of payment link response objects
     pub data: Vec<PaymentLinkResponse>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentCreatePaymentLinkConfig {
+    #[serde(flatten)]
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub config: admin::PaymentLinkConfigRequest,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithStringAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: String,
+    /// Product Image link
+    pub product_img_link: Option<String>,
+}
+
+#[derive(PartialEq, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentLinkStatus {
+    Active,
+    Expired,
 }

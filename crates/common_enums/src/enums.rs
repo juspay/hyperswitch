@@ -6,12 +6,13 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
-        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
-        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
-        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
+        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
+        DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
+        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
+        DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
     };
 }
@@ -142,10 +143,13 @@ pub enum RoutableConnectors {
     Payme,
     Paypal,
     Payu,
+    Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
+    Riskified,
     Shift4,
+    Signifyd,
     Square,
     Stax,
     Stripe,
@@ -244,6 +248,53 @@ pub enum CaptureStatus {
     Pending,
     // Capture request failed
     Failed,
+}
+
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthorizationStatus {
+    Success,
+    Failure,
+    // Processing state is before calling connector
+    #[default]
+    Processing,
+    // Requires merchant action
+    Unresolved,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BlocklistDataKind {
+    PaymentMethod,
+    CardBin,
+    ExtendedCardBin,
 }
 
 #[derive(
@@ -892,10 +943,14 @@ impl Currency {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
+    /// Authorize + Capture success
     PaymentSucceeded,
+    /// Authorize + Capture failed
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentAuthorized,
+    PaymentCaptured,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,

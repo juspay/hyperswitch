@@ -13,6 +13,7 @@ pub enum ApiIdentifier {
     Ephemeral,
     Mandates,
     PaymentMethods,
+    PaymentMethodAuth,
     Payouts,
     Disputes,
     CardsInfo,
@@ -23,11 +24,13 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
+    Blocklist,
     Forex,
     RustLockerMigration,
     Gsm,
     User,
     UserRole,
+    ConnectorOnboarding,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -54,6 +57,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
+
+            Flow::AddToBlocklist => Self::Blocklist,
+            Flow::DeleteFromBlocklist => Self::Blocklist,
+            Flow::ListBlocklist => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
@@ -85,6 +92,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsDelete
             | Flow::ValidatePaymentMethod => Self::PaymentMethods,
 
+            Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
+
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
             | Flow::PaymentsUpdate
@@ -96,7 +105,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
-            | Flow::PaymentsRedirect => Self::Payments,
+            | Flow::PaymentsRedirect
+            | Flow::PaymentsIncrementalAuthorization => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -110,7 +120,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
-            Flow::IncomingWebhookReceive => Self::Webhooks,
+            Flow::FrmFulfillment | Flow::IncomingWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -149,6 +159,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleDelete => Self::Gsm,
 
             Flow::UserConnectAccount
+            | Flow::UserSignUp
+            | Flow::UserSignIn
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
             | Flow::GetMutltipleDashboardMetadata
@@ -159,11 +171,19 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
             | Flow::UserMerchantAccountList
-            | Flow::GetUserDetails => Self::User,
+            | Flow::GetUserDetails
+            | Flow::ForgotPassword
+            | Flow::ResetPassword
+            | Flow::InviteUser
+            | Flow::UserSignUpWithMerchantId
+            | Flow::VerifyEmail
+            | Flow::VerifyEmailRequest => Self::User,
 
             Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
                 Self::UserRole
             }
+
+            Flow::GetActionUrl | Flow::SyncOnboardingStatus => Self::ConnectorOnboarding,
         }
     }
 }

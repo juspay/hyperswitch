@@ -95,6 +95,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         customer_id: None,
         surcharge_details: None,
         request_incremental_authorization: false,
+        metadata: None,
     })
 }
 

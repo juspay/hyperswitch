@@ -644,7 +644,7 @@ impl<F, T>
             Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(get_err_response(item.http_code, item.response.messages)),
+                    response: Err(get_err_response(item.http_code, item.response.messages)?),
                     ..item.data
                 })
             }
@@ -714,7 +714,7 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -978,7 +978,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -1020,7 +1020,7 @@ impl<F, Req>
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -1058,15 +1058,22 @@ impl From<Option<enums::CaptureMethod>> for TransactionType {
     }
 }
 
-fn get_err_response(status_code: u16, message: ResponseMessages) -> types::ErrorResponse {
-    types::ErrorResponse {
-        code: message.message[0].code.clone(),
-        message: message.message[0].text.clone(),
+fn get_err_response(
+    status_code: u16,
+    message: ResponseMessages,
+) -> Result<types::ErrorResponse, errors::ConnectorError> {
+    let response_message = message
+        .message
+        .first()
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    Ok(types::ErrorResponse {
+        code: response_message.code.clone(),
+        message: response_message.text.clone(),
         reason: None,
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
-    }
+    })
 }
 
 #[derive(Debug, Deserialize)]

@@ -2,7 +2,8 @@
 //! Serde-related.
 //!
 
-pub use serde::{de, ser, Deserialize, Serialize, Serializer};
+pub use erased_serde::Serialize as ErasedSerialize;
+pub use serde::{de, Deserialize, Serialize, Serializer};
 use serde_json::{value::Serializer as JsonValueSerializer, Value};
 
 use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};
@@ -99,20 +100,32 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
 /// like &dyn Serialize or boxed trait objects like Box<dyn Serialize> because of Rust's "object safety" rules.
 /// In particular, the trait contains generic methods which cannot be made into a trait object.
 /// In this case we remove the generic for assuming the serialization to be of 2 types only raw json or masked json
-pub trait ErasedMaskSerialize {
+pub trait ErasedMaskSerialize: ErasedSerialize {
     /// Masked serialization.
     fn masked_serialize(&self) -> Result<Value, serde_json::Error>;
-    /// Normal serialization.
-    fn raw_serialize(&self) -> Result<Value, serde_json::Error>;
 }
 
-impl<T: Serialize> ErasedMaskSerialize for T {
+impl<T: Serialize + ErasedSerialize> ErasedMaskSerialize for T {
     fn masked_serialize(&self) -> Result<Value, serde_json::Error> {
         masked_serialize(self)
     }
+}
 
-    fn raw_serialize(&self) -> Result<Value, serde_json::Error> {
-        serde_json::to_value(self)
+impl<'a> Serialize for dyn ErasedMaskSerialize + 'a {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        erased_serde::serialize(self, serializer)
+    }
+}
+
+impl<'a> Serialize for dyn ErasedMaskSerialize + 'a + Send {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        erased_serde::serialize(self, serializer)
     }
 }
 

@@ -1,5 +1,5 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
 use data_models::{
     errors,
     mandates::{MandateAmountData, MandateDataType},
@@ -29,6 +29,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
@@ -330,6 +331,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
+                let payment_attempt = payment_attempt.populate_derived_fields();
                 let key = format!(
                     "mid_{}_pid_{}",
                     payment_attempt.merchant_id, payment_attempt.payment_id
@@ -342,6 +344,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     attempt_id: payment_attempt.attempt_id.clone(),
                     status: payment_attempt.status,
                     amount: payment_attempt.amount,
+                    net_amount: payment_attempt.net_amount,
                     currency: payment_attempt.currency,
                     save_to_locker: payment_attempt.save_to_locker,
                     connector: payment_attempt.connector.clone(),
@@ -399,6 +402,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     },
                 };
 
+                //Reverse lookup for attempt_id
+                let reverse_lookup = ReverseLookupNew {
+                    lookup_id: format!(
+                        "pa_{}_{}",
+                        &created_attempt.merchant_id, &created_attempt.attempt_id,
+                    ),
+                    pk_id: key.clone(),
+                    sk_id: field.clone(),
+                    source: "payment_attempt".to_string(),
+                    updated_by: storage_scheme.to_string(),
+                };
+                self.insert_reverse_lookup(reverse_lookup, storage_scheme)
+                    .await?;
+
                 match kv_wrapper::<PaymentAttempt, _, _>(
                     self,
                     KvOperation::HSetNx(
@@ -409,7 +426,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(errors::StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
@@ -417,23 +434,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         key: Some(key),
                     })
                     .into_report(),
-                    Ok(HsetnxReply::KeySet) => {
-                        //Reverse lookup for attempt_id
-                        let reverse_lookup = ReverseLookupNew {
-                            lookup_id: format!(
-                                "{}_{}",
-                                &created_attempt.merchant_id, &created_attempt.attempt_id,
-                            ),
-                            pk_id: key,
-                            sk_id: field,
-                            source: "payment_attempt".to_string(),
-                            updated_by: storage_scheme.to_string(),
-                        };
-                        self.insert_reverse_lookup(reverse_lookup, storage_scheme)
-                            .await?;
-
-                        Ok(created_attempt)
-                    }
+                    Ok(HsetnxReply::KeySet) => Ok(created_attempt),
                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
                 }
             }
@@ -479,16 +480,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         ),
                     },
                 };
-
-                kv_wrapper::<(), _, _>(
-                    self,
-                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), redis_entry),
-                    &key,
-                )
-                .await
-                .change_context(errors::StorageError::KVError)?
-                .try_into_hset()
-                .change_context(errors::StorageError::KVError)?;
 
                 match (
                     old_connector_transaction_id,
@@ -549,6 +540,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
+                kv_wrapper::<(), _, _>(
+                    self,
+                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), redis_entry),
+                    &key,
+                )
+                .await
+                .change_context(errors::StorageError::KVError)?
+                .try_into_hset()
+                .change_context(errors::StorageError::KVError)?;
+
                 Ok(updated_attempt)
             }
         }
@@ -574,10 +575,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-                let lookup_id = format!("conn_trans_{merchant_id}_{connector_transaction_id}");
-                let lookup = self
-                    .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                    .await?;
+                let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    self.router_store
+                        .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+                            connector_transaction_id,
+                            payment_id,
+                            merchant_id,
+                            storage_scheme,
+                        )
+                        .await
+                );
+
                 let key = &lookup.pk_id;
 
                 Box::pin(try_redis_get_else_try_database_get(
@@ -707,10 +718,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{connector_txn_id}");
-                let lookup = self
-                    .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                    .await?;
+                let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_txn_id}");
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    self.router_store
+                        .find_payment_attempt_by_merchant_id_connector_txn_id(
+                            merchant_id,
+                            connector_txn_id,
+                            storage_scheme,
+                        )
+                        .await
+                );
 
                 let key = &lookup.pk_id;
                 Box::pin(try_redis_get_else_try_database_get(
@@ -799,10 +818,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{attempt_id}");
-                let lookup = self
-                    .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                    .await?;
+                let lookup_id = format!("pa_{merchant_id}_{attempt_id}");
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    self.router_store
+                        .find_payment_attempt_by_attempt_id_merchant_id(
+                            attempt_id,
+                            merchant_id,
+                            storage_scheme,
+                        )
+                        .await
+                );
+
                 let key = &lookup.pk_id;
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
@@ -846,10 +874,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("preprocessing_{merchant_id}_{preprocessing_id}");
-                let lookup = self
-                    .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                    .await?;
+                let lookup_id = format!("pa_preprocessing_{merchant_id}_{preprocessing_id}");
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    self.router_store
+                        .find_payment_attempt_by_preprocessing_id_merchant_id(
+                            preprocessing_id,
+                            merchant_id,
+                            storage_scheme,
+                        )
+                        .await
+                );
                 let key = &lookup.pk_id;
 
                 Box::pin(try_redis_get_else_try_database_get(
@@ -1001,6 +1037,7 @@ impl DataModelExt for PaymentAttempt {
             attempt_id: self.attempt_id,
             status: self.status,
             amount: self.amount,
+            net_amount: Some(self.net_amount),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
@@ -1047,6 +1084,7 @@ impl DataModelExt for PaymentAttempt {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
@@ -1105,6 +1143,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
+            net_amount: Some(self.net_amount),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1155,6 +1194,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
@@ -1467,6 +1507,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 updated_by,
             },
+            Self::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            } => DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            },
         }
     }
 
@@ -1728,6 +1775,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 updated_by,
             },
+            DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            } => Self::IncrementalAuthorizationAmountUpdate {
+                amount,
+                amount_capturable,
+            },
         }
     }
 }
@@ -1743,7 +1797,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("conn_trans_{}_{}", merchant_id, connector_transaction_id),
+        lookup_id: format!("pa_conn_trans_{}_{}", merchant_id, connector_transaction_id),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
@@ -1765,7 +1819,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("preprocessing_{}_{}", merchant_id, preprocessing_id),
+        lookup_id: format!("pa_preprocessing_{}_{}", merchant_id, preprocessing_id),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
