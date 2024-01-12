@@ -202,7 +202,7 @@ impl
             api_models::payments::BankRedirectData::Sofort { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Sofortueberweisung,
-                    bank_account_country: Some(country.clone().ok_or(
+                    bank_account_country: Some(country.to_owned().ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "country",
                         },
