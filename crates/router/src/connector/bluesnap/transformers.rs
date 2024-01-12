@@ -1157,15 +1157,13 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
 impl ForeignTryFrom<Value> for Vec<RequestMetadata> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
-        crate::logger::debug!("bbbbbbbbbb{:?}", metadata.clone());
         let hashmap: HashMap<String, String> = serde_json::from_str(&metadata.to_string())
             .ok()
             .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
-                "Metadata not in format".to_string(),
+                "Metadata is not in the expected format".to_string(),
             ))?;
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
-            crate::logger::debug!("aaaaaaaa{:?}:{:?}", key.clone(), value.clone());
             vector.push(RequestMetadata {
                 meta_key: key,
                 meta_value: value,
