@@ -28,6 +28,8 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+#[cfg(feature = "recon")]
+pub mod recon;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -58,7 +60,8 @@ pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
     Disputes, EphemeralKey, Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
+    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Recon, Refunds, User,
+    Webhooks,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

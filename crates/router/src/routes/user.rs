@@ -388,3 +388,17 @@ pub async fn verify_email_request(
     ))
     .await
 }
+
+pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ReconVerifyToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, user, _req| user_core::verify_token(state, user),
+        &auth::ReconJWT,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

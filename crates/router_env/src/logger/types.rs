@@ -165,6 +165,14 @@ pub enum Flow {
     RefundsList,
     // Retrieve forex flow.
     RetrieveForexFlow,
+    /// Toggles recon service for a merchant.
+    ReconMerchantUpdate,
+    /// Recon token request flow.
+    ReconTokenRequest,
+    /// Initial request for recon service.
+    ReconServiceRequest,
+    /// Recon token verification flow
+    ReconVerifyToken,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config

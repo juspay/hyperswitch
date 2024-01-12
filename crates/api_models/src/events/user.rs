@@ -1,7 +1,11 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
+#[cfg(feature = "recon")]
+use masking::PeekInterface;
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
+#[cfg(feature = "recon")]
+use crate::user::VerifyTokenResponse;
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
@@ -17,6 +21,16 @@ impl ApiEventMetric for DashboardEntryResponse {
         Some(ApiEventsType::User {
             merchant_id: self.merchant_id.clone(),
             user_id: self.user_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "recon")]
+impl ApiEventMetric for VerifyTokenResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::User {
+            merchant_id: self.merchant_id.clone(),
+            user_id: self.user_email.peek().to_string(),
         })
     }
 }
