@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::connection::{diesel_make_pg_pool, PgPool};
+use crate::{
+    connection::{diesel_make_pg_pool, PgPool},
+    settings::AppState,
+};
 
 #[derive(Clone)]
 pub struct Store {
@@ -17,19 +20,17 @@ pub struct StoreConfig {
 }
 
 impl Store {
-    pub async fn new(config: &crate::settings::Settings, test_transaction: bool) -> Self {
+    pub async fn new(state: &AppState, test_transaction: bool) -> Self {
         Self {
             master_pool: diesel_make_pg_pool(
-                &config.master_database,
+                &state.conf.master_database.into_inner(),
                 test_transaction,
-                #[cfg(feature = "aws_kms")]
-                external_services::aws_kms::get_aws_kms_client(&config.kms).await,
             )
             .await,
-            redis_conn: Arc::new(crate::connection::redis_connection(config).await),
+            redis_conn: Arc::new(crate::connection::redis_connection(&state.conf).await),
             config: StoreConfig {
-                drainer_stream_name: config.drainer.stream_name.clone(),
-                drainer_num_partitions: config.drainer.num_partitions,
+                drainer_stream_name: state.conf.drainer.stream_name.clone(),
+                drainer_num_partitions: state.conf.drainer.num_partitions,
             },
             request_id: None,
         }

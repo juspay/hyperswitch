@@ -2,8 +2,7 @@ use common_utils::date_time;
 #[cfg(feature = "email")]
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
+
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
@@ -26,15 +25,14 @@ const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 #[cfg(feature = "email")]
 const API_KEY_EXPIRY_RUNNER: &str = "API_KEY_EXPIRY_WORKFLOW";
 
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::decrypt::AwsKmsDecrypt;
+use external_services::kms::{self, decrypt::KmsDecrypt};
 
 static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     tokio::sync::OnceCell::const_new();
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    aws_kms_client: &kms::EncryptionScheme,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
@@ -131,12 +129,12 @@ impl PlaintextApiKey {
 #[instrument(skip_all)]
 pub async fn create_api_key(
     state: AppState,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
     let api_key_config = &state.conf.api_keys;
     let store = state.store.as_ref();
+    let aws_kms_client = state.secret_management_client;
     // We are not fetching merchant account as the merchant key store is needed to search for a
     // merchant account.
     // Instead, we're only fetching merchant key store, as it is sufficient to identify
@@ -152,7 +150,7 @@ pub async fn create_api_key(
     let hash_key = get_hash_key(
         api_key_config,
         #[cfg(feature = "aws_kms")]
-        aws_kms_client,
+        &aws_kms_client,
     )
     .await?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
@@ -549,20 +547,24 @@ impl From<storage::HashedApiKey> for HashedApiKey {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
+    use tokio::sync::oneshot;
+
+    use crate::{routes::app::StorageImpl, services::MockApiClient, Settings};
+
     use super::*;
 
     #[tokio::test]
     async fn test_hashing_and_verification() {
-        let settings = settings::Settings::new().expect("invalid settings");
+        let conf = Settings::new().expect("invalid settings");
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+
+        let app_state =
+            AppState::with_storage(conf, StorageImpl::Mock, tx, Box::new(MockApiClient)).await;
 
         let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
-        let hash_key = get_hash_key(
-            &settings.api_keys,
-            #[cfg(feature = "aws_kms")]
-            external_services::aws_kms::get_aws_kms_client(&settings.kms).await,
-        )
-        .await
-        .unwrap();
+        let hash_key = get_hash_key(&conf.api_keys, &app_state.secret_management_client)
+            .await
+            .unwrap();
         let hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
 
         assert_ne!(

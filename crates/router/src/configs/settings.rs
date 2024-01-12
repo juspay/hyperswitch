@@ -9,16 +9,19 @@ use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
+
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
+#[cfg(feature = "kms")]
+use external_services::kms;
+use external_services::kms::{self, Encrypted};
+use external_services::kms::{Decryptable, Decrypted, EncryptionState};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
-use storage_impl::config::QueueStrategy;
+use storage_impl::config::{Database, QueueStrategy};
 
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsConfig;
@@ -28,7 +31,7 @@ use crate::{
     events::EventsConfig,
 };
 #[cfg(feature = "aws_kms")]
-pub type Password = aws_kms::AwsKmsValue;
+pub type Password = kms::KmsValue;
 #[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
@@ -63,11 +66,12 @@ pub struct ActiveKmsSecrets {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct Settings {
+pub struct Settings<S: EncryptionState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
-    pub master_database: Database,
+    #[serde(flatten)]
+    pub master_database: Decryptable<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: Database,
     pub redis: RedisSettings,
@@ -86,8 +90,7 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
-    #[cfg(feature = "aws_kms")]
-    pub kms: aws_kms::AwsKmsConfig,
+    pub kms: kms::KmsConfig,
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
@@ -466,11 +469,11 @@ pub struct Secrets {
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_jwt_secret: aws_kms::AwsKmsValue,
+    pub kms_encrypted_jwt_secret: kms::KmsValue,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_admin_api_key: kms::KmsValue,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_recon_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -524,20 +527,20 @@ pub struct Server {
     pub shutdown_timeout: u64,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct Database {
-    pub username: String,
-    pub password: Password,
-    pub host: String,
-    pub port: u16,
-    pub dbname: String,
-    pub pool_size: u32,
-    pub connection_timeout: u64,
-    pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
-}
+// #[derive(Debug, Deserialize, Clone)]
+// #[serde(default)]
+// pub struct Database {
+//     pub username: String,
+//     pub password: Password,
+//     pub host: String,
+//     pub port: u16,
+//     pub dbname: String,
+//     pub pool_size: u32,
+//     pub connection_timeout: u64,
+//     pub queue_strategy: QueueStrategy,
+//     pub min_idle: Option<u32>,
+//     pub max_lifetime: Option<u64>,
+// }
 
 #[cfg(not(feature = "aws_kms"))]
 impl From<Database> for storage_impl::config::Database {
@@ -695,7 +698,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_hash_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_hash_key: kms::KmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
@@ -757,12 +760,14 @@ where
         .map_err(D::Error::custom)
 }
 
-impl Settings {
-    pub fn new() -> ApplicationResult<Self> {
+impl<S: EncryptionState + Deserialize<'static> + Default> Settings<S> {
+    pub fn new() -> ApplicationResult<Settings<Encrypted>> {
         Self::with_config_path(None)
     }
 
-    pub fn with_config_path(config_path: Option<PathBuf>) -> ApplicationResult<Self> {
+    pub fn with_config_path(
+        config_path: Option<PathBuf>,
+    ) -> ApplicationResult<Settings<Encrypted>> {
         // Configuration values are picked up in the following priority order (1 being least
         // priority):
         // 1. Defaults from the implementation of the `Default` trait.
@@ -804,7 +809,7 @@ impl Settings {
 
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
-        self.master_database.validate()?;
+        // self.master_database.validate()?;
         #[cfg(feature = "olap")]
         self.replica_database.validate()?;
         self.redis.validate().map_err(|error| {

@@ -3,15 +3,18 @@ use std::sync::Arc;
 use actix_web::{web, Scope};
 #[cfg(all(feature = "aws_kms", feature = "olap"))]
 use analytics::AnalyticsConfig;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
+use external_services::kms::{
+    self, decrypt::KmsDecrypt, no_encryption::NoEncryption, Decrypted, Decryption, Encryption,
+};
+use external_services::kms::{aws_kms, EncryptionScheme};
+use external_services::kms::{Encrypted, KmsConfig};
 #[cfg(all(feature = "olap", feature = "aws_kms"))]
 use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::MockDb;
+use storage_impl::{config::Database, MockDb};
 use tokio::sync::oneshot;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -40,6 +43,7 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::routes::fraud_check as frm_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
+use crate::Settings;
 pub use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
@@ -52,7 +56,7 @@ pub use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: Arc<settings::Settings>,
+    pub conf: Arc<Settings>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
@@ -62,6 +66,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
+    pub secret_management_client: Arc<EncryptionScheme>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -71,7 +76,7 @@ impl scheduler::SchedulerAppState for AppState {
 }
 
 pub trait AppStateInfo {
-    fn conf(&self) -> settings::Settings;
+    fn conf(&self) -> Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
@@ -83,7 +88,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> settings::Settings {
+    fn conf(&self) -> Settings {
         self.conf.as_ref().to_owned()
     }
     fn store(&self) -> Box<dyn StorageInterface> {
@@ -120,7 +125,7 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
+pub async fn create_email_client(settings: &settings::Settings<Encrypted>) -> impl EmailService {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
             AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
@@ -134,14 +139,14 @@ impl AppState {
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
         #[cfg_attr(not(all(feature = "olap", feature = "aws_kms")), allow(unused_mut))]
-        mut conf: settings::Settings,
+        mut conf: settings::Settings<Encrypted>,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         Box::pin(async move {
             #[cfg(feature = "aws_kms")]
-            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
+            let kms_client = Self::get_kms_client(&conf).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -149,23 +154,39 @@ impl AppState {
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");
+
+            let master_database = Database::decrypt(conf.master_database, &kms_client)
+                .await
+                .unwrap();
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
                         crate::db::KafkaStore::new(
                             #[allow(clippy::expect_used)]
-                            get_store(&conf.clone(), shut_down_signal, testable)
-                                .await
-                                .expect("Failed to create store"),
+                            get_store(
+                                &conf.clone(),
+                                shut_down_signal,
+                                testable,
+                                &kms_client,
+                                &master_database,
+                            )
+                            .await
+                            .expect("Failed to create store"),
                             kafka_client.clone(),
                         )
                         .await,
                     ),
                     EventsHandler::Logs(_) => Box::new(
                         #[allow(clippy::expect_used)]
-                        get_store(&conf, shut_down_signal, testable)
-                            .await
-                            .expect("Failed to create store"),
+                        get_store(
+                            &conf,
+                            shut_down_signal,
+                            testable,
+                            &kms_client,
+                            &master_database,
+                        )
+                        .await
+                        .expect("Failed to create store"),
                     ),
                 },
                 #[allow(clippy::expect_used)]
@@ -183,8 +204,8 @@ impl AppState {
                 AnalyticsConfig::Sqlx { ref mut sqlx }
                 | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
                 | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
-                    sqlx.password = aws_kms_client
-                        .decrypt(&sqlx.password.peek())
+                    sqlx.password = kms_client
+                        .decrypt(sqlx.password.peek())
                         .await
                         .expect("Failed to decrypt password")
                         .into();
@@ -196,7 +217,7 @@ impl AppState {
             {
                 conf.connector_onboarding = conf
                     .connector_onboarding
-                    .decrypt_inner(aws_kms_client)
+                    .decrypt_inner(&kms_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }
@@ -209,12 +230,17 @@ impl AppState {
             let kms_secrets = settings::ActiveKmsSecrets {
                 jwekey: conf.jwekey.clone().into(),
             }
-            .decrypt_inner(aws_kms_client)
+            .decrypt_inner(&kms_client)
             .await
             .expect("Failed while performing AWS KMS decryption");
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
+
+            let conf: Settings = Settings {
+                master_database,
+                ..conf
+            };
 
             Self {
                 flow_name: String::from("default"),
@@ -229,13 +255,14 @@ impl AppState {
                 #[cfg(feature = "olap")]
                 pool,
                 request_id: None,
+                secret_management_client: Arc::new(kms_client),
             }
         })
         .await
     }
 
     pub async fn new(
-        conf: settings::Settings,
+        conf: settings::Settings<Encrypted>,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
@@ -246,6 +273,16 @@ impl AppState {
             api_client,
         ))
         .await
+    }
+
+    async fn get_kms_client(conf: &settings::Settings<Encrypted>) -> EncryptionScheme {
+        match conf.kms {
+            #[cfg(feature = "aws_kms")]
+            KmsConfig::AwsKms { aws_kms } => EncryptionScheme::AwsKms {
+                client: aws_kms::get_aws_kms_client(&aws_kms).await,
+            },
+            KmsConfig::NoEncryption => EncryptionScheme::None(NoEncryption),
+        }
     }
 }
 

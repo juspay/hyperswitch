@@ -10,6 +10,7 @@ mod stream;
 mod types;
 mod utils;
 use std::sync::Arc;
+pub mod kms;
 
 use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;

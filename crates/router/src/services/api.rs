@@ -20,6 +20,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
+use external_services::kms::Encrypted;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
@@ -1295,7 +1296,7 @@ pub fn build_redirection_form(
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
     amount: String,
     currency: String,
-    config: Settings,
+    config: Settings<Encrypted>,
 ) -> maud::Markup {
     use maud::PreEscaped;
 
@@ -1567,7 +1568,7 @@ pub fn build_redirection_form(
 
                     // Initialize the ThreeDSService
                     const threeDS = gateway.get3DSecure();
-            
+
                     const options = {{
                         customerVaultId: '{customer_vault_id}',
                         currency: '{currency}',

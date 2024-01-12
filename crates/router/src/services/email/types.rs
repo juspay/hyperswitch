@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::ExposeInterface;
 
-use crate::{configs, consts};
+use crate::{configs, consts, Settings};
 #[cfg(feature = "olap")]
 use crate::{core::errors::UserErrors, services::jwt, types::domain};
 
@@ -56,7 +56,7 @@ pub struct EmailToken {
 impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
-        settings: &configs::settings::Settings,
+        settings: &Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(expiration_duration)?.as_secs();
@@ -82,7 +82,7 @@ pub fn get_link_with_token(
 
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<Settings>,
     pub subject: &'static str,
 }
 
@@ -112,7 +112,7 @@ impl EmailData for VerifyEmail {
 pub struct ResetPassword {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<Settings>,
     pub subject: &'static str,
 }
 
@@ -142,7 +142,7 @@ impl EmailData for ResetPassword {
 pub struct MagicLink {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<Settings>,
     pub subject: &'static str,
 }
 
@@ -172,7 +172,7 @@ impl EmailData for MagicLink {
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<Settings>,
     pub subject: &'static str,
 }
 

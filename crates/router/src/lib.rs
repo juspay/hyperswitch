@@ -29,6 +29,7 @@ use actix_web::{
     dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
 };
+use external_services::kms::{Decrypted, Encrypted};
 use http::StatusCode;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
@@ -37,6 +38,7 @@ use tokio::sync::{mpsc, oneshot};
 pub use self::env::logger;
 pub(crate) use self::macros::*;
 use crate::{configs::settings, core::errors};
+pub type Settings = configs::settings::Settings<Decrypted>;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -177,7 +179,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
+pub async fn start_server(conf: settings::Settings<Encrypted>) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();

@@ -26,6 +26,7 @@ use crate::{
         ErrorResponse,
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
+    Settings,
 };
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
@@ -920,7 +921,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
 }
 
 pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
-    conf: &settings::Settings,
+    conf: &Settings,
     merchant_id: &str,
 ) -> bool {
     let config_map = &conf
@@ -930,7 +931,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 }
 
 pub fn get_connector_request_reference_id(
-    conf: &settings::Settings,
+    conf: &Settings,
     merchant_id: &str,
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {

@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::AwsKmsValue;
+
+use external_services::kms::KmsValue;
+use storage_impl::config::Database;
 
 use super::settings::{ConnectorFields, Password, PaymentMethodType, RequiredFieldFinal};
 
@@ -15,23 +16,6 @@ impl Default for super::settings::Server {
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             base_url: "http://localhost:8080".into(),
             shutdown_timeout: 30,
-        }
-    }
-}
-
-impl Default for super::settings::Database {
-    fn default() -> Self {
-        Self {
-            username: String::new(),
-            password: Password::default(),
-            host: "localhost".into(),
-            port: 5432,
-            dbname: String::new(),
-            pool_size: 5,
-            connection_timeout: 10,
-            queue_strategy: Default::default(),
-            min_idle: None,
-            max_lifetime: None,
         }
     }
 }
@@ -5760,7 +5744,7 @@ impl Default for super::settings::ApiKeys {
     fn default() -> Self {
         Self {
             #[cfg(feature = "aws_kms")]
-            kms_encrypted_hash_key: AwsKmsValue::default(),
+            kms_encrypted_hash_key: KmsValue::default(),
 
             // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
             // hashes of API keys

@@ -1,4 +1,6 @@
 use drainer::{errors::DrainerResult, logger::logger, services, settings, start_drainer};
+use external_services::kms::Encrypted;
+use masking::PeekInterface;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -6,13 +8,26 @@ async fn main() -> DrainerResult<()> {
     let cmd_line = <settings::CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
-    let conf = settings::Settings::with_config_path(cmd_line.config_path)
+    let conf = settings::Settings::<Encrypted>::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     #[allow(clippy::expect_used)]
     conf.validate()
         .expect("Failed to validate drainer configuration");
 
-    let store = services::Store::new(&conf, false).await;
+    let state = settings::AppState::new(conf.clone()).await;
+
+    println!(
+        "db_pass_check: {:?}",
+        state
+            .conf
+            .master_database
+            .into_inner()
+            .password
+            .peek()
+            .clone()
+    );
+
+    let store = services::Store::new(&state, false).await;
     let store = std::sync::Arc::new(store);
 
     #[cfg(feature = "vergen")]

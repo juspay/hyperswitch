@@ -1,5 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use external_services::kms::Encrypted;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use masking::PeekInterface;
 
@@ -19,7 +20,7 @@ pub fn generate_exp(
 
 pub async fn generate_jwt<T>(
     claims_data: &T,
-    settings: &Settings,
+    settings: &Settings<Encrypted>,
 ) -> CustomResult<String, UserErrors>
 where
     T: serde::ser::Serialize,
@@ -27,7 +28,7 @@ where
     let jwt_secret = authentication::get_jwt_secret(
         &settings.secrets,
         #[cfg(feature = "aws_kms")]
-        external_services::aws_kms::get_aws_kms_client(&settings.kms).await,
+        &settings.kms.get_kms_client().await,
     )
     .await
     .change_context(UserErrors::InternalServerError)

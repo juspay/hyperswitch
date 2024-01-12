@@ -14,7 +14,7 @@ use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
+use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -3465,8 +3465,8 @@ impl ApplePayData {
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         #[cfg(feature = "aws_kms")]
-        let cert_data = aws_kms::get_aws_kms_client(&state.conf.kms)
-            .await
+        let cert_data = state
+            .secret_management_client
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
@@ -3524,9 +3524,8 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        #[cfg(feature = "aws_kms")]
-        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.kms)
-            .await
+        let decrypted_apple_pay_ppc_key = state
+            .secret_management_client
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;

@@ -3,8 +3,8 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+use external_services::kms::Encrypted;
+use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
@@ -97,7 +97,7 @@ impl AuthToken {
         user_id: String,
         merchant_id: String,
         role_id: String,
-        settings: &settings::Settings,
+        settings: &settings::Settings<Encrypted>,
         org_id: String,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
@@ -193,7 +193,7 @@ where
             api_keys::get_hash_key(
                 &config.api_keys,
                 #[cfg(feature = "aws_kms")]
-                aws_kms::get_aws_kms_client(&config.kms).await,
+                &config.kms.get_kms_client().await,
             )
             .await?
         };
@@ -252,7 +252,7 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &kms::EncryptionScheme,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
@@ -292,7 +292,7 @@ where
         let admin_api_key = get_admin_api_key(
             &conf.secrets,
             #[cfg(feature = "aws_kms")]
-            aws_kms::get_aws_kms_client(&conf.kms).await,
+            &conf.kms.get_kms_client().await,
         )
         .await?;
 
@@ -731,7 +731,7 @@ static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::On
 
 pub async fn get_jwt_secret(
     secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &kms::EncryptionScheme,
 ) -> RouterResult<&'static StrongSecret<String>> {
     JWT_SECRET
         .get_or_try_init(|| async {
@@ -759,7 +759,7 @@ where
     let secret = get_jwt_secret(
         &conf.secrets,
         #[cfg(feature = "aws_kms")]
-        aws_kms::get_aws_kms_client(&conf.kms).await,
+        &conf.kms.get_kms_client().await,
     )
     .await?
     .peek()

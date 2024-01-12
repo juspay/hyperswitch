@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ConfigExt;
-use storage_impl::errors::ApplicationError;
+use storage_impl::{config::Database, errors::ApplicationError};
 
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -71,36 +71,6 @@ impl super::settings::Server {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "server host must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::Database {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.host.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database host must not be empty".into(),
-            ))
-        })?;
-
-        when(self.dbname.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database name must not be empty".into(),
-            ))
-        })?;
-
-        when(self.username.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database user username must not be empty".into(),
-            ))
-        })?;
-
-        when(self.password.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database user password must not be empty".into(),
             ))
         })
     }

@@ -7,12 +7,13 @@ use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
 use router_env::logger;
-/// decrypting data using the AWS KMS SDK.
-pub mod decrypt;
 
-use crate::{consts, metrics};
+use crate::{
+    consts,
+    kms::{Encryption, KmsError},
+    metrics,
+};
 
 static AWS_KMS_CLIENT: tokio::sync::OnceCell<AwsKmsClient> = tokio::sync::OnceCell::const_new();
 
@@ -58,12 +59,12 @@ impl AwsKmsClient {
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
-    pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
+    pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
         let start = Instant::now();
         let data = consts::BASE64_ENGINE
             .decode(data)
             .into_report()
-            .change_context(AwsKmsError::Base64DecodingFailed)?;
+            .change_context(KmsError::Base64DecodingFailed)?;
         let ciphertext_blob = Blob::new(data);
 
         let decrypt_output = self
@@ -81,16 +82,16 @@ impl AwsKmsClient {
                 error
             })
             .into_report()
-            .change_context(AwsKmsError::DecryptionFailed)?;
+            .change_context(KmsError::DecryptionFailed)?;
 
         let output = decrypt_output
             .plaintext
-            .ok_or(AwsKmsError::MissingPlaintextDecryptionOutput)
+            .ok_or(KmsError::MissingPlaintextDecryptionOutput)
             .into_report()
             .and_then(|blob| {
                 String::from_utf8(blob.into_inner())
                     .into_report()
-                    .change_context(AwsKmsError::Utf8DecodingFailed)
+                    .change_context(KmsError::Utf8DecodingFailed)
             })?;
 
         let time_taken = start.elapsed();
@@ -103,7 +104,7 @@ impl AwsKmsClient {
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
-    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
+    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
         let start = Instant::now();
         let plaintext_blob = Blob::new(data.as_ref());
 
@@ -122,11 +123,11 @@ impl AwsKmsClient {
                 error
             })
             .into_report()
-            .change_context(AwsKmsError::EncryptionFailed)?;
+            .change_context(KmsError::EncryptionFailed)?;
 
         let output = encrypted_output
             .ciphertext_blob
-            .ok_or(AwsKmsError::MissingCiphertextEncryptionOutput)
+            .ok_or(KmsError::MissingCiphertextEncryptionOutput)
             .into_report()
             .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
@@ -134,42 +135,6 @@ impl AwsKmsClient {
 
         Ok(output)
     }
-}
-
-/// Errors that could occur during AWS KMS operations.
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    /// An error occurred when base64 encoding input data.
-    #[error("Failed to base64 encode input data")]
-    Base64EncodingFailed,
-
-    /// An error occurred when base64 decoding input data.
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-
-    /// An error occurred when AWS KMS decrypting input data.
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-
-    /// An error occurred when AWS KMS encrypting input data.
-    #[error("Failed to AWS KMS encrypt input data")]
-    EncryptionFailed,
-
-    /// The AWS KMS decrypted output does not include a plaintext output.
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-
-    /// The AWS KMS encrypted output does not include a ciphertext output.
-    #[error("Missing ciphertext AWS KMS encryption output")]
-    MissingCiphertextEncryptionOutput,
-
-    /// An error occurred UTF-8 decoding AWS KMS decrypted output.
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
-
-    /// The AWS KMS client has not been initialized.
-    #[error("The AWS KMS client has not been initialized")]
-    AwsKmsClientNotInitialized,
 }
 
 impl AwsKmsConfig {
@@ -187,14 +152,16 @@ impl AwsKmsConfig {
     }
 }
 
-/// A wrapper around a AWS KMS value that can be decrypted.
-#[derive(Clone, Debug, Default, serde::Deserialize, Eq, PartialEq)]
-#[serde(transparent)]
-pub struct AwsKmsValue(Secret<String>);
+#[async_trait::async_trait]
+impl Encryption<String, String> for AwsKmsClient {
+    type ReturnType<T> = error_stack::Result<T, KmsError>;
 
-impl common_utils::ext_traits::ConfigExt for AwsKmsValue {
-    fn is_empty_after_trim(&self) -> bool {
-        self.0.peek().is_empty_after_trim()
+    async fn encrypt(&self, input: String) -> Self::ReturnType<String> {
+        self.encrypt(input).await
+    }
+
+    async fn decrypt(&self, input: String) -> Self::ReturnType<String> {
+        self.encrypt(input).await
     }
 }
 

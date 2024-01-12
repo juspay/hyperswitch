@@ -3,7 +3,8 @@ use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
+use external_services::kms;
+use external_services::kms::Encryption;
 
 use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
 
@@ -13,7 +14,7 @@ pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
     _req: &actix_web::HttpRequest,
     body: verifications::ApplepayMerchantVerificationRequest,
-    kms_config: &aws_kms::AwsKmsConfig,
+    kms_config: &kms::EncryptionScheme,
     merchant_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<ApplepayMerchantResponse>,
@@ -27,20 +28,20 @@ pub async fn verify_merchant_creds_for_applepay(
     let encrypted_key = &state.conf.applepay_merchant_configs.merchant_cert_key;
     let applepay_endpoint = &state.conf.applepay_merchant_configs.applepay_endpoint;
 
-    let applepay_internal_merchant_identifier = aws_kms::get_aws_kms_client(kms_config)
-        .await
+    let applepay_internal_merchant_identifier = state
+        .secret_management_client
         .decrypt(encrypted_merchant_identifier)
         .await
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    let cert_data = aws_kms::get_aws_kms_client(kms_config)
-        .await
+    let cert_data = state
+        .secret_management_client
         .decrypt(encrypted_cert)
         .await
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    let key_data = aws_kms::get_aws_kms_client(kms_config)
-        .await
+    let key_data = state
+        .secret_management_client
         .decrypt(encrypted_key)
         .await
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;

@@ -34,6 +34,9 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
+    let db_name = conf.master_database.inner.clone();
+    println!("db_check: {:?}", db_name);
+
     #[cfg(feature = "vergen")]
     println!("Starting router (Version: {})", router_env::git_tag!());
 
