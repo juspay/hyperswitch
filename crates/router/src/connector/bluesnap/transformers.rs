@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 
 use api_models::{enums as api_enums, payments};
@@ -21,7 +20,11 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom}},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
     utils::{Encode, OptionExt},
 };
 
@@ -261,7 +264,9 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             _ => BluesnapTxnType::AuthCapture,
         };
         let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Some( BluesnapMetadata {meta_data : Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()) }),
+            Some(metadata) => Some(BluesnapMetadata {
+                meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+            }),
             None => None,
         };
 
@@ -617,9 +622,11 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Some( BluesnapMetadata {meta_data : Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()) }),
+            Some(metadata) => Some(BluesnapMetadata {
+                meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+            }),
 
-            None => None
+            None => None,
         };
 
         let pf_token = item
@@ -1159,9 +1166,9 @@ impl ForeignFrom<Value> for Vec<RequestMetadata> {
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
             vector.push(RequestMetadata {
-                meta_key : key,
+                meta_key: key,
                 meta_value: value.map(|field_value| field_value.to_string()),
-                is_visible: Some("Y".to_string())
+                is_visible: Some("Y".to_string()),
             });
         }
         vector
