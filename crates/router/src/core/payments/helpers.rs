@@ -986,7 +986,7 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    // Increment the count of added tasks every time a payment has been confirmed or PSync has been called
+                    // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
                     metrics::TASKS_ADDED_COUNT.add(
                         &metrics::CONTEXT,
                         1,
